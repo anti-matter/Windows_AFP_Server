@@ -1,0 +1,197 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#ifndef APSTUDIO_INVOKED
+#include "targetver.h"
+#endif
+#define APSTUDIO_HIDDEN_SYMBOLS
+#include "windows.h"
+#include "winres.h"
+#undef APSTUDIO_HIDDEN_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_TRAYICON            ICON                    "afpServer.Ico"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_MAIN_DIALOG DIALOGEX 0, 0, 449, 246
+STYLE DS_SETFONT | DS_3DLOOK | DS_CENTER | WS_POPUP | WS_CAPTION
+CAPTION "Personal AFP Server Configuration"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
+BEGIN
+    DEFPUSHBUTTON   "Done",IDC_CLOSE,392,225,50,14
+    GROUPBOX        "Login Message",IDC_STATIC,7,155,253,83
+    EDITTEXT        IDC_LOGIN_MSG,17,192,233,38,ES_MULTILINE | ES_AUTOVSCROLL
+    CONTROL         "Allow guests to login",IDC_ALLOW_GUESTS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,279,56,80,10
+    LTEXT           "Maximum simultaneous connections:",IDC_STATIC,279,94,118,8
+    EDITTEXT        IDC_MAX_CONNECTIONS,397,92,34,14,ES_AUTOHSCROLL | ES_NUMBER
+    GROUPBOX        "Shares",IDC_STATIC,7,41,253,107
+    LISTBOX         IDC_SHARES,18,56,158,54,LBS_SORT | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "New",IDC_NEWVOLUME,193,67,50,14
+    PUSHBUTTON      "Remove",IDC_REMOVEVOL,193,84,50,14
+    PUSHBUTTON      "Send Message",IDC_SENDMSG,316,123,76,14
+    LTEXT           "This is the message clients will receive each time they log into the Server. Your message may contain up to 199 characters.",IDC_STATIC,18,168,230,21
+    PUSHBUTTON      "Shutdown Server",IDC_QUITBUTTON,302,166,104,14
+    RTEXT           "Version 1.0",IDC_STATIC,382,7,60,10
+    GROUPBOX        "Users",IDC_STATIC,268,41,174,107
+    LTEXT           "No share selected",IDC_VOLPATH,18,118,235,8
+    CONTROL         "Volume is read only",IDC_VOLREADONLY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,18,132,77,10
+    CONTROL         "Disable clear text logins (require encryption)",IDC_REQ_ENCRYPTION,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,279,70,156,10
+    CONTROL         115,IDC_STATIC,"Static",SS_BITMAP,7,7,191,33
+    PUSHBUTTON      "About",IDC_ABOUT,302,186,104,14
+END
+
+IDD_SENDMESSAGE DIALOGEX 0, 0, 236, 161
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Send Message"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "SEND",IDOK,179,140,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,120,140,50,14
+    GROUPBOX        "Send Client Message",IDC_STATIC,7,7,222,126
+    LTEXT           "The message below will be sent to all connected clients.",IDC_STATIC,14,23,189,12
+    EDITTEXT        IDC_MESSAGE,14,38,208,86,ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | WS_VSCROLL
+END
+
+IDD_ABOUT DIALOGEX 0, 0, 289, 124
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | DS_CENTER | WS_POPUP
+EXSTYLE WS_EX_TOPMOST
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,227,100,55,18
+    CONTROL         115,IDC_STATIC,"Static",SS_BITMAP | SS_CENTERIMAGE,47,7,191,33
+    GROUPBOX        "",IDC_STATIC,26,42,239,52
+    CTEXT           "Version 1.0\nCopyright (c) 2009, SomeGuy Software.",IDC_STATIC,34,51,224,21
+    CTEXT           "A personal Apple Filing Protocol (AFP) server for Windows.",IDC_STATIC,31,79,228,8
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO 
+BEGIN
+    IDD_MAIN_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 442
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 239
+    END
+
+    IDD_SENDMESSAGE, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 229
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 154
+    END
+
+    IDD_ABOUT, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 282
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 118
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDB_BITMAP1             BITMAP                  "logo.bmp"
+IDB_BITMAP2             BITMAP                  "Logo2.bmp"
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE 
+BEGIN
+    IDS_STRING_SHUTDOWNMSG  "Shutting down the AFP server may result in data loss to connected clients. Are you sure you want to shutdown the server now?"
+    IDS_STRING_SHUTDOWNCONFIRM "Server Shutdown Confirmation"
+    IDS_STOPSHARINGWARN     "Please confirm that you wish to stop sharing the volume: "
+END
+
+STRINGTABLE 
+BEGIN
+    IDS_STOPSHARINGCONFIRM  "Stop Sharing Confirmation"
+    IDS_STOPSHARINGERR      "There was a failure removing the volume (it may be in use)."
+    IDS_STOPSHARINTERRTITLE "Remove Volume Error"
+    IDS_OFFLINEFORINDEXING  " (Offline for indexing...)"
+END
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

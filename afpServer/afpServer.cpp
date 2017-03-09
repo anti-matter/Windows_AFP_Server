@@ -1,0 +1,889 @@
+// afpServer.cpp : Defines the entry point for the application.
+//
+
+#include "stdafx.h"
+#include "afpServer.h"
+
+#include "dsi.h"
+#include "afp.h"
+#include "afphelp.h"
+#include "desktop.h"
+#include "volumes.h"
+#include "afpdebug.h"
+#include "afpworker.h"
+#include "sendmsgdlg.h"
+#include "addshare.h"
+#include "aboutdlg.h"
+
+#include "LRegistry.h"
+#include "Resource.h"
+
+#include <windows.h>
+#include <shellapi.h>
+#include <shlobj.h>
+#include <strsafe.h>
+
+#include "afpEvents.h"
+
+#undef	AFP_HASVOL_PASSWORD_SUPPORT
+
+#define AFP_ICON_UID		IDI_TRAYICON
+#define AFP_TOOL_TIP		TEXT("Personal AFP Server Configuration")
+
+HINSTANCE	ghInstance;
+BOOL		gMainWindowVisible;
+
+extern CRITICAL_SECTION	gVolumesCS;
+extern PAFP_VOLUME_INFO	gVolumes;
+extern BOOL				gAllowGuests;
+extern DWORD			gMaxSessions;
+extern BOOL				gForceEncryptedLogon;
+
+void FillVolumeListBox(
+    IN	HWND	hDlg
+);
+
+//---------------------------------------------------------------------
+// InitializeTrayIcon()
+//---------------------------------------------------------------------
+// Initializes the tray icon. The tray icon is used to open our settings
+// dialog and perform operations on the afp server.
+//
+
+void InitializeTrayIcon(
+    IN	HWND		hDialog
+)
+{
+    NOTIFYICONDATA	nid;
+    HICON			hIcon;
+
+    hIcon = (HICON)LoadImage(
+                        ghInstance,
+                        MAKEINTRESOURCE(IDI_TRAYICON),
+                        IMAGE_ICON,
+                        32,
+                        32,
+                        0);
+
+    nid.cbSize				= sizeof(NOTIFYICONDATA);
+    nid.hWnd				= hDialog;
+    nid.uID					= AFP_ICON_UID;
+    nid.uFlags				= NIF_MESSAGE | NIF_ICON | NIF_TIP;
+    nid.uCallbackMessage	= AFPWM_NOTIFYICON;
+    nid.hIcon				= hIcon;
+
+    StringCbCopy(nid.szTip, sizeof(nid.szTip), AFP_TOOL_TIP);
+
+    Shell_NotifyIcon(NIM_ADD, &nid);
+
+    if (hIcon)
+        DestroyIcon(hIcon);
+}
+
+
+//---------------------------------------------------------------------
+// RemoveTrayIcon()
+//---------------------------------------------------------------------
+// We're shutting down, so remove the tray icon.
+//
+
+void RemoveTrayIcon(
+    IN	HWND	hDialog
+)
+{
+    NOTIFYICONDATA	nid;
+
+    nid.cbSize				= sizeof(NOTIFYICONDATA);
+    nid.hWnd				= hDialog;
+    nid.uID					= AFP_ICON_UID;
+    nid.uFlags				= 0;
+
+    Shell_NotifyIcon(NIM_DELETE, &nid);
+}
+
+
+//---------------------------------------------------------------------
+// FillLogonMessageBox()
+//---------------------------------------------------------------------
+// Self explanatory.
+//
+
+void FillLogonMessageBox(
+    IN	HWND	hDlg
+)
+{
+    TCHAR		szMessage[AFP_MSG_MAXLEN+sizeof(TCHAR)];
+    LRegistry	theRegistry;
+
+    //
+    //Tell the edit box to only allow AFP_MSG_MAXLEN characters
+    //
+    SendDlgItemMessage(hDlg, IDC_LOGIN_MSG, EM_LIMITTEXT, AFP_MSG_MAXLEN, 0);
+
+    if (theRegistry.GetLogonMessage(szMessage) == NO_ERROR)
+    {
+        //
+        //Set our current logon message in the edit field.
+        //
+        SendDlgItemMessage(hDlg, IDC_LOGIN_MSG, WM_SETTEXT,
+                                    (WPARAM)AFP_MSG_MAXLEN, (LPARAM)szMessage);
+    }
+}
+
+
+//---------------------------------------------------------------------
+// UpdateVolCaption()
+//---------------------------------------------------------------------
+// The user clicked the volume list box, update the volume path info
+// and such.
+//
+
+void UpdateVolCaption(HWND hParent)
+{
+    LRESULT	dwResult	= 0;
+    TCHAR	szShareName[MAX_PATH];
+
+    //
+    //First, send a message to the volume listbox to get the currently
+    //selected cell.
+    //
+    dwResult = SendDlgItemMessage(hParent, IDC_SHARES, LB_GETCURSEL, 0, 0);
+
+    if (dwResult != LB_ERR)
+    {
+        WCHAR		szTempName[33];
+        WCHAR		szTempPath[MAX_PATH];
+        WCHAR		szPassword[16];
+        LRegistry	theRegistry;
+        DWORD		volFlags = 0;
+
+        //Send a message to the volume list box and ask for the
+        //string. This string is the full path to the share.
+        //
+        dwResult = SendDlgItemMessage(hParent, IDC_SHARES, LB_GETTEXT, dwResult, (LPARAM)szShareName);
+
+        if (dwResult != LB_ERR)
+        {
+            if (theRegistry.OpenVolumeListRegKey())
+            {
+                while(theRegistry.NextVolume(
+                                    szTempName,
+                                    sizeof(szTempName),
+                                    szTempPath,
+                                    sizeof(szTempPath),
+                                    (PCHAR)szPassword,
+                                    &volFlags)			)
+                {
+                    if (!lstrcmp(szTempName, szShareName))
+                    {
+                        SendDlgItemMessage(hParent, IDC_VOLPATH, WM_SETTEXT, 0, (LPARAM)szTempPath);
+
+                        //
+                        //See if the volume is set to read only. Set the checkbox
+                        //to the correct value.
+                        //
+                        if (volFlags & FLAG_VOLUME_READONLY) {
+                            CheckDlgButton(hParent, IDC_VOLREADONLY, TRUE);
+                        }
+                        else {
+                            CheckDlgButton(hParent, IDC_VOLREADONLY, FALSE);
+                        }
+
+                        //
+                        //Volume password support was removed in AppleShare 3.8. It
+                        //does not exist in OS X either so we don't need to support
+                        //it.
+                        //
+                        #ifdef AFP_HASVOL_PASSWORD_SUPPORT
+                        //
+                        //If there's a volume password, fill in the edit field.
+                        //
+                        memset(szPassword, 0, sizeof(szPassword));
+                        
+                        if (volFlags & FLAG_VOLUME_HASPASSWORD) {
+
+                            theRegistry.GetVolumePassword(szShareName, sizeof(szPassword), szPassword);
+                        }
+
+                        SendDlgItemMessage(hParent, IDC_EDITPSWD, WM_SETTEXT, 0, (LPARAM)szPassword);
+
+                        break;
+                        #endif
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+//---------------------------------------------------------------------
+// DoRemoveVolume()
+//---------------------------------------------------------------------
+// Put up UI so the user can add a new volume to the share list.
+//
+
+void DoRemoveVolume(HWND hParent)
+{
+    DWORD	dwError		= NO_ERROR;
+    LRESULT	dwResult	= 0;
+    int		dlgResult	= 0;
+    WCHAR	szDlgText[512];
+    WCHAR	szTxtBody[64];
+    WCHAR	szDlgTitle[64];
+    WCHAR	szSharename[MAX_PATH];
+
+    //
+    //First, send a message to the volume listbox to get the currently
+    //selected cell.
+    //
+    dwResult = SendDlgItemMessage(hParent, IDC_SHARES, LB_GETCURSEL, 0, 0);
+
+    //
+    //If no cell is selected, LB_ERR is returned and we don't do anything.
+
+    if (dwResult != LB_ERR)
+    {
+        //
+        //Send a message to the volume list box and ask for the
+        //string. This string is the name of the share.
+        //
+        dwResult = SendDlgItemMessage(hParent, IDC_SHARES, LB_GETTEXT, dwResult, (LPARAM)szSharename);
+
+        if (dwResult == LB_ERR)
+        {
+            DBGWRITE(DbgLevelInfo, L"[MAIN]Bad list offset removing volume\n");
+            return;
+        }
+
+        LoadString(ghInstance, IDS_STOPSHARINGWARN, szTxtBody, sizeof(szTxtBody)/sizeof(WCHAR));
+        LoadString(ghInstance, IDS_STOPSHARINGCONFIRM, szDlgTitle, sizeof(szDlgTitle)/sizeof(WCHAR));
+
+        StringCbPrintf(szDlgText, sizeof(szDlgText), L"%s %s", szTxtBody, szSharename);
+        
+        dlgResult = MessageBox(hParent, szDlgText, szDlgTitle, MB_OKCANCEL);
+        
+        if (dlgResult != IDCANCEL)
+        {
+            DBGWRITE(DbgLevelInfo, L"[MAIN]Removing volume: %s\n", szSharename);
+
+            //
+            //Call the volume API that will unshare the volume and remove the
+            //volume from the registry.
+            //
+            dwError = AFPRemoveVolumeFromUI(szSharename);
+
+            if (dwError != NO_ERROR)
+            {
+                LoadString(ghInstance, IDS_STOPSHARINGERR, szTxtBody, sizeof(szTxtBody)/sizeof(WCHAR));
+                LoadString(ghInstance, IDS_STOPSHARINTERRTITLE, szDlgTitle, sizeof(szDlgTitle)/sizeof(WCHAR));
+
+                MessageBox(hParent, szTxtBody, szDlgTitle, MB_OK);
+
+                DBGWRITE(DbgLevelInfo, L"[MAIN]Removing volume failed! (%d)\n", dwError);
+                return;
+            }
+
+            //
+            //Refreshing the volume list box will remove the item from
+            //the list easily.
+            //
+            SendDlgItemMessage(hParent, IDC_SHARES, LB_RESETCONTENT, 0, 0);
+            FillVolumeListBox(hParent);
+        }
+    }
+}
+
+
+//---------------------------------------------------------------------
+// SaveLogonMessage()
+//---------------------------------------------------------------------
+// Self explanatory.
+//
+
+void SaveLogonMessage(
+    IN	HWND	hDlg
+)
+{
+    TCHAR		szMessage[AFP_MSG_MAXLEN+sizeof(TCHAR)];
+    LRegistry	theRegistry;
+
+    //
+    //Set our current logon message in the edit field.
+    //
+    SendDlgItemMessage(hDlg, IDC_LOGIN_MSG, WM_GETTEXT,
+                                (WPARAM)AFP_MSG_MAXLEN, (LPARAM)szMessage);
+
+    theRegistry.SaveLogonMessage(szMessage);
+}
+
+
+//---------------------------------------------------------------------
+// FillVolumeListBox()
+//---------------------------------------------------------------------
+// Returns the number of volumes the server is sharing.
+//
+
+void FillVolumeListBox(
+    IN	HWND	hDlg
+)
+{
+    TCHAR				szShareName[64] = { 0 };
+    TCHAR				szTemp[64] = { 0 };
+    TCHAR				szSharePath[MAX_PATH] = { 0 };
+    PassWord			szPassword = { 0 };
+    WCHAR				firstPassword[16] = { 0 };
+    DWORD				volFlags = 0;
+    DWORD				firstFlags = 0;
+    LRegistry			theRegistry;
+    PAFP_VOLUME_INFO	afpVolumeInfo = NULL;
+    WORD				count = 0;
+
+    SendDlgItemMessage(hDlg, IDC_SHARES, LB_SETCURSEL, (WPARAM)0, (LPARAM)0);
+    
+    memset(firstPassword, 0, sizeof(firstPassword));
+
+    if (theRegistry.OpenVolumeListRegKey())
+    {
+        while(theRegistry.NextVolume(
+                                    szShareName,
+                                    sizeof(szShareName),
+                                    szSharePath,
+                                    sizeof(szSharePath),
+                                    (PCHAR)szPassword,
+                                    &volFlags)			)
+        {
+            if (count == 0)
+            {
+                LRegistry	vReg;
+
+                vReg.GetVolumePassword(szShareName, sizeof(firstPassword), firstPassword);
+                firstFlags = volFlags;
+            }
+            
+            count++;
+
+            DBGWRITE(DbgLevelInfo, L"[SRVR]Adding volume to list (%s)\n", szShareName);
+
+            //
+            //See if the volume is still indexing. If so, then we append a
+            //status message to the volume name.
+            //
+            if (AFPGetVolumeInfoBlock(szShareName, 0, &afpVolumeInfo))
+            {
+                if ((afpVolumeInfo->wVolumeFlags & FLAG_VOLUME_INDEXINGCOMPLETE) == 0)
+                {
+                    //
+                    //Indexing is not complete, so add the status message.
+                    //
+                    LoadString(ghInstance, IDS_OFFLINEFORINDEXING, szTemp, sizeof(szTemp)/sizeof(TCHAR));
+                    StringCbCat(szShareName, sizeof(szShareName), szTemp);
+                }
+            }
+
+            //
+            //Now add the volume to our volume index and initialize it.
+            //
+            SendDlgItemMessage(hDlg, IDC_SHARES, LB_ADDSTRING, 0, (LPARAM)szShareName);
+        }
+
+        SendDlgItemMessage(hDlg, IDC_SHARES, LB_SETCURSEL, (WPARAM)0, (LPARAM)0);
+
+        if (firstFlags & FLAG_VOLUME_READONLY) {
+            CheckDlgButton(hDlg, IDC_VOLREADONLY, TRUE);
+        }
+        else {
+            CheckDlgButton(hDlg, IDC_VOLREADONLY, FALSE);
+        }
+
+        #ifdef AFP_HASVOL_PASSWORD_SUPPORT
+        SendDlgItemMessage(hDlg, IDC_EDITPSWD, WM_SETTEXT, 0, (LPARAM)firstPassword);
+        #endif
+    }
+}
+
+
+//---------------------------------------------------------------------
+// SetMiscDialogItems()
+//---------------------------------------------------------------------
+// Self explanatory.
+//
+
+void SetMiscDialogItems(
+    IN	HWND	hDlg
+)
+{
+    BOOL		fAllowGuest		= true;
+    BOOL		fEncrypt		= false;
+    DWORD		dwMaxSessions	= 0;
+    LRegistry	theRegistry;
+
+    if (theRegistry.GetAllowGuestsSetting(&fAllowGuest) == NO_ERROR)
+    {
+        if (fAllowGuest)
+        {
+            CheckDlgButton(hDlg, IDC_ALLOW_GUESTS, true);
+        }
+    }
+    
+    if (theRegistry.GetForceEncryptedLogon(&fEncrypt) == NO_ERROR)
+    {
+        if (fEncrypt)
+        {
+            CheckDlgButton(hDlg, IDC_REQ_ENCRYPTION, true);
+        }
+    }
+    
+    theRegistry.GetMaxSessions(&dwMaxSessions);
+    SetDlgItemInt(hDlg, IDC_MAX_CONNECTIONS, dwMaxSessions, false);
+
+    gAllowGuests = fAllowGuest;
+    gMaxSessions = dwMaxSessions;
+}
+
+
+//---------------------------------------------------------------------
+// SaveGuestSettings()
+//---------------------------------------------------------------------
+// Self explanatory.
+//
+
+void SaveMiscSettings(
+    IN	HWND	hDlg
+)
+{
+    LRegistry	theRegistry;
+    DWORD		dwMaxSessions;
+    BOOL		fTranslated;
+
+    if (IsDlgButtonChecked(hDlg, IDC_ALLOW_GUESTS))
+    {
+        theRegistry.SetAllowGuestsSetting(true);
+        gAllowGuests = true;
+    }
+    else
+    {
+        theRegistry.SetAllowGuestsSetting(false);
+        gAllowGuests = false;
+    }
+    
+    if (IsDlgButtonChecked(hDlg, IDC_REQ_ENCRYPTION))
+    {
+        theRegistry.SetForceEncryptedLogon(true);
+        gForceEncryptedLogon = true;
+    }
+    else
+    {
+        theRegistry.SetForceEncryptedLogon(false);
+        gForceEncryptedLogon = false;
+    }
+
+    dwMaxSessions = GetDlgItemInt(hDlg, IDC_MAX_CONNECTIONS, &fTranslated, false);
+    theRegistry.SetMaxSessions(dwMaxSessions);
+
+    gMaxSessions = dwMaxSessions;
+}
+
+
+#ifdef AFP_HASVOL_PASSWORD_SUPPORT
+//---------------------------------------------------------------------
+// SaveVolPassword()
+//---------------------------------------------------------------------
+// Save the volume password.
+//
+void SaveVolPassword(
+    IN	HWND	hDlg
+)
+{
+    WCHAR				pass[16];
+    WCHAR				share[64];
+    LRegistry			theRegistry;
+    DWORD				dwResult;
+    DWORD				volFlags;
+    PAFP_VOLUME_INFO	afpVolume	= NULL;
+
+    //
+    //First, send a message to the volume listbox to get the currently
+    //selected cell.
+    //
+    dwResult = SendDlgItemMessage(hDlg, IDC_SHARES, LB_GETCURSEL, 0, 0);
+
+    if (dwResult != LB_ERR)
+    {
+        //
+        //Send a message to the volume list box and ask for the
+        //string. This string is the share name.
+        //
+        dwResult = SendDlgItemMessage(hDlg, IDC_SHARES, LB_GETTEXT, dwResult, (LPARAM)share);
+
+        if ((dwResult != LB_ERR) && (AFPGetVolumeInfoBlock(share, 0, &afpVolume)))
+        {
+            SendDlgItemMessage(hDlg, IDC_EDITPSWD, WM_GETTEXT, (WPARAM)sizeof(pass), (LPARAM)pass);
+            theRegistry.SetVolumePassword(share, pass);
+
+            theRegistry.GetVolumeFlags(share, &volFlags);
+
+            if (lstrlen(pass) > 0)
+            {
+                volFlags				|= FLAG_VOLUME_HASPASSWORD;
+                afpVolume->wVolumeFlags |= FLAG_VOLUME_HASPASSWORD;
+            }
+            else
+            {
+                volFlags				&= ~FLAG_VOLUME_HASPASSWORD;
+                afpVolume->wVolumeFlags	&= ~FLAG_VOLUME_HASPASSWORD;
+            }
+
+            theRegistry.SetVolumeFlags(share, volFlags);
+        }
+    }
+}
+#endif
+
+//---------------------------------------------------------------------
+// HandleROCheckbox()
+//---------------------------------------------------------------------
+// Handle the volume read only checkbox.
+//
+
+void HandleROCheckbox(
+    IN	HWND	hDlg
+)
+{
+    LRegistry			theRegistry;
+    WCHAR				szShareName[64];
+    PAFP_VOLUME_INFO	afpVolume	= NULL;
+    LRESULT				dwResult	= 0;
+    DWORD				volFlags	= 0;
+
+    //
+    //First, send a message to the volume listbox to get the currently
+    //selected cell.
+    //
+    dwResult = SendDlgItemMessage(hDlg, IDC_SHARES, LB_GETCURSEL, 0, 0);
+
+    if (dwResult != LB_ERR)
+    {
+        //
+        //Send a message to the volume list box and ask for the
+        //string. This string is the share name.
+        //
+        dwResult = SendDlgItemMessage(hDlg, IDC_SHARES, LB_GETTEXT, dwResult, (LPARAM)szShareName);
+
+        if (dwResult != LB_ERR)
+        {
+            if ((theRegistry.GetVolumeFlags(szShareName, &volFlags) == ERROR_SUCCESS)	&&
+                (AFPGetVolumeInfoBlock(szShareName, 0, &afpVolume))						)
+            {
+                //
+                //Note that we set 2 different flags. The reason we do this is because there
+                //is a difference between flags in memory and flags on disk. Flags on disk must
+                //ignore the first 2 bits in the bitmap.
+                //
+                if (IsDlgButtonChecked(hDlg, IDC_VOLREADONLY))
+                {
+                    DBGWRITE(DbgLevelInfo, L"[MAIN]Setting RO to true\n");
+
+                    volFlags				|= FLAG_VOLUME_READONLY;
+                    afpVolume->wVolumeFlags |= FLAG_VOLUME_READONLY;
+                }
+                else
+                {
+                    DBGWRITE(DbgLevelInfo, L"[MAIN]Setting RO to false\n");
+
+                    volFlags				&= ~FLAG_VOLUME_READONLY;
+                    afpVolume->wVolumeFlags &= ~FLAG_VOLUME_READONLY;
+                }
+
+                theRegistry.SetVolumeFlags(szShareName, volFlags);
+            }
+        }
+    }
+}
+
+
+//---------------------------------------------------------------------
+// ServerShutdown()
+//---------------------------------------------------------------------
+// The user is requesting shutdown. Do it only after verifying that's
+// what they want to do.
+//
+
+void ServerShutdown(
+    IN	HWND	hDlg
+)
+{
+    int	dlgResult = 0;
+    WCHAR	szDlgMsg[512];
+    WCHAR	szDlgTitle[128];
+
+    LoadString(ghInstance, IDS_STRING_SHUTDOWNMSG, szDlgMsg, sizeof(szDlgMsg));
+    LoadString(ghInstance, IDS_STRING_SHUTDOWNCONFIRM, szDlgTitle, sizeof(szDlgTitle));
+
+    dlgResult = MessageBox(hDlg, szDlgMsg, szDlgTitle, MB_OKCANCEL);
+    
+    if (dlgResult != IDCANCEL)
+    {
+        //
+        //Shutdown the afp server by calling a routine that will
+        //wait until shutdown is complete.
+        //
+        DSIShutdown();
+        AFPRemoveAllVolumes();
+
+        //
+        //We're shutting down, so remove the tray icon from the
+        //taskbar at this time.
+        //
+        RemoveTrayIcon(hDlg);
+
+        //
+        //Make the final event log entry that we're going away.
+        //
+        EventWriteAFPServerEvt_ServerHasShutdown(L"");
+
+        //
+        //Unregister our events provider, found in SGAFPServerEvents.h
+        //
+        EventUnregisterAFPServer();
+
+        //
+        //Send the app quit message from here.
+        //
+        PostQuitMessage(0);
+    }
+}
+
+
+//---------------------------------------------------------------------
+// MainDialogProc()
+//---------------------------------------------------------------------
+// Self explanatory.
+//
+
+BOOL CALLBACK MainDialogProc(
+    IN	HWND	hDlg,
+    IN	UINT	uMsg,
+    IN	WPARAM	wParam,
+    IN	LPARAM	lParam
+)
+{
+    switch(uMsg)
+    {
+        case WM_INITDIALOG:
+            ShowWindow(hDlg, SW_HIDE);
+            InitializeTrayIcon(hDlg);
+
+            AFPInitializeWorkerThread(hDlg);
+            AFPInitializeVolumes();
+            AFPInitDesktop();
+
+            DSIInit();
+    
+            FillLogonMessageBox(hDlg);
+            SetMiscDialogItems(hDlg);
+            break;
+
+        case WM_DESTROY:
+            break;
+
+        case WM_COMMAND:
+            switch(LOWORD(wParam))
+            {
+                case IDC_QUITBUTTON:
+                    ServerShutdown(hDlg);
+                    break;
+                    
+                case IDC_ABOUT:
+                    AboutDialog(hDlg);
+                    break;
+
+                case IDC_CLOSE:
+                    SaveLogonMessage(hDlg);
+                    SaveMiscSettings(hDlg);
+                    SendDlgItemMessage(hDlg, IDC_SHARES, LB_RESETCONTENT, 0, 0);
+                    ShowWindow(hDlg, SW_HIDE);
+                    
+                    //
+                    //Signal that the window is now closed so we'll draw into
+                    //it the next time.
+                    //
+                    gMainWindowVisible = false;
+                    break;
+
+                case IDC_NEWVOLUME:
+                    AddShare(hDlg);
+                    SendDlgItemMessage(hDlg, IDC_SHARES, LB_RESETCONTENT, 0, 0);
+                    FillVolumeListBox(hDlg);
+                    break;
+
+                case IDC_REMOVEVOL:
+                    DoRemoveVolume(hDlg);
+                    break;
+
+                #ifdef AFP_HASVOL_PASSWORD_SUPPORT
+                case IDC_SETPASSWORD:
+                    SaveVolPassword(hDlg);
+                    break;
+                #endif
+                
+                case IDC_VOLREADONLY:
+                    HandleROCheckbox(hDlg);
+                    break;
+
+                case IDC_SENDMSG:
+                    SendMessageFromUI(hDlg);
+                    break;
+
+                case IDC_SHARES:
+                    switch(HIWORD(wParam))
+                    {
+                        case LBN_SELCHANGE:
+                            UpdateVolCaption(hDlg);
+                            return(TRUE);
+                            break;
+                        
+                        case LBN_DBLCLK:
+                            break;
+                        
+                        default:
+                            break;
+                    }
+                    break;
+
+                default:
+                    break;
+            }
+            break;
+        
+        //
+        //Respond to power state changes. Only do something if there
+        //are active connections.
+        //
+        case WM_POWERBROADCAST:
+            switch(wParam)
+            {
+                case PBT_APMQUERYSUSPEND:
+                    if (DSICountSessions(false) > 0) {
+
+                        return( BROADCAST_QUERY_DENY );
+                    }
+                    else {
+                        return( true );
+                    }
+                    break;
+                
+                default:
+                    break;
+            }
+            break;
+
+        case AFPWM_NOTIFYICON:
+            switch(lParam)
+            {
+                case WM_LBUTTONDOWN:
+                    if (!gMainWindowVisible)
+                    {
+                        //
+                        //Populate the volume list box with the volumes
+                        //currently begin shared.
+                        //
+                        FillVolumeListBox(hDlg);
+                    }
+                        
+                    //
+                    //Show the window which was hidden, we always want to do this
+                    //as if the user clicked in the tray again, we want to make
+                    //sure the window is selected.
+                    //
+                    ShowWindow(hDlg, SW_SHOW);
+                    SetForegroundWindow(hDlg);
+                    UpdateVolCaption(hDlg);
+
+                    //
+                    //Signal that the window is visible so multiple clicks in
+                    //the tray icon won't cause weird things to happend in the
+                    //window (like listing volumes twice).
+                    //
+                    gMainWindowVisible = true;
+                    break;
+
+                case WM_RBUTTONDOWN:
+                    break;
+
+                default:
+                    break;
+            }
+            break;
+        
+        case AFPWM_INDEXING_COMPLETE:
+            if (gMainWindowVisible)
+            {
+                //
+                //We reset and refresh the volume list box  since one of
+                //the volumes has completed indexing.
+                //
+                SendDlgItemMessage(hDlg, IDC_SHARES, LB_RESETCONTENT, 0, 0);
+                FillVolumeListBox(hDlg);
+            }
+            break;
+
+        default:
+            return(FALSE);
+    }
+
+    return(TRUE);
+}
+
+
+//---------------------------------------------------------------------
+// WinMain()
+//---------------------------------------------------------------------
+// Self explanatory.
+//
+
+int APIENTRY WinMain(HINSTANCE hInstance,
+                     HINSTANCE hPrevInstance,
+                     LPSTR     lpCmdLine,
+                     int       nCmdShow)
+{
+    UNREFERENCED_PARAMETER(nCmdShow);
+    UNREFERENCED_PARAMETER(lpCmdLine);
+    UNREFERENCED_PARAMETER(hPrevInstance);
+
+    MSG		lpMsg;
+    HWND	hWnd;
+
+    ULONG	status = ERROR_SUCCESS;
+
+    ghInstance 			= hInstance;
+    gMainWindowVisible	= false;
+
+    //
+    //Register our event provider, this is located in SGAFPServerEvents.h
+    //
+    status = EventRegisterAFPServer();
+    if (status != ERROR_SUCCESS)
+    {
+        DBGWRITE(DbgLevelWarning, L"EventRegisterSG_AFP_Server_Provider() failed: %d\n", status);
+    }
+
+    //
+    //Log that we are starting up for auditing purposes.
+    //
+    EventWriteAFPServerEvt_ServerStarting(L"");
+
+    hWnd = CreateDialog(
+                hInstance, 
+                MAKEINTRESOURCE(IDD_MAIN_DIALOG),
+                NULL,
+                MainDialogProc);
+    
+    while(GetMessage(&lpMsg, NULL, 0, 0))
+    {
+        TranslateMessage(&lpMsg);
+        DispatchMessage(&lpMsg);
+    }
+    return (int) lpMsg.wParam;
+}
+
