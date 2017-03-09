@@ -864,7 +864,7 @@ AFPERROR AFPIndexBuild(
 
 	if (hFind == INVALID_HANDLE_VALUE)
 	{
-		DBGWRITE(DbgLevelInfo, L"[VOL]Bad directory: %s\n", path);
+		DBGWRITE(DbgLevelInfo, L"[VOL]Bad directory: %s\n", path.get());
 	}
 	else
 	{
