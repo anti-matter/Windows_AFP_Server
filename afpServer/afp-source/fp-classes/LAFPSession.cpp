@@ -7,7 +7,10 @@
  */
 
 #include "StdAfx.h"
+#include "AutoLock.h"
 #include "LAFPSession.h"
+#include "LOpenFile.h"
+#include <algorithm>
 
 extern LPSESSION gSessionsList;
 extern CRITICAL_SECTION gcsSessionList;
@@ -23,15 +26,13 @@ extern CRITICAL_SECTION gcsSessionList;
  */
 
 LAFPSession::LAFPSession(LPSESSION dsiSession)
-	: mNumOpenFiles(0)
-	  , mNumOpenVolumes(0)
-	  , mNumOpenDesks(0)
-	  , mToken(GetTickCount())
-	  , mAFPID(nullptr)
-	  , mAFPIDSize(0)
-	  , mAFPTimeStamp(0)
-	  , mDSISession(dsiSession)
+    : mToken(GetTickCount())
+      , mAFPID(nullptr)
+      , mAFPIDSize(0)
+      , mAFPTimeStamp(0)
+      , mDSISession(dsiSession)
 {
+    InitializeCriticalSection(&mMutex);
 }
 
 
@@ -46,36 +47,31 @@ LAFPSession::LAFPSession(LPSESSION dsiSession)
 
 LAFPSession::~LAFPSession()
 {
-	LOpenFile* openFile = nullptr;
-	PAFP_VOLUME_INFO pInfo = nullptr;
-	OPEN_DESKTOP* desk = nullptr;
+    EnterCriticalSection(&mMutex);
 
-	mOpenFiles.Rewind();
+    for (auto it = mOpenDesks.begin(); it < mOpenDesks.end();)
+    {
+        SessionCloseDesk(it->get()->dtRefNum);
+    }
 
-	while (mOpenFiles.Next(&openFile))
-	{
-		SessionCloseFile(openFile->GetFileRefNum());
-	}
+    for (auto it = mOpenFiles.begin(); it < mOpenFiles.end();)
+    {
+        SessionCloseFile(it->get()->GetFileRefNum());
+    }
 
-	mOpenVolumes.Rewind();
+    for (auto it = mOpenVolumes.begin(); it < mOpenVolumes.end();)
+    {
+        SessionCloseVolume((*it)->wVolID);
+    }
 
-	while (mOpenVolumes.Next(&pInfo))
-	{
-		DBGWRITE(DbgLevelAll, L"[LAFPSession:~LAFPSession]Closing volume %d\n", pInfo->wVolID);
-		SessionCloseVolume(pInfo->wVolID);
-	}
+    LeaveCriticalSection(&mMutex);
 
-	mOpenDesks.Rewind();
+    if (mAFPID != nullptr)
+    {
+        delete [] mAFPID;
+    }
 
-	while (mOpenDesks.Next(&desk))
-	{
-		SessionCloseDesk(desk->dtRefNum);
-	}
-
-	if (mAFPID != nullptr)
-	{
-		delete [] mAFPID;
-	}
+    DeleteCriticalSection(&mMutex);
 }
 
 
@@ -90,12 +86,13 @@ LAFPSession::~LAFPSession()
 
 void LAFPSession::SessionAssociateOpenFile(LOpenFile* inOpenFileObject)
 {
-	ASSERT(inOpenFileObject != nullptr);
+    AutoLock lock(&mMutex);
 
-	DBGWRITE(DbgLevelAll, L"[LAFPSession:SessionAssociateOpenFile]opening fileobject %x\n", inOpenFileObject);
+    ASSERT(inOpenFileObject != nullptr);
+    DBGWRITE(DbgLevelAll, L"[LAFPSession:SessionAssociateOpenFile]opening fileobject %x\n", inOpenFileObject);
 
-	mOpenFiles.AddItem(&inOpenFileObject);
-	mNumOpenFiles++;
+    std::unique_ptr<LOpenFile> openFileObject(inOpenFileObject);
+    mOpenFiles.push_back(std::move(openFileObject));
 }
 
 
@@ -110,39 +107,21 @@ void LAFPSession::SessionAssociateOpenFile(LOpenFile* inOpenFileObject)
 
 AFPERROR LAFPSession::SessionCloseFile(int16 inFileRefNum)
 {
-	return SessionCloseFile(FindOpenFileObject(inFileRefNum));
-}
+    AutoLock lock(&mMutex);
 
+    std::vector<std::unique_ptr<LOpenFile>>::iterator it =
+        std::find_if(mOpenFiles.begin(), mOpenFiles.end(), [=](const std::unique_ptr<LOpenFile>& f)
+    {
+        return f->GetFileRefNum() == inFileRefNum;
+    });
 
-/*
- * SessionCloseFile()
- *
- * Description:
- *		Close and open file. 
- *
- * Returns: None
- */
+    if (it != mOpenFiles.end())
+    {
+        mOpenFiles.erase(it);
+        return AFP_OK;
+    }
 
-AFPERROR LAFPSession::SessionCloseFile(LOpenFile* inFileObject)
-{
-	DBGWRITE(DbgLevelAll, L"[LAFPSession:SessionCloseFile]closing fileref %d\n", inFileObject->GetFileRefNum());
-
-	if (inFileObject != nullptr)
-	{
-		mOpenFiles.RemoveItem(&inFileObject);
-		delete inFileObject;
-
-		mNumOpenFiles--;
-
-		DBGWRITE(DbgLevelAll, L"[LAFPSession:SessionCloseFile]Closed file\n");
-	}
-	else
-	{
-		ASSERT(0);
-		return afpParmErr;
-	}
-
-	return AFP_OK;
+    return afpParmErr;
 }
 
 
@@ -158,26 +137,22 @@ AFPERROR LAFPSession::SessionCloseFile(LOpenFile* inFileObject)
 
 LOpenFile* LAFPSession::FindOpenFileObject(int16 inFileRef)
 {
-	LOpenFile* findObject = nullptr;
-	LOpenFile* resultObject = nullptr;
+    AutoLock lock(&mMutex);
 
-	mOpenFiles.Rewind();
+    std::vector<std::unique_ptr<LOpenFile>>::iterator it =
+        std::find_if(mOpenFiles.begin(), mOpenFiles.end(), [=](const std::unique_ptr<LOpenFile>& f)
+    {
+        return f->GetFileRefNum() == inFileRef;
+    });
 
-	while (mOpenFiles.Next(&findObject))
-	{
-		if (findObject->GetFileRefNum() == inFileRef)
-		{
-			resultObject = findObject;
-			break;
-		}
-	}
+    if (it != mOpenFiles.end())
+    {
+        return it->get();
+    }
 
-	if (resultObject == nullptr)
-	{
-		DBGWRITE(DbgLevelWarning, L"[LAFPSession:FindOpenFileObject]****Can't find open file!\n");
-	}
+    DBGWRITE(DbgLevelWarning, L"[LAFPSession:FindOpenFileObject]ERROR: Can't find open file!\n");
 
-	return resultObject;
+    return nullptr;
 }
 
 
@@ -191,33 +166,33 @@ LOpenFile* LAFPSession::FindOpenFileObject(int16 inFileRef)
  */
 
 LOpenFile* LAFPSession::NewOpenFileObject(
-	LAFPSession* inSession,
-	uint16 inVolID,
-	uint32 inDirID,
-	int16 inAccessMode,
-	int8 inFork,
-	LPAFPINDEX inEntry,
-	WCHAR* inWinPath
+    LAFPSession* inSession,
+    uint16 inVolID,
+    uint32 inDirID,
+    int16 inAccessMode,
+    int8 inFork,
+    LPAFPINDEX inEntry,
+    WCHAR* inWinPath
 )
 {
-	auto newFile = new LOpenFile(
-		inVolID,
-		inDirID,
-		inAccessMode,
-		inFork,
-		inEntry,
-		inWinPath
-	);
+    auto newFile = new LOpenFile(
+        inVolID,
+        inDirID,
+        inAccessMode,
+        inFork,
+        inEntry,
+        inWinPath
+    );
 
-	if (newFile == nullptr)
-	{
-		DBGWRITE(DbgLevelWarning, L"[LAFPSession:NewOpenFileObject]****Failed to allocate new object!\n");
-		return (nullptr);
-	}
+    if (newFile == nullptr)
+    {
+        DBGWRITE(DbgLevelWarning, L"[LAFPSession:NewOpenFileObject]****Failed to allocate new object!\n");
+        return (nullptr);
+    }
 
-	inSession->SessionAssociateOpenFile(newFile);
+    inSession->SessionAssociateOpenFile(newFile);
 
-	return newFile;
+    return newFile;
 }
 
 
@@ -230,37 +205,37 @@ LOpenFile* LAFPSession::NewOpenFileObject(
  * Returns: AFP error code.
  */
 
-AFPERROR LAFPSession::SessionOpenVolume(uint16 inVolumeID)
+AFPERROR LAFPSession::SessionOpenVolume(uint16 volumeID)
 {
-	PAFP_VOLUME_INFO pInfo;
+    AutoLock lock(&mMutex);
+    AFP_VOLUME_INFO* volumeInfo;
 
-	if (!AFPGetVolumeInfoBlock(nullptr, inVolumeID, &pInfo))
-	{
-		//
-		//We failed to find a block corresponding to the
-		//supplied volume ID.
-		//
+    if (!AFPGetVolumeInfoBlock(nullptr, volumeID, &volumeInfo))
+    {
+        //
+        //We failed to find a block corresponding to the
+        //supplied volume ID.
+        //
 
-		DBGWRITE(DbgLevelInfo, L"[LAFPSession::SessionOpenVolume]Bad volume ID\n");
-		return (afpParmErr);
-	}
+        DBGWRITE(DbgLevelInfo, L"[LAFPSession::SessionOpenVolume]Bad volume ID\n");
+        return afpParmErr;
+    }
 
-	mOpenVolumes.AddItem(&pInfo);
-	mNumOpenVolumes++;
+    mOpenVolumes.push_back(volumeInfo);
 
-	//
-	//Incrementing the ref count tells our routines that a
-	//user has the volume open and is accessing it's contents.
-	//
-	pInfo->dwRefCount++;
+    //
+    //Incrementing the ref count tells our routines that a
+    //user has the volume open and is accessing it's contents.
+    //
+    volumeInfo->dwRefCount++;
 
-	DBGWRITE(
-		DbgLevelAll,
-		(L"[LAFPSession::SessionOpenVolume]Volume %s opened\n",
-			pInfo->szShareName
-		));
+    DBGWRITE(
+        DbgLevelAll,
+        (L"[LAFPSession::SessionOpenVolume]Volume %s opened\n",
+            volumeInfo->szShareName
+        ));
 
-	return AFP_OK;
+    return AFP_OK;
 }
 
 
@@ -273,29 +248,25 @@ AFPERROR LAFPSession::SessionOpenVolume(uint16 inVolumeID)
  * Returns: AFP error code.
  */
 
-AFPERROR LAFPSession::SessionCloseVolume(uint16 inVolumeID)
+AFPERROR LAFPSession::SessionCloseVolume(uint16 volumeID)
 {
-	PAFP_VOLUME_INFO pInfo;
+    AutoLock lock(&mMutex);
 
-	pInfo = SessionFindOpenVolumeBlock(inVolumeID);
+    std::vector<AFP_VOLUME_INFO*>::iterator it =
+        std::find_if(mOpenVolumes.begin(), mOpenVolumes.end(), [=](const AFP_VOLUME_INFO* v)
+        {
+            return v->wVolID == volumeID;
+        });
 
-	if (pInfo != nullptr)
-	{
-		mOpenVolumes.RemoveItem(&pInfo);
+    if (it != mOpenVolumes.end())
+    {
+        DBGWRITE(DbgLevelAll, L"[LAFPSession::SessionCloseVolume]Volume %s was closed\n", (*it)->szShareName);
 
-		mNumOpenVolumes--;
-		pInfo->dwRefCount--;
+        mOpenVolumes.erase(it);
+        return AFP_OK;
+    }
 
-		DBGWRITE(
-			DbgLevelAll,
-			(L"[LAFPSession::SessionCloseVolume]Volume %s was closed\n",
-				pInfo->szShareName
-			));
-
-		return AFP_OK;
-	}
-
-	return afpParmErr;
+    return afpParmErr;
 }
 
 
@@ -309,21 +280,22 @@ AFPERROR LAFPSession::SessionCloseVolume(uint16 inVolumeID)
  * Returns: Ptr to the block or nullptr
  */
 
-PAFP_VOLUME_INFO LAFPSession::SessionFindOpenVolumeBlock(uint16 inVolumeID)
+AFP_VOLUME_INFO* LAFPSession::SessionFindOpenVolumeBlock(uint16 volumeID)
 {
-	PAFP_VOLUME_INFO pInfo = nullptr;
+    AutoLock lock(&mMutex);
 
-	mOpenVolumes.Rewind();
+    std::vector<AFP_VOLUME_INFO*>::iterator it =
+        std::find_if(mOpenVolumes.begin(), mOpenVolumes.end(), [=](const AFP_VOLUME_INFO* v)
+    {
+        return v->wVolID == volumeID;
+    });
 
-	while (mOpenVolumes.Next(&pInfo))
-	{
-		if (pInfo->wVolID == inVolumeID)
-		{
-			return pInfo;
-		}
-	}
+    if (it != mOpenVolumes.end())
+    {
+        return *it;
+    }
 
-	return nullptr;
+    return nullptr;
 }
 
 
@@ -338,29 +310,18 @@ PAFP_VOLUME_INFO LAFPSession::SessionFindOpenVolumeBlock(uint16 inVolumeID)
 
 AFPERROR LAFPSession::SessionOpenDesk(uint16 inVolumeID, uint16* outDTRefNum)
 {
-	uint16 newRefNum = 0;
-	AFPERROR afpError = AFP_OK;
+    auto newOpenDesk = std::make_unique<OPEN_DESKTOP>();
+    auto afpError = AFPOpenDeskTopDB(inVolumeID, newOpenDesk.get());
 
-	auto newOpenDesk = new OPEN_DESKTOP;
+    if (AFP_SUCCESS(afpError))
+    {
+        AutoLock lock(&mMutex);
 
-	if (newOpenDesk != nullptr)
-	{
-		afpError = AFPOpenDeskTopDB(inVolumeID, newOpenDesk, &newRefNum);
+        *outDTRefNum = newOpenDesk->dtRefNum;
+        mOpenDesks.push_back(std::move(newOpenDesk));
+    }
 
-		if (AFP_SUCCESS(afpError))
-		{
-			*outDTRefNum = newRefNum;
-			mNumOpenDesks++;
-
-			mOpenDesks.AddItem(&newOpenDesk);
-		}
-		else
-		{
-			delete newOpenDesk;
-		}
-	}
-
-	return afpError;
+    return afpError;
 }
 
 
@@ -375,25 +336,23 @@ AFPERROR LAFPSession::SessionOpenDesk(uint16 inVolumeID, uint16* outDTRefNum)
 
 AFPERROR LAFPSession::SessionCloseDesk(uint16 inDeskRefNum)
 {
-	AFPERROR afpError;
+    AutoLock lock(&mMutex);
 
-	auto desk = SessionFindDeskFile(inDeskRefNum);
+    std::vector<std::unique_ptr<OPEN_DESKTOP>>::iterator it =
+        std::find_if(mOpenDesks.begin(), mOpenDesks.end(), [=](const std::unique_ptr<OPEN_DESKTOP>& odt)
+        {
+            return odt->dtRefNum == inDeskRefNum;
+        });
 
-	if (desk != nullptr)
-	{
-		afpError = AFPCloseDeskTopDB(desk);
-		mOpenDesks.RemoveItem(&desk);
+    if (it != mOpenDesks.end())
+    {
+        AFPCloseDeskTopDB(it->get());
 
-		mNumOpenDesks--;
+        mOpenDesks.erase(it);
+        return AFP_OK;
+    }
 
-		delete desk;
-	}
-	else
-	{
-		afpError = afpParmErr;
-	}
-
-	return afpError;
+    return afpParmErr;
 }
 
 
@@ -409,19 +368,20 @@ AFPERROR LAFPSession::SessionCloseDesk(uint16 inDeskRefNum)
 
 OPEN_DESKTOP* LAFPSession::SessionFindDeskFile(uint16 inDeskRefNum)
 {
-	OPEN_DESKTOP* desk = nullptr;
+    AutoLock lock(&mMutex);
 
-	mOpenDesks.Rewind();
+    std::vector<std::unique_ptr<OPEN_DESKTOP>>::iterator it =
+        std::find_if(mOpenDesks.begin(), mOpenDesks.end(), [=](const std::unique_ptr<OPEN_DESKTOP>& odt)
+        {
+            return odt->dtRefNum == inDeskRefNum;
+        });
 
-	while (mOpenDesks.Next(&desk))
-	{
-		if (desk->dtRefNum == inDeskRefNum)
-		{
-			return desk;
-		}
-	}
+    if (it != mOpenDesks.end())
+    {
+        return it->get();
+    }
 
-	return nullptr;
+    return nullptr;
 }
 
 
@@ -436,13 +396,13 @@ OPEN_DESKTOP* LAFPSession::SessionFindDeskFile(uint16 inDeskRefNum)
 
 void LAFPSession::SetAFPID(int8* inID, uint32 inIDSize)
 {
-	if (mAFPID != nullptr)
-	{
-		delete mAFPID;
-	}
+    if (mAFPID != nullptr)
+    {
+        delete mAFPID;
+    }
 
-	mAFPID = inID;
-	mAFPIDSize = inIDSize;
+    mAFPID = inID;
+    mAFPIDSize = inIDSize;
 }
 
 
@@ -457,33 +417,33 @@ void LAFPSession::SetAFPID(int8* inID, uint32 inIDSize)
 
 LAFPSession* LAFPSession::FindSessionWithID(int8* afpID, uint32 inIDSize)
 {
-	auto pSession = gSessionsList;
+    auto pSession = gSessionsList;
 
-	EnterCriticalSection(&gcsSessionList);
+    EnterCriticalSection(&gcsSessionList);
 
-	while (pSession)
-	{
-		auto afpObject = static_cast<LAFPSession*>(pSession->afpSessionObject);
+    while (pSession)
+    {
+        auto afpObject = static_cast<LAFPSession*>(pSession->afpSessionObject);
 
-		if (afpObject != nullptr)
-		{
-			auto afpObjectID = afpObject->GetAFPID();
+        if (afpObject != nullptr)
+        {
+            auto afpObjectID = afpObject->GetAFPID();
 
-			if (afpObjectID != nullptr &&
-				inIDSize == afpObject->GetAFPIDSize() &&
-				!memcmp(afpID, afpObjectID, inIDSize))
-			{
-				LeaveCriticalSection(&gcsSessionList);
-				return afpObject;
-			}
-		}
+            if (afpObjectID != nullptr &&
+                inIDSize == afpObject->GetAFPIDSize() &&
+                !memcmp(afpID, afpObjectID, inIDSize))
+            {
+                LeaveCriticalSection(&gcsSessionList);
+                return afpObject;
+            }
+        }
 
-		pSession = static_cast<LPSESSION>(pSession->next);
-	}
+        pSession = static_cast<LPSESSION>(pSession->next);
+    }
 
-	LeaveCriticalSection(&gcsSessionList);
+    LeaveCriticalSection(&gcsSessionList);
 
-	return (nullptr);
+    return (nullptr);
 }
 
 
@@ -498,27 +458,27 @@ LAFPSession* LAFPSession::FindSessionWithID(int8* afpID, uint32 inIDSize)
 
 LAFPSession* LAFPSession::FindSessionByToken(int32 inToken)
 {
-	auto pSession = gSessionsList;
+    auto pSession = gSessionsList;
 
-	EnterCriticalSection(&gcsSessionList);
+    EnterCriticalSection(&gcsSessionList);
 
-	while (pSession)
-	{
-		auto afpSession = static_cast<LAFPSession*>(pSession->afpSessionObject);
+    while (pSession)
+    {
+        auto afpSession = static_cast<LAFPSession*>(pSession->afpSessionObject);
 
-		if (afpSession != nullptr)
-		{
-			if (afpSession->GetToken() == static_cast<uint32>(inToken))
-			{
-				LeaveCriticalSection(&gcsSessionList);
-				return afpSession;
-			}
-		}
+        if (afpSession != nullptr)
+        {
+            if (afpSession->GetToken() == static_cast<uint32>(inToken))
+            {
+                LeaveCriticalSection(&gcsSessionList);
+                return afpSession;
+            }
+        }
 
-		pSession = static_cast<LPSESSION>(pSession->next);
-	}
+        pSession = static_cast<LPSESSION>(pSession->next);
+    }
 
-	LeaveCriticalSection(&gcsSessionList);
+    LeaveCriticalSection(&gcsSessionList);
 
-	return (nullptr);
+    return (nullptr);
 }

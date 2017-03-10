@@ -7,7 +7,6 @@
 
 #include <strsafe.h>
 #include <windows.h>
-#include <stdio.h>
 
 #if defined(DBG) || defined(_DEBUG)
 

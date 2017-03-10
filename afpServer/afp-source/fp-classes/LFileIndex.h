@@ -9,7 +9,6 @@
 #pragma once
 
 #include "afphelp.h"
-#include "LArray.h"
 
 #define HASH_MULTIPLIER		1024
 #define INDEX_OWNS_ENTRIES	true
@@ -46,7 +45,7 @@ typedef struct _AFP_INDEX
 class LFileIndex
 {
 public:
-	explicit LFileIndex(bool ownsIndexEntries = false);
+	LFileIndex();
 	~LFileIndex();
 
 	LPAFPINDEX AddEntry(
@@ -92,7 +91,6 @@ private:
     std::vector<std::unique_ptr<AFPINDEX>> mIndex;
 
 	uint32 mNextID;
-	bool mOwnsEntries;
 
 	//
 	//This is needed as we pass some operations off to a worker thread.

@@ -150,8 +150,8 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libeay32.dll "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="afp-source\fp-classes\AutoLock.cpp" />
     <ClCompile Include="afpServer.cpp" />
-    <ClCompile Include="AutoLock.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
@@ -176,7 +176,6 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libeay32.dll "$(OutDir)"</Command>
       <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <ClCompile Include="afp-source\fp-classes\LAFPSession.cpp" />
-    <ClCompile Include="afp-source\fp-classes\LArray.cpp" />
     <ClCompile Include="afp-source\fp-classes\LFileIndex.cpp" />
     <ClCompile Include="afp-source\fp-classes\LList.cpp" />
     <ClCompile Include="afp-source\fp-classes\LOpenFile.cpp">
@@ -198,10 +197,16 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libeay32.dll "$(OutDir)"</Command>
     <ClInclude Include="afp-source\afpServer.h" />
     <ClInclude Include="afp-source\AltStreams.h" />
     <ClInclude Include="afp-source\fp-classes\AfpBuffer.h" />
+    <ClInclude Include="afp-source\fp-classes\AutoLock.h" />
+    <ClInclude Include="afp-source\fp-classes\DesktopDatabase.h" />
     <ClInclude Include="afp-source\fp-classes\LAFPSession.h" />
     <ClInclude Include="afp-source\fp-classes\LCriticalSection.h" />
     <ClInclude Include="afp-source\fp-classes\LOpenFile.h" />
+    <ClInclude Include="afp-source\fp-classes\UsersAndGroupsArray.h" />
+    <ClInclude Include="afp-source\fp-classes\VolumeArray.h" />
     <ClInclude Include="afp-source\fp-core\afp.h" />
+    <ClInclude Include="afp-source\fp-core\afpxattr.h" />
+    <ClInclude Include="afp-source\fp-imp\desktop.h" />
     <ClInclude Include="afp-source\fp-imp\fdparms.h" />
     <ClInclude Include="afp-source\fp-imp\volumes.h" />
     <ClInclude Include="afp-source\headers\afpdesktop.h" />
@@ -210,17 +215,14 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libeay32.dll "$(OutDir)"</Command>
     <ClInclude Include="afp-source\headers\afpsrvr.h" />
     <ClInclude Include="afp-source\headers\afpuser.h" />
     <ClInclude Include="afp-source\headers\afpvolumes.h" />
-    <ClInclude Include="afp-source\headers\afpxattr.h" />
     <ClInclude Include="afp-source\headers\afpdhxlogin.h" />
     <ClInclude Include="afp-source\headers\attention.h" />
-    <ClInclude Include="afp-source\headers\desktop.h" />
     <ClInclude Include="afp-source\headers\fpinfo.h" />
     <ClInclude Include="afp-source\headers\logonimp.h" />
     <ClInclude Include="afp-source\fp-classes\LArray.h" />
     <ClInclude Include="afp-source\fp-classes\LFileIndex.h" />
     <ClInclude Include="afp-source\headers\LList.h" />
     <ClInclude Include="afp-source\headers\LRegistry.h" />
-    <ClInclude Include="afp-source\headers\afpnotify.h" />
     <ClInclude Include="afp-source\headers\afpworker.h" />
     <ClInclude Include="afp-source\headers\counters.h" />
     <ClInclude Include="afp-source\headers\aboutdlg.h" />
@@ -229,8 +231,8 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libeay32.dll "$(OutDir)"</Command>
     <ClInclude Include="afp-source\helpers\afpdebug.h" />
     <ClInclude Include="afp-source\helpers\afphelp.h" />
     <ClInclude Include="afp-source\helpers\ByteSwap.h" />
+    <ClInclude Include="afp-source\server-core\afpnotify.h" />
     <ClInclude Include="afp-source\server-core\dsi.h" />
-    <ClInclude Include="AutoLock.h" />
     <ClInclude Include="resources\resource.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>

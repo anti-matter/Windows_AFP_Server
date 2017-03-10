@@ -477,8 +477,7 @@ AFPERROR FPListExtAttribute(
                     
     if (AFP_SUCCESS(afpError))
     {
-        LArray			streamArray(LARRAY_DEFAULT_GROW_SIZE, sizeof(AFP_ATTR_INFO));
-        AFP_ATTR_INFO	afpAttrInfo;
+        std::vector<AFP_ATTR_INFO> streamArray;
         char			ansi_string[MAX_AFP_NAME];
         
         DBGWRITE(
@@ -513,9 +512,8 @@ AFPERROR FPListExtAttribute(
             //Now get the size of all the name strings and optionally plumb
             //them into the reply buffer.
             //
-            streamArray.Rewind();
-            
-            while(streamArray.Next(&afpAttrInfo))
+           
+            for (auto afpAttrInfo : streamArray)
             {
                 int16 cbStreamName = static_cast<int16>(lstrlen(afpAttrInfo.wszStreamName));
                 
@@ -745,28 +743,22 @@ uint64 GetStreamLen(
     IN PWCHAR streamName
     )
 {
-    if (streamName != NULL)
-    {
-        LArray			streams(LARRAY_DEFAULT_GROW_SIZE, sizeof(AFP_ATTR_INFO));
-        AFP_ATTR_INFO	afpAttrInfo;
+    std::vector<AFP_ATTR_INFO> streams;
         
-        if (AFP_SUCCESS(GetStreams(pathname, streams)))
+    if (AFP_SUCCESS(GetStreams(pathname, streams)))
+    {
+        for (auto it = streams.begin(); it < streams.end(); ++it)
         {
-            streams.Rewind();
-            
-            while(streams.Next(&afpAttrInfo))
+            if (!lstrcmp(it->wszStreamName, streamName))
             {
-                if (!lstrcmp(afpAttrInfo.wszStreamName, streamName))
-                {
-                    return( afpAttrInfo.streamSize.QuadPart );
-                }
+                return it->streamSize.QuadPart;
             }
-            
-            DBGWRITE(DbgLevelInfo, L"[afpxattr:GetStreamLen]Stream name not found!\n");
         }
+            
+        DBGWRITE(DbgLevelInfo, L"[afpxattr:GetStreamLen]Stream name not found!\n");
     }
     
-    return( BAD_LENGTH_64 );
+    return BAD_LENGTH_64;
 }
 
 
@@ -784,9 +776,9 @@ uint64 GetStreamLen(
  */
 
 AFPERROR GetStreams(
-    IN	WCHAR*		pathname,
-    IN	LArray& 	streams
-    )
+    IN WCHAR* pathname,
+    IN std::vector<AFP_ATTR_INFO>& streams
+)
 {
     AFP_ATTR_INFO				afpAttrInfo;
     WCHAR						path[MAX_PATH];
@@ -809,11 +801,6 @@ AFPERROR GetStreams(
         DBGWRITE(DbgLevelInfo, L"[afpxattr:GetStreams]GetProcAddress() failed! (%d)\n", GetLastError());
         return( afpParmErr );
     }
-
-    //
-    //Arrays element size must be sizeof AFP_ATTR_INFO 
-    //
-    ASSERT(streams.ItemSize() == sizeof(AFP_ATTR_INFO));
     
     //
     //Open a generic handle to the file object by opening it data fork.
@@ -930,7 +917,7 @@ AFPERROR GetStreams(
             //
             //Finally, add the new attr info block to the array.
             //
-            streams.AddItem(&afpAttrInfo);
+            streams.push_back(afpAttrInfo);
         }
         
         //
@@ -945,6 +932,6 @@ AFPERROR GetStreams(
     
     delete [] pSavePtr;
             
-    return( AFP_OK );
+    return AFP_OK;
 }
 

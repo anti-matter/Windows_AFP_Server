@@ -6,7 +6,6 @@
 #define __desktop__
 
 #include "afp.h"
-#include "LArray.h"
 
 typedef DWORD FILETYPE;
 typedef DWORD FILECREATOR;
@@ -61,7 +60,6 @@ AFPERROR AFPFindEntry(
 	IN				LPDESKTOP_ENTRY	searchEntry,
 	IN				WORD			wSearchIndex,
 	IN				OPEN_DESKTOP*	deskFile,
-	OUT	OPTIONAL	DWORD*			dwEntryPosition,
 	OUT				LPDESKTOP_ENTRY	foundEntry
 );
 
@@ -77,8 +75,7 @@ AFPERROR AFPRemoveEntry(
 
 AFPERROR AFPOpenDeskTopDB(
 	IN	WORD			wVolID,
-	IN	OPEN_DESKTOP*	deskFile,
-	OUT	PWORD			pwDTRefNum
+	IN	OPEN_DESKTOP*	deskFile
 );
 
 void AFPSynchronizeDesktopFile(

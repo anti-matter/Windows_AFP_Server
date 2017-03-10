@@ -1,126 +1,99 @@
 /*
  *	LArray.h
- *	Created 03/11/2003
  *
- *	Copyright © 2003, Michael J. Conrad. All Rights Reserved.
+ *	Copyright © Michael J. Conrad. All Rights Reserved.
  */
 
 #pragma once
 
+#include <fstream>
+#include <iterator>
+#include <vector>
+#include <windows.h>
 #include "AutoLock.h"
-#include "afphelp.h"
+#include "afpdebug.h"
 
-#define LARRAY_DEFAULT_GROW_SIZE		16
-#define LARRAY_DEFAULT_ELEMENT_SIZE		sizeof(uint32*)
-#define LARRAY_MAKE_THREADSAFE			true
-#define LARRAY_DONTMAKE_THREADSAFE		false
-
-typedef struct
-{
-	uint32 growSize;
-	uint32 elementSize;
-	uint32 itemCount;
-} LARRAY_SERIALIZATION_HEADER;
-
-typedef bool (*search_proc)(void* currentData, void* compareParam);
-typedef uint32 array_index;
-
-class LArray
+template <class T> class LArray
 {
 public:
-	enum
-	{
-		array_index_invalid = 0,
-		array_index_firstitem = 1,
 
-		array_index_died = -1,
-		array_index_after_end = -2
-	};
+    /*
+    * LArray()
+    *
+    * Description:
+    *		Initializer for the LArray class.
+    *
+    * Returns: None
+    */
+    LArray()
+    {
+        InitializeCriticalSection(&mMutex);
+    }
 
-	explicit LArray(
-		uint32 growSize = LARRAY_DEFAULT_GROW_SIZE,
-		uint32 inElementSize = LARRAY_DEFAULT_ELEMENT_SIZE
-	);
 
-	explicit LArray(std::unique_ptr<uint8>& serializedBuffer);
+    /*
+    * ~LArray()
+    *
+    * Description:
+    *		Destructor, deallocate the memory used for the buffer.
+    *
+    * Returns: None
+    */
+    virtual ~LArray()
+    {
+        DeleteCriticalSection(&mMutex);
+    }
 
-	virtual ~LArray();
 
-	void AddItem(void* data);
-	void RemoveItem(void* data);
-	void RemoveItem(array_index index);
-	void ReplaceItem(array_index index, uint8* data);
-	bool GetItem(array_index index, void* data);
+    /*
+    * AddItem()
+    *
+    * Description:
+    *		Add a new item to the array to track.
+    *
+    * Returns: None
+    */
+    void AddItem(std::unique_ptr<T>& data)
+    {
+        AutoLock lock(&mMutex);
+        mData.push_back(std::move(data));
+    }
+    
 
-	bool Next(void* data);
-	void Rewind()
-	{
-		AutoLock lock(&mMutex);
-		mIterationCurrent = 1;
-	}
+    /*
+    * RemoveItem()
+    *
+    * Description:
+    *		Remove an item from the array.
+    *
+    * Returns: None
+    */
+    void RemoveItem(T* data)
+    {
+        AutoLock lock(&mMutex);
 
-	uint32 NumItems() const { return mItemCount; }
-	uint32 ItemSize() const { return mElementSize; }
+        UNREFERENCED_PARAMETER(data);
 
-	void ToFile(std::wstring path);
+        //auto it = std::find(mData.begin(), mData.end(), data);
+        //if (it != mData.end())
+        //{
+        //    DBGWRITE(DbgLevelInfo, L"[LArray<T>::RemoveItem]Removing item from array.\n");
+        //    mData.erase(it);
+        //}
+    }
 
-	uint32 GetSerializedSize() const
-	{
-		return (mItemCount * mElementSize) + sizeof(LARRAY_SERIALIZATION_HEADER);
-	}
+	UINT32 NumItems() const { return mData.size(); }
+    static UINT32 ItemSize() { return sizeof(T); }
 
-	array_index Search(
-		void* inCompareParam,
-		search_proc inSearchProc
-	);
+    // So you can iterate through the vector array.
+    typename std::vector<std::unique_ptr<T>>::iterator begin() { return mData.begin(); }
+    typename std::vector<std::unique_ptr<T>>::iterator end() { return mData.end(); }
 
-private:
+    CRITICAL_SECTION* Mutex() { return &mMutex; }
 
-	bool Grow();
+protected:
 
-	array_index FindIndex(void* data);
-	void* ItemPointer(array_index index) const;
+    std::vector<std::unique_ptr<T>> mData;
 
-	bool Serialize() const;
-	bool Deserialize();
-
-	/*
-	 * MutableBuffer()
-	 * 
-	 * Description:
-	 *		Get a pointer to use when accessing the buffer.
-	 */
-	uint8* MutableBuffer() const
-	{
-		return mDataBuffer.get() + sizeof(LARRAY_SERIALIZATION_HEADER);
-	}
-
-	//
-	//This is the buffer that holds our array items.
-	//
-	std::unique_ptr<uint8> mDataBuffer;
-
-	//
-	//Maximum number of items the buffer can currently hold based on the
-	//current size of the buffer and how big to grow the buffer when
-	//reallocation is necessary.
-	//
-	uint32 mSlots;
-	uint32 mGrowSize;
-	uint32 mElementSize;
-
-	//
-	//This is how many items are currently in the array buffer.
-	//
-	uint32 mItemCount;
-
-	//
-	//This keeps track of the current array location during iteration.
-	//
-	uint32 mIterationCurrent;
-
-	//
-	//Need this critical section so the array is thread safe.
-	//
 	CRITICAL_SECTION mMutex;
 };

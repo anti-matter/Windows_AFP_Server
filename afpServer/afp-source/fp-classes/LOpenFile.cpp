@@ -476,7 +476,7 @@ uint64 LOpenFile::GetStreamLength(PWCHAR streamName)
  * Returns: afpError code
  */
 
-AFPERROR LOpenFile::GetStreamList(LArray& streams)
+AFPERROR LOpenFile::GetStreamList(std::vector<AFP_ATTR_INFO>& streams)
 {
 	//
 	//Call the extended attribute helper functions for the dirty work.

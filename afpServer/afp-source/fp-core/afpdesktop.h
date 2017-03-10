@@ -5,13 +5,10 @@
  *	Copyright © 2005, Michael J. Conrad. All Rights Reserved.
  */
 
-#ifndef __afpdesktop__
-#define __afpdesktop__
+#pragma once
 
-#include "fdparms.h"
-#include "afpnotify.h"
+#include "dsi.h"
 #include "AfpBuffer.h"
-#include "LAFPSession.h"
 
 
 AFPERROR FPOpenDT(
@@ -79,6 +76,3 @@ AFPERROR FPRemoveAPPL(
 	IN	AfpBuffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
-
-
-#endif //__afpdesktop__

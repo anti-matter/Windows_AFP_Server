@@ -90,7 +90,7 @@ AFPERROR FPOpenFork(
     unichar				afpPathname[MAX_AFP_PATH];
     LAFPSession*		afpAFPSession	= (LAFPSession*)afpSession->afpSessionObject;
     LOpenFile*			afpOpenFile		= NULL;
-    PAFP_VOLUME_INFO	afpVolInfo		= NULL;
+    AFP_VOLUME_INFO*	afpVolInfo		= NULL;
     int8				afpFork			= 0;
     int16				afpVolumeID		= 0;
     int32				afpDirID		= 0;
@@ -260,7 +260,7 @@ AFPERROR FPOpenFork(
     //
     if (!AFP_SUCCESS(afpError))
     {
-        afpAFPSession->SessionCloseFile(afpOpenFile);
+        afpAFPSession->SessionCloseFile(afpOpenFile->GetFileRefNum());
     }
 
     return( afpError );
@@ -457,7 +457,7 @@ AFPERROR FPCreateFile(
     unichar				winPath[MAX_PATH];
     AFPCHARMAPARRAY		charMap;
     LPAFPINDEX			afpEntry		= NULL;
-    PAFP_VOLUME_INFO	afpVolumeInfo	= NULL;
+    AFP_VOLUME_INFO*	afpVolumeInfo	= NULL;
     int8				createFlag		= 0;
     int16				afpVolumeID		= 0;
     int32				afpDirID		= 0;

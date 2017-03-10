@@ -22,5 +22,5 @@ void AFPWorkerAddElementToWorkerQueue(
 );
 
 DWORD AFPGetIndexingWorkerQueueCount(
-	IN	PAFP_VOLUME_INFO	pVolInfo
+	IN	AFP_VOLUME_INFO*	pVolInfo
 );

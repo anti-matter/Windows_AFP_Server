@@ -7,22 +7,20 @@
 
 #pragma once
 
-#include "LArray.h"
-#include "LOpenFile.h"
 #include "volumes.h"
 #include "afphelp.h"
 #include "desktop.h"
 
+class LOpenFile;
+
 class LAFPSession
 {
 public:
-
-	explicit LAFPSession(LPSESSION dsiSession);
+    explicit LAFPSession(LPSESSION dsiSession);
 	~LAFPSession();
 
 	void SessionAssociateOpenFile(LOpenFile* inOpenFileObject);
 	AFPERROR SessionCloseFile(int16 inFileRefNum);
-	AFPERROR SessionCloseFile(LOpenFile* inFileObject);
 	LOpenFile* FindOpenFileObject(int16 inFileRef);
 	static LOpenFile* NewOpenFileObject(
 		LAFPSession* inSession,
@@ -36,8 +34,8 @@ public:
 
 	AFPERROR SessionOpenVolume(uint16 inVolumeID);
 	AFPERROR SessionCloseVolume(uint16 inVolumeID);
-	PAFP_VOLUME_INFO SessionFindOpenVolumeBlock(uint16 inVolumeID);
-	BOOL SessionHasVolumeOpen(uint16 inVolumeID) { return (SessionFindOpenVolumeBlock(inVolumeID) != nullptr); }
+	AFP_VOLUME_INFO* SessionFindOpenVolumeBlock(uint16 inVolumeID);
+	BOOL SessionHasVolumeOpen(uint16 inVolumeID) { return SessionFindOpenVolumeBlock(inVolumeID) != nullptr; }
 
 	AFPERROR SessionOpenDesk(uint16 inVolumeID, uint16* outDTRefNum);
 	AFPERROR SessionCloseDesk(uint16 inDeskRefNum);
@@ -45,10 +43,9 @@ public:
 
 	uint32 GetToken() const { return mToken; }
 
-
-	int16 GetNumFilesOpen() const { return mNumOpenFiles; }
-	int16 GetNumVolsOpen() const { return mNumOpenVolumes; }
-	int16 GetNumDesksOpen() const { return mNumOpenDesks; }
+	int16 GetNumFilesOpen() const { return static_cast<int16>(mOpenFiles.size()); }
+	int16 GetNumVolsOpen() const { return static_cast<int16>(mOpenVolumes.size()); }
+	int16 GetNumDesksOpen() const { return static_cast<int16>(mOpenDesks.size()); }
 
 	void SetAFPID(int8* inID, uint32 inIDSize);
 	int8* GetAFPID() const { return mAFPID; }
@@ -63,13 +60,11 @@ public:
 
 private:
 
-	int16 mNumOpenFiles;
-	int16 mNumOpenVolumes;
-	int16 mNumOpenDesks;
+    CRITICAL_SECTION mMutex;
 
-	LArray mOpenFiles;
-	LArray mOpenVolumes;
-	LArray mOpenDesks;
+    std::vector<std::unique_ptr<LOpenFile>> mOpenFiles;
+	std::vector<AFP_VOLUME_INFO*> mOpenVolumes;
+	std::vector<std::unique_ptr<OPEN_DESKTOP>> mOpenDesks;
 
 	uint32 mToken;
 	int8* mAFPID;

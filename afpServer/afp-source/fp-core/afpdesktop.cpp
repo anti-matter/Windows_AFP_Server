@@ -8,7 +8,10 @@
  */
 
 #include "StdAfx.h"
+#include "afp.h"
 #include "afpdesktop.h"
+#include "afpdirectory.h"
+#include "LAFPSession.h"
 
 
 /*
@@ -21,29 +24,29 @@
  */
 
 AFPERROR FPOpenDT(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN AfpBuffer& afpRequest,
+       IN AfpBuffer& afpReply,
+       IN LPSESSION afpSession
+)
 {
-    uint16		afpVolumeID		= 0;
-    uint16		afpDTRefNum		= 0;
-    AFPERROR	afpError		= AFP_OK;
+    uint16 afpVolumeID;
+    uint16 afpDTRefNum = 0;
+    AFPERROR afpError;
 
     //
     //First WORD is afp command and padding byte.
     //
     afpRequest.Advance(sizeof(int16));
 
-    afpVolumeID	= afpRequest.GetInt16();
-    afpError	= ((LAFPSession*)afpSession->afpSessionObject)->SessionOpenDesk(afpVolumeID, &afpDTRefNum);
+    afpVolumeID = afpRequest.GetInt16();
+    afpError = static_cast<LAFPSession*>(afpSession->afpSessionObject)->SessionOpenDesk(afpVolumeID, &afpDTRefNum);
 
     if (AFP_SUCCESS(afpError))
     {
         afpReply.AddInt16(afpDTRefNum);
     }
-    
-    return( afpError );
+
+    return afpError;
 }
 
 
@@ -57,22 +60,22 @@ AFPERROR FPOpenDT(
  */
 
 AFPERROR FPCloseDT(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN AfpBuffer& afpRequest,
+       IN AfpBuffer& afpReply,
+       IN LPSESSION afpSession
+)
 {
     UNREFERENCED_PARAMETER(afpReply);
 
-    uint16		afpDTRefNum	= 0;
-    AFPERROR	afpError	= AFP_OK;
+    uint16 afpDTRefNum;
+    AFPERROR afpError;
 
     afpRequest.Advance(sizeof(int16));
 
     afpDTRefNum = afpRequest.GetInt16();
-    afpError	= ((LAFPSession*)afpSession->afpSessionObject)->SessionCloseDesk(afpDTRefNum);
+    afpError = static_cast<LAFPSession*>(afpSession->afpSessionObject)->SessionCloseDesk(afpDTRefNum);
 
-    return( afpError );
+    return afpError;
 }
 
 
@@ -86,17 +89,16 @@ AFPERROR FPCloseDT(
  */
 
 AFPERROR FPAddIcon(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN AfpBuffer& afpRequest,
+       IN AfpBuffer& afpReply,
+       IN LPSESSION afpSession
+)
 {
     UNREFERENCED_PARAMETER(afpReply);
 
-    DESKTOP_ENTRY	iconEntry;
-    AFPERROR		afpError		= AFP_OK;
-    uint16			afpDTRefNum		= 0;
-    
+    DESKTOP_ENTRY iconEntry;
+    AFPERROR afpError = AFP_OK;
+
     //
     //The first work contains the command and padding byte.
     //
@@ -105,22 +107,22 @@ AFPERROR FPAddIcon(
     //
     //Get the refnum to our OPEN desktop database.
     //
-    afpDTRefNum	= afpRequest.GetInt16();
+    uint16 afpDTRefNum = afpRequest.GetInt16();
 
     //
     //Grab the file type and creator that will be associated with
     //this icon. Note that in MacOS X, they appear to be going away
     //from creators and types.
     //
-    iconEntry.fileCreator	= afpRequest.GetInt32();
-    iconEntry.fileType		= afpRequest.GetInt32();
+    iconEntry.fileCreator = afpRequest.GetInt32();
+    iconEntry.fileType = afpRequest.GetInt32();
 
     //
     //Next bytes containes the icon type we'll be storing. We don't
     //care what it is, its for the client to know.
     //
     iconEntry.iconType = afpRequest.GetInt8();
-    
+
     //
     //A padding byte, skip it.
     //
@@ -130,10 +132,10 @@ AFPERROR FPAddIcon(
     //Get the next 2 parameters; We don't know or care what the tag is and
     //we get the size of the data we'll be storing.
     //
-    iconEntry.entryTag	= afpRequest.GetInt32();
-    iconEntry.dataSize	= afpRequest.GetInt16();
+    iconEntry.entryTag = afpRequest.GetInt32();
+    iconEntry.dataSize = afpRequest.GetInt16();
     iconEntry.entryType = ENTRY_TYPE_ICON;
-    
+
     //
     //Advance in the buffer to the offset where the icon data is
     //being stored.
@@ -145,25 +147,25 @@ AFPERROR FPAddIcon(
         //
         //Nothing to do here but bail out!
         //
-        return( afpParmErr );
+        return (afpParmErr);
     }
-    
+
     //
     //Now copy the actual icon data into our buffer to store.
     //
     afpRequest.GetRawData(iconEntry.data, iconEntry.dataSize);
-    
+
     //
     //Now call the desktop routine to do the rest of the work.
     //
-    OPEN_DESKTOP* pDesktop = ((LAFPSession*)afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
+    OPEN_DESKTOP* pDesktop = static_cast<LAFPSession*>(afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
 
-    if (pDesktop != NULL)
+    if (pDesktop != nullptr)
     {
         afpError = AFPAddEntry(&iconEntry, pDesktop);
     }
 
-    return( afpError );
+    return afpError;
 }
 
 
@@ -177,46 +179,35 @@ AFPERROR FPAddIcon(
  */
 
 AFPERROR FPGetIcon(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN AfpBuffer& afpRequest,
+       IN AfpBuffer& afpReply,
+       IN LPSESSION afpSession
+)
 {
-    uint16			afpDTRefNum		= 0;
-    uint16			afpLength		= 0;
-    size_t			afpCopySize		= 0;
-    AFPERROR		afpError		= AFP_OK;
-    OPEN_DESKTOP*	pDesktop		= NULL;
-    DESKTOP_ENTRY	searchEntry;
-    DESKTOP_ENTRY	iconEntry;
+    DESKTOP_ENTRY searchEntry;
+    DESKTOP_ENTRY iconEntry;
 
     afpRequest.Advance(sizeof(int16));
 
-    afpDTRefNum	= afpRequest.GetInt16();
+    uint16 afpDTRefNum = afpRequest.GetInt16();
 
-    searchEntry.fileCreator	= afpRequest.GetInt32();
-    searchEntry.fileType	= afpRequest.GetInt32();
-    searchEntry.iconType 	= afpRequest.GetInt8();
+    searchEntry.fileCreator = afpRequest.GetInt32();
+    searchEntry.fileType = afpRequest.GetInt32();
+    searchEntry.iconType = afpRequest.GetInt8();
 
     afpRequest.Advance(sizeof(int8));
 
-    afpLength = afpRequest.GetInt16();
+    uint16 afpLength = afpRequest.GetInt16();
     searchEntry.entryType = ENTRY_TYPE_ICON;
 
-    pDesktop = ((LAFPSession*)afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
+    auto desktop = static_cast<LAFPSession*>(afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
 
-    if (pDesktop == NULL)
+    if (desktop == nullptr)
     {
-        return( afpParmErr );
+        return afpParmErr;
     }
 
-    afpError = AFPFindEntry(
-                    &searchEntry,
-                    DONT_USE_INDEX,
-                    pDesktop,
-                    NULL,
-                    &iconEntry
-                    );
+    auto afpError = AFPFindEntry(&searchEntry, DONT_USE_INDEX, desktop, &iconEntry);
 
     if (AFP_SUCCESS(afpError))
     {
@@ -229,11 +220,11 @@ AFPERROR FPGetIcon(
         //As per the spec, even if the client didn't reserve enough
         //space, we still copy what we can.
         //
-        afpCopySize = min(afpLength, iconEntry.dataSize);
+        auto afpCopySize = min(afpLength, iconEntry.dataSize);
         afpReply.AddRawData(iconEntry.data, afpCopySize);
     }
-    
-    return( afpError );
+
+    return afpError;
 }
 
 
@@ -247,40 +238,29 @@ AFPERROR FPGetIcon(
  */
 
 AFPERROR FPGetIconInfo(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN AfpBuffer& afpRequest,
+       IN AfpBuffer& afpReply,
+       IN LPSESSION afpSession
+)
 {
-    DESKTOP_ENTRY	searchEntry;
-    DESKTOP_ENTRY	foundEntry;
-    OPEN_DESKTOP*	pDesktop		= NULL;
-    uint16			afpDTRefNum		= 0;
-    uint16			afpIconIndex	= 0;
-    AFPERROR		afpError		= AFP_OK;
-
+    DESKTOP_ENTRY searchEntry;
+    DESKTOP_ENTRY foundEntry;
 
     afpRequest.Advance(sizeof(int16));
-    afpDTRefNum	= afpRequest.GetInt16();
+    uint16 afpDTRefNum = afpRequest.GetInt16();
 
     searchEntry.fileCreator = afpRequest.GetInt32();
-    afpIconIndex			= afpRequest.GetInt16();
-    searchEntry.entryType	= ENTRY_TYPE_ICON;
+    uint16 afpIconIndex = afpRequest.GetInt16();
+    searchEntry.entryType = ENTRY_TYPE_ICON;
 
-    pDesktop = ((LAFPSession*)afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
+    auto desktop = static_cast<LAFPSession*>(afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
 
-    if (pDesktop == NULL)
+    if (desktop == nullptr)
     {
-        return( afpParmErr );
+        return afpParmErr;
     }
 
-    afpError = AFPFindEntry(
-                    &searchEntry,
-                    afpIconIndex,
-                    pDesktop,
-                    NULL,
-                    &foundEntry
-                    );
+    auto afpError = AFPFindEntry(&searchEntry, afpIconIndex, desktop, &foundEntry);
 
     if (AFP_SUCCESS(afpError))
     {
@@ -288,10 +268,10 @@ AFPERROR FPGetIconInfo(
         afpReply.AddRawData(&foundEntry.fileType, sizeof(FILETYPE));
         afpReply.AddInt8(foundEntry.iconType);
         afpReply.AddInt8(0);
-        afpReply.AddInt16((int16)foundEntry.dataSize);
+        afpReply.AddInt16(static_cast<int16>(foundEntry.dataSize));
     }
-                        
-    return( afpError );
+
+    return afpError;
 }
 
 
@@ -305,45 +285,42 @@ AFPERROR FPGetIconInfo(
  */
 
 AFPERROR FPAddComment(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN AfpBuffer& afpRequest,
+       IN AfpBuffer& afpReply,
+       IN LPSESSION afpSession
+)
 {
     UNREFERENCED_PARAMETER(afpReply);
 
-    DESKTOP_ENTRY	newEntry;
-    OPEN_DESKTOP*	pDesktop		= NULL;
-    AFPERROR		afpError		= AFP_OK;
-    uint16			afpDTRefNum		= 0;
-    LPAFPINDEX		afpEntry		= NULL;
+    DESKTOP_ENTRY newEntry;
+    LPAFPINDEX afpEntry = nullptr;
 
     DBGWRITE(DbgLevelAll, L"[afp:FPAddComment]Enter\n");
 
     afpRequest.Advance(sizeof(int16));
 
-    afpDTRefNum			= afpRequest.GetInt16();
-    newEntry.dirID		= afpRequest.GetInt32();
-    newEntry.pathType	= afpRequest.GetInt8();
+    uint16 afpDTRefNum = afpRequest.GetInt16();
+    newEntry.dirID = afpRequest.GetInt32();
+    newEntry.pathType = afpRequest.GetInt8();
 
-    afpError = afpRequest.GetString(newEntry.pathname, sizeof(newEntry.pathname), true, newEntry.pathType, NULL);
+    auto afpError = afpRequest.GetString(newEntry.pathname, sizeof(newEntry.pathname), true, newEntry.pathType, nullptr);
 
     if (!AFP_SUCCESS(afpError))
     {
-        return( afpParmErr );
+        return (afpParmErr);
     }
 
     afpRequest.AdvanceIfOdd();
     afpRequest.GetPascalString(newEntry.data, sizeof(newEntry.data));
 
-    newEntry.entryType	= ENTRY_TYPE_CMNT;
-    newEntry.dataSize	= strlen(newEntry.data);
-        
-    pDesktop = ((LAFPSession*)afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
+    newEntry.entryType = ENTRY_TYPE_CMNT;
+    newEntry.dataSize = strlen(newEntry.data);
 
-    if (pDesktop == NULL)
+    auto desktop = static_cast<LAFPSession*>(afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
+
+    if (desktop == nullptr)
     {
-        return( afpParmErr );
+        return afpParmErr;
     }
 
     //
@@ -351,13 +328,13 @@ AFPERROR FPAddComment(
     //exists.
     //
     afpError = AFPIndexFindEntryWithVolIDAndPath(
-                    pDesktop->volID,
-                    newEntry.dirID,
-                    newEntry.pathname,
-                    &afpEntry);
-        
-    if ((!AFP_SUCCESS(afpError))								||
-        (GetFileAttributes(afpEntry->szPath) == AFP_MAX_DWORD)	)
+        desktop->volID,
+        newEntry.dirID,
+        newEntry.pathname,
+        &afpEntry);
+
+    if ((!AFP_SUCCESS(afpError)) ||
+        (GetFileAttributes(afpEntry->szPath) == AFP_MAX_DWORD))
     {
         //
         //We couldn't find the requested object.
@@ -367,10 +344,10 @@ AFPERROR FPAddComment(
     }
     else
     {
-        afpError = AFPAddEntry(&newEntry, pDesktop);
+        afpError = AFPAddEntry(&newEntry, desktop);
     }
-    
-    return( afpError ); 
+
+    return afpError;
 }
 
 
@@ -384,53 +361,50 @@ AFPERROR FPAddComment(
  */
 
 AFPERROR FPGetComment(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN AfpBuffer& afpRequest,
+       IN AfpBuffer& afpReply,
+       IN LPSESSION afpSession
+)
 {
-    DESKTOP_ENTRY	searchEntry;
-    DESKTOP_ENTRY	foundEntry;
-    OPEN_DESKTOP*	pDesktop	= NULL;
-    AFPERROR		afpError	= AFP_OK;
-    uint16			afpDTRefNum	= 0;
-    LPAFPINDEX		afpEntry	= NULL;
+    DESKTOP_ENTRY searchEntry;
+    DESKTOP_ENTRY foundEntry;
+    LPAFPINDEX afpEntry = nullptr;
 
     DBGWRITE(DbgLevelAll, L"[afp:FPGetComment]Enter\n");
 
     afpRequest.Advance(sizeof(int16));
 
-    afpDTRefNum				= afpRequest.GetInt16();
-    searchEntry.dirID		= afpRequest.GetInt32();
-    searchEntry.pathType	= afpRequest.GetInt8();
-    searchEntry.entryType	= ENTRY_TYPE_CMNT;
+    uint16 afpDTRefNum = afpRequest.GetInt16();
+    searchEntry.dirID = afpRequest.GetInt32();
+    searchEntry.pathType = afpRequest.GetInt8();
+    searchEntry.entryType = ENTRY_TYPE_CMNT;
 
-    afpError = afpRequest.GetString(searchEntry.pathname, sizeof(searchEntry.pathname), true, searchEntry.pathType, NULL);
+    auto afpError = afpRequest.GetString(searchEntry.pathname, sizeof(searchEntry.pathname), true, searchEntry.pathType, nullptr);
 
     if (!AFP_SUCCESS(afpError))
     {
-        return( afpParmErr );
+        return (afpParmErr);
     }
 
     //
     //Make sure the object that we're getting the comment for
     //exists.
     //
-    pDesktop = ((LAFPSession*)afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
+    auto desktop = static_cast<LAFPSession*>(afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
 
-    if (pDesktop == NULL)
+    if (desktop == nullptr)
     {
-        return( afpParmErr );
+        return afpParmErr;
     }
-    
+
     afpError = AFPIndexFindEntryWithVolIDAndPath(
-                    pDesktop->volID,
-                    searchEntry.dirID,
-                    searchEntry.pathname,
-                    &afpEntry);
-        
-    if ((!AFP_SUCCESS(afpError))								||
-        (GetFileAttributes(afpEntry->szPath) == AFP_MAX_DWORD)	)
+        desktop->volID,
+        searchEntry.dirID,
+        searchEntry.pathname,
+        &afpEntry);
+
+    if ((!AFP_SUCCESS(afpError)) ||
+        (GetFileAttributes(afpEntry->szPath) == AFP_MAX_DWORD))
     {
         //
         //We couldn't find the requested object.
@@ -440,13 +414,7 @@ AFPERROR FPGetComment(
     }
     else
     {
-        afpError = AFPFindEntry(
-                        &searchEntry,
-                        DONT_USE_INDEX,
-                        pDesktop,
-                        NULL,
-                        &foundEntry
-                        );
+        afpError = AFPFindEntry(&searchEntry, DONT_USE_INDEX, desktop, &foundEntry);
 
         if (AFP_SUCCESS(afpError))
         {
@@ -454,7 +422,7 @@ AFPERROR FPGetComment(
         }
     }
 
-    return( afpError );
+    return afpError;
 }
 
 
@@ -468,42 +436,39 @@ AFPERROR FPGetComment(
  */
 
 AFPERROR FPRemoveComment(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN AfpBuffer& afpRequest,
+       IN AfpBuffer& afpReply,
+       IN LPSESSION afpSession
+)
 {
     UNREFERENCED_PARAMETER(afpReply);
 
-    DESKTOP_ENTRY	searchEntry;
-    OPEN_DESKTOP*	pDesktop	= NULL;
-    AFPERROR		afpError	= AFP_OK;
-    uint16			afpDTRefNum	= 0;
+    DESKTOP_ENTRY searchEntry;
 
     afpRequest.Advance(sizeof(int16));
 
-    afpDTRefNum				= afpRequest.GetInt16();
-    searchEntry.dirID		= afpRequest.GetInt32();
-    searchEntry.pathType	= afpRequest.GetInt8();
-    searchEntry.entryType	= ENTRY_TYPE_CMNT;
+    uint16 afpDTRefNum = afpRequest.GetInt16();
+    searchEntry.dirID = afpRequest.GetInt32();
+    searchEntry.pathType = afpRequest.GetInt8();
+    searchEntry.entryType = ENTRY_TYPE_CMNT;
 
-    afpError = afpRequest.GetString(searchEntry.pathname, sizeof(searchEntry.pathname), true, searchEntry.pathType, NULL);
+    auto afpError = afpRequest.GetString(searchEntry.pathname, sizeof(searchEntry.pathname), true, searchEntry.pathType, nullptr);
 
     if (!AFP_SUCCESS(afpError))
     {
-        return( afpParmErr );
+        return afpParmErr;
     }
 
-    pDesktop = ((LAFPSession*)afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
+    auto pDesktop = static_cast<LAFPSession*>(afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
 
-    if (pDesktop == NULL)
+    if (pDesktop == nullptr)
     {
-        return( afpParmErr );
+        return afpParmErr;
     }
 
     afpError = AFPRemoveEntry(&searchEntry, pDesktop);
 
-    return( afpError );
+    return afpError;
 }
 
 
@@ -517,54 +482,47 @@ AFPERROR FPRemoveComment(
  */
 
 AFPERROR FPGetAPPL(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN AfpBuffer& afpRequest,
+       IN AfpBuffer& afpReply,
+       IN LPSESSION afpSession
+)
 {
-    WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
-    DESKTOP_ENTRY				searchEntry, foundEntry;
-    OPEN_DESKTOP*				pDesktop	= NULL;
-    LPAFPINDEX					afpEntry	= NULL;
-    AFPERROR					afpError	= AFP_OK;
-    uint16						afpDTRefNum	= 0;
-    uint16						afpIndex	= 0;
-    uint16						afpBitmap	= 0;
-    uint16						afpVolumeID	= 0;
+    WIN32_FILE_ATTRIBUTE_DATA winAttributes;
+    DESKTOP_ENTRY searchEntry, foundEntry;
+    LPAFPINDEX afpEntry = nullptr;
+    uint16 afpVolumeID = 0;
 
     afpRequest.Advance(sizeof(int16));
-    afpDTRefNum = afpRequest.GetInt16();
+    uint16 afpDTRefNum = afpRequest.GetInt16();
 
     afpRequest.GetRawData(&searchEntry.fileCreator, sizeof(FILECREATOR));
 
-    afpIndex	= afpRequest.GetInt16();
-    afpBitmap	= afpRequest.GetInt16();
+    uint16 afpIndex = afpRequest.GetInt16();
+    uint16 afpBitmap = afpRequest.GetInt16();
 
     searchEntry.entryType = ENTRY_TYPE_APPL;
 
-    pDesktop = ((LAFPSession*)afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
-
-    if (pDesktop == NULL)
+    auto desktop = static_cast<LAFPSession*>(afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
+    if (desktop == nullptr)
     {
-        return( afpParmErr );
+        return afpParmErr;
     }
 
-    afpError = AFPFindEntry(
-                    &searchEntry,
-                    afpIndex,
-                    pDesktop,
-                    0,
-                    &foundEntry
-                    );
+    auto afpError = AFPFindEntry(
+        &searchEntry,
+        afpIndex,
+        desktop,
+        &foundEntry
+    );
 
     if (AFP_SUCCESS(afpError))
     {
         afpError = AFPIndexFindEntryWithVolIDAndPath(
-                        pDesktop->volID,
-                        foundEntry.dirID,
-                        foundEntry.pathname,
-                        &afpEntry
-                        );
+            desktop->volID,
+            foundEntry.dirID,
+            foundEntry.pathname,
+            &afpEntry
+        );
 
         if (AFP_SUCCESS(afpError))
         {
@@ -573,25 +531,25 @@ AFPERROR FPGetAPPL(
             //
             if (!GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes))
             {
-                return( afpObjectNotFound );
+                return afpObjectNotFound;
             }
-            
+
             afpReply.AddInt16(afpBitmap);
             afpReply.AddInt32(foundEntry.entryTag);
 
             afpError = AFPGetObjectParms(
-                                afpReply,
-                                afpBitmap,
-                                afpVolumeID,
-                                foundEntry.dirID,
-                                afpSession,
-                                afpEntry,
-                                winAttributes
-                                );
+                afpReply,
+                afpBitmap,
+                afpVolumeID,
+                foundEntry.dirID,
+                afpSession,
+                afpEntry,
+                winAttributes
+            );
         }
     }
 
-    return( afpError );
+    return afpError;
 }
 
 
@@ -605,46 +563,41 @@ AFPERROR FPGetAPPL(
  */
 
 AFPERROR FPAddAPPL(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN AfpBuffer& afpRequest,
+       IN AfpBuffer& afpReply,
+       IN LPSESSION afpSession
+)
 {
     UNREFERENCED_PARAMETER(afpReply);
 
-    DESKTOP_ENTRY	newEntry;
-    OPEN_DESKTOP*	pDesktop	= NULL;
-    AFPERROR		afpError	= AFP_OK;
-    uint16			afpDTRefNum	= 0;
+    DESKTOP_ENTRY newEntry;
 
     afpRequest.Advance(sizeof(int16));
 
-    afpDTRefNum	= afpRequest.GetInt16();
-    
-    newEntry.dirID			= afpRequest.GetInt32();
-    newEntry.fileCreator	= afpRequest.GetInt32();
-    newEntry.entryTag		= afpRequest.GetInt32();
-    newEntry.pathType		= afpRequest.GetInt8();
-    newEntry.entryType		= ENTRY_TYPE_APPL;
-    newEntry.dataSize		= 0;
+    uint16 afpDTRefNum = afpRequest.GetInt16();
 
-    afpError = afpRequest.GetString(newEntry.pathname, sizeof(newEntry.pathname), true, newEntry.pathType, NULL);
+    newEntry.dirID = afpRequest.GetInt32();
+    newEntry.fileCreator = afpRequest.GetInt32();
+    newEntry.entryTag = afpRequest.GetInt32();
+    newEntry.pathType = afpRequest.GetInt8();
+    newEntry.entryType = ENTRY_TYPE_APPL;
+    newEntry.dataSize = 0;
 
+    auto afpError = afpRequest.GetString(newEntry.pathname, sizeof(newEntry.pathname), true, newEntry.pathType, nullptr);
     if (!AFP_SUCCESS(afpError))
     {
-        return( afpParmErr );
+        return afpParmErr;
     }
 
-    pDesktop = ((LAFPSession*)afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
-
-    if (pDesktop == NULL)
+    auto desktop = static_cast<LAFPSession*>(afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
+    if (desktop == nullptr)
     {
-        return( afpParmErr );
+        return afpParmErr;
     }
 
-    afpError = AFPAddEntry(&newEntry, pDesktop);
+    afpError = AFPAddEntry(&newEntry, desktop);
 
-    return( afpError );
+    return afpError;
 }
 
 
@@ -658,50 +611,43 @@ AFPERROR FPAddAPPL(
  */
 
 AFPERROR FPRemoveAPPL(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN AfpBuffer& afpRequest,
+       IN AfpBuffer& afpReply,
+       IN LPSESSION afpSession
+)
 {
     UNREFERENCED_PARAMETER(afpReply);
 
-    DESKTOP_ENTRY	searchEntry;
-    OPEN_DESKTOP*	pDesktop	= NULL;
-    AFPERROR		afpError	= AFP_OK;
-    uint16			afpDTRefNum	= 0;
+    DESKTOP_ENTRY searchEntry;
 
     afpRequest.Advance(sizeof(int16));
 
-    afpDTRefNum				= afpRequest.GetInt16();
-    searchEntry.dirID		= afpRequest.GetInt32();
-    searchEntry.fileCreator	= afpRequest.GetInt32();
-    searchEntry.pathType	= afpRequest.GetInt8();
-    searchEntry.entryType	= ENTRY_TYPE_APPL;
+    uint16 afpDTRefNum = afpRequest.GetInt16();
+    searchEntry.dirID = afpRequest.GetInt32();
+    searchEntry.fileCreator = afpRequest.GetInt32();
+    searchEntry.pathType = afpRequest.GetInt8();
+    searchEntry.entryType = ENTRY_TYPE_APPL;
 
-    afpError = afpRequest.GetString(searchEntry.pathname, sizeof(searchEntry.pathname), true, searchEntry.pathType, NULL);
-
+    auto afpError = afpRequest.GetString(searchEntry.pathname, sizeof(searchEntry.pathname), true, searchEntry.pathType, nullptr);
     if (!AFP_SUCCESS(afpError))
     {
-        return( afpParmErr );
+        return afpParmErr;
     }
-    
+
     //
     //Althoug the spec says to, we don't check to make sure that
     //the actual application really exists on the volume. Why? Because
     //when you move or delete a file, the client always calls this
     //AFTER it deletes or moves it.
     //
-        
-    pDesktop = ((LAFPSession*)afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
 
-    if (pDesktop == NULL)
+    auto desktop = static_cast<LAFPSession*>(afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
+    if (desktop == nullptr)
     {
-        return( afpParmErr );
+        return afpParmErr;
     }
 
-    afpError = AFPRemoveEntry(&searchEntry, pDesktop);
-    
-    return( afpError );
+    afpError = AFPRemoveEntry(&searchEntry, desktop);
+
+    return afpError;
 }
-
-

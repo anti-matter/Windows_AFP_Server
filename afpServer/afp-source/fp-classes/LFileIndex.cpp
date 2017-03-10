@@ -5,11 +5,12 @@
  */
 
 #include "StdAfx.h"
+#include <algorithm>
 
 #include "afp.h"
 #include "afpworker.h"
+#include "AutoLock.h"
 #include "LFileIndex.h"
-#include <algorithm>
 
 const int FirstDirectoryId = 1;
 
@@ -23,9 +24,8 @@ const int FirstDirectoryId = 1;
  *		None
  */
 
-LFileIndex::LFileIndex(bool ownsIndexEntries)
+LFileIndex::LFileIndex()
     : mNextID(FirstDirectoryId)
-    , mOwnsEntries(ownsIndexEntries)
     , mRefCount(0)
 {
     InitializeCriticalSection(&mIndexCriticalSection);
@@ -55,6 +55,8 @@ LFileIndex::~LFileIndex()
 
 		Sleep(500);
 	}
+
+    DeleteCriticalSection(&mIndexCriticalSection);
 }
 
 

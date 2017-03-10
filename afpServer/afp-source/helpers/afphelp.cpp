@@ -14,8 +14,9 @@
 #include "afpdebug.h"
 #include "afp.h"
 #include "LArray.h"
+#include "UsersAndGroupsArray.h"
 
-LArray gUserAndGroupID;
+UsersAndGroupsArray gUserAndGroupID;
 DWORD gNextUserID = 1;
 DWORD gNextGroupID = 1;
 
@@ -398,26 +399,15 @@ AFPERROR AFPGetUserNameByID(
 	   IN PWCHAR szName
 )
 {
-	PAFP_USERGROUP_NAME pName = nullptr;
+    auto userAndGroup = gUserAndGroupID.FindById(dwID);
 
-	DBGWRITE(DbgLevelInfo, L"[AFPHELP]Looking for user id %d\n", dwID);
+    if (userAndGroup != nullptr)
+    {
+        lstrcpyn(szName, userAndGroup->name, lstrlen(userAndGroup->name) + 1);
+        return AFP_OK;
+    }
 
-	gUserAndGroupID.Rewind();
-
-	while (gUserAndGroupID.Next(&pName))
-	{
-		DBGWRITE(DbgLevelInfo, L"[AFPHELP]Found user ID %d\n", pName->id);
-
-		if (pName->id == dwID)
-		{
-			DBGWRITE(DbgLevelInfo, L"[AFPHELP]Found user name by id!!!! (%s)\n", pName->name);
-
-			lstrcpyn(szName, pName->name, lstrlen(pName->name) + 1);
-			return AFP_OK;
-		}
-	}
-
-	return afpParmErr;
+    return afpParmErr;
 }
 
 //---------------------------------------------------------------------
@@ -493,43 +483,34 @@ AFPERROR AFPGetDirectoryOwnerAndGroupID(
 			//
 			if (sidType == SidTypeUser)
 			{
-				PAFP_USERGROUP_NAME pName = nullptr;
-
 				//
 				//First, search to see if the user name is already in our tables with
 				//a valid afp user ID.
 				//
-				gUserAndGroupID.Rewind();
-
-				while (gUserAndGroupID.Next(&pName))
-				{
-					if ((!lstrcmp(pName->name, szName)) && (pName->type == AFP_USERNAME_TYPE))
-					{
-						*dwOwnerID = pName->id;
-
-						DBGWRITE(DbgLevelInfo, L"[AFPHELP]Found a matching user ID!\n");
-						break;
-					}
-				}
+                auto userAndGroup = gUserAndGroupID.FindByName(szName, AFP_USERNAME_TYPE);
+                if (userAndGroup != nullptr)
+                {
+                    *dwOwnerID = userAndGroup->id;
+                }
 
 				//
 				//If a matching user name wasn't found in the list, then add it.
 				//
 				if (*dwOwnerID == 0)
 				{
-					pName = static_cast<PAFP_USERGROUP_NAME>(LocalAlloc(LMEM_ZEROINIT, sizeof(AFP_USERGROUP_NAME)));
+                    auto userOrGroupName = std::make_unique<AFP_USERGROUP_NAME>();
 
-					if (pName)
+					if (userOrGroupName)
 					{
 						*dwOwnerID = gNextUserID++;
-						pName->id = *dwOwnerID;
-						pName->type = AFP_USERNAME_TYPE;
+						userOrGroupName->id = *dwOwnerID;
+						userOrGroupName->type = AFP_USERNAME_TYPE;
 
-						lstrcpyn(pName->name, szName, lstrlen(szName) + 1);
+						lstrcpyn(userOrGroupName->name, szName, lstrlen(szName) + 1);
 
-						gUserAndGroupID.AddItem(&pName);
+						gUserAndGroupID.AddItem(userOrGroupName);
 
-						DBGWRITE(DbgLevelInfo, L"[AFPHELP]Added username %s to the array\n", pName->name);
+						DBGWRITE(DbgLevelInfo, L"[AFPHELP]Added username %s to the array\n", userOrGroupName->name);
 					}
 				}
 			}

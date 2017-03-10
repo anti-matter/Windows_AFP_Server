@@ -2,6 +2,8 @@
 // fdparms.h
 //===================================================================
 
+#pragma once
+
 #include "volumes.h"
 
 size_t AFPGetParmsBufferSizeRequired(

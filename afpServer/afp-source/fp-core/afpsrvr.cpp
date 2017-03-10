@@ -9,7 +9,9 @@
 
 #include "StdAfx.h"
 #include "afpsrvr.h"
+#include "VolumeArray.h"
 
+extern VolumeArray gVolumeArray;
 extern BOOL	gAllowGuests;
 extern BOOL	gForceEncryptedLogon;
 
@@ -32,11 +34,8 @@ AFPERROR FPGetSrvrParms(
 {
     UNREFERENCED_PARAMETER(afpRequest);
 
-    int8				afpNumVolumesShared	= AFPNumVolumesShared();
     int8				afpNumVolumesActive = AFPNumVolumesActive();
     int32				afpTime				= 0;
-    uint16				i					= 0;
-    PAFP_VOLUME_INFO	afpVolumeInfo		= NULL;
     SYSTEMTIME			sysTime;
     FILETIME			fileTime;
 
@@ -76,30 +75,29 @@ AFPERROR FPGetSrvrParms(
     //
     //Stuff in all the volume names and their flags.
     //
-    for(i = 1; i <= afpNumVolumesShared; i++)
+    for (auto it = gVolumeArray.begin(); it < gVolumeArray.end(); ++it)
     {
-        if (AFPGetVolumeInfoAtIndex(i, &afpVolumeInfo) == NO_ERROR)
+        AFP_VOLUME_INFO* afpVolumeInfo = it->get();
+
+        //
+        //First, we check to make sure the volume has been fully indexed. If not
+        //we cannot offer it to the clients.
+        //
+        if (!(afpVolumeInfo->wVolumeFlags & FLAG_VOLUME_INDEXINGCOMPLETE))
         {
             //
-            //First, we check to make sure the volume has been fully indexed. If not
-            //we cannot offer it to the clients.
+            //Not done indexing, can't show this one now.
             //
-            if (!(afpVolumeInfo->wVolumeFlags & FLAG_VOLUME_INDEXINGCOMPLETE))
-            {
-                //
-                //Not done indexing, can't show this one now.
-                //
-                continue;
-            }
-
-            DBGWRITE(DbgLevelAll, L"[AFP]Stuffing volume: %s\n", afpVolumeInfo->szShareName);
-            
-            afpReply.AddInt8(afpVolumeInfo->bAFPFlags);
-            afpReply.AddUniStringAsPascal(afpVolumeInfo->szShareName);
+            continue;
         }
+
+        DBGWRITE(DbgLevelAll, L"[AFP]Stuffing volume: %s\n", afpVolumeInfo->szShareName);
+            
+        afpReply.AddInt8(afpVolumeInfo->bAFPFlags);
+        afpReply.AddUniStringAsPascal(afpVolumeInfo->szShareName);
     }
         
-    return( AFP_OK );
+    return AFP_OK;
 }
 
 

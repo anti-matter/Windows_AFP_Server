@@ -32,9 +32,6 @@
     <ClCompile Include="afp-source\fp-classes\LAFPSession.cpp">
       <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
-    <ClCompile Include="afp-source\fp-classes\LArray.cpp">
-      <Filter>Source Files\fp-classes</Filter>
-    </ClCompile>
     <ClCompile Include="afp-source\fp-classes\LFileIndex.cpp">
       <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
@@ -125,10 +122,10 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="AutoLock.cpp">
+    <ClCompile Include="afp-source\fp-classes\AfpBuffer.cpp">
       <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
-    <ClCompile Include="afp-source\fp-classes\AfpBuffer.cpp">
+    <ClCompile Include="afp-source\fp-classes\AutoLock.cpp">
       <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
   </ItemGroup>
@@ -157,9 +154,6 @@
     <ClInclude Include="afp-source\headers\afpfileio.h">
       <Filter>Source Files\fp-core</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\headers\afpnotify.h">
-      <Filter>Source Files\server-core</Filter>
-    </ClInclude>
     <ClInclude Include="afp-source\headers\afpsrvr.h">
       <Filter>Source Files\fp-core</Filter>
     </ClInclude>
@@ -172,17 +166,11 @@
     <ClInclude Include="afp-source\headers\afpworker.h">
       <Filter>Source Files\server-core</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\headers\afpxattr.h">
-      <Filter>Source Files\fp-core</Filter>
-    </ClInclude>
     <ClInclude Include="afp-source\headers\attention.h">
       <Filter>Source Files\fp-imp</Filter>
     </ClInclude>
     <ClInclude Include="afp-source\headers\counters.h">
       <Filter>Source Files\server-core</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\headers\desktop.h">
-      <Filter>Source Files\fp-imp</Filter>
     </ClInclude>
     <ClInclude Include="afp-source\headers\fpinfo.h">
       <Filter>Source Files\fp-imp</Filter>
@@ -232,9 +220,6 @@
     <ClInclude Include="afp-source\helpers\afphelp.h">
       <Filter>Source Files\helpers</Filter>
     </ClInclude>
-    <ClInclude Include="AutoLock.h">
-      <Filter>Source Files\fp-classes</Filter>
-    </ClInclude>
     <ClInclude Include="afp-source\fp-classes\AfpBuffer.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
@@ -246,6 +231,27 @@
     </ClInclude>
     <ClInclude Include="afp-source\fp-imp\volumes.h">
       <Filter>Source Files\fp-imp</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\fp-imp\desktop.h">
+      <Filter>Source Files\fp-imp</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\fp-classes\AutoLock.h">
+      <Filter>Source Files\fp-classes</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\fp-classes\DesktopDatabase.h">
+      <Filter>Source Files\fp-classes</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\fp-classes\UsersAndGroupsArray.h">
+      <Filter>Source Files\fp-classes</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\fp-classes\VolumeArray.h">
+      <Filter>Source Files\fp-classes</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\server-core\afpnotify.h">
+      <Filter>Source Files\server-core</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\fp-core\afpxattr.h">
+      <Filter>Source Files\fp-core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

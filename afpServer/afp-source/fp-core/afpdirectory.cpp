@@ -30,7 +30,7 @@ AFPERROR FPResolveID(
     int32				afpFileID		= 0;
     int16				afpBitmap		= 0;
     LPAFPINDEX			afpEntry		= NULL;
-    PAFP_VOLUME_INFO	afpVolumeInfo	= NULL;
+    AFP_VOLUME_INFO*	afpVolumeInfo	= NULL;
     AFPERROR			afpError		= AFP_OK;
 
     WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
@@ -274,7 +274,7 @@ AFPERROR FPEnumerate(
     AFPERROR			afpError		= AFP_OK;
     LPAFPINDEX			afpTargetEntry	= NULL;
     LPAFPINDEX			afpEntry		= NULL;
-    PAFP_VOLUME_INFO	afpVolumeInfo	= NULL;
+    AFP_VOLUME_INFO*	afpVolumeInfo	= NULL;
 
     WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
 
@@ -808,7 +808,7 @@ AFPERROR FPCreateDir(
     uint32				afpDirID	= 0;
     int8				afpPathType	= 0;
     AFPERROR			afpError	= AFP_OK;
-    PAFP_VOLUME_INFO	afpVolume	= NULL;
+    AFP_VOLUME_INFO*	afpVolume	= NULL;
     LPAFPINDEX			afpEntry	= NULL;
     
     DBGWRITE(DbgLevelAll, L"[AFP]FPCreateDir...\n");
@@ -999,7 +999,7 @@ AFPERROR FPDelete(
 
     unichar				afpPathname[MAX_AFP_PATH];
     LPAFPINDEX			afpEntry		= NULL;
-    PAFP_VOLUME_INFO	afpVolumeInfo	= NULL;
+    AFP_VOLUME_INFO*	afpVolumeInfo	= NULL;
     int16				afpVolumeID		= 0;
     int32				afpDirID		= 0;
     int8				afpPathType		= 0;

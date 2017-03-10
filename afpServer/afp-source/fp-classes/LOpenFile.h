@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include "LArray.h"
-#include "AfpBuffer.h"
 #include "volumes.h"
 #include "afphelp.h"
 
@@ -59,7 +57,7 @@ public:
 	bool isForkOpen() const { return mFileHandle != INVALID_HANDLE_VALUE; }
 
 	uint64 GetStreamLength(PWCHAR streamName = nullptr);
-	AFPERROR GetStreamList(LArray& streams);
+	AFPERROR GetStreamList(std::vector<AFP_ATTR_INFO>& streams);
 
 	HANDLE GetFileHandle() const { return mFileHandle; }
 	int16 GetFileRefNum() const { return mFileRefNum; }

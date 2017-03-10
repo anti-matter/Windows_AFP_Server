@@ -12,9 +12,7 @@
 #include "afp.h"
 #include "volumes.h"
 #include "LFileIndex.h"
-
 #include "afpEvents.h"
-#include "resource.h"
 
 extern BOOL		gRunning;
 extern SHORT	gWorkerThreadRefCount; 
@@ -30,7 +28,7 @@ CRITICAL_SECTION		gWorkerCS;
 // Initialize the worker thread.
 //
 
-void AFPInitializeWorkerThread(HWND hMainWindow)
+void AFPInitializeWorkerThread(IN HWND hMainWindow)
 {
     DWORD	dwThreadID;
     HANDLE	hThread;
@@ -137,7 +135,7 @@ DWORD WINAPI AFPWorkerThread(
                     AFPIndexBuild(
                         (PWCHAR)workerElement->pParam2,
                         workerElement->dwParam,
-                        (PAFP_VOLUME_INFO)workerElement->pParam1
+                        (AFP_VOLUME_INFO*)workerElement->pParam1
                         );
 
                     //
@@ -154,11 +152,11 @@ DWORD WINAPI AFPWorkerThread(
                     //postpone the index complete message till later by putting it
                     //at the end of the queue.
                     //
-                    if (AFPGetIndexingWorkerQueueCount((PAFP_VOLUME_INFO)workerElement->pParam1) != 0)
+                    if (AFPGetIndexingWorkerQueueCount((AFP_VOLUME_INFO*)workerElement->pParam1) != 0)
                     {
                         DBGWRITE(DbgLevelInfo,
                                 L"[worker]Postponed index complete message for %s!\n",
-                                ((PAFP_VOLUME_INFO)workerElement->pParam1)->szShareName
+                                ((AFP_VOLUME_INFO*)workerElement->pParam1)->szShareName
                                 );
                         
                         workerElement->next = NULL;
@@ -173,16 +171,16 @@ DWORD WINAPI AFPWorkerThread(
                         //Now that indexing is done for this volume, we make it available
                         //to the clients.
                         //
-                        ((PAFP_VOLUME_INFO)workerElement->pParam1)->wVolumeFlags |= FLAG_VOLUME_INDEXINGCOMPLETE;
+                        ((AFP_VOLUME_INFO*)workerElement->pParam1)->wVolumeFlags |= FLAG_VOLUME_INDEXINGCOMPLETE;
 
                         //
                         //Log that the specific volume has completed indexing.
                         //
-                        EventWriteAFPServerEvt_VolIndexingComplete(((PAFP_VOLUME_INFO)workerElement->pParam1)->szShareName);
+                        EventWriteAFPServerEvt_VolIndexingComplete(((AFP_VOLUME_INFO*)workerElement->pParam1)->szShareName);
                         
                         DBGWRITE(DbgLevelInfo,
                                 L"[worker]Indexing for volume (%s) complete!\n",
-                                ((PAFP_VOLUME_INFO)workerElement->pParam1)->szShareName
+                                ((AFP_VOLUME_INFO*)workerElement->pParam1)->szShareName
                                 );
 
                         //
@@ -191,7 +189,7 @@ DWORD WINAPI AFPWorkerThread(
                         //
                         SendMessage(gMainWindow, AFPWM_INDEXING_COMPLETE, (WPARAM)NULL, (LPARAM)NULL);
 
-                        //AFPDumpAFPIndex(((PAFP_VOLUME_INFO)workerElement->pParam1)->wVolID);
+                        //AFPDumpAFPIndex(((AFP_VOLUME_INFO*)workerElement->pParam1)->wVolID);
                     }
                     break;
 
@@ -251,7 +249,7 @@ void AFPWorkerAddElementToWorkerQueue(
 //
 
 DWORD AFPGetIndexingWorkerQueueCount(
-    IN	PAFP_VOLUME_INFO	pVolInfo
+    IN	AFP_VOLUME_INFO*	pVolInfo
     )
 {
     PAFP_WORKER_ELEMENT		workerElement;
@@ -264,7 +262,7 @@ DWORD AFPGetIndexingWorkerQueueCount(
     while(workerElement)
     {
         if ((workerElement->dwWorkerFunction == AFP_WORKER_INDEX_DIRECTORY) 	&&
-            (pVolInfo == (PAFP_VOLUME_INFO)workerElement->pParam1)				)
+            (pVolInfo == (AFP_VOLUME_INFO*)workerElement->pParam1)				)
         {
             dwCount++;
         }

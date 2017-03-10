@@ -31,7 +31,7 @@ extern BOOL		gRunning;
 // Thread that waits for change notifications on the volumes. You need
 // to have one of these threads for each volume in the afp server.
 //
-// pParam	Contains a ptr to the PAFP_VOLUME_INFO of the volume to watch.
+// pParam	Contains a ptr to the AFP_VOLUME_INFO* of the volume to watch.
 //
 
 DWORD WINAPI AFPNotifyThread(
@@ -40,7 +40,7 @@ DWORD WINAPI AFPNotifyThread(
 {
 	HANDLE				hDirectory		= INVALID_HANDLE_VALUE;
 	PBYTE				pResultBuffer	= NULL;
-	PAFP_VOLUME_INFO	pVolInfo		= (PAFP_VOLUME_INFO)pParam;
+	AFP_VOLUME_INFO*	pVolInfo		= (AFP_VOLUME_INFO*)pParam;
 
 	//
 	//For worker thread tracking...
@@ -116,7 +116,7 @@ DWORD WINAPI AFPNotifyThread(
 //
 
 void AFPReadDirChanges(
-	IN	PAFP_VOLUME_INFO	pVolInfo,
+	IN	AFP_VOLUME_INFO*	pVolInfo,
 	IN	HANDLE				hDirectory,
 	IN	PBYTE				pResultBuffer
 )
@@ -315,7 +315,7 @@ void AFPReadDirChanges(
 
 void AFPChngNotifyAdd(
 	IN	FILE_NOTIFY_INFORMATION*	pInfo,
-	IN	PAFP_VOLUME_INFO			pVolInfo
+	IN	AFP_VOLUME_INFO*			pVolInfo
 )
 {
 	TCHAR						szNewItemPathname[MAX_PATH];
@@ -489,7 +489,7 @@ void AFPChngNotifyAdd(
 
 void AFPChngNotifyRemove(
 	IN	FILE_NOTIFY_INFORMATION*	pInfo,
-	IN	PAFP_VOLUME_INFO			pVolInfo
+	IN	AFP_VOLUME_INFO*			pVolInfo
 )
 {
 	TCHAR						szItemPathname[MAX_PATH];

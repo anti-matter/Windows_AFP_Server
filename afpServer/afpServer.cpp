@@ -6,7 +6,6 @@
 
 #include "dsi.h"
 #include "afp.h"
-#include "afphelp.h"
 #include "desktop.h"
 #include "volumes.h"
 #include "afpdebug.h"
@@ -34,7 +33,7 @@ HINSTANCE	ghInstance;
 BOOL		gMainWindowVisible;
 
 extern CRITICAL_SECTION	gVolumesCS;
-extern PAFP_VOLUME_INFO	gVolumes;
+extern AFP_VOLUME_INFO*	gVolumes;
 extern BOOL				gAllowGuests;
 extern DWORD			gMaxSessions;
 extern BOOL				gForceEncryptedLogon;
@@ -336,7 +335,7 @@ void FillVolumeListBox(
     DWORD				volFlags = 0;
     DWORD				firstFlags = 0;
     LRegistry			theRegistry;
-    PAFP_VOLUME_INFO	afpVolumeInfo = NULL;
+    AFP_VOLUME_INFO*	afpVolumeInfo = NULL;
     WORD				count = 0;
 
     SendDlgItemMessage(hDlg, IDC_SHARES, LB_SETCURSEL, (WPARAM)0, (LPARAM)0);
@@ -500,7 +499,7 @@ void SaveVolPassword(
     LRegistry			theRegistry;
     DWORD				dwResult;
     DWORD				volFlags;
-    PAFP_VOLUME_INFO	afpVolume	= NULL;
+    AFP_VOLUME_INFO*	afpVolume	= NULL;
 
     //
     //First, send a message to the volume listbox to get the currently
@@ -552,7 +551,7 @@ void HandleROCheckbox(
 {
     LRegistry			theRegistry;
     WCHAR				szShareName[64];
-    PAFP_VOLUME_INFO	afpVolume	= NULL;
+    AFP_VOLUME_INFO*	afpVolume	= NULL;
     LRESULT				dwResult	= 0;
     DWORD				volFlags	= 0;
 

@@ -87,7 +87,7 @@ AFPERROR AFPMapAFPToWindowsPath(
     IN	size_t	cbWindowsPath
 )
 {
-    PAFP_VOLUME_INFO	pVolInfo;
+    AFP_VOLUME_INFO*	pVolInfo;
     DWORD				dwError;
         
     if (AFPGetVolumeInfoBlock(NULL, wVolID, &pVolInfo) == FALSE)
@@ -413,7 +413,7 @@ WORD AFPGetDirOffspringCount(
     IN	LPAFPINDEX	pDirEntry
 )
 {
-    PAFP_VOLUME_INFO	pVolInfo;
+    AFP_VOLUME_INFO*	pVolInfo;
     WORD				wCount = 0;
 
     if (AFPGetVolumeInfoBlock(NULL, wVolID, &pVolInfo) == FALSE)

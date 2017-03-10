@@ -23,5 +23,3 @@
 #include <memory.h>
 #include <wchar.h>
 
-#include "afp.h"
-
