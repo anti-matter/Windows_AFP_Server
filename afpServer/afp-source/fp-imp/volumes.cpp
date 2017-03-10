@@ -247,14 +247,6 @@ AFP_VOLUME_INFO* AFPAddVolume(
     newVolume->ftModDate = winAttribData.ftLastWriteTime;
 
     //
-    //Add the new volume element to the volume list.
-    //
-    //NOTE: The volume will not be available to clients until the
-    //indexing is complete. See below.
-    //
-    gVolumeArray.AddItem(newVolume);
-
-    //
     //Build the AFP index for this volume. This index keeps track
     //of dir id's and dir names. The 'root' of this volume is the
     //share point. We pass kRootDirID as that will be the starting
@@ -262,8 +254,6 @@ AFP_VOLUME_INFO* AFPAddVolume(
     //	
     if (AFPIndexBuild(pszPath, kRootDirID, newVolume.get()) != NO_ERROR)
     {
-        gVolumeArray.RemoveItem(newVolume.get());
-
         //
         //If we get here, then we had a catostrophic failure during indexing.
         //
@@ -278,20 +268,26 @@ AFP_VOLUME_INFO* AFPAddVolume(
     newVolume->wVolumeFlags |= FLAG_VOLUME_SHARED;
 
     //
+    //Add the new volume element to the volume list.
+    //
+    auto tempVolume = newVolume.get();
+    gVolumeArray.AddItem(newVolume);
+
+    //
     //Now add the change notify thread.
     //
     hThread = CreateThread(
         nullptr,
         0,
         AFPNotifyThread,
-        static_cast<LPVOID>(newVolume.get()),
+        static_cast<LPVOID>(tempVolume),
         0,
         &dwThreadID
     );
 
     CloseHandle(hThread);
 
-    return newVolume.get();
+    return tempVolume;
 }
 
 
