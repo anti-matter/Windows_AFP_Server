@@ -72,14 +72,17 @@ public:
     {
         AutoLock lock(&mMutex);
 
-        UNREFERENCED_PARAMETER(data);
+        typename std::vector<std::unique_ptr<T>>::iterator it =
+            std::find_if(mData.begin(), mData.end(), [=](const std::unique_ptr<T>& item)
+        {
+            return memcmp(item.get(), data, sizeof(T)) == 0;
+        });
 
-        //auto it = std::find(mData.begin(), mData.end(), data);
-        //if (it != mData.end())
-        //{
-        //    DBGWRITE(DbgLevelInfo, L"[LArray<T>::RemoveItem]Removing item from array.\n");
-        //    mData.erase(it);
-        //}
+        if (it != mData.end())
+        {
+            DBGWRITE(DbgLevelInfo, L"[LArray<T>::RemoveItem]Removing item from array.\n");
+            mData.erase(it);
+        }
     }
 
 	UINT32 NumItems() const { return mData.size(); }
