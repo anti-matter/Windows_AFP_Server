@@ -9,9 +9,9 @@
 #include "afp.h"
 #include "afpworker.h"
 #include "LFileIndex.h"
+#include <algorithm>
 
-#define FIRST_DIR_ID			1
-#define INDEX_BLOCK_GROW_SIZE	256
+const int FirstDirectoryId = 1;
 
 /*
  *	LFileIndex()
@@ -23,11 +23,12 @@
  *		None
  */
 
-LFileIndex::LFileIndex(bool ownsIndexEntries) : LArray(INDEX_BLOCK_GROW_SIZE)
+LFileIndex::LFileIndex(bool ownsIndexEntries)
+    : mNextID(FirstDirectoryId)
+    , mOwnsEntries(ownsIndexEntries)
+    , mRefCount(0)
 {
-	mNextID = FIRST_DIR_ID;
-	mOwnsEntries = ownsIndexEntries;
-	mRefCount = 0;
+    InitializeCriticalSection(&mIndexCriticalSection);
 }
 
 
@@ -43,8 +44,6 @@ LFileIndex::LFileIndex(bool ownsIndexEntries) : LArray(INDEX_BLOCK_GROW_SIZE)
 
 LFileIndex::~LFileIndex()
 {
-	LPAFPINDEX lpi;
-
 	//
 	//Another thread is still relying on us being around, wait for
 	//the thread to be done with us.
@@ -56,39 +55,6 @@ LFileIndex::~LFileIndex()
 
 		Sleep(500);
 	}
-
-	//
-	//If this instance owns the entries in the array, then we free all
-	//memory used by the entries as well.
-	//
-	if (mOwnsEntries)
-	{
-		DBGWRITE(DbgLevelInfo, L"[LFileIndex::~LFileIndex]Deleting index entries...\n");
-
-		Rewind();
-
-		while (Next(&lpi))
-		{
-			DBG_FREE(lpi);
-		}
-	}
-}
-
-
-/*
- *	AddEntry()
- *
- *	Description
- *		Add a new index entry to the array, this method is for
- *		when the index entry is already created.
- *
- *	Returns
- *		None
- */
-
-void LFileIndex::AddEntry(LPAFPINDEX lpi)
-{
-	AddItem(&lpi);
 }
 
 
@@ -110,18 +76,8 @@ LPAFPINDEX LFileIndex::AddEntry(
 	uint32* pNewDirID
 )
 {
-	auto entry = static_cast<LPAFPINDEX>(DBG_ALLOC(sizeof(AFPINDEX)));
-
-	if (entry == nullptr)
-	{
-		DBGWRITE(
-			DbgLevelWarning,
-			L"[LFileIndex::AddEntry]Allocation of index element failed!\n", GetLastError()
-		);
-		ASSERT(0);
-
-		return nullptr;
-	}
+    AutoLock lock(&mIndexCriticalSection);
+    auto entry = std::make_unique<AFPINDEX>();
 
 	//
 	//Set the correct flags if it's a directory.
@@ -147,17 +103,20 @@ LPAFPINDEX LFileIndex::AddEntry(
 	//
 	entry->pathHash = HashString(pObjectPath);
 
-	AddItem(&entry);
+    // Save as the std::move() ambiguates entry.
+    auto result = entry.get();
+
+    mIndex.push_back(std::move(entry));
 
 	//
 	//If the caller wants us to return the new directory ID, then do so.
 	//
 	if (isDirectory && pNewDirID != nullptr)
 	{
-		*pNewDirID = entry->objectID;
+		*pNewDirID = result->objectID;
 	}
 
-	return entry;
+    return result;
 }
 
 
@@ -165,76 +124,31 @@ LPAFPINDEX LFileIndex::AddEntry(
  *	GetEntry()
  *
  *	Description
- *		Get an entry from the array based on its object ID. Optionally
- *		returns the actual position in the array in pIndex.
+ *		Get an entry from the array based on its object ID.
  *
  *	Returns
  *		LPAFPINDEX
  */
 
-LPAFPINDEX LFileIndex::GetEntry(uint32 objectID, array_index* pIndex)
+LPAFPINDEX LFileIndex::GetEntry(uint32 objectID)
 {
-	array_index index;
+    AutoLock lock(&mIndexCriticalSection);
 
-	if (pIndex != nullptr)
-	{
-		*pIndex = array_index_invalid;
-	}
+    std::vector<std::unique_ptr<AFPINDEX>>::iterator it = std::find_if(mIndex.begin(), mIndex.end(),[=](const std::unique_ptr<AFPINDEX>& i)
+    {
+        return objectID == i->objectID;
+    });
 
-	index = min(objectID, NumItems());
-	auto afp_index = GetEntryByIndex(index);
-
-	//
-	//The array index should always(?) be lower than the object ID
-	//if it wasn't found in the first attempt above.
-	//
-	while (afp_index && afp_index->objectID != objectID)
-	{
-		afp_index = GetEntryByIndex(--index);
-	}
-
-#ifdef _DEBUG
-	if (afp_index == nullptr || afp_index->objectID != objectID)
-	{
-		DBGWRITE(
-			DbgLevelInfo,
-			L"[LFileIndex::GetEntry]Failed to find objectID! (lpi->objectID=%d,objectID=%d,index=%d)\n",
-			afp_index != nullptr ? afp_index->objectID, objectID, index : 0, objectID, index
-		);
-	}
-#endif
-
-	//
-	//If not NULL, return the actual index position in the array
-	//in pIndex.
-	//
-	if (pIndex != nullptr && afp_index)
-	{
-		*pIndex = index;
-	}
-
-	return afp_index;
-}
-
-
-/*
- *	GetEntryByIndex() [private]
- *
- *	Description
- *		Get an entry from the array based on its index in the array.
- *
- *	Returns
- *		None
- */
-
-LPAFPINDEX LFileIndex::GetEntryByIndex(array_index index)
-{
-	LPAFPINDEX afp_index = nullptr;
-
-	if (GetItem(index, &afp_index))
-	{
-		return afp_index;
-	}
+    if (it != mIndex.end())
+    {
+        return it->get();
+    }
+    else
+    {
+        DBGWRITE(
+            DbgLevelInfo,
+            L"[LFileIndex::GetEntry]Failed to find objectID! (%d)\n", objectID);
+    }
 
 	return nullptr;
 }
@@ -268,63 +182,61 @@ void LFileIndex::RemoveEntry(LPAFPINDEX entry, bool deleteDirectorySubTree)
 
 void LFileIndex::RemoveEntry(uint32 objectID, bool deleteDirectorySubTree)
 {
-	array_index ai;
-	auto afp_index = GetEntry(objectID, &ai);
+    AutoLock lock(&mIndexCriticalSection);
 
-	if (afp_index == nullptr || ai == array_index_invalid)
-	{
-		DBGWRITE(
-			DbgLevelInfo,
-			L"[LFileIndex::RemoveEntry]ID not found! (%d)\n", objectID
-		);
+    std::vector<std::unique_ptr<AFPINDEX>>::iterator it = std::find_if(mIndex.begin(), mIndex.end(), [=](const std::unique_ptr<AFPINDEX>& i)
+    {
+        return objectID == i->objectID;
+    });
 
-		ASSERT(0);
+    if (it == mIndex.end())
+    {
+        DBGWRITE(
+            DbgLevelInfo,
+            L"[LFileIndex::RemoveEntry]Failed to find objectID! (%d)\n", objectID);
 
-		return;
-	}
+        ASSERT(0);
+        return;
+    }
 
-	RemoveItem(ai);
+    auto isDirectory = (it->get()->flags & FLAG_INDEX_ISDIR) != 0;
+
+    mIndex.erase(it);
 
 	//
 	//If the entry is a directory, then that means we have to delete all entries
 	//in the index that are sub-files/folders to this directory.
 	//
-	if ((afp_index->flags & FLAG_INDEX_ISDIR) && (deleteDirectorySubTree))
+	if ((isDirectory) && (deleteDirectorySubTree))
 	{
-		auto tempIndex = std::make_unique<LFileIndex>();
+        // Find elements in the vector who's parent dir id is the same
+        // as the object we just removed.
 
-		DBGWRITE(
-			DbgLevelAll,
-			L"[LFileIndex::RemoveEntry]Deleting items in sub-tree\n"
-		);
+        for (auto subIt = mIndex.begin(); subIt < mIndex.end();  ++subIt)
+        {
+            auto element = subIt->get();
 
-		//
-		//Get a temporary index object that holds all of the offspring
-		//in the dir. This has the advantage that items can now be added
-		//or removed from the main array with no effect on this operation.
-		//
-		if (GetOffspring(afp_index->objectID, tempIndex.get()) > 0)
-		{
-			LPAFPINDEX sub_lpi = nullptr;
+            if (element->parID != objectID)
+                continue;
 
-			while (tempIndex->Next(&sub_lpi))
-			{
-				auto pWorkerElement = static_cast<PAFP_WORKER_ELEMENT>(DBG_ALLOC(sizeof(AFP_WORKER_ELEMENT)));
-				if (pWorkerElement != nullptr)
-				{
-					//
-					//Increment the ref counter so we wait before getting deleted.
-					//
-					IncRef();
+            // We use a worker thread to remove the indexes so we don't spend
+            // too much time here blocking the thread.
 
-					pWorkerElement->pParam1 = this;
-					pWorkerElement->pParam2 = sub_lpi;
-					pWorkerElement->dwWorkerFunction = AFP_WORKER_DELETE_INDEX_ENTRY;
+            auto pWorkerElement = static_cast<PAFP_WORKER_ELEMENT>(DBG_ALLOC(sizeof(AFP_WORKER_ELEMENT)));
+            if (pWorkerElement != nullptr)
+            {
+                //
+                //Increment the ref counter so we wait before getting deleted.
+                //
+                IncRef();
 
-					AFPWorkerAddElementToWorkerQueue(pWorkerElement);
-				}
-			}
-		}
+                pWorkerElement->pParam1 = this;
+                pWorkerElement->pParam2 = element;
+                pWorkerElement->dwWorkerFunction = AFP_WORKER_DELETE_INDEX_ENTRY;
+
+                AFPWorkerAddElementToWorkerQueue(pWorkerElement);
+            }
+        }
 	}
 }
 
@@ -390,16 +302,16 @@ void LFileIndex::UpdateEntry(
 	//
 	if (pEntry->flags & FLAG_INDEX_ISDIR)
 	{
-		LFileIndex tempIndex;
-		LPAFPINDEX lpi;
+        AutoLock lock(&mIndexCriticalSection);
 
-		if (GetOffspring(pEntry->objectID, &tempIndex) > 0)
-		{
-			while (tempIndex.Next(&lpi))
-			{
-				UpdateEntry(lpi, pEntry, nullptr);
-			}
-		}
+        for (auto subIt = mIndex.begin(); subIt < mIndex.end(); ++subIt)
+        {
+            auto subEntry = subIt->get();
+            if (subEntry->parID != pEntry->objectID)
+                continue;
+
+            UpdateEntry(subEntry, pEntry, nullptr);
+        }
 	}
 }
 
@@ -501,28 +413,23 @@ LPAFPINDEX LFileIndex::FindEntryWithFullPath(PWCHAR fullPath)
 		return nullptr;
 	}
 
-	auto hash = HashString(fullPath);
+    AutoLock lock(&mIndexCriticalSection);
 
-	Rewind();
+    std::vector<std::unique_ptr<AFPINDEX>>::iterator it = std::find_if(mIndex.begin(), mIndex.end(), [=](const std::unique_ptr<AFPINDEX>& i)
+    {
+        return lstrcmp(i->szPath, fullPath) == 0;
+    });
 
-	LPAFPINDEX lpi = nullptr;
+    if (it == mIndex.end())
+    {
+        DBGWRITE(
+            DbgLevelInfo,
+            L"[LFileIndex::FindEntryWithFullPath]Failed to find object! (%s)\n", fullPath);
 
-	while (Next(&lpi))
-	{
-		if (lpi->pathHash == hash)
-		{
-			//
-			//Make sure we have an exact match (look out for hash collisions)
-			//
+        return nullptr;
+    }
 
-			if (!lstrcmp(lpi->szPath, fullPath))
-			{
-				return lpi;
-			}
-		}
-	}
-
-	return nullptr;
+    return it->get();
 }
 
 
@@ -530,7 +437,7 @@ LPAFPINDEX LFileIndex::FindEntryWithFullPath(PWCHAR fullPath)
  *	GetOffspring()
  *
  *	Description
- *		Returns a new LFileIndex array that contains only the offspring
+ *		Returns a new std::vector<> that contains only the offspring
  *		for a particular directory.
  *
  *		newIndex must already be allocated by caller but can be null if
@@ -540,26 +447,56 @@ LPAFPINDEX LFileIndex::FindEntryWithFullPath(PWCHAR fullPath)
  *		LFileIndex*
  */
 
-uint32 LFileIndex::GetOffspring(uint32 parID, LFileIndex* newIndex)
+uint32 LFileIndex::GetOffspring(uint32 parID, std::vector<LPAFPINDEX>** newIndex)
 {
-	LPAFPINDEX lpi;
-	uint32 count = 0;
-	array_index i = 1;
+    auto subIndex = new std::vector<LPAFPINDEX>();
 
-	while ((lpi = GetEntryByIndex(i)) != nullptr)
-	{
-		if (lpi->parID == parID)
-		{
-			if (newIndex != nullptr)
-			{
-				newIndex->AddEntry(lpi);
-			}
+    AutoLock lock(&mIndexCriticalSection);
 
-			count++;
-		}
+    for (auto it = mIndex.begin(); it < mIndex.end(); ++it)
+    {
+        auto entry = it->get();
+        if (entry->parID != parID)
+            continue;
 
-		i++;
-	}
+        subIndex->push_back(it->get());
+    }
 
-	return count;
+    if (newIndex != nullptr)
+    {
+        *newIndex = subIndex;
+        return subIndex->size();
+    }
+
+    uint32 count = subIndex->size();
+    delete subIndex;
+
+    return count;
 }
+
+
+#ifdef _DEBUG
+/*
+*	DumpIndex()
+*
+*	Description
+*		Debug function to dump the AFP index.
+*
+*	Returns
+*		None
+*/
+
+void LFileIndex::DumpIndex()
+{
+    DBGWRITE(DbgLevelInfo, L"Dumping index...\n");
+
+    for (auto it = mIndex.begin(); it < mIndex.end(); ++it)
+    {
+        auto entry = it->get();
+
+        DBGWRITE(DbgLevelInfo,
+            L"ID = %d parID = %d\tPath = %s\n", entry->objectID, entry->parID, entry->szPath);
+    }
+}
+
+#endif

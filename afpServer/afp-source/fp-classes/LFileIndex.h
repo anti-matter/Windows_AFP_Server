@@ -43,13 +43,12 @@ typedef struct _AFP_INDEX
 	DWORD pathHash;
 } AFPINDEX, *LPAFPINDEX;
 
-class LFileIndex : public LArray
+class LFileIndex
 {
 public:
 	explicit LFileIndex(bool ownsIndexEntries = false);
 	~LFileIndex();
 
-	void AddEntry(LPAFPINDEX lpi);
 	LPAFPINDEX AddEntry(
 		uint32 parID,
 		PWCHAR pObjectName,
@@ -57,7 +56,7 @@ public:
 		bool isDirectory,
 		uint32* pNewDirID = nullptr
 	);
-	LPAFPINDEX GetEntry(uint32 objectID, array_index* pIndex = nullptr);
+	LPAFPINDEX GetEntry(uint32 objectID);
 
 	void RemoveEntry(LPAFPINDEX entry, bool deleteDirectorySubTree = false);
 	void RemoveEntry(uint32 objectID, bool deleteDirectorySubTree = false);
@@ -75,7 +74,7 @@ public:
 
 	static uint32 HashString(PWCHAR string);
 	LPAFPINDEX FindEntryWithFullPath(PWCHAR pFullPath);
-	uint32 GetOffspring(uint32 parID, LFileIndex* newIndex = nullptr);
+	uint32 GetOffspring(uint32 parID, std::vector<LPAFPINDEX>** newIndex = nullptr);
 
 	uint32 NextID() { return mNextID++; }
 
@@ -83,8 +82,14 @@ public:
 	void DecRef() { mRefCount--; }
 	uint32 GetRef() const { return mRefCount; }
 
+#ifdef _DEBUG
+    void DumpIndex();
+#endif
+
 private:
-	LPAFPINDEX GetEntryByIndex(array_index index);
+    CRITICAL_SECTION mIndexCriticalSection;
+
+    std::vector<std::unique_ptr<AFPINDEX>> mIndex;
 
 	uint32 mNextID;
 	bool mOwnsEntries;

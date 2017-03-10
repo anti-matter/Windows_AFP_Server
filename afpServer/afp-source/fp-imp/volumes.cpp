@@ -1388,19 +1388,7 @@ void AFPDumpAFPIndex(
 	IN LFileIndex* index
 )
 {
-	LPAFPINDEX pIndex;
-	array_index i = 1;
-
-	DBGWRITE(DbgLevelInfo, L"Dumping index...\n");
-
-	index->Rewind();
-
-	while (index->Next(&pIndex))
-	{
-		DBGWRITE(DbgLevelInfo,
-			L"ArrayID = %d\tID = %d parID = %d\tPath = %s\n",
-			i++, pIndex->objectID, pIndex->parID, pIndex->szPath);
-	}
+    index->DumpIndex();
 }
 
 #endif

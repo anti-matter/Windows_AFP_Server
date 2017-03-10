@@ -272,7 +272,6 @@ AFPERROR FPEnumerate(
     int32				afpMaxReplySize	= 0;
     int8				afpPathType		= 0;
     AFPERROR			afpError		= AFP_OK;
-    LFileIndex*			afpTempIndex	= NULL;
     LPAFPINDEX			afpTargetEntry	= NULL;
     LPAFPINDEX			afpEntry		= NULL;
     PAFP_VOLUME_INFO	afpVolumeInfo	= NULL;
@@ -397,28 +396,20 @@ AFPERROR FPEnumerate(
     //Create a temporary index array to hold all the offspring for the
     //target directory.
     //
-    afpTempIndex = new LFileIndex();
-    
-    if (afpTempIndex == NULL)
-    {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPEnumerate]Failed to allocate temp index array!\n");
-        ASSERT(0);
-
-        RELEASE_NOTIFY_LOCK_VOLINFO(afpVolumeInfo);
+    std::vector<LPAFPINDEX>* afpTempIndex;
         
-        return( afpMiscErr );
-    }
-    
     //
     //Now populate the temp array with the offspring in the target dir.
     //
-    afpVolumeInfo->index->GetOffspring(afpTargetEntry->objectID, afpTempIndex);
+    afpVolumeInfo->index->GetOffspring(afpTargetEntry->objectID, &afpTempIndex);
             
     //
     //Go through the entire index and find entries that have the dirID as their parent.
     //
-    while(afpTempIndex->Next(&afpEntry))
+    for (auto it = afpTempIndex->begin(); it < afpTempIndex->end(); ++it)
     {
+        afpEntry = *it;
+
         #ifdef _DEBUG
         if ((afpEntry->parID == afpTargetEntry->objectID) && (GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes) == 0))
         {
