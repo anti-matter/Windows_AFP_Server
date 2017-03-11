@@ -173,7 +173,7 @@ public:
     * Description:
     *		Reads in the array data from a file.
     *
-    * Returns: None
+    * Returns: true if database was read successfully.
     */
     bool FromFile(std::wstring path)
     {
@@ -185,7 +185,10 @@ public:
             return false;
 
         std::vector<std::unique_ptr<DESKTOP_ENTRY, DTDeleter>>::size_type size;
-        fread(&size, sizeof(size), 1, file);
+        if (fread(&size, sizeof(size), 1, file) == 0)
+        {
+            return true;
+        }
 
         for (std::vector<std::unique_ptr<DESKTOP_ENTRY, DTDeleter>>::size_type i = 0; i < size; ++i)
         {
@@ -201,7 +204,7 @@ public:
         }
 
         fclose(file);
-        return false;
+        return true;
     }
 };
 
