@@ -49,20 +49,20 @@ LAFPSession::~LAFPSession()
 {
     EnterCriticalSection(&mMutex);
 
-    for (auto it = mOpenDesks.begin(); it < mOpenDesks.end();)
+    std::for_each(mOpenDesks.begin(), mOpenDesks.end(), [=](const std::unique_ptr<OPEN_DESKTOP>& dt)
     {
-        SessionCloseDesk(it->get()->dtRefNum);
-    }
+        SessionCloseDesk(dt.get()->dtRefNum);
+    });
 
-    for (auto it = mOpenFiles.begin(); it < mOpenFiles.end();)
+    std::for_each(mOpenFiles.begin(), mOpenFiles.end(), [=](const std::unique_ptr<LOpenFile>& of)
     {
-        SessionCloseFile(it->get()->GetFileRefNum());
-    }
+        SessionCloseFile(of.get()->GetFileRefNum());
+    });
 
-    for (auto it = mOpenVolumes.begin(); it < mOpenVolumes.end();)
+    std::for_each(mOpenVolumes.begin(), mOpenVolumes.end(), [=](const AFP_VOLUME_INFO* ov)
     {
-        SessionCloseVolume((*it)->wVolID);
-    }
+        SessionCloseFile(ov->wVolID);
+    });
 
     LeaveCriticalSection(&mMutex);
 
@@ -253,9 +253,15 @@ AFPERROR LAFPSession::SessionCloseVolume(uint16 volumeID)
     AutoLock lock(&mMutex);
 
     std::vector<AFP_VOLUME_INFO*>::iterator it =
-        std::find_if(mOpenVolumes.begin(), mOpenVolumes.end(), [=](const AFP_VOLUME_INFO* v)
+        std::find_if(mOpenVolumes.begin(), mOpenVolumes.end(), [=](AFP_VOLUME_INFO* v)
         {
-            return v->wVolID == volumeID;
+            auto result = v->wVolID == volumeID;
+            if (result)
+            {
+                v->dwRefCount--;
+            }
+
+            return result;
         });
 
     if (it != mOpenVolumes.end())
@@ -419,7 +425,7 @@ LAFPSession* LAFPSession::FindSessionWithID(int8* afpID, uint32 inIDSize)
 {
     auto pSession = gSessionsList;
 
-    EnterCriticalSection(&gcsSessionList);
+    AutoLock lock(&gcsSessionList);
 
     while (pSession)
     {
@@ -433,15 +439,12 @@ LAFPSession* LAFPSession::FindSessionWithID(int8* afpID, uint32 inIDSize)
                 inIDSize == afpObject->GetAFPIDSize() &&
                 !memcmp(afpID, afpObjectID, inIDSize))
             {
-                LeaveCriticalSection(&gcsSessionList);
                 return afpObject;
             }
         }
 
         pSession = static_cast<LPSESSION>(pSession->next);
     }
-
-    LeaveCriticalSection(&gcsSessionList);
 
     return (nullptr);
 }
@@ -460,7 +463,7 @@ LAFPSession* LAFPSession::FindSessionByToken(int32 inToken)
 {
     auto pSession = gSessionsList;
 
-    EnterCriticalSection(&gcsSessionList);
+    AutoLock lock(&gcsSessionList);
 
     while (pSession)
     {
@@ -470,15 +473,12 @@ LAFPSession* LAFPSession::FindSessionByToken(int32 inToken)
         {
             if (afpSession->GetToken() == static_cast<uint32>(inToken))
             {
-                LeaveCriticalSection(&gcsSessionList);
                 return afpSession;
             }
         }
 
         pSession = static_cast<LPSESSION>(pSession->next);
     }
-
-    LeaveCriticalSection(&gcsSessionList);
 
     return (nullptr);
 }

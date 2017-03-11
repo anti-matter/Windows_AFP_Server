@@ -7,12 +7,16 @@
 #pragma once
 
 #include <algorithm>
+#include <iterator>
+#include <vector>
 #include "LArray.h"
 #include "desktop.h"
 
-extern UINT16 DesktopRefNum;
+struct DTDeleter {
+    void operator()(DESKTOP_ENTRY* b) const { UNREFERENCED_PARAMETER(b); }
+};
 
-class DesktopDatabase : public LArray<DESKTOP_ENTRY>
+class DesktopDatabase : public LArray<DESKTOP_ENTRY, DTDeleter>
 {
 public:
     DesktopDatabase() : LArray() 
@@ -25,7 +29,7 @@ public:
 
     AFPERROR AddEntry(LPDESKTOP_ENTRY entry)
     {
-        std::unique_ptr<DESKTOP_ENTRY> newEntry(entry);
+        std::unique_ptr<DESKTOP_ENTRY, DTDeleter> newEntry(entry);
         AddItem(newEntry);
 
         return AFP_OK;
@@ -33,15 +37,30 @@ public:
 
     AFPERROR RemoveEntry(LPDESKTOP_ENTRY entry)
     {
-        RemoveItem(entry);
+        AutoLock lock(&mMutex);
+
+        std::vector<std::unique_ptr<DESKTOP_ENTRY, DTDeleter>>::iterator it =
+            std::find_if(mData.begin(), mData.end(), [=](const std::unique_ptr<DESKTOP_ENTRY, DTDeleter>& item)
+        {
+            return memcmp(item.get(), entry, sizeof(DESKTOP_ENTRY)) == 0;
+        });
+
+        if (it != mData.end())
+        {
+            DBGWRITE(DbgLevelInfo, L"[LArray<T>::RemoveItem]Removing item from array.\n");
+            mData.erase(it);
+        }
         return AFP_OK;
     }
 
     LPDESKTOP_ENTRY FindEntry(LPDESKTOP_ENTRY searchParam, UINT16 searchIndex = 0)
     {
+        AutoLock lock(&mMutex);
+
         UINT16 foundIndex = 0;
 
-        std::vector<std::unique_ptr<DESKTOP_ENTRY>>::iterator it = std::find_if(mData.begin(), mData.end(), [&](const std::unique_ptr<DESKTOP_ENTRY>& d)
+        std::vector<std::unique_ptr<DESKTOP_ENTRY, DTDeleter>>::iterator it = 
+            std::find_if(mData.begin(), mData.end(), [&](const std::unique_ptr<DESKTOP_ENTRY, DTDeleter>& d)
         {
             if (searchParam->entryType == d.get()->entryType)
             {
@@ -130,7 +149,8 @@ public:
     bool ToFile(std::wstring path)
     {
         FILE *file;
-        
+        AutoLock lock(&mMutex);
+
         auto success = _wfopen_s(&file, path.c_str(), L"wb");
         if (success != 0)
             return false;
@@ -158,21 +178,24 @@ public:
     bool FromFile(std::wstring path)
     {
         FILE *file;
+        AutoLock lock(&mMutex);
 
         auto success = _wfopen_s(&file, path.c_str(), L"w+b");
         if (success != 0)
             return false;
 
-        std::vector<std::unique_ptr<DESKTOP_ENTRY>>::size_type size;
+        std::vector<std::unique_ptr<DESKTOP_ENTRY, DTDeleter>>::size_type size;
         fread(&size, sizeof(size), 1, file);
 
-        for (std::vector<std::unique_ptr<DESKTOP_ENTRY>>::size_type i = 0; i < size; ++i)
+        for (std::vector<std::unique_ptr<DESKTOP_ENTRY, DTDeleter>>::size_type i = 0; i < size; ++i)
         {
             DESKTOP_ENTRY entry;
 
             if (fread(&entry, sizeof(entry), 1, file) != 0)
             {
-                auto ep = std::make_unique<DESKTOP_ENTRY>(entry);
+                auto ep = std::unique_ptr<DESKTOP_ENTRY, DTDeleter>(new DESKTOP_ENTRY);
+                memcpy(ep.get(), &entry, sizeof(DESKTOP_ENTRY));
+
                 AddItem(ep);
             }
         }

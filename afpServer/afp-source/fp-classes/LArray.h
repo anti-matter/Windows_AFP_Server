@@ -13,7 +13,7 @@
 #include "AutoLock.h"
 #include "afpdebug.h"
 
-template <class T> class LArray
+template <class T, class D = std::default_delete<T>> class LArray
 {
 public:
 
@@ -53,7 +53,7 @@ public:
     *
     * Returns: None
     */
-    void AddItem(std::unique_ptr<T>& data)
+    void AddItem(std::unique_ptr<T,D>& data)
     {
         AutoLock lock(&mMutex);
         mData.push_back(std::move(data));
@@ -72,7 +72,7 @@ public:
     {
         AutoLock lock(&mMutex);
 
-        typename std::vector<std::unique_ptr<T>>::iterator it =
+        typename std::vector<std::unique_ptr<T,D>>::iterator it =
             std::find_if(mData.begin(), mData.end(), [=](const std::unique_ptr<T>& item)
         {
             return memcmp(item.get(), data, sizeof(T)) == 0;
@@ -96,7 +96,7 @@ public:
 
 protected:
 
-    std::vector<std::unique_ptr<T>> mData;
+    std::vector<std::unique_ptr<T,D>> mData;
 
 	CRITICAL_SECTION mMutex;
 };

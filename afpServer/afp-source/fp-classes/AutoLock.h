@@ -9,7 +9,7 @@
 class AutoLock
 {
 public:
-    AutoLock(CRITICAL_SECTION* toLock);
+    explicit AutoLock(CRITICAL_SECTION* toLock);
     ~AutoLock();
 
     void Lock() const;

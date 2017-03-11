@@ -1,6 +1,5 @@
 /*
 *	AutoLock
-*	Created 11/29/15
 *
 *	Copyright © Michael J. Conrad. All Rights Reserved.
 */
