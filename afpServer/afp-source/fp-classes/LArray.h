@@ -85,6 +85,20 @@ public:
         }
     }
 
+    /*
+    * GetItem()
+    *
+    * Description:
+    *		Returns the item (T*) located at the position.
+    *
+    * Returns: T*
+    */
+    T* GetItem(uint32 index)
+    {
+        std::unique_ptr<T, D> &up = mData.at(index);
+        return up.get();
+    }
+
 	UINT32 NumItems() const { return mData.size(); }
     static UINT32 ItemSize() { return sizeof(T); }
 

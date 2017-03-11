@@ -356,9 +356,10 @@ AFPERROR AFPRemoveAllVolumes()
 {
     AutoLock lock(gVolumeArray.Mutex());
 
-    for (auto it = gVolumeArray.begin(); it < gVolumeArray.end();)
+    auto size = gVolumeArray.NumItems();
+    for (UINT32 i = 0; i < size; ++i)
     {
-        AFPRemoveVolume(it->get());
+        AFPRemoveVolume(gVolumeArray.GetItem(i));
     }
 
     return AFP_OK;
@@ -772,7 +773,7 @@ AFPERROR AFPIndexBuild(
     {
         DWORD dwNewDirID;
 
-        AQUIRE_NOTIFY_LOCK_VOLINFO(pVInfo);
+        AutoLock lock(&pVInfo->csNotifyQueue);
 
         do
         {
@@ -842,8 +843,6 @@ AFPERROR AFPIndexBuild(
             }
         }
         while (FindNextFile(hFind, &findData));
-
-        RELEASE_NOTIFY_LOCK_VOLINFO(pVInfo);
 
         FindClose(hFind);
     }

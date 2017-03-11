@@ -556,7 +556,7 @@ AFPERROR FPCreateFile(
     //
     //Don't let the change notify mechanism do anything yet.
     //
-    AQUIRE_NOTIFY_LOCK_VOLINFO(afpVolumeInfo);
+    AutoLock lock(&afpVolumeInfo->csNotifyQueue);
 
     //
     //Impersonate the logged on user. This makes sure only those who
@@ -639,8 +639,6 @@ AFPERROR FPCreateFile(
         //
         CloseHandle(hFile);
     }
-
-    RELEASE_NOTIFY_LOCK_VOLINFO(afpVolumeInfo);
 
     return( afpError );
 }

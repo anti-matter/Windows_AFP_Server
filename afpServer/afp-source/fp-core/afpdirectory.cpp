@@ -390,7 +390,7 @@ AFPERROR FPEnumerate(
     //
     //Don't let the change notify mechanism do anything yet.
     //
-    AQUIRE_NOTIFY_LOCK_VOLINFO(afpVolumeInfo);
+    AutoLock lock(&afpVolumeInfo->csNotifyQueue);
 
     //
     //Create a temporary index array to hold all the offspring for the
@@ -607,8 +607,6 @@ AFPERROR FPEnumerate(
         }
     }
     
-    RELEASE_NOTIFY_LOCK_VOLINFO(afpVolumeInfo);
-
     //
     //Set the actual number of objects found and in the buffer.
     //
@@ -905,7 +903,7 @@ AFPERROR FPCreateDir(
     //
     //Lock down so the notify thread and us don't compete.
     //
-    AQUIRE_NOTIFY_LOCK_VOLINFO(afpVolume);
+    AutoLock lock(&afpVolume->csNotifyQueue);
 
     //
     //Impersonate the logged on user. This makes sure only those who
@@ -913,11 +911,6 @@ AFPERROR FPCreateDir(
     //
     if (!AFPImpersonateUser(afpSession->hUserToken))
     {
-        //
-        //Impersonation failed, don't allow any further operations.
-        //
-        RELEASE_NOTIFY_LOCK_VOLINFO(afpVolume);
-
         return( afpAccessDenied );
     }
 
@@ -973,8 +966,6 @@ AFPERROR FPCreateDir(
         //
         afpReply.AddInt32(afpDirID);
     }
-
-    RELEASE_NOTIFY_LOCK_VOLINFO(afpVolume);
 
     return( afpError );
 }
@@ -1078,7 +1069,7 @@ AFPERROR FPDelete(
     //
     //Don't compete with the notify thread.
     //
-    AQUIRE_NOTIFY_LOCK_VOLINFO(afpVolumeInfo);
+    AutoLock lock(&afpVolumeInfo->csNotifyQueue);
         
     //
     //Impersonate the logged on user. This makes sure only those who
@@ -1086,11 +1077,6 @@ AFPERROR FPDelete(
     //
     if (!AFPImpersonateUser(afpSession->hUserToken))
     {
-        //
-        //Impersonation failed, don't allow any further operations.
-        //
-        RELEASE_NOTIFY_LOCK_VOLINFO(afpVolumeInfo);
-
         return( afpAccessDenied );
     }
 
@@ -1137,8 +1123,6 @@ AFPERROR FPDelete(
     }
 
     AFPMarkVolumeDirty(afpVolumeID);
-
-    RELEASE_NOTIFY_LOCK_VOLINFO(afpVolumeInfo);
 
     return( afpError );
 }
@@ -1310,7 +1294,9 @@ AFPERROR FPCopyFile(
     //
     //Silence the notify thread while we do our work.
     //
-    AQUIRE_NOTIFY_LOCK_ID(afpDstVolID);
+    AFP_VOLUME_INFO* volumeInfo = nullptr;
+    AFPGetVolumeInfoBlock(nullptr, afpDstVolID, &volumeInfo);
+    AutoLock lock(&volumeInfo->csNotifyQueue);
 
     //
     //Setup the correct impersonation for this API call. We have to
@@ -1321,8 +1307,6 @@ AFPERROR FPCopyFile(
         //
         //Impersonation failed, don't allow any further operations.
         //
-        RELEASE_NOTIFY_LOCK_ID(afpDstVolID);
-
         return( afpAccessDenied );
     }
 
@@ -1380,8 +1364,6 @@ AFPERROR FPCopyFile(
             DBGWRITE(DbgLevelInfo, L"[afp:FPCopyFile]Failed to add new entry!\n");
         }
     }
-
-    RELEASE_NOTIFY_LOCK_ID(afpDstVolID);
 
     return( afpError );
 }
@@ -1551,7 +1533,10 @@ AFPERROR FPMoveAndRename(
     //
     //Prevent file notifications otherwise we'll get conflicts.
     //
-    AQUIRE_NOTIFY_LOCK_ID(afpVolumeID);
+    AFP_VOLUME_INFO* volumeInfo = nullptr;
+    AFPGetVolumeInfoBlock(nullptr, afpVolumeID, &volumeInfo);
+    AutoLock lock(&volumeInfo->csNotifyQueue);
+
     
     DBGWRITE(DbgLevelInfo, L"[afp:FPMoveAndRename]Renaming to new path = %s\n", winDstPath);
 
@@ -1606,9 +1591,7 @@ AFPERROR FPMoveAndRename(
             AFPAddCharMapToIndexEntry(afpSrcEntry, destCharMap);
         }
     }
-
-    RELEASE_NOTIFY_LOCK_ID(afpVolumeID);
-    
+  
     return( afpError );
 }
 
@@ -1741,7 +1724,10 @@ AFPERROR FPRename(
     //
     //Prevent the notification routines from interfering with us.
     //
-    AQUIRE_NOTIFY_LOCK_ID(afpVolumeID);
+    AFP_VOLUME_INFO* volumeInfo = nullptr;
+    AFPGetVolumeInfoBlock(nullptr, afpVolumeID, &volumeInfo);
+    AutoLock lock(&volumeInfo->csNotifyQueue);
+
 
     //
     //Impersonate the currently logged on user.
@@ -1779,8 +1765,6 @@ AFPERROR FPRename(
         AFPMarkVolumeDirty(afpVolumeID);
         AFPAddCharMapToIndexEntry(afpEntry, newCharMap);
     }
-
-    RELEASE_NOTIFY_LOCK_ID(afpVolumeID);
 
     return( afpError );
 }
