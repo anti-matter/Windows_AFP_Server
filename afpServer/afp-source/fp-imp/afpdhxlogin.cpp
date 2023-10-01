@@ -96,10 +96,14 @@ AFPERROR DHXLogin(
     //
     //Generate the key and ensure we have enough space
     //
-    dh->p	= pbn;
-    dh->g	= gbn;
+    const BIGNUM* qs;
+    const BIGNUM* ps;
+    const BIGNUM* gs;
+
+    DH_get0_pqg(dh, &ps, &qs, &gs);
+    DH_set0_pqg(dh, pbn, const_cast<BIGNUM*>(qs), gbn);
     
-    if (!DH_generate_key(dh) || (BN_num_bytes(dh->pub_key) > DHX_KEYSIZE))
+    if (!DH_generate_key(dh) || (BN_num_bytes(DH_get0_pub_key(dh)) > DHX_KEYSIZE))
     {
         DBGWRITE(DbgLevelInfo, L"[afp:DHXLogin]DH_generate_key() failed generating our public keys\n");
         goto exit;
@@ -127,7 +131,7 @@ AFPERROR DHXLogin(
     //
     //Send our public key along to the client
     //
-    BN_bn2bin(dh->pub_key, (unsigned char*)afpReply.GetCurrentPosPtr());
+    BN_bn2bin(DH_get0_pub_key(dh), (unsigned char*)afpReply.GetCurrentPosPtr());
     afpReply.Advance(DHX_KEYSIZE);
     
     //
