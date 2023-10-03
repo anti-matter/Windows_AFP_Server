@@ -1,5 +1,5 @@
 //===================================================================
-// LRegistry.cpp
+// AFPRegistry.cpp
 //===================================================================
 // This class is used to manage the entries in the registry that
 // the afp server uses.
@@ -7,18 +7,18 @@
 #include "StdAfx.h"
 #include <strsafe.h>
 
-#include "LRegistry.h"
+#include "AFPRegistry.h"
 #include "afpdebug.h"
 #include "fdparms.h"
 
 
 //---------------------------------------------------------------------
-// LRegistry()
+// AFPRegistry()
 //---------------------------------------------------------------------
 // Initialize the registry class.
 //
 
-LRegistry::LRegistry()
+AFPRegistry::AFPRegistry()
 {
 	mVolumeKey		= NULL;
 	mVolumeEnumKey	= NULL;
@@ -28,12 +28,12 @@ LRegistry::LRegistry()
 
 
 //---------------------------------------------------------------------
-// ~LRegistry()
+// ~AFPRegistry()
 //---------------------------------------------------------------------
 // Destructor
 //
 
-LRegistry::~LRegistry()
+AFPRegistry::~AFPRegistry()
 {
 	if (mVolumeKey != NULL) {
 		RegCloseKey(mVolumeKey);
@@ -60,7 +60,7 @@ LRegistry::~LRegistry()
 //
 
 DWORD
-LRegistry::OpenBaseKey()
+AFPRegistry::OpenBaseKey()
 {
 	DWORD	dwDisposition;
 	DWORD	dwError;
@@ -86,7 +86,7 @@ LRegistry::OpenBaseKey()
 				
 	if (dwError != ERROR_SUCCESS)
 	{
-		DBGWRITE(DbgLevelInfo, L"[LRegistry]RegCreateKeyEx() failed opening base key, error code = %d\n", dwError);
+		DBGWRITE(DbgLevelInfo, L"[AFPRegistry]RegCreateKeyEx() failed opening base key, error code = %d\n", dwError);
 		return(dwError);
 	}
 
@@ -101,14 +101,14 @@ LRegistry::OpenBaseKey()
 //
 
 BOOL
-LRegistry::OpenVolumeListRegKey()
+AFPRegistry::OpenVolumeListRegKey()
 {
 	DWORD	dwDisposition;
 	DWORD	dwError;
 
 	if (mVolumeEnumKey != NULL)
 	{
-		DBGWRITE(DbgLevelInfo, L"[LRegistry]Volume enum key already open\n");
+		DBGWRITE(DbgLevelInfo, L"[AFPRegistry]Volume enum key already open\n");
 		return(true);
 	}
 
@@ -125,7 +125,7 @@ LRegistry::OpenVolumeListRegKey()
 				
 	if (dwError != ERROR_SUCCESS)
 	{
-		DBGWRITE(DbgLevelInfo, L"[LRegistry]RegCreateKeyEx() failed, error code = %d\n", dwError);
+		DBGWRITE(DbgLevelInfo, L"[AFPRegistry]RegCreateKeyEx() failed, error code = %d\n", dwError);
 		return(false);
 	}
 	else
@@ -147,7 +147,7 @@ LRegistry::OpenVolumeListRegKey()
 //
 
 BOOL
-LRegistry::OpenVolumeRegKey(
+AFPRegistry::OpenVolumeRegKey(
 	IN WCHAR* szShareName
 )
 {
@@ -157,7 +157,7 @@ LRegistry::OpenVolumeRegKey(
 
 	if (mVolumeKey != NULL)
 	{
-		DBGWRITE(DbgLevelInfo, L"[LRegistry]Volume key already open\n");
+		DBGWRITE(DbgLevelInfo, L"[AFPRegistry]Volume key already open\n");
 		return(false);
 	}
 
@@ -176,7 +176,7 @@ LRegistry::OpenVolumeRegKey(
 				
 	if (dwError != ERROR_SUCCESS)
 	{
-		DBGWRITE(DbgLevelInfo, L"[LRegistry::OpenVolumeRegKey]RegCreateKeyEx() failed, error code = %d\n", dwError);
+		DBGWRITE(DbgLevelInfo, L"[AFPRegistry::OpenVolumeRegKey]RegCreateKeyEx() failed, error code = %d\n", dwError);
 		return(false);
 	}
 
@@ -194,7 +194,7 @@ LRegistry::OpenVolumeRegKey(
 //
 
 BOOL
-LRegistry::NextVolume(
+AFPRegistry::NextVolume(
 	OUT	TCHAR*	szShareName,
 	IN	WORD	cbShareName,
 	OUT	TCHAR*	szSharePath,
@@ -218,7 +218,7 @@ LRegistry::NextVolume(
 	{
 		if (dwError != ERROR_NO_MORE_ITEMS)
 		{
-			DBGWRITE(DbgLevelInfo, L"[LRegistry]RegEnuKeyEx() failed with error = %d\n", dwError);
+			DBGWRITE(DbgLevelInfo, L"[AFPRegistry]RegEnuKeyEx() failed with error = %d\n", dwError);
 		}
 
 		//
@@ -246,7 +246,7 @@ LRegistry::NextVolume(
 
 		if (dwError == ERROR_SUCCESS)
 		{
-			DBGWRITE(DbgLevelInfo, L"[LRegistry]Found volume path in registry = %s\n", szPath);
+			DBGWRITE(DbgLevelInfo, L"[AFPRegistry]Found volume path in registry = %s\n", szPath);
 			
 			//
 			//Copy the sharename and path into our return variables.
@@ -296,7 +296,7 @@ LRegistry::NextVolume(
 
 		if (dwError != ERROR_SUCCESS)
 		{
-			DBGWRITE(DbgLevelInfo, L"[LRegistry]Failed to get volume flags key\n");
+			DBGWRITE(DbgLevelInfo, L"[AFPRegistry]Failed to get volume flags key\n");
 		}
 
 		RegCloseKey(hVolKey);
@@ -316,7 +316,7 @@ LRegistry::NextVolume(
 //
 
 DWORD
-LRegistry::AddVolume(
+AFPRegistry::AddVolume(
 	IN	TCHAR*	szShareName,
 	IN	TCHAR*	szSharePath,
 	IN	TCHAR*	szPassword,
@@ -431,7 +431,7 @@ LRegistry::AddVolume(
 //
 
 DWORD
-LRegistry::RemoveVolume(
+AFPRegistry::RemoveVolume(
 	IN	TCHAR*	szShareName
 )
 {
@@ -450,7 +450,7 @@ LRegistry::RemoveVolume(
 //
 
 DWORD
-LRegistry::SaveLogonMessage(
+AFPRegistry::SaveLogonMessage(
 	IN	TCHAR*	szLogonMessage
 )
 {
@@ -487,7 +487,7 @@ LRegistry::SaveLogonMessage(
 //
 
 DWORD
-LRegistry::GetLogonMessage(
+AFPRegistry::GetLogonMessage(
 	OUT TCHAR* szLogonMessage
 )
 {
@@ -502,7 +502,7 @@ LRegistry::GetLogonMessage(
 
 	if (dwError != NO_ERROR)
 	{
-		DBGWRITE(DbgLevelInfo, L"[LRegistry]GetLogonMsg failed = %d\n", dwError);
+		DBGWRITE(DbgLevelInfo, L"[AFPRegistry]GetLogonMsg failed = %d\n", dwError);
 		dwError = AFPERR_REGISTRY_NOLOGONMSG;
 	}
 
@@ -517,7 +517,7 @@ LRegistry::GetLogonMessage(
 //
 
 DWORD
-LRegistry::GetForceEncryptedLogon(
+AFPRegistry::GetForceEncryptedLogon(
 	OUT	BOOL*	fForceEncryption
 )
 {
@@ -539,7 +539,7 @@ LRegistry::GetForceEncryptedLogon(
 
 	if (dwError != NO_ERROR)
 	{
-		DBGWRITE(DbgLevelInfo, L"[LRegistry]Get encryption setting failed = %d\n", dwError);
+		DBGWRITE(DbgLevelInfo, L"[AFPRegistry]Get encryption setting failed = %d\n", dwError);
 	}
 
 	return(dwError);
@@ -553,7 +553,7 @@ LRegistry::GetForceEncryptedLogon(
 //
 
 DWORD
-LRegistry::SetForceEncryptedLogon(
+AFPRegistry::SetForceEncryptedLogon(
 	OUT	BOOL	fForceEncryption
 )
 {
@@ -590,7 +590,7 @@ LRegistry::SetForceEncryptedLogon(
 //
 
 DWORD
-LRegistry::GetAllowGuestsSetting(
+AFPRegistry::GetAllowGuestsSetting(
 	OUT	BOOL*	fAllowGuests
 )
 {
@@ -605,7 +605,7 @@ LRegistry::GetAllowGuestsSetting(
 
 	if (dwError != NO_ERROR)
 	{
-		DBGWRITE(DbgLevelInfo, L"[LRegistry]Get allow guests failed = %d\n", dwError);
+		DBGWRITE(DbgLevelInfo, L"[AFPRegistry]Get allow guests failed = %d\n", dwError);
 		dwError = AFPERR_REGISTRY_NOGUESTSETTING;
 	}
 
@@ -620,7 +620,7 @@ LRegistry::GetAllowGuestsSetting(
 //
 
 DWORD
-LRegistry::SetAllowGuestsSetting(
+AFPRegistry::SetAllowGuestsSetting(
 	IN	BOOL	fAllowGuests
 )
 {
@@ -656,7 +656,7 @@ LRegistry::SetAllowGuestsSetting(
 //
 
 DWORD
-LRegistry::GetMaxSessions(
+AFPRegistry::GetMaxSessions(
 	OUT DWORD* dwMaxSessions
 )
 {
@@ -671,7 +671,7 @@ LRegistry::GetMaxSessions(
 
 	if (dwError != NO_ERROR)
 	{
-		DBGWRITE(DbgLevelInfo, L"[LRegistry]Get max sessions failed = %d\n", dwError);
+		DBGWRITE(DbgLevelInfo, L"[AFPRegistry]Get max sessions failed = %d\n", dwError);
 		dwError = AFPERR_REGISTRY_NOGUESTSETTING;
 	}
 
@@ -686,7 +686,7 @@ LRegistry::GetMaxSessions(
 //
 
 DWORD
-LRegistry::SetMaxSessions(
+AFPRegistry::SetMaxSessions(
 	IN	DWORD	dwMaxSessions
 )
 {
@@ -722,7 +722,7 @@ LRegistry::SetMaxSessions(
 //
 
 DWORD
-LRegistry::GetVolumeFlags(
+AFPRegistry::GetVolumeFlags(
 	IN	WCHAR*	szShareName,
 	OUT DWORD*	flags
 )
@@ -738,7 +738,7 @@ LRegistry::GetVolumeFlags(
 
 	if (dwError != NO_ERROR)
 	{
-		DBGWRITE(DbgLevelInfo, L"[LRegistry]Get volume flags failed = %d\n", dwError);
+		DBGWRITE(DbgLevelInfo, L"[AFPRegistry]Get volume flags failed = %d\n", dwError);
 		dwError = AFPERR_REGISTRY_GETFAILED;
 	}
 	
@@ -753,7 +753,7 @@ LRegistry::GetVolumeFlags(
 //
 
 DWORD
-LRegistry::SetVolumeFlags(
+AFPRegistry::SetVolumeFlags(
 	IN	WCHAR*	szShareName,
 	IN	DWORD	flags
 )
@@ -776,7 +776,7 @@ LRegistry::SetVolumeFlags(
 		//For some reason (a rarity??), we could not add the value to
 		//the reg key.
 		//
-		DBGWRITE(DbgLevelInfo, L"[LRegistry::SetVolumeFlags]RegSetValueEx() failed!\n");
+		DBGWRITE(DbgLevelInfo, L"[AFPRegistry::SetVolumeFlags]RegSetValueEx() failed!\n");
 		return(AFPERR_REGISTRY_SETFAILED);
 	}
 
@@ -791,7 +791,7 @@ LRegistry::SetVolumeFlags(
 //
 
 DWORD
-LRegistry::GetVolumePassword(
+AFPRegistry::GetVolumePassword(
 	IN	WCHAR*	szShareName,
 	IN	DWORD	cbPassword,
 	OUT WCHAR*	szPassword
@@ -810,11 +810,11 @@ LRegistry::GetVolumePassword(
 
 	if (dwError != NO_ERROR)
 	{
-		DBGWRITE(DbgLevelInfo, L"[LRegistry::GetVolumePassword]Failed to get vol password (%d)\n", dwError);
+		DBGWRITE(DbgLevelInfo, L"[AFPRegistry::GetVolumePassword]Failed to get vol password (%d)\n", dwError);
 		dwError = AFPERR_REGISTRY_GETFAILED;
 	}
 
-	DBGWRITE(DbgLevelInfo, L"[LRegistry::GetVolumePassword]Got password: %s\n", szPassword);
+	DBGWRITE(DbgLevelInfo, L"[AFPRegistry::GetVolumePassword]Got password: %s\n", szPassword);
 
 	return(dwError);
 }
@@ -827,7 +827,7 @@ LRegistry::GetVolumePassword(
 //
 
 DWORD
-LRegistry::GetVolumePassword(
+AFPRegistry::GetVolumePassword(
 	IN	WCHAR*		szShareName,
 	IN	DWORD		cbPassword,
 	OUT PassWord*	szPassword
@@ -884,7 +884,7 @@ LRegistry::GetVolumePassword(
 //
 
 DWORD
-LRegistry::SetVolumePassword(
+AFPRegistry::SetVolumePassword(
 	IN	WCHAR*	szShareName,
 	IN	WCHAR*	szPassword
 )
@@ -907,7 +907,7 @@ LRegistry::SetVolumePassword(
 		//For some reason (a rarity??), we could not add the value to
 		//the reg key.
 		//
-		DBGWRITE(DbgLevelInfo, L"[LRegistry::SetVolumePassword]RegSetValueEx() failed!\n");
+		DBGWRITE(DbgLevelInfo, L"[AFPRegistry::SetVolumePassword]RegSetValueEx() failed!\n");
 		return(AFPERR_REGISTRY_SETFAILED);
 	}
 

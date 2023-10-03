@@ -13,7 +13,7 @@
 #include "afpnotify.h"
 #include "afpworker.h"
 #include "AfpBuffer.h"
-#include "LRegistry.h"
+#include "AFPRegistry.h"
 #include "VolumeArray.h"
 
 VolumeArray gVolumeArray;
@@ -37,7 +37,7 @@ DWORD WINAPI InitializeVolumesThread(
     WCHAR szSharePath[MAX_PATH];
     PassWord szPassword;
     DWORD volFlags;
-    LRegistry theRegistry;
+    AFPRegistry theRegistry;
 
     if (theRegistry.OpenVolumeListRegKey())
     {
@@ -73,7 +73,7 @@ DWORD AFPAddNewVolumeFromUI(
        IN WCHAR* szPassword
 )
 {
-    LRegistry theRegistry;
+    AFPRegistry theRegistry;
     DWORD dwError;
 
     dwError = theRegistry.AddVolume(szSharename, szPath, szPassword);
@@ -98,7 +98,7 @@ DWORD AFPRemoveVolumeFromUI(
     IN WCHAR* szShareName
 )
 {
-    LRegistry registry;
+    AFPRegistry registry;
     DWORD error = 2;
 
     auto volume = gVolumeArray.FindByName(szShareName);
@@ -1259,7 +1259,7 @@ AFPCheckVolumePassword(
        IN PassWord* inPass
 )
 {
-    LRegistry theRegistry;
+    AFPRegistry theRegistry;
     PassWord passWord;
     AFP_VOLUME_INFO* afpVolume = nullptr;
 

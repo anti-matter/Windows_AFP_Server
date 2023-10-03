@@ -14,7 +14,7 @@
 #include "addshare.h"
 #include "aboutdlg.h"
 
-#include "LRegistry.h"
+#include "AFPRegistry.h"
 #include "Resource.h"
 
 #include <windows.h>
@@ -112,7 +112,7 @@ void FillLogonMessageBox(
 )
 {
     TCHAR		szMessage[AFP_MSG_MAXLEN+sizeof(TCHAR)];
-    LRegistry	theRegistry;
+    AFPRegistry	theRegistry;
 
     //
     //Tell the edit box to only allow AFP_MSG_MAXLEN characters
@@ -153,7 +153,7 @@ void UpdateVolCaption(HWND hParent)
         WCHAR		szTempName[33];
         WCHAR		szTempPath[MAX_PATH];
         WCHAR		szPassword[16];
-        LRegistry	theRegistry;
+        AFPRegistry	theRegistry;
         DWORD		volFlags = 0;
 
         //Send a message to the volume list box and ask for the
@@ -305,7 +305,7 @@ void SaveLogonMessage(
 )
 {
     TCHAR		szMessage[AFP_MSG_MAXLEN+sizeof(TCHAR)];
-    LRegistry	theRegistry;
+    AFPRegistry	theRegistry;
 
     //
     //Set our current logon message in the edit field.
@@ -334,7 +334,7 @@ void FillVolumeListBox(
     WCHAR				firstPassword[16] = { 0 };
     DWORD				volFlags = 0;
     DWORD				firstFlags = 0;
-    LRegistry			theRegistry;
+    AFPRegistry			theRegistry;
     AFP_VOLUME_INFO*	afpVolumeInfo = NULL;
     WORD				count = 0;
 
@@ -354,7 +354,7 @@ void FillVolumeListBox(
         {
             if (count == 0)
             {
-                LRegistry	vReg;
+                AFPRegistry	vReg;
 
                 vReg.GetVolumePassword(szShareName, sizeof(firstPassword), firstPassword);
                 firstFlags = volFlags;
@@ -415,7 +415,7 @@ void SetMiscDialogItems(
     BOOL		fAllowGuest		= true;
     BOOL		fEncrypt		= false;
     DWORD		dwMaxSessions	= 0;
-    LRegistry	theRegistry;
+    AFPRegistry	theRegistry;
 
     if (theRegistry.GetAllowGuestsSetting(&fAllowGuest) == NO_ERROR)
     {
@@ -451,7 +451,7 @@ void SaveMiscSettings(
     IN	HWND	hDlg
 )
 {
-    LRegistry	theRegistry;
+    AFPRegistry	theRegistry;
     DWORD		dwMaxSessions;
     BOOL		fTranslated;
 
@@ -496,7 +496,7 @@ void SaveVolPassword(
 {
     WCHAR				pass[16];
     WCHAR				share[64];
-    LRegistry			theRegistry;
+    AFPRegistry			theRegistry;
     DWORD				dwResult;
     DWORD				volFlags;
     AFP_VOLUME_INFO*	afpVolume	= NULL;
@@ -549,7 +549,7 @@ void HandleROCheckbox(
     IN	HWND	hDlg
 )
 {
-    LRegistry			theRegistry;
+    AFPRegistry			theRegistry;
     WCHAR				szShareName[64];
     AFP_VOLUME_INFO*	afpVolume	= NULL;
     LRESULT				dwResult	= 0;

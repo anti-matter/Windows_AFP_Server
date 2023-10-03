@@ -11,7 +11,7 @@
 #include "logonimp.h"
 #include "AfpBuffer.h"
 #include "AFPSession.h"
-#include "LRegistry.h"
+#include "AFPRegistry.h"
 
 
 AFPERROR FPGetSessionToken(

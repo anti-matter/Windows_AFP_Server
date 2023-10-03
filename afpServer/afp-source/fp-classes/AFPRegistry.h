@@ -1,5 +1,5 @@
 //===================================================================
-// LRegistry.h
+// AFPRegistry.h
 //===================================================================
 
 #pragma once
@@ -34,11 +34,11 @@
 #define AFPREG_BASE_FORCEENCRYPTION			TEXT("ForceEncryption")
 
 
-class LRegistry
+class AFPRegistry
 {
 	public:
-										LRegistry();
-									   ~LRegistry();
+										AFPRegistry();
+									   ~AFPRegistry();
 
 		virtual DWORD					OpenBaseKey();
 		virtual BOOL					OpenVolumeListRegKey();

@@ -991,7 +991,7 @@ AFPERROR FPGetSrvrMsg(
     UNREFERENCED_PARAMETER(afpSession);
 
     unichar			message[AFP_MSG_MAXLEN+1];
-    LRegistry		theRegistry;
+    AFPRegistry		theRegistry;
     uint16			afpMessageType		= 0;
     uint16			afpMessageBitmap	= 0;
     
