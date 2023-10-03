@@ -56,7 +56,7 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
     <ClCompile>
       <AdditionalOptions>/I afp-source\headers /I resources %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir);$(ProjectDir)afp-source;$(ProjectDir)afp-source\ui;$(ProjectDir)afp-source\server-core;$(ProjectDir)afp-source\helpers;$(ProjectDir)afp-source\fp-imp;$(ProjectDir)afp-source\fp-core;$(ProjectDir)afp-source\fp-classes;$(ProjectDir)resources;C:\OpenSSL-Win32\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir);$(ProjectDir)afp-source;$(ProjectDir)afp-source\ui;$(ProjectDir)afp-source\server-core;$(ProjectDir)afp-source\helpers;$(ProjectDir)afp-source\fp-imp;$(ProjectDir)afp-source\fp-core;$(ProjectDir)afp-source\fp-classes;$(ProjectDir)resources;$(SolutionDir)afpServer\deps\openssl-1.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
@@ -74,7 +74,7 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
     <Link>
       <AdditionalOptions>Ws2_32.lib %(AdditionalOptions)</AdditionalOptions>
       <OutputFile>$(OutDir)afpServer.exe</OutputFile>
-      <AdditionalLibraryDirectories>c:\OpenSSL-Win32\lib\VC\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)afpServer\deps\openssl-1.1\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateManifest>false</GenerateManifest>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <ProgramDatabaseFile>$(OutDir)afpServer.pdb</ProgramDatabaseFile>
@@ -84,15 +84,15 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
       </DataExecutionPrevention>
       <TargetMachine>MachineX86</TargetMachine>
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
-      <AdditionalDependencies>legacy_stdio_definitions.lib;libcrypto32MTd.lib;libssl32MTd.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>legacy_stdio_definitions.lib;libcrypto32MT.lib;libssl32MT.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Manifest>
       <AdditionalManifestFiles>afpServer.exe.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles>
     </Manifest>
     <PostBuildEvent>
-      <Message>Cleaning up manifest temp files...</Message>
+      <Message>Cleaning up manifest temp files and copy DLL...</Message>
       <Command>del afpEvents*
-copy /y $(SystemDrive)\OpenSSL-Win32\libcrypto-1_1.dll "$(OutDir)"</Command>
+copy /y $(SolutionDir)afpServer\deps\openssl-1.1\lib\libcrypto-1_1.dll "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -110,7 +110,7 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
       <OmitFramePointers>true</OmitFramePointers>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <WholeProgramOptimization>true</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir);$(ProjectDir)afp-source;$(ProjectDir)afp-source\ui;$(ProjectDir)afp-source\server-core;$(ProjectDir)afp-source\helpers;$(ProjectDir)afp-source\fp-imp;$(ProjectDir)afp-source\fp-core;$(ProjectDir)afp-source\fp-classes;$(ProjectDir)resources;C:\OpenSSL-Win32\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir);$(ProjectDir)afp-source;$(ProjectDir)afp-source\ui;$(ProjectDir)afp-source\server-core;$(ProjectDir)afp-source\helpers;$(ProjectDir)afp-source\fp-imp;$(ProjectDir)afp-source\fp-core;$(ProjectDir)afp-source\fp-classes;$(ProjectDir)resources;$(SolutionDir)afpServer\deps\openssl-1.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;NODEBUG;_WINDOWS;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -126,7 +126,7 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
       <AdditionalOptions>Ws2_32.lib %(AdditionalOptions)</AdditionalOptions>
       <OutputFile>$(OutDir)afpServer.exe</OutputFile>
       <Version>1.0</Version>
-      <AdditionalLibraryDirectories>$(SystemDrive)\OpenSSL-Win32\lib\VC\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)afpServer\deps\openssl-1.1\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateManifest>false</GenerateManifest>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
