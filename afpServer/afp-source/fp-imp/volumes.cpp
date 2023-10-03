@@ -194,7 +194,7 @@ AFP_VOLUME_INFO* AFPAddVolume(
     //
     lstrcpyn(szWinPath, pszPath, lstrlen(pszPath) - (lstrlen(pszShareName)));
 
-    newVolume->index = new LFileIndex();
+    newVolume->index = new AFPFileIndex();
 
     newVolume->index->AddEntry(
         static_cast<DWORD>(-1),
@@ -1286,7 +1286,7 @@ AFPCheckVolumePassword(
 //
 
 void AFPDumpAFPIndex(
-    IN LFileIndex* index
+    IN AFPFileIndex* index
 )
 {
     index->DumpIndex();

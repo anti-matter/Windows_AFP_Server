@@ -1,5 +1,5 @@
 /*
- *	LOpenFile.h
+ *	AFPOpenFile.h
  *
  *	Copyright © Michael J. Conrad. All Rights Reserved.
  */
@@ -19,10 +19,10 @@ typedef struct
 	WCHAR wszStreamName[MAX_PATH];
 } AFP_ATTR_INFO, *LPAFP_ATTR_INFO;
 
-class LOpenFile
+class AFPOpenFile
 {
 public:
-	LOpenFile(
+	AFPOpenFile(
 		int16 inVolID,
 		int32 inDirID,
 		int16 inAccessMode,
@@ -31,9 +31,9 @@ public:
 		WCHAR* inWinPath
 	);
 
-	~LOpenFile();
+	~AFPOpenFile();
 
-	AFPERROR OpenFileFork(PWCHAR streamName = nullptr, DWORD afpCreationDisposition = OPEN_EXISTING);
+	AFPERROR AFPOpenFileFork(PWCHAR streamName = nullptr, DWORD afpCreationDisposition = OPEN_EXISTING);
 	AFPERROR CloseFileFork();
 	AFPERROR ReadFork(
 		AfpBuffer& afpReply,

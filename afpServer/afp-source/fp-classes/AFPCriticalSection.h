@@ -1,20 +1,21 @@
 /*
- *	LCriticalSection.h
+ *	AFPCriticalSection.h
  *	Created 03/28/09
  *
  *	Copyright © 2009, Michael J. Conrad. All Rights Reserved.
  */
 
-#ifndef __LCriticalSection__
-#define __LCriticalSection__
+#ifndef __AFPCriticalSection__
+#define __AFPCriticalSection__
 
 #include "afpdebug.h"
+#include <cassert>
 
 
-class LCriticalSection
+class AFPCriticalSection
 {
 public:
-    LCriticalSection(
+    AFPCriticalSection(
         IN PCRITICAL_SECTION	cSection			= NULL,
         IN bool					fLockImmediately	= false
         )
@@ -40,7 +41,7 @@ public:
         }
     }
 
-    ~LCriticalSection()
+    ~AFPCriticalSection()
     {
         if (mIsLocked) {
 
@@ -93,4 +94,4 @@ private:
 
 
 
-#endif //__LCriticalSection
+#endif //__AFPCriticalSection

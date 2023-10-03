@@ -10,7 +10,7 @@
 #include "fpinfo.h"
 #include "afpxattr.h"
 #include "AFPSession.h"
-#include "LOpenFile.h"
+#include "AFPOpenFile.h"
 
 #include "winerror.h"
 
@@ -334,7 +334,7 @@ AFPERROR AFPGetObjectParms(
 
         if (afpBitmap & (kFPRFLen | kFPExtRsrcForkLen))
         {
-            LOpenFile afpFile(afpVolumeID, afpDirID, kReadMode, kAttrFork, afpEntry, afpEntry->szPath);
+            AFPOpenFile afpFile(afpVolumeID, afpDirID, kReadMode, kAttrFork, afpEntry, afpEntry->szPath);
 
             rsrcSize64.QuadPart = afpFile.GetStreamLength(AFP_RESOURCE_FORK_NAME_PLAIN);
             

@@ -9,7 +9,7 @@
 #include "StdAfx.h"
 #include "AutoLock.h"
 #include "AFPSession.h"
-#include "LOpenFile.h"
+#include "AFPOpenFile.h"
 #include <algorithm>
 
 extern LPSESSION gSessionsList;
@@ -54,7 +54,7 @@ AFPSession::~AFPSession()
         SessionCloseDesk(dt.get()->dtRefNum);
     });
 
-    std::for_each(mOpenFiles.begin(), mOpenFiles.end(), [=](const std::unique_ptr<LOpenFile>& of)
+    std::for_each(mAFPOpenFiles.begin(), mAFPOpenFiles.end(), [=](const std::unique_ptr<AFPOpenFile>& of)
     {
         SessionCloseFile(of.get()->GetFileRefNum());
     });
@@ -76,7 +76,7 @@ AFPSession::~AFPSession()
 
 
 /*
- * SessionAssociateOpenFile()
+ * SessionAssociateAFPOpenFile()
  *
  * Description:
  *		A file has been opened, keep track of it in this session. 
@@ -84,15 +84,15 @@ AFPSession::~AFPSession()
  * Returns: None
  */
 
-void AFPSession::SessionAssociateOpenFile(LOpenFile* inOpenFileObject)
+void AFPSession::SessionAssociateAFPOpenFile(AFPOpenFile* inAFPOpenFileObject)
 {
     AutoLock lock(&mMutex);
 
-    ASSERT(inOpenFileObject != nullptr);
-    DBGWRITE(DbgLevelAll, L"[AFPSession:SessionAssociateOpenFile]opening fileobject %x\n", inOpenFileObject);
+    ASSERT(inAFPOpenFileObject != nullptr);
+    DBGWRITE(DbgLevelAll, L"[AFPSession:SessionAssociateAFPOpenFile]opening fileobject %x\n", inAFPOpenFileObject);
 
-    std::unique_ptr<LOpenFile> openFileObject(inOpenFileObject);
-    mOpenFiles.push_back(std::move(openFileObject));
+    std::unique_ptr<AFPOpenFile> AFPOpenFileObject(inAFPOpenFileObject);
+    mAFPOpenFiles.push_back(std::move(AFPOpenFileObject));
 }
 
 
@@ -109,15 +109,15 @@ AFPERROR AFPSession::SessionCloseFile(int16 inFileRefNum)
 {
     AutoLock lock(&mMutex);
 
-    std::vector<std::unique_ptr<LOpenFile>>::iterator it =
-        std::find_if(mOpenFiles.begin(), mOpenFiles.end(), [=](const std::unique_ptr<LOpenFile>& f)
+    std::vector<std::unique_ptr<AFPOpenFile>>::iterator it =
+        std::find_if(mAFPOpenFiles.begin(), mAFPOpenFiles.end(), [=](const std::unique_ptr<AFPOpenFile>& f)
     {
         return f->GetFileRefNum() == inFileRefNum;
     });
 
-    if (it != mOpenFiles.end())
+    if (it != mAFPOpenFiles.end())
     {
-        mOpenFiles.erase(it);
+        mAFPOpenFiles.erase(it);
         return AFP_OK;
     }
 
@@ -126,7 +126,7 @@ AFPERROR AFPSession::SessionCloseFile(int16 inFileRefNum)
 
 
 /*
- * FindOpenFileObject()
+ * FindAFPOpenFileObject()
  *
  * Description:
  *		Find an open file object within the global list tracking all
@@ -135,29 +135,29 @@ AFPERROR AFPSession::SessionCloseFile(int16 inFileRefNum)
  * Returns: The found file object or nullptr.
  */
 
-LOpenFile* AFPSession::FindOpenFileObject(int16 inFileRef)
+AFPOpenFile* AFPSession::FindAFPOpenFileObject(int16 inFileRef)
 {
     AutoLock lock(&mMutex);
 
-    std::vector<std::unique_ptr<LOpenFile>>::iterator it =
-        std::find_if(mOpenFiles.begin(), mOpenFiles.end(), [=](const std::unique_ptr<LOpenFile>& f)
+    std::vector<std::unique_ptr<AFPOpenFile>>::iterator it =
+        std::find_if(mAFPOpenFiles.begin(), mAFPOpenFiles.end(), [=](const std::unique_ptr<AFPOpenFile>& f)
     {
         return f->GetFileRefNum() == inFileRef;
     });
 
-    if (it != mOpenFiles.end())
+    if (it != mAFPOpenFiles.end())
     {
         return it->get();
     }
 
-    DBGWRITE(DbgLevelWarning, L"[AFPSession:FindOpenFileObject]ERROR: Can't find open file!\n");
+    DBGWRITE(DbgLevelWarning, L"[AFPSession:FindAFPOpenFileObject]ERROR: Can't find open file!\n");
 
     return nullptr;
 }
 
 
 /*
- * NewOpenFileObject()
+ * NewAFPOpenFileObject()
  *
  * Description:
  *		Create a new open file object. 
@@ -165,7 +165,7 @@ LOpenFile* AFPSession::FindOpenFileObject(int16 inFileRef)
  * Returns: The new file object or nullptr.
  */
 
-LOpenFile* AFPSession::NewOpenFileObject(
+AFPOpenFile* AFPSession::NewAFPOpenFileObject(
     AFPSession* inSession,
     uint16 inVolID,
     uint32 inDirID,
@@ -175,7 +175,7 @@ LOpenFile* AFPSession::NewOpenFileObject(
     WCHAR* inWinPath
 )
 {
-    auto newFile = new LOpenFile(
+    auto newFile = new AFPOpenFile(
         inVolID,
         inDirID,
         inAccessMode,
@@ -186,11 +186,11 @@ LOpenFile* AFPSession::NewOpenFileObject(
 
     if (newFile == nullptr)
     {
-        DBGWRITE(DbgLevelWarning, L"[AFPSession:NewOpenFileObject]****Failed to allocate new object!\n");
+        DBGWRITE(DbgLevelWarning, L"[AFPSession:NewAFPOpenFileObject]****Failed to allocate new object!\n");
         return (nullptr);
     }
 
-    inSession->SessionAssociateOpenFile(newFile);
+    inSession->SessionAssociateAFPOpenFile(newFile);
 
     return newFile;
 }

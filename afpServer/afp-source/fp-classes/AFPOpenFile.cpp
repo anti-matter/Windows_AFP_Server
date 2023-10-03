@@ -1,5 +1,5 @@
 /*
- *	LOpenFile.cpp
+ *	AFPOpenFile.cpp
  *
  *	Copyright © Michael J. Conrad. All Rights Reserved.
  *
@@ -8,19 +8,19 @@
 
 #include "StdAfx.h"
 #include <strsafe.h>
-#include "LOpenFile.h"
+#include "AFPOpenFile.h"
 #include "afpxattr.h"
 
 /*
- * LOpenFile()
+ * AFPOpenFile()
  *
  * Description:
- *		Initializer for the LOpenFile class. 
+ *		Initializer for the AFPOpenFile class. 
  *
  * Returns: None
  */
 
-LOpenFile::LOpenFile(
+AFPOpenFile::AFPOpenFile(
 	int16 inVolID,
 	int32 inDirID,
 	int16 inAccessMode,
@@ -42,16 +42,16 @@ LOpenFile::LOpenFile(
 
 
 /*
- * ~LOpenFile()
+ * ~AFPOpenFile()
  *
  * Description:
- *		Destructor for the LOpenFile class. The destructor closes the
+ *		Destructor for the AFPOpenFile class. The destructor closes the
  *		opened file fork.
  *
  * Returns: None
  */
 
-LOpenFile::~LOpenFile()
+AFPOpenFile::~AFPOpenFile()
 {
 	if (isForkOpen())
 	{
@@ -61,7 +61,7 @@ LOpenFile::~LOpenFile()
 
 
 /*
- * OpenFileFork()
+ * AFPOpenFileFork()
  *
  * Description:
  *		Open the file fork for access.
@@ -72,7 +72,7 @@ LOpenFile::~LOpenFile()
  * Returns: afpError code
  */
 
-AFPERROR LOpenFile::OpenFileFork(PWCHAR streamName, DWORD afpCreationDisposition)
+AFPERROR AFPOpenFile::AFPOpenFileFork(PWCHAR streamName, DWORD afpCreationDisposition)
 {
 	WCHAR szFilePath[MAX_PATH];
 	uint32 desiredAccess = 0;
@@ -96,7 +96,7 @@ AFPERROR LOpenFile::OpenFileFork(PWCHAR streamName, DWORD afpCreationDisposition
 		break;
 
 	case kAttrFork:
-		DBGWRITE(DbgLevelInfo, L"[LOpenFile:OpenFileFork]Opening stream %s\n", streamName);
+		DBGWRITE(DbgLevelInfo, L"[AFPOpenFile:AFPOpenFileFork]Opening stream %s\n", streamName);
 		ASSERT(streamName != nullptr);
 
 		if (streamName != nullptr)
@@ -114,7 +114,7 @@ AFPERROR LOpenFile::OpenFileFork(PWCHAR streamName, DWORD afpCreationDisposition
 		break;
 	}
 
-	DBGWRITE(DbgLevelAll, L"[LOpenFile:OpenFileFork]Opening file %s\n", szFilePath);
+	DBGWRITE(DbgLevelAll, L"[AFPOpenFile:AFPOpenFileFork]Opening file %s\n", szFilePath);
 
 	auto hFile = CreateFile(
 		szFilePath,
@@ -129,7 +129,7 @@ AFPERROR LOpenFile::OpenFileFork(PWCHAR streamName, DWORD afpCreationDisposition
 	if (hFile == INVALID_HANDLE_VALUE)
 	{
 		auto dwError = GetLastError();
-		DBGWRITE(DbgLevelInfo, L"[LOpenFile:OpenFileFork]CreateFile() failed! (%d) (%s)\n", dwError, szFilePath);
+		DBGWRITE(DbgLevelInfo, L"[AFPOpenFile:AFPOpenFileFork]CreateFile() failed! (%d) (%s)\n", dwError, szFilePath);
 
 		return AFPMapWinErrorToAFP(dwError, static_cast<DWORD>(afpParmErr));
 	}
@@ -159,7 +159,7 @@ AFPERROR LOpenFile::OpenFileFork(PWCHAR streamName, DWORD afpCreationDisposition
  * Returns: afpError code
  */
 
-AFPERROR LOpenFile::CloseFileFork()
+AFPERROR AFPOpenFile::CloseFileFork()
 {
 	int16 afpFlags = 0;
 
@@ -187,7 +187,7 @@ AFPERROR LOpenFile::CloseFileFork()
 		break;
 	}
 
-	DBGWRITE(DbgLevelAll, L"[LOpenFile:CloseFileFork]Closing file %s, fork = %d\n", mWindowsPath, mFork);
+	DBGWRITE(DbgLevelAll, L"[AFPOpenFile:CloseFileFork]Closing file %s, fork = %d\n", mWindowsPath, mFork);
 
 	//
 	//Now set the appropriate flags to indicate the state of the forks.
@@ -204,7 +204,7 @@ AFPERROR LOpenFile::CloseFileFork()
 	}
 	else
 	{
-		DBGWRITE(DbgLevelAll, L"[LOpenFile:CloseFileFork]Invalid file handle for %s\n", mWindowsPath);
+		DBGWRITE(DbgLevelAll, L"[AFPOpenFile:CloseFileFork]Invalid file handle for %s\n", mWindowsPath);
 	}
 
 	return AFP_OK;
@@ -220,7 +220,7 @@ AFPERROR LOpenFile::CloseFileFork()
  * Returns: afpError code
  */
 
-AFPERROR LOpenFile::ReadFork(
+AFPERROR AFPOpenFile::ReadFork(
 	AfpBuffer& afpReply,
 	int64 afpOffset,
 	int64 afpReqCount,
@@ -239,7 +239,7 @@ AFPERROR LOpenFile::ReadFork(
 		return afpParmErr;
 	}
 
-	DBGWRITE(DbgLevelAll, L"[LOpenFile::ReadFork]Reading %lld bytes from file %s from fork %d\n", afpReqCount, mWindowsPath, mFork);
+	DBGWRITE(DbgLevelAll, L"[AFPOpenFile::ReadFork]Reading %lld bytes from file %s from fork %d\n", afpReqCount, mWindowsPath, mFork);
 
 	//
 	//We have to make sure our buffer is big enough for
@@ -254,7 +254,7 @@ AFPERROR LOpenFile::ReadFork(
 
 		DBGWRITE(
 			DbgLevelWarning,
-			L"[LOpenFile::ReadFork]Buffer too small! (needed=%d, have=%d)\n",
+			L"[AFPOpenFile::ReadFork]Buffer too small! (needed=%d, have=%d)\n",
 			(DSI_HEADER_SIZE+afpReqCount),
 			afpReply.GetBufferSize()
 		);
@@ -288,7 +288,7 @@ AFPERROR LOpenFile::ReadFork(
 	if (!success)
 	{
 		afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
-		DBGWRITE(DbgLevelWarning, L"[LOpenFile::ReadFork]ReadFile() failed! (%d)\n", GetLastError());
+		DBGWRITE(DbgLevelWarning, L"[AFPOpenFile::ReadFork]ReadFile() failed! (%d)\n", GetLastError());
 	}
 	else if (afpReqCount > 0 && *afpActualRead == 0)
 	{
@@ -312,7 +312,7 @@ AFPERROR LOpenFile::ReadFork(
  * Returns: afpError code
  */
 
-AFPERROR LOpenFile::WriteFork(
+AFPERROR AFPOpenFile::WriteFork(
 	AfpBuffer& afpRequest,
 	int64 afpOffset,
 	int64 afpReqCount,
@@ -335,7 +335,7 @@ AFPERROR LOpenFile::WriteFork(
 	afpRequest.AdvanceTo(afpRequest.GetDSIDataOffset());
 
 	//DBGWRITE(DbgLevelAll,
-	//	(L"[LOpenFile:WriteFork]WRITE:\n\tfile: %s\n\toffset:%d\n\treq count:%d\n\tfromstart:%s\n\tafpDataOffset: %d\n",
+	//	(L"[AFPOpenFile:WriteFork]WRITE:\n\tfile: %s\n\toffset:%d\n\treq count:%d\n\tfromstart:%s\n\tafpDataOffset: %d\n",
 	//	mWindowsPath,
 	//	afpOffset,
 	//	afpReqCount,
@@ -366,7 +366,7 @@ AFPERROR LOpenFile::WriteFork(
 		if (!success)
 		{
 			afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
-			DBGWRITE(DbgLevelInfo, L"[LOpenFile:WriteFork]WriteFile() failed! (%d)\n", GetLastError());
+			DBGWRITE(DbgLevelInfo, L"[AFPOpenFile:WriteFork]WriteFile() failed! (%d)\n", GetLastError());
 		}
 		else
 		{
@@ -375,7 +375,7 @@ AFPERROR LOpenFile::WriteFork(
 			*afpLastByteWritten = afpOffset + afpActual;
 
 			DBGWRITE(DbgLevelAll,
-				L"[LOpenFile:WriteFork]WRITE:\n\tActual written: %d\n\tLast Byte:      %d\n",
+				L"[AFPOpenFile:WriteFork]WRITE:\n\tActual written: %d\n\tLast Byte:      %d\n",
 				afpActual,
 				*afpLastByteWritten
 			);
@@ -395,7 +395,7 @@ AFPERROR LOpenFile::WriteFork(
  * Returns: afpError code
  */
 
-AFPERROR LOpenFile::FileSeek(
+AFPERROR AFPOpenFile::FileSeek(
 	int64 inDistance,
 	uint32 inMethod
 ) const
@@ -408,7 +408,7 @@ AFPERROR LOpenFile::FileSeek(
 
 	if (distance.LowPart == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR)
 	{
-		DBGWRITE(DbgLevelInfo, L"[LOpenFile:FileSeek]SetFilePointer() failed %d\n", GetLastError());
+		DBGWRITE(DbgLevelInfo, L"[AFPOpenFile:FileSeek]SetFilePointer() failed %d\n", GetLastError());
 		afpError = afpParmErr;
 	}
 
@@ -425,7 +425,7 @@ AFPERROR LOpenFile::FileSeek(
  * Returns: size or 0xFFFFFFFF if failed
  */
 
-uint64 LOpenFile::GetStreamLength(PWCHAR streamName)
+uint64 AFPOpenFile::GetStreamLength(PWCHAR streamName)
 {
 	if (streamName != nullptr)
 	{
@@ -452,7 +452,7 @@ uint64 LOpenFile::GetStreamLength(PWCHAR streamName)
 			{
 				DBGWRITE(
 					DbgLevelInfo,
-					L"[LOpenFile:GetStreamLength]GetFileSizeEx() failed (%d)\n",
+					L"[AFPOpenFile:GetStreamLength]GetFileSizeEx() failed (%d)\n",
 					GetLastError()
 				);
 			}
@@ -476,7 +476,7 @@ uint64 LOpenFile::GetStreamLength(PWCHAR streamName)
  * Returns: afpError code
  */
 
-AFPERROR LOpenFile::GetStreamList(std::vector<AFP_ATTR_INFO>& streams)
+AFPERROR AFPOpenFile::GetStreamList(std::vector<AFP_ATTR_INFO>& streams)
 {
 	//
 	//Call the extended attribute helper functions for the dirty work.

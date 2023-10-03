@@ -11,7 +11,7 @@
 #include "afphelp.h"
 #include "desktop.h"
 
-class LOpenFile;
+class AFPOpenFile;
 
 class AFPSession
 {
@@ -19,10 +19,10 @@ public:
     explicit AFPSession(LPSESSION dsiSession);
 	~AFPSession();
 
-	void SessionAssociateOpenFile(LOpenFile* inOpenFileObject);
+	void SessionAssociateAFPOpenFile(AFPOpenFile* inAFPOpenFileObject);
 	AFPERROR SessionCloseFile(int16 inFileRefNum);
-	LOpenFile* FindOpenFileObject(int16 inFileRef);
-	static LOpenFile* NewOpenFileObject(
+	AFPOpenFile* FindAFPOpenFileObject(int16 inFileRef);
+	static AFPOpenFile* NewAFPOpenFileObject(
 		AFPSession* inSession,
 		uint16 inVolID,
 		uint32 inDirID,
@@ -43,7 +43,7 @@ public:
 
 	uint32 GetToken() const { return mToken; }
 
-	int16 GetNumFilesOpen() const { return static_cast<int16>(mOpenFiles.size()); }
+	int16 GetNumFilesOpen() const { return static_cast<int16>(mAFPOpenFiles.size()); }
 	int16 GetNumVolsOpen() const { return static_cast<int16>(mOpenVolumes.size()); }
 	int16 GetNumDesksOpen() const { return static_cast<int16>(mOpenDesks.size()); }
 
@@ -62,7 +62,7 @@ private:
 
     CRITICAL_SECTION mMutex;
 
-    std::vector<std::unique_ptr<LOpenFile>> mOpenFiles;
+    std::vector<std::unique_ptr<AFPOpenFile>> mAFPOpenFiles;
 	std::vector<AFP_VOLUME_INFO*> mOpenVolumes;
 	std::vector<std::unique_ptr<OPEN_DESKTOP>> mOpenDesks;
 

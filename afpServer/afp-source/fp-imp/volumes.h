@@ -5,7 +5,7 @@
 #pragma once
 
 #include "afp.h"
-#include "LFileIndex.h"
+#include "AFPFileIndex.h"
 #include "DesktopDatabase.h"
 
 #define MAX_LEVELS_DEEP				128
@@ -45,7 +45,7 @@ struct AFP_VOLUME_INFO
 
     CRITICAL_SECTION csNotifyQueue;
 
-    LFileIndex* index;
+    AFPFileIndex* index;
     DesktopDatabase* desktop;
 
     HANDLE notifyEvent;
@@ -241,7 +241,7 @@ inline void RELEASE_NOTIFY_LOCK_ID(const WORD volumeID)
 #ifdef _DEBUG
 
 void AFPDumpAFPIndex(
-    IN LFileIndex* index
+    IN AFPFileIndex* index
 );
 
 #endif

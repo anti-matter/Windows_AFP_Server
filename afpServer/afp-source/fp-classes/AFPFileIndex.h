@@ -1,5 +1,5 @@
 /*
- *	LFileIndex.h
+ *	AFPFileIndex.h
  *	Created 09/25/05
  *
  *	Copyright © 2005, Michael J. Conrad. All Rights Reserved.
@@ -42,11 +42,11 @@ typedef struct _AFP_INDEX
 	DWORD pathHash;
 } AFPINDEX, *LPAFPINDEX;
 
-class LFileIndex
+class AFPFileIndex
 {
 public:
-	LFileIndex();
-	~LFileIndex();
+	AFPFileIndex();
+	~AFPFileIndex();
 
 	LPAFPINDEX AddEntry(
 		uint32 parID,

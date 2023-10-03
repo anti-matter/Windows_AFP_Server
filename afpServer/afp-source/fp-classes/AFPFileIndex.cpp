@@ -1,5 +1,5 @@
 /*
- *	LFileIndex.cpp
+ *	AFPFileIndex.cpp
  *
  *	Copyright © Michael J. Conrad. All Rights Reserved.
  */
@@ -10,12 +10,12 @@
 #include "afp.h"
 #include "afpworker.h"
 #include "AutoLock.h"
-#include "LFileIndex.h"
+#include "AFPFileIndex.h"
 
 const int FirstDirectoryId = 1;
 
 /*
- *	LFileIndex()
+ *	AFPFileIndex()
  *
  *	Description
  *		Constructor for index class.
@@ -24,7 +24,7 @@ const int FirstDirectoryId = 1;
  *		None
  */
 
-LFileIndex::LFileIndex()
+AFPFileIndex::AFPFileIndex()
     : mNextID(FirstDirectoryId)
     , mRefCount(0)
 {
@@ -33,7 +33,7 @@ LFileIndex::LFileIndex()
 
 
 /*
- *	~LFileIndex()
+ *	~AFPFileIndex()
  *
  *	Description
  *		Destructor for index class.
@@ -42,7 +42,7 @@ LFileIndex::LFileIndex()
  *		None
  */
 
-LFileIndex::~LFileIndex()
+AFPFileIndex::~AFPFileIndex()
 {
 	//
 	//Another thread is still relying on us being around, wait for
@@ -50,7 +50,7 @@ LFileIndex::~LFileIndex()
 	//
 	while (mRefCount > 0)
 	{
-		DBGWRITE(DbgLevelInfo, L"[LFileIndex::~LFileIndex]Waiting for ref count before delete\n");
+		DBGWRITE(DbgLevelInfo, L"[AFPFileIndex::~AFPFileIndex]Waiting for ref count before delete\n");
 		ASSERT(0); //Remove if you ever hit this
 
 		Sleep(500);
@@ -70,7 +70,7 @@ LFileIndex::~LFileIndex()
  *		LPAFPINDEX
  */
 
-LPAFPINDEX LFileIndex::AddEntry(
+LPAFPINDEX AFPFileIndex::AddEntry(
 	uint32 parID,
 	PWCHAR pObjectName,
 	PWCHAR pObjectPath,
@@ -132,7 +132,7 @@ LPAFPINDEX LFileIndex::AddEntry(
  *		LPAFPINDEX
  */
 
-LPAFPINDEX LFileIndex::GetEntry(uint32 objectID)
+LPAFPINDEX AFPFileIndex::GetEntry(uint32 objectID)
 {
     AutoLock lock(&mIndexCriticalSection);
 
@@ -149,7 +149,7 @@ LPAFPINDEX LFileIndex::GetEntry(uint32 objectID)
     {
         DBGWRITE(
             DbgLevelInfo,
-            L"[LFileIndex::GetEntry]Failed to find objectID! (%d)\n", objectID);
+            L"[AFPFileIndex::GetEntry]Failed to find objectID! (%d)\n", objectID);
     }
 
 	return nullptr;
@@ -166,7 +166,7 @@ LPAFPINDEX LFileIndex::GetEntry(uint32 objectID)
  *		None
  */
 
-void LFileIndex::RemoveEntry(LPAFPINDEX entry, bool deleteDirectorySubTree)
+void AFPFileIndex::RemoveEntry(LPAFPINDEX entry, bool deleteDirectorySubTree)
 {
 	RemoveEntry(entry->objectID, deleteDirectorySubTree);
 }
@@ -182,7 +182,7 @@ void LFileIndex::RemoveEntry(LPAFPINDEX entry, bool deleteDirectorySubTree)
  *		None
  */
 
-void LFileIndex::RemoveEntry(uint32 objectID, bool deleteDirectorySubTree)
+void AFPFileIndex::RemoveEntry(uint32 objectID, bool deleteDirectorySubTree)
 {
     AutoLock lock(&mIndexCriticalSection);
 
@@ -195,7 +195,7 @@ void LFileIndex::RemoveEntry(uint32 objectID, bool deleteDirectorySubTree)
     {
         DBGWRITE(
             DbgLevelInfo,
-            L"[LFileIndex::RemoveEntry]Failed to find objectID! (%d)\n", objectID);
+            L"[AFPFileIndex::RemoveEntry]Failed to find objectID! (%d)\n", objectID);
 
         ASSERT(0);
         return;
@@ -253,7 +253,7 @@ void LFileIndex::RemoveEntry(uint32 objectID, bool deleteDirectorySubTree)
  *		None
  */
 
-void LFileIndex::UpdateEntry(
+void AFPFileIndex::UpdateEntry(
 	LPAFPINDEX pEntry,
 	LPAFPINDEX pNewParent,
 	PWCHAR pNewName
@@ -261,7 +261,7 @@ void LFileIndex::UpdateEntry(
 {
 	DBGWRITE(
 		DbgLevelInfo,
-		L"[LFileIndex::UpdateEntry]Updating entry:\n\toldName=%s\n\tnewName=%s\n\tnewParID=%d, oldParID=%d\n",
+		L"[AFPFileIndex::UpdateEntry]Updating entry:\n\toldName=%s\n\tnewName=%s\n\tnewParID=%d, oldParID=%d\n",
 		pEntry->szObjectName,
 		pNewName,
 		pEntry->parID,
@@ -328,7 +328,7 @@ void LFileIndex::UpdateEntry(
  *		None
  */
 
-void LFileIndex::UpdateEntryFlags(
+void AFPFileIndex::UpdateEntryFlags(
 	LPAFPINDEX pEntry,
 	uint16 flags
 )
@@ -384,7 +384,7 @@ void LFileIndex::UpdateEntryFlags(
  *		hash
  */
 
-uint32 LFileIndex::HashString(PWCHAR string)
+uint32 AFPFileIndex::HashString(PWCHAR string)
 {
 	uint32 hash = 0;
 
@@ -408,7 +408,7 @@ uint32 LFileIndex::HashString(PWCHAR string)
  *		LPAFPINDEX
  */
 
-LPAFPINDEX LFileIndex::FindEntryWithFullPath(PWCHAR fullPath)
+LPAFPINDEX AFPFileIndex::FindEntryWithFullPath(PWCHAR fullPath)
 {
 	if (fullPath == nullptr)
 	{
@@ -426,7 +426,7 @@ LPAFPINDEX LFileIndex::FindEntryWithFullPath(PWCHAR fullPath)
     {
         DBGWRITE(
             DbgLevelInfo,
-            L"[LFileIndex::FindEntryWithFullPath]Failed to find object! (%s)\n", fullPath);
+            L"[AFPFileIndex::FindEntryWithFullPath]Failed to find object! (%s)\n", fullPath);
 
         return nullptr;
     }
@@ -446,10 +446,10 @@ LPAFPINDEX LFileIndex::FindEntryWithFullPath(PWCHAR fullPath)
  *		you just want the count.
  *
  *	Returns
- *		LFileIndex*
+ *		AFPFileIndex*
  */
 
-uint32 LFileIndex::GetOffspring(uint32 parID, std::vector<LPAFPINDEX>** newIndex)
+uint32 AFPFileIndex::GetOffspring(uint32 parID, std::vector<LPAFPINDEX>** newIndex)
 {
     auto subIndex = new std::vector<LPAFPINDEX>();
 
@@ -488,7 +488,7 @@ uint32 LFileIndex::GetOffspring(uint32 parID, std::vector<LPAFPINDEX>** newIndex
 *		None
 */
 
-void LFileIndex::DumpIndex()
+void AFPFileIndex::DumpIndex()
 {
     DBGWRITE(DbgLevelInfo, L"Dumping index...\n");
 

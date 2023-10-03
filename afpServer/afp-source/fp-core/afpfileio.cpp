@@ -89,7 +89,7 @@ AFPERROR FPOpenFork(
 {
     unichar				afpPathname[MAX_AFP_PATH];
     AFPSession*		afpAFPSession	= (AFPSession*)afpSession->afpSessionObject;
-    LOpenFile*			afpOpenFile		= NULL;
+    AFPOpenFile*			afpAFPOpenFile		= NULL;
     AFP_VOLUME_INFO*	afpVolInfo		= NULL;
     int8				afpFork			= 0;
     int16				afpVolumeID		= 0;
@@ -183,7 +183,7 @@ AFPERROR FPOpenFork(
         return( afpTooManyFilesOpen );
     }
 
-    afpOpenFile = AFPSession::NewOpenFileObject(
+    afpAFPOpenFile = AFPSession::NewAFPOpenFileObject(
                             afpAFPSession,
                             afpVolumeID,
                             afpDirID,
@@ -193,7 +193,7 @@ AFPERROR FPOpenFork(
                             afpEntry->szPath
                             );
 
-    afpError = (afpOpenFile == NULL) ? afpMiscErr : AFP_OK;
+    afpError = (afpAFPOpenFile == NULL) ? afpMiscErr : AFP_OK;
 
     if (AFP_SUCCESS(afpError))
     {
@@ -211,7 +211,7 @@ AFPERROR FPOpenFork(
         //
         //Now, actually open the file for access as desired.
         //
-        afpError = afpOpenFile->OpenFileFork();
+        afpError = afpAFPOpenFile->AFPOpenFileFork();
 
         AFPRevertToSelf(afpSession->hUserToken);
 
@@ -224,7 +224,7 @@ AFPERROR FPOpenFork(
             //
             //We need to return the file ref num to the caller.
             //
-            afpNewRefNum = afpOpenFile->GetFileRefNum();
+            afpNewRefNum = afpAFPOpenFile->GetFileRefNum();
 
             //
             //We don't support the following bitmaps, so we clear them.
@@ -260,7 +260,7 @@ AFPERROR FPOpenFork(
     //
     if (!AFP_SUCCESS(afpError))
     {
-        afpAFPSession->SessionCloseFile(afpOpenFile->GetFileRefNum());
+        afpAFPSession->SessionCloseFile(afpAFPOpenFile->GetFileRefNum());
     }
 
     return( afpError );
@@ -286,7 +286,7 @@ AFPERROR FPSetForkParms(
     UNREFERENCED_PARAMETER(afpReply);
 
     AFPSession*	afpAFPSession	= (AFPSession*)afpSession->afpSessionObject;
-    LOpenFile*		afpOpenFile		= NULL;
+    AFPOpenFile*		afpAFPOpenFile		= NULL;
     int16			afpForkRef		= 0;
     int16			afpBitmap		= 0;
     uint32			afpForkLen		= 0;
@@ -303,15 +303,15 @@ AFPERROR FPSetForkParms(
     afpBitmap	= afpRequest.GetInt16();
     afpForkLen	= afpRequest.GetInt32();
     
-    afpOpenFile = afpAFPSession->FindOpenFileObject(afpForkRef);
-    afpError	= (afpOpenFile == NULL) ? afpParmErr : AFP_OK;
+    afpAFPOpenFile = afpAFPSession->FindAFPOpenFileObject(afpForkRef);
+    afpError	= (afpAFPOpenFile == NULL) ? afpParmErr : AFP_OK;
 
     if (AFP_SUCCESS(afpError))
     {
         //
         //Make sure the volume is not marked read-only.
         //
-        afpError = AFPVolumeWriteAccessCheck(afpOpenFile->GetVolID());
+        afpError = AFPVolumeWriteAccessCheck(afpAFPOpenFile->GetVolID());
 
         if (!AFP_SUCCESS(afpError))
         {
@@ -320,7 +320,7 @@ AFPERROR FPSetForkParms(
 
         if ((afpBitmap & kFPDFLen) || (afpBitmap & kFPExtDataForkLen))
         {
-            if (afpOpenFile->GetFork() != kDataFork)
+            if (afpAFPOpenFile->GetFork() != kDataFork)
             {
                 DBGWRITE(DbgLevelAll, L"[afp:FPSetForkParms]Data fork is not open!\n");
                 return( afpBitmapErr );
@@ -329,7 +329,7 @@ AFPERROR FPSetForkParms(
         
         if ((afpBitmap & kFPRFLen) || (afpBitmap & kFPExtRsrcForkLen))
         {
-            if (afpOpenFile->GetFork() != kRsrcFork)
+            if (afpAFPOpenFile->GetFork() != kRsrcFork)
             {
                 DBGWRITE(DbgLevelAll, L"[afp:FPSetForkParms]Resource fork is not open! (%x)\n");
                 return( afpBitmapErr );
@@ -361,7 +361,7 @@ AFPERROR FPGetForkParms(
     )
 {
     AFPSession*	afpAFPSession	= (AFPSession*)afpSession->afpSessionObject;
-    LOpenFile*		afpOpenFile		= NULL;
+    AFPOpenFile*		afpAFPOpenFile		= NULL;
     int16			afpForkRef		= 0;
     int16			afpBitmap		= 0;
     AFPERROR		afpError		= AFP_OK;
@@ -381,8 +381,8 @@ AFPERROR FPGetForkParms(
     afpForkRef	= afpRequest.GetInt16();
     afpBitmap	= afpRequest.GetInt16();
     
-    afpOpenFile = afpAFPSession->FindOpenFileObject(afpForkRef);
-    afpError	= (afpOpenFile == NULL) ? afpParmErr : AFP_OK;
+    afpAFPOpenFile = afpAFPSession->FindAFPOpenFileObject(afpForkRef);
+    afpError	= (afpAFPOpenFile == NULL) ? afpParmErr : AFP_OK;
     
     if (AFP_SUCCESS(afpError))
     {
@@ -399,8 +399,8 @@ AFPERROR FPGetForkParms(
         //Make sure the caller is asking for the length of the fork
         //that is actually opened.
         //
-        if (((afpBitmap & kFPDFLen) && (afpOpenFile->GetFork() == kRsrcFork))	||
-            ((afpBitmap & kFPRFLen) && (afpOpenFile->GetFork() == kDataFork))	)
+        if (((afpBitmap & kFPDFLen) && (afpAFPOpenFile->GetFork() == kRsrcFork))	||
+            ((afpBitmap & kFPRFLen) && (afpAFPOpenFile->GetFork() == kDataFork))	)
         {
             DBGWRITE(DbgLevelInfo, L"[afp:FPGetForkParms]Attempt to get length of wrong fork!\n");
             return( afpBitmapErr );
@@ -414,7 +414,7 @@ AFPERROR FPGetForkParms(
         //
         //We need this to properly set the attributes.
         //
-        GetFileAttributesEx(afpOpenFile->GetWinPath(), GetFileExInfoStandard, &winAttributes);
+        GetFileAttributesEx(afpAFPOpenFile->GetWinPath(), GetFileExInfoStandard, &winAttributes);
         
         //
         //Now that we've opened the file, get the requested parameters.
@@ -422,10 +422,10 @@ AFPERROR FPGetForkParms(
         afpError = AFPGetObjectParms(
                         afpReply,
                         afpBitmap,
-                        afpOpenFile->GetVolID(),
-                        afpOpenFile->GetDirID(),
+                        afpAFPOpenFile->GetVolID(),
+                        afpAFPOpenFile->GetDirID(),
                         afpSession,
-                        afpOpenFile->GetEntry(),
+                        afpAFPOpenFile->GetEntry(),
                         winAttributes
                         );
     }
@@ -660,7 +660,7 @@ AFPERROR FPByteRangeLock(
     )
 {
     AFPSession*	afpAFPSession	= (AFPSession*)afpSession->afpSessionObject;
-    LOpenFile*		afpOpenFile		= NULL;
+    AFPOpenFile*		afpAFPOpenFile		= NULL;
     int8			afpCommand		= 0;
     int8			afpBRLFlags		= 0;
     int16			afpForkRef		= 0;
@@ -696,15 +696,15 @@ AFPERROR FPByteRangeLock(
     //
     //Get the handle to the open file fork.
     //
-    afpOpenFile = afpAFPSession->FindOpenFileObject(afpForkRef);
-    afpError	= (afpOpenFile == NULL) ? afpParmErr : AFP_OK;
+    afpAFPOpenFile = afpAFPSession->FindAFPOpenFileObject(afpForkRef);
+    afpError	= (afpAFPOpenFile == NULL) ? afpParmErr : AFP_OK;
 
     if (!AFP_SUCCESS(afpError))
     {
         return( afpError );
     }
 
-    hFile = afpOpenFile->GetFileHandle();
+    hFile = afpAFPOpenFile->GetFileHandle();
     
     if (hFile == INVALID_HANDLE_VALUE)
     {
@@ -846,7 +846,7 @@ AFPERROR FPRead(
     )
 {
     AFPSession*	afpAFPSession	= (AFPSession*)afpSession->afpSessionObject;
-    LOpenFile*		afpOpenFile		= NULL;
+    AFPOpenFile*		afpAFPOpenFile		= NULL;
     int8			afpCommand		= 0;
     int16			afpForkRef		= 0;
     int64			afpOffset		= 0;
@@ -886,8 +886,8 @@ AFPERROR FPRead(
     //has been dropped in AFP3.x anyway).
     //
 
-    afpOpenFile = afpAFPSession->FindOpenFileObject(afpForkRef);
-    afpError	= (afpOpenFile == NULL) ? afpParmErr : AFP_OK;
+    afpAFPOpenFile = afpAFPSession->FindAFPOpenFileObject(afpForkRef);
+    afpError	= (afpAFPOpenFile == NULL) ? afpParmErr : AFP_OK;
 
     if (AFP_SUCCESS(afpError))
     {
@@ -899,7 +899,7 @@ AFPERROR FPRead(
             return( afpAccessDenied );
         }
 
-        afpError = afpOpenFile->ReadFork(
+        afpError = afpAFPOpenFile->ReadFork(
                                     afpReply,
                                     afpOffset,
                                     afpReqCount,
@@ -937,7 +937,7 @@ AFPERROR FPWrite(
     )
 {
     AFPSession*	afpAFPSession	= (AFPSession*)afpSession->afpSessionObject;
-    LOpenFile*		afpOpenFile		= NULL;
+    AFPOpenFile*		afpAFPOpenFile		= NULL;
     int8			afpCommand		= 0;
     int16			afpForkRef		= 0;
     int64			afpOffset		= 0;
@@ -971,15 +971,15 @@ AFPERROR FPWrite(
             return( afpParmErr );
     }
 
-    afpOpenFile = afpAFPSession->FindOpenFileObject(afpForkRef);
-    afpError	= (afpOpenFile == NULL) ? afpParmErr : AFP_OK;
+    afpAFPOpenFile = afpAFPSession->FindAFPOpenFileObject(afpForkRef);
+    afpError	= (afpAFPOpenFile == NULL) ? afpParmErr : AFP_OK;
 
     if (AFP_SUCCESS(afpError))
     {
         //
         //Make sure the volume is not marked read-only.
         //
-        afpError = AFPVolumeWriteAccessCheck(afpOpenFile->GetVolID());
+        afpError = AFPVolumeWriteAccessCheck(afpAFPOpenFile->GetVolID());
 
         if (!AFP_SUCCESS(afpError))
         {
@@ -994,7 +994,7 @@ AFPERROR FPWrite(
             return( afpAccessDenied );
         }
 
-        afpError = afpOpenFile->WriteFork(
+        afpError = afpAFPOpenFile->WriteFork(
                                     afpRequest,
                                     afpOffset,
                                     afpReqCount,

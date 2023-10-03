@@ -14,7 +14,7 @@
 #include "afpnotify.h"
 #include "AfpBuffer.h"
 #include "AFPSession.h"
-#include "LOpenFile.h"
+#include "AFPOpenFile.h"
 
 
 AFPERROR FPFlushFork(

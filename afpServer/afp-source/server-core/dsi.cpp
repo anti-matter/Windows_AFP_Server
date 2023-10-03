@@ -13,7 +13,7 @@
 #include "afpworker.h"
 #include "AutoLock.h"
 #include "AFPSession.h"
-#include "LCriticalSection.h"
+#include "AFPCriticalSection.h"
 #include "counters.h"
 #include "afpEvents.h"
 
