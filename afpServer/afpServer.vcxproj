@@ -58,7 +58,6 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
       <Optimization>Disabled</Optimization>
       <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir);$(ProjectDir)afp-source;$(ProjectDir)afp-source\ui;$(ProjectDir)afp-source\server-core;$(ProjectDir)afp-source\helpers;$(ProjectDir)afp-source\fp-imp;$(ProjectDir)afp-source\fp-core;$(ProjectDir)afp-source\fp-classes;$(ProjectDir)resources;$(SolutionDir)afpServer\deps\openssl-1.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <MinimalRebuild>true</MinimalRebuild>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PrecompiledHeader>Create</PrecompiledHeader>
