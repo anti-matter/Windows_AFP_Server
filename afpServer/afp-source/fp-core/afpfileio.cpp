@@ -51,7 +51,7 @@ AFPERROR FPCloseFork(
 {
     UNREFERENCED_PARAMETER(afpReply);
 
-    LAFPSession*	afpAFPSession	= (LAFPSession*)afpSession->afpSessionObject;
+    AFPSession*	afpAFPSession	= (AFPSession*)afpSession->afpSessionObject;
     uint16			afpRefNum		= 0;
     AFPERROR		afpError		= AFP_OK;
     
@@ -88,7 +88,7 @@ AFPERROR FPOpenFork(
     )
 {
     unichar				afpPathname[MAX_AFP_PATH];
-    LAFPSession*		afpAFPSession	= (LAFPSession*)afpSession->afpSessionObject;
+    AFPSession*		afpAFPSession	= (AFPSession*)afpSession->afpSessionObject;
     LOpenFile*			afpOpenFile		= NULL;
     AFP_VOLUME_INFO*	afpVolInfo		= NULL;
     int8				afpFork			= 0;
@@ -183,7 +183,7 @@ AFPERROR FPOpenFork(
         return( afpTooManyFilesOpen );
     }
 
-    afpOpenFile = LAFPSession::NewOpenFileObject(
+    afpOpenFile = AFPSession::NewOpenFileObject(
                             afpAFPSession,
                             afpVolumeID,
                             afpDirID,
@@ -285,7 +285,7 @@ AFPERROR FPSetForkParms(
 {
     UNREFERENCED_PARAMETER(afpReply);
 
-    LAFPSession*	afpAFPSession	= (LAFPSession*)afpSession->afpSessionObject;
+    AFPSession*	afpAFPSession	= (AFPSession*)afpSession->afpSessionObject;
     LOpenFile*		afpOpenFile		= NULL;
     int16			afpForkRef		= 0;
     int16			afpBitmap		= 0;
@@ -360,7 +360,7 @@ AFPERROR FPGetForkParms(
     IN	LPSESSION	afpSession
     )
 {
-    LAFPSession*	afpAFPSession	= (LAFPSession*)afpSession->afpSessionObject;
+    AFPSession*	afpAFPSession	= (AFPSession*)afpSession->afpSessionObject;
     LOpenFile*		afpOpenFile		= NULL;
     int16			afpForkRef		= 0;
     int16			afpBitmap		= 0;
@@ -481,7 +481,7 @@ AFPERROR FPCreateFile(
     //The client must have previously opened the volume we are creating
     //the file on.
     //
-    if (!((LAFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolumeID))
+    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolumeID))
     {
         //
         //The volume has not been opened, we need to return error.
@@ -526,7 +526,7 @@ AFPERROR FPCreateFile(
         return( afpParmErr );
     }
 
-    afpVolumeInfo = ((LAFPSession*)afpSession->afpSessionObject)->SessionFindOpenVolumeBlock(afpVolumeID);
+    afpVolumeInfo = ((AFPSession*)afpSession->afpSessionObject)->SessionFindOpenVolumeBlock(afpVolumeID);
     if (afpVolumeInfo == NULL)
     {
         DBGWRITE(DbgLevelInfo, L"[afp:FPCreateFile]Bad volume ID!\n");
@@ -659,7 +659,7 @@ AFPERROR FPByteRangeLock(
     IN	LPSESSION	afpSession
     )
 {
-    LAFPSession*	afpAFPSession	= (LAFPSession*)afpSession->afpSessionObject;
+    AFPSession*	afpAFPSession	= (AFPSession*)afpSession->afpSessionObject;
     LOpenFile*		afpOpenFile		= NULL;
     int8			afpCommand		= 0;
     int8			afpBRLFlags		= 0;
@@ -845,7 +845,7 @@ AFPERROR FPRead(
     IN	LPSESSION	afpSession
     )
 {
-    LAFPSession*	afpAFPSession	= (LAFPSession*)afpSession->afpSessionObject;
+    AFPSession*	afpAFPSession	= (AFPSession*)afpSession->afpSessionObject;
     LOpenFile*		afpOpenFile		= NULL;
     int8			afpCommand		= 0;
     int16			afpForkRef		= 0;
@@ -936,7 +936,7 @@ AFPERROR FPWrite(
     IN	LPSESSION	afpSession
     )
 {
-    LAFPSession*	afpAFPSession	= (LAFPSession*)afpSession->afpSessionObject;
+    AFPSession*	afpAFPSession	= (AFPSession*)afpSession->afpSessionObject;
     LOpenFile*		afpOpenFile		= NULL;
     int8			afpCommand		= 0;
     int16			afpForkRef		= 0;

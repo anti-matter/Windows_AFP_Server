@@ -9,7 +9,7 @@
 #define __afpvolumes__
 
 #include "AfpBuffer.h"
-#include "LAFPSession.h"
+#include "AFPSession.h"
 
 
 AFPERROR FPOpenVol(

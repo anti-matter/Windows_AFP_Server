@@ -9,7 +9,7 @@
 #include "fdparms.h"
 #include "fpinfo.h"
 #include "afpxattr.h"
-#include "LAFPSession.h"
+#include "AFPSession.h"
 #include "LOpenFile.h"
 
 #include "winerror.h"

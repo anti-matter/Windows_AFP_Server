@@ -10,7 +10,7 @@
 
 #include "afphelp.h"
 #include "AfpBuffer.h"
-#include "LAFPSession.h"
+#include "AFPSession.h"
 
 
 AFPERROR FPGetSrvrParms(

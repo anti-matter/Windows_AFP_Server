@@ -12,7 +12,7 @@
 #include "afpxattr.h"
 #include "volumes.h"
 #include "fpinfo.h"
-#include "LAFPSession.h"
+#include "AFPSession.h"
 
 #include "AltStreams.h"
 
@@ -65,7 +65,7 @@ AFPERROR FPGetExtAttribute(
     //See if the user has the volume open and get a pointer to
     //the volume object.
     //	
-    if (!((LAFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolID))
+    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolID))
     {
         DBGWRITE(DbgLevelWarning, L"[FPGetExtAttribute]User does not have volume open!\n");
         return( afpParmErr );
@@ -311,7 +311,7 @@ AFPERROR FPSetExtAttribute(
     //See if the user has the volume open and get a pointer to
     //the volume object.
     //
-    if (!((LAFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolID))
+    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolID))
     {
         DBGWRITE(DbgLevelInfo, L"[afp:FPSetExtAttribute]User does not have volume open!\n");
         return( afpParmErr );
@@ -448,7 +448,7 @@ AFPERROR FPListExtAttribute(
     //See if the user has the volume open and get a pointer to
     //the volume object.
     //
-    if (!((LAFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolID))
+    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolID))
     {
         DBGWRITE(DbgLevelInfo, L"[FPListExtAttribute]User does not have volume open!\n");
         return( afpParmErr );
@@ -633,7 +633,7 @@ AFPERROR FPRemoveExtAttribute(
     //See if the user has the volume open and get a pointer to
     //the volume object.
     //
-    if (!((LAFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolID))
+    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolID))
     {
         DBGWRITE(DbgLevelInfo, L"[FPRemoveExtAttribute]User does not have volume open!\n");
         return( afpParmErr );

@@ -14,7 +14,7 @@
 #include "fpinfo.h"
 #include "fdparms.h"
 #include "AfpBuffer.h"
-#include "LAFPSession.h"
+#include "AFPSession.h"
 
 
 AFPERROR FPResolveID(

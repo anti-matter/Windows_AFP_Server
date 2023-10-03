@@ -1,5 +1,5 @@
 /*
- *	LAFPSession.h
+ *	AFPSession.h
  *	Created 07/12/2003
  *
  *	Copyright © 2003, Michael J. Conrad. All Rights Reserved.
@@ -13,17 +13,17 @@
 
 class LOpenFile;
 
-class LAFPSession
+class AFPSession
 {
 public:
-    explicit LAFPSession(LPSESSION dsiSession);
-	~LAFPSession();
+    explicit AFPSession(LPSESSION dsiSession);
+	~AFPSession();
 
 	void SessionAssociateOpenFile(LOpenFile* inOpenFileObject);
 	AFPERROR SessionCloseFile(int16 inFileRefNum);
 	LOpenFile* FindOpenFileObject(int16 inFileRef);
 	static LOpenFile* NewOpenFileObject(
-		LAFPSession* inSession,
+		AFPSession* inSession,
 		uint16 inVolID,
 		uint32 inDirID,
 		int16 inAccessMode,
@@ -55,8 +55,8 @@ public:
 
 	LPSESSION GetDSISession() const { return mDSISession; }
 
-	static LAFPSession* FindSessionWithID(int8* afpID, uint32 inIDSize);
-	static LAFPSession* FindSessionByToken(int32 inToken);
+	static AFPSession* FindSessionWithID(int8* afpID, uint32 inIDSize);
+	static AFPSession* FindSessionByToken(int32 inToken);
 
 private:
 

@@ -8,7 +8,7 @@
 #pragma once
 
 #include "afp.h"
-#include "LAFPSession.h"
+#include "AFPSession.h"
 #include <afpfileio.h>
 
 #define BAD_LENGTH_64	0xFFFFFFFFFFFFFFFF

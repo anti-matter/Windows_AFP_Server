@@ -10,7 +10,7 @@
 
 #include "logonimp.h"
 #include "AfpBuffer.h"
-#include "LAFPSession.h"
+#include "AFPSession.h"
 #include "LRegistry.h"
 
 

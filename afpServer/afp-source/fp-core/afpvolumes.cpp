@@ -45,7 +45,7 @@ AFPERROR FPFlush(
     //
     //The client must have previously opened the volume we are operating on.
     //
-    if (!((LAFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolumeID))
+    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolumeID))
     {
         //
         //The volume has not been opened, we need to return error.
@@ -73,7 +73,7 @@ AFPERROR FPOpenVol(
     )
 {
     unichar			afpVolumeName[MAX_VOLNAME_LEN+1];
-    LAFPSession*	afpAFPSession	= (LAFPSession*)afpSession->afpSessionObject;
+    AFPSession*	afpAFPSession	= (AFPSession*)afpSession->afpSessionObject;
     int16			afpBitmap		= 0;
     uint16			afpVolumeID		= 0;
     AFPERROR		afpError		= AFP_OK;
@@ -173,7 +173,7 @@ AFPERROR FPCloseVol(
 {
     UNREFERENCED_PARAMETER(afpReply);
 
-    LAFPSession*	afpAFPSession	= (LAFPSession*)afpSession->afpSessionObject;
+    AFPSession*	afpAFPSession	= (AFPSession*)afpSession->afpSessionObject;
     uint16			afpVolumeID		= 0;
     AFPERROR		afpError		= AFP_OK;
     
@@ -230,7 +230,7 @@ AFPERROR FPGetVolParms(
     //
     //The client must have previously opened the volume we are operating on.
     //
-    if (!((LAFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolumeID))
+    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolumeID))
     {
         //
         //The volume has not been opened, we need to return error.

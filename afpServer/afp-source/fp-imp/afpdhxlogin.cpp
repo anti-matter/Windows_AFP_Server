@@ -16,7 +16,7 @@
 
 #include "afpdhxlogin.h"
 #include "AfpBuffer.h"
-#include "LAFPSession.h"
+#include "AFPSession.h"
 
 
 /*

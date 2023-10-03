@@ -91,8 +91,8 @@ AFPERROR FPGetSessionToken(
     IN	LPSESSION	afpSession
     )
 {
-    LAFPSession*	afpSessObject	= (LAFPSession*)afpSession->afpSessionObject;
-    LAFPSession*	afpOldSession	= NULL;
+    AFPSession*	afpSessObject	= (AFPSession*)afpSession->afpSessionObject;
+    AFPSession*	afpOldSession	= NULL;
     int16			afpType			= 0;
     int32			afpIDSize		= 0;
     int8*			afpID			= NULL;
@@ -154,7 +154,7 @@ AFPERROR FPGetSessionToken(
         case kLoginWithID:
             DBGWRITE(DbgLevelInfo, L"[afp:FPGetSessionToken]kLoginWithID...\n");
 
-            afpOldSession = LAFPSession::FindSessionWithID(afpID, afpIDSize);
+            afpOldSession = AFPSession::FindSessionWithID(afpID, afpIDSize);
 
             if (afpOldSession != NULL)
             {
@@ -179,7 +179,7 @@ AFPERROR FPGetSessionToken(
         case kLoginWithTimeAndID:
             DBGWRITE(DbgLevelInfo, L"[afp:FPGetSessionToken]kLoginWithTimeAndID...\n");
 
-            afpOldSession = LAFPSession::FindSessionWithID(afpID, afpIDSize);
+            afpOldSession = AFPSession::FindSessionWithID(afpID, afpIDSize);
 
             if (afpOldSession != NULL)
             {
@@ -266,7 +266,7 @@ AFPERROR FPDisconnectOldSession(
     UNREFERENCED_PARAMETER(afpReply);
     UNREFERENCED_PARAMETER(afpSession);
 
-    LAFPSession*	afpLostSession	= NULL;
+    AFPSession*	afpLostSession	= NULL;
     int8			afpType			= 0;
     int32			afpTokenLength	= 0;
     int32			afpToken		= 0;
@@ -285,7 +285,7 @@ AFPERROR FPDisconnectOldSession(
     }
     
     afpToken 		= afpRequest.GetInt32();
-    afpLostSession 	= LAFPSession::FindSessionByToken(afpToken);
+    afpLostSession 	= AFPSession::FindSessionByToken(afpToken);
     
     if (afpLostSession != NULL)
     {
@@ -867,7 +867,7 @@ AFPERROR FPLogout(
 
         if (afpSession->afpSessionObject)
         {
-            delete (LAFPSession*)afpSession->afpSessionObject;
+            delete (AFPSession*)afpSession->afpSessionObject;
             afpSession->afpSessionObject = NULL;
         }
         
