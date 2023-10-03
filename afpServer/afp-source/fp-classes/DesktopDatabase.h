@@ -9,17 +9,17 @@
 #include <algorithm>
 #include <iterator>
 #include <vector>
-#include "LArray.h"
+#include "AFPArray.h"
 #include "desktop.h"
 
 struct DTDeleter {
     void operator()(DESKTOP_ENTRY* b) const { UNREFERENCED_PARAMETER(b); }
 };
 
-class DesktopDatabase : public LArray<DESKTOP_ENTRY, DTDeleter>
+class DesktopDatabase : public AFPArray<DESKTOP_ENTRY, DTDeleter>
 {
 public:
-    DesktopDatabase() : LArray() 
+    DesktopDatabase() : AFPArray() 
     {
     }
 
@@ -47,7 +47,7 @@ public:
 
         if (it != mData.end())
         {
-            DBGWRITE(DbgLevelInfo, L"[LArray<T>::RemoveItem]Removing item from array.\n");
+            DBGWRITE(DbgLevelInfo, L"[AFPArray<T>::RemoveItem]Removing item from array.\n");
             mData.erase(it);
         }
         return AFP_OK;

@@ -6,11 +6,11 @@
 
 #pragma once
 
-#include "LArray.h"
+#include "AFPArray.h"
 #include "AutoLock.h"
 #include <algorithm>
 
-class UsersAndGroupsArray : public LArray<AFP_USERGROUP_NAME>
+class UsersAndGroupsArray : public AFPArray<AFP_USERGROUP_NAME>
 {
 public:
 

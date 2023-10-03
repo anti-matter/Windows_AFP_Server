@@ -205,7 +205,7 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
     <ClInclude Include="afp-source\fp-classes\LOpenFile.h" />
     <ClInclude Include="afp-source\fp-classes\UsersAndGroupsArray.h" />
     <ClInclude Include="afp-source\fp-classes\VolumeArray.h" />
-    <ClInclude Include="afp-source\fp-classes\LArray.h" />
+    <ClInclude Include="afp-source\fp-classes\AFPArray.h" />
     <ClInclude Include="afp-source\fp-classes\LFileIndex.h" />
     <ClInclude Include="afp-source\headers\LRegistry.h" />
     <ClInclude Include="afp-source\headers\afpworker.h" />

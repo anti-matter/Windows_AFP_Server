@@ -13,7 +13,7 @@
 #include "afphelp.h"
 #include "afpdebug.h"
 #include "afp.h"
-#include "LArray.h"
+#include "AFPArray.h"
 #include "UsersAndGroupsArray.h"
 
 UsersAndGroupsArray gUserAndGroupID;

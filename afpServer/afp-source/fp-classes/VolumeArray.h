@@ -6,12 +6,12 @@
 
 #pragma once
 
-#include "LArray.h"
+#include "AFPArray.h"
 #include "AutoLock.h"
 #include "volumes.h"
 #include <algorithm>
 
-class VolumeArray : public LArray<AFP_VOLUME_INFO>
+class VolumeArray : public AFPArray<AFP_VOLUME_INFO>
 {
 public:
 

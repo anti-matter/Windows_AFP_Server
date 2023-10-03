@@ -1,5 +1,5 @@
 /*
- *	LArray.h
+ *	AFPArray.h
  *
  *	Copyright © Michael J. Conrad. All Rights Reserved.
  */
@@ -13,33 +13,33 @@
 #include "AutoLock.h"
 #include "afpdebug.h"
 
-template <class T, class D = std::default_delete<T>> class LArray
+template <class T, class D = std::default_delete<T>> class AFPArray
 {
 public:
 
     /*
-    * LArray()
+    * AFPArray()
     *
     * Description:
-    *		Initializer for the LArray class.
+    *		Initializer for the AFPArray class.
     *
     * Returns: None
     */
-    LArray()
+    AFPArray()
     {
         InitializeCriticalSection(&mMutex);
     }
 
 
     /*
-    * ~LArray()
+    * ~AFPArray()
     *
     * Description:
     *		Destructor, deallocate the memory used for the buffer.
     *
     * Returns: None
     */
-    virtual ~LArray()
+    virtual ~AFPArray()
     {
         DeleteCriticalSection(&mMutex);
     }
@@ -80,7 +80,7 @@ public:
 
         if (it != mData.end())
         {
-            DBGWRITE(DbgLevelInfo, L"[LArray<T>::RemoveItem]Removing item from array.\n");
+            DBGWRITE(DbgLevelInfo, L"[AFPArray<T>::RemoveItem]Removing item from array.\n");
             mData.erase(it);
         }
     }

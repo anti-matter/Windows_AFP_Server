@@ -467,10 +467,10 @@ uint64 LOpenFile::GetStreamLength(PWCHAR streamName)
  * GetStreamList()
  *
  * Description:
- *		Populate an LArray with the names and header info of all the streams
+ *		Populate an AFPArray with the names and header info of all the streams
  *		for the file.
  *
- *		NOTE: Make sure the LArray is initialized to contain element sizes
+ *		NOTE: Make sure the AFPArray is initialized to contain element sizes
  *		equal to sizeof(AFP_ATTR_INFO).
  *
  * Returns: afpError code
