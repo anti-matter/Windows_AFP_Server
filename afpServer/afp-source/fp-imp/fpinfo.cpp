@@ -139,7 +139,7 @@ AFPERROR AFPGetFinderInfoEx(
 		dwError = GetLastError();
 		DBGWRITE(dbg_level_all, L"[fpinfo]CreatFile() failed in AFPGetFinderInfo! (%d) (%s)\n", dwError, szPath);
 
-		return AFPMapWinErrorToAFP(dwError, static_cast<DWORD>(afpMiscErr));
+		return afp_map_win_error_to_afp(dwError, static_cast<DWORD>(afpMiscErr));
 	}
 
 	//
@@ -153,7 +153,7 @@ AFPERROR AFPGetFinderInfoEx(
 		dwError = GetLastError();
 		DBGWRITE(dbg_level_info, L"[fpinfo]ReadFile() failed! (%d)\n", dwError);
 
-		dwError = AFPMapWinErrorToAFP(dwError, static_cast<DWORD>(afpMiscErr));
+		dwError = afp_map_win_error_to_afp(dwError, static_cast<DWORD>(afpMiscErr));
 	}
 
 	CloseHandle(hFile);
@@ -271,7 +271,7 @@ AFPERROR AFPSetFinderInfoEx(
 					szPath);
 			}
 
-			dwError = AFPMapWinErrorToAFP(dwError, static_cast<DWORD>(afpMiscErr));
+			dwError = afp_map_win_error_to_afp(dwError, static_cast<DWORD>(afpMiscErr));
 		}
 
 		break;
@@ -290,7 +290,7 @@ AFPERROR AFPSetFinderInfoEx(
 			dwError = GetLastError();
 			DBGWRITE(dbg_level_info, L"[fpinfo:AFPSetFinderInfoEx]WriteFile() failed! (%d)\n", dwError);
 
-			dwError = AFPMapWinErrorToAFP(dwError, static_cast<DWORD>(afpMiscErr));
+			dwError = afp_map_win_error_to_afp(dwError, static_cast<DWORD>(afpMiscErr));
 		}
 
 		ASSERT(dwBytesWritten == sizeof(EXTENDED_FINDER_INFO));

@@ -143,7 +143,7 @@ AFPERROR FPGetExtAttribute(
                     
                     StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->szPath, afpAttrName);
                     
-                    if (!AFPImpersonateUser(afpSession->hUserToken))
+                    if (!afp_impersonate_user(afpSession->hUserToken))
                     {
                         //
                         //Impersonation failed, don't allow any further operations.
@@ -189,7 +189,7 @@ AFPERROR FPGetExtAttribute(
                             );
                     }
                     
-                    AFPRevertToSelf(afpSession->hUserToken);
+                    afp_revert_to_self(afpSession->hUserToken);
                 }
                 else
                 {
@@ -348,7 +348,7 @@ AFPERROR FPSetExtAttribute(
         
         StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->szPath, afpAttrName);
         
-        if (!AFPImpersonateUser(afpSession->hUserToken))
+        if (!afp_impersonate_user(afpSession->hUserToken))
         {
             //
             //Impersonation failed, don't allow any further operations.
@@ -381,7 +381,7 @@ AFPERROR FPSetExtAttribute(
                 );
         }
             
-        AFPRevertToSelf(afpSession->hUserToken);
+        afp_revert_to_self(afpSession->hUserToken);
         
         //
         //As a last check, make sure the right amount of bytes were
@@ -485,7 +485,7 @@ AFPERROR FPListExtAttribute(
             (L"[FPListExtAttribute]Getting stream list for %s\n", afpEntry->szPath)
             );
         
-        if (!AFPImpersonateUser(afpSession->hUserToken))
+        if (!afp_impersonate_user(afpSession->hUserToken))
         {
             //
             //Impersonation failed, don't allow any further operations.
@@ -545,7 +545,7 @@ AFPERROR FPListExtAttribute(
                                 afpAttrInfo.wszStreamName)
                                 );
                             
-                            if (AFPWindowsToMacPath(afpAttrInfo.wszStreamName, sizeof(ansi_string), NULL, ansi_string) != NULL)
+                            if (afp_windows_to_mac_path(afpAttrInfo.wszStreamName, sizeof(ansi_string), NULL, ansi_string) != NULL)
                             {
                                 afpReply.AddRawData(ansi_string, strlen(ansi_string)+sizeof(char));
                             }
@@ -580,7 +580,7 @@ AFPERROR FPListExtAttribute(
             *saveDL = htonl(afpDataLen);
         }
         
-        AFPRevertToSelf(afpSession->hUserToken);
+        afp_revert_to_self(afpSession->hUserToken);
     }
     
     DBGWRITE(dbg_level_info, L"[FPListExtAttribute]Name list datalen = %d\n", afpDataLen);
@@ -699,7 +699,7 @@ AFPERROR FPRemoveExtAttribute(
 
     StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->szPath, afpAttrName);
     
-    if (!AFPImpersonateUser(afpSession->hUserToken))
+    if (!afp_impersonate_user(afpSession->hUserToken))
     {
         //
         //Impersonation failed, don't allow any further operations.
@@ -715,10 +715,10 @@ AFPERROR FPRemoveExtAttribute(
                 GetLastError()
                 );
         
-        afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
+        afpError = afp_map_win_error_to_afp(GetLastError(), static_cast<DWORD>(afpParmErr));
     }
         
-    AFPRevertToSelf(afpSession->hUserToken);
+    afp_revert_to_self(afpSession->hUserToken);
     
     DBGWRITE(dbg_level_info, L"[FPRemoveExtAttribute]Returning %d\n", afpError);
     

@@ -561,9 +561,9 @@ AFPERROR AFPGetVolumeParameters(
 
     if (afpBitmap & kFPVolSignatureBit) afpReply.AddInt16(kFixedDirectoryID);
 
-    if (afpBitmap & kFPVolCreateDateBit) afpReply.AddInt32(AFPWindowsToMacTime(&afpVolume->ftCreationDate));
-    if (afpBitmap & kFPVolModDateBit) afpReply.AddInt32(AFPWindowsToMacTime(&afpVolume->ftModDate));
-    if (afpBitmap & kFPVolBackupDateBit) afpReply.AddInt32(AFPWindowsToMacTime(&afpVolume->ftBackupDate));
+    if (afpBitmap & kFPVolCreateDateBit) afpReply.AddInt32(afp_windows_to_mac_time(&afpVolume->ftCreationDate));
+    if (afpBitmap & kFPVolModDateBit) afpReply.AddInt32(afp_windows_to_mac_time(&afpVolume->ftModDate));
+    if (afpBitmap & kFPVolBackupDateBit) afpReply.AddInt32(afp_windows_to_mac_time(&afpVolume->ftBackupDate));
 
     if (afpBitmap & kFPVolIDBit) afpReply.AddInt16(afpVolume->wVolID);
 

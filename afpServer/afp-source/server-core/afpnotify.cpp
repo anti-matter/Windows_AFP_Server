@@ -258,7 +258,7 @@ void AFPReadDirChanges(
 							EnterCriticalSection(&pVolInfo->csNotifyQueue);
 
 							ZeroMemory(szNewName, sizeof(szNewName));
-							AFPGetObjectNameFromPath(szFileName, szNewName, sizeof(szNewName));
+							afp_get_object_name_from_path(szFileName, szNewName, sizeof(szNewName));
 
 							AFPIndexUpdateEntry(
 									pVolInfo,
@@ -346,13 +346,13 @@ void AFPChngNotifyAdd(
 	//
 	//Extract just the name of the new file object from the pathname.
 	//
-	AFPGetObjectNameFromPath(szNewItemPathname, szNewItemName, sizeof(szNewItemName));
+	afp_get_object_name_from_path(szNewItemPathname, szNewItemName, sizeof(szNewItemName));
 
 	//
 	//First step: we need to find the index entry that is the parent
 	//directory of the new object we're adding.
 	//
-	AFPGetObjectPath(szNewItemPathname, szTempPath);
+	afp_get_object_path(szNewItemPathname, szTempPath);
 
 	DBGWRITE(dbg_level_all, L"[NOTIFY-ADD]New item pathname = %s\n", szNewItemPathname);
 	DBGWRITE(dbg_level_all, L"[NOTIFY-ADD]Parent dir path = %s\n", szTempPath);

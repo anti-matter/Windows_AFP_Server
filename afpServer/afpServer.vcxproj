@@ -199,9 +199,9 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
     <ClInclude Include="afp-source\fp-classes\AutoLock.h" />
     <ClInclude Include="afp-source\fp-classes\DesktopDatabase.h" />
     <ClInclude Include="afp-source\fp-classes\AFPSession.h" />
-    <ClInclude Include="afp-source\fp-classes\AFPCriticalSection.h" />
+    <ClInclude Include="afp-source\fp-classes\afp_critical_section.h" />
     <ClInclude Include="afp-source\fp-classes\AFPOpenFile.h" />
-    <ClInclude Include="afp-source\fp-classes\UsersAndGroupsArray.h" />
+    <ClInclude Include="afp-source\fp-classes\users_and_groups_array.h" />
     <ClInclude Include="afp-source\fp-classes\VolumeArray.h" />
     <ClInclude Include="afp-source\fp-classes\AFPArray.h" />
     <ClInclude Include="afp-source\fp-classes\AFPFileIndex.h" />

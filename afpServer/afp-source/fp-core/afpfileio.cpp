@@ -200,7 +200,7 @@ AFPERROR FPOpenFork(
         //
         //Impersonate the logged on user for security checks.
         //
-        if (!AFPImpersonateUser(afpSession->hUserToken))
+        if (!afp_impersonate_user(afpSession->hUserToken))
         {
             //
             //Impersonation failed, don't allow any further operations.
@@ -213,7 +213,7 @@ AFPERROR FPOpenFork(
         //
         afpError = afpAFPOpenFile->AFPOpenFileFork();
 
-        AFPRevertToSelf(afpSession->hUserToken);
+        afp_revert_to_self(afpSession->hUserToken);
 
         //
         //If we successfully open the file, then return whatever object parms
@@ -562,7 +562,7 @@ AFPERROR FPCreateFile(
     //Impersonate the logged on user. This makes sure only those who
     //are allowed can create files.
     //
-    if (!AFPImpersonateUser(afpSession->hUserToken))
+    if (!afp_impersonate_user(afpSession->hUserToken))
     {
         //
         //Impersonation failed, don't allow any further operations.
@@ -583,7 +583,7 @@ AFPERROR FPCreateFile(
                 NULL
     );
 
-    AFPRevertToSelf(afpSession->hUserToken);
+    afp_revert_to_self(afpSession->hUserToken);
     
     if (hFile == INVALID_HANDLE_VALUE)
     {
@@ -592,7 +592,7 @@ AFPERROR FPCreateFile(
                     GetLastError(),
                     winPath);
         
-        afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
+        afpError = afp_map_win_error_to_afp(GetLastError(), static_cast<DWORD>(afpParmErr));
     }
     else
     {
@@ -891,7 +891,7 @@ AFPERROR FPRead(
 
     if (AFP_SUCCESS(afpError))
     {
-        if (!AFPImpersonateUser(afpSession->hUserToken))
+        if (!afp_impersonate_user(afpSession->hUserToken))
         {
             //
             //Impersonation failed, don't allow any further operations.
@@ -906,7 +906,7 @@ AFPERROR FPRead(
                                     &afpActCount
                                     );
 
-        AFPRevertToSelf(afpSession->hUserToken);
+        afp_revert_to_self(afpSession->hUserToken);
     }
 
     //
@@ -986,7 +986,7 @@ AFPERROR FPWrite(
             return( afpError );
         }
 
-        if (!AFPImpersonateUser(afpSession->hUserToken))
+        if (!afp_impersonate_user(afpSession->hUserToken))
         {
             //
             //Impersonation failed, don't allow any further operations.
@@ -1002,7 +1002,7 @@ AFPERROR FPWrite(
                                     &afpActCount
                                     );
 
-        AFPRevertToSelf(afpSession->hUserToken);
+        afp_revert_to_self(afpSession->hUserToken);
 
         if (AFP_SUCCESS(afpError))
         {

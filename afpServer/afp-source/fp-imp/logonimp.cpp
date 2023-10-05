@@ -50,7 +50,7 @@ AFPERROR afpImpUserLogon(
         //
         DBGWRITE(dbg_level_info, L"[logonimp]LogonUser() failed (%d)\n", GetLastError());
         
-        afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpUserNotAuth));
+        afpError = afp_map_win_error_to_afp(GetLastError(), static_cast<DWORD>(afpUserNotAuth));
     }
     else
     {
@@ -69,7 +69,7 @@ AFPERROR afpImpUserLogon(
         RevertToSelf();
         CloseHandle(hToken);
 
-        AFPAdjustPrivilege(SE_IMPERSONATE_NAME, TRUE, afpSession->hUserToken);
+        afp_adjust_privilege(SE_IMPERSONATE_NAME, TRUE, afpSession->hUserToken);
 
         //
         //Set the flag in the sessions that tells us this session is authenticated.

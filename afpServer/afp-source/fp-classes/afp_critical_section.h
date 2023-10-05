@@ -1,8 +1,5 @@
 /*
- * AFPCriticalSection.h
- * Created 03/28/09
- *
- * Copyright (c) 2009, Michael J. Conrad. All Rights Reserved.
+ * afp_critical_section.h
  */
 
 #pragma once
@@ -10,10 +7,10 @@
 #include <cassert>
 
 
-class AFPCriticalSection
+class afp_critical_section final // NOLINT(cppcoreguidelines-special-member-functions)
 {
 public:
-	explicit AFPCriticalSection(
+	explicit afp_critical_section(
         IN const PCRITICAL_SECTION	critical_section = nullptr,
         IN const bool lock_immediately = false
         )
@@ -37,14 +34,14 @@ public:
 
         if (lock_immediately)
         {
-	        AFPCriticalSection::lock();
+	        afp_critical_section::lock();
         }
     }
 
-    virtual ~AFPCriticalSection()
+	~afp_critical_section()
     {
         if (m_is_locked_) {
-	        AFPCriticalSection::unlock();
+	        afp_critical_section::unlock();
         }
 
         if (m_owns_structure_ && m_critical_section_ != nullptr)
@@ -54,7 +51,7 @@ public:
         }
     }
 
-    virtual void lock()
+	void lock()
     {
         assert(m_critical_section_ != nullptr);
 
@@ -65,7 +62,7 @@ public:
         }
     }
 
-    virtual void unlock()
+	void unlock()
     {
         assert(m_critical_section_ != nullptr);
 
@@ -77,7 +74,7 @@ public:
     }
 
 private:
-    PCRITICAL_SECTION	m_critical_section_;
+    PCRITICAL_SECTION	m_critical_section_;  // NOLINT(clang-diagnostic-unused-private-field)
     bool				m_is_locked_;
     bool				m_owns_structure_;
 };

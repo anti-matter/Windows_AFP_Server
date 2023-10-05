@@ -60,7 +60,7 @@ AFPERROR FPGetSrvrParms(
     //
     //Convert the Windows system time to local AFP time.
     //
-    afpTime = AFPWindowsToMacTime(&fileTime);
+    afpTime = afp_windows_to_mac_time(&fileTime);
         
     //
     //Stuff in the AFP server time value.

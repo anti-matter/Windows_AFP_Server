@@ -29,21 +29,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="afp-source\fp-classes\LAFPSession.cpp">
-      <Filter>Source Files\fp-classes</Filter>
-    </ClCompile>
-    <ClCompile Include="afp-source\fp-classes\LFileIndex.cpp">
-      <Filter>Source Files\fp-classes</Filter>
-    </ClCompile>
-    <ClCompile Include="afp-source\fp-classes\LList.cpp">
-      <Filter>Source Files\fp-classes</Filter>
-    </ClCompile>
-    <ClCompile Include="afp-source\fp-classes\LOpenFile.cpp">
-      <Filter>Source Files\fp-classes</Filter>
-    </ClCompile>
-    <ClCompile Include="afp-source\fp-classes\LRegistry.cpp">
-      <Filter>Source Files\fp-classes</Filter>
-    </ClCompile>
     <ClCompile Include="afp-source\fp-core\afp.cpp">
       <Filter>Source Files\fp-core</Filter>
     </ClCompile>
@@ -128,64 +113,25 @@
     <ClCompile Include="afp-source\fp-classes\AutoLock.cpp">
       <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
+    <ClCompile Include="afp-source\fp-classes\AFPSession.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="afp-source\fp-classes\AFPFileIndex.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="afp-source\fp-classes\AFPOpenFile.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="afp-source\fp-classes\AFPRegistry.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="afp-source\fp-classes\LArray.h">
-      <Filter>Source Files\fp-classes</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\fp-classes\LFileIndex.h">
-      <Filter>Source Files\fp-classes</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\headers\aboutdlg.h">
-      <Filter>Source Files\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\headers\addshare.h">
-      <Filter>Source Files\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\headers\afpdesktop.h">
-      <Filter>Source Files\fp-core</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\headers\afpdhxlogin.h">
-      <Filter>Source Files\fp-imp</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\headers\afpdirectory.h">
-      <Filter>Source Files\fp-core</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\headers\afpfileio.h">
-      <Filter>Source Files\fp-core</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\headers\afpsrvr.h">
-      <Filter>Source Files\fp-core</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\headers\afpuser.h">
-      <Filter>Source Files\fp-core</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\headers\afpvolumes.h">
-      <Filter>Source Files\fp-core</Filter>
-    </ClInclude>
     <ClInclude Include="afp-source\headers\afpworker.h">
       <Filter>Source Files\server-core</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\headers\attention.h">
-      <Filter>Source Files\fp-imp</Filter>
-    </ClInclude>
     <ClInclude Include="afp-source\headers\counters.h">
       <Filter>Source Files\server-core</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\headers\fpinfo.h">
-      <Filter>Source Files\fp-imp</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\headers\LList.h">
-      <Filter>Source Files\fp-classes</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\headers\logonimp.h">
-      <Filter>Source Files\fp-imp</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\headers\LRegistry.h">
-      <Filter>Source Files\fp-classes</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\headers\sendmsgdlg.h">
-      <Filter>Source Files\ui</Filter>
     </ClInclude>
     <ClInclude Include="resources\resource.h">
       <Filter>Resource Files</Filter>
@@ -199,23 +145,11 @@
     <ClInclude Include="afp-source\AltStreams.h">
       <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\fp-core\afp.h">
-      <Filter>Source Files\fp-core</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\fp-classes\LCriticalSection.h">
-      <Filter>Source Files\fp-classes</Filter>
-    </ClInclude>
     <ClInclude Include="afp-source\server-core\dsi.h">
       <Filter>Source Files\server-core</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\fp-imp\fdparms.h">
-      <Filter>Source Files\fp-imp</Filter>
-    </ClInclude>
     <ClInclude Include="afp-source\helpers\afpdebug.h">
       <Filter>Source Files\helpers</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\fp-classes\LOpenFile.h">
-      <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
     <ClInclude Include="afp-source\helpers\afphelp.h">
       <Filter>Source Files\helpers</Filter>
@@ -223,17 +157,8 @@
     <ClInclude Include="afp-source\fp-classes\AfpBuffer.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\fp-classes\LAFPSession.h">
-      <Filter>Source Files\fp-classes</Filter>
-    </ClInclude>
     <ClInclude Include="afp-source\helpers\ByteSwap.h">
       <Filter>Source Files\helpers</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\fp-imp\volumes.h">
-      <Filter>Source Files\fp-imp</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\fp-imp\desktop.h">
-      <Filter>Source Files\fp-imp</Filter>
     </ClInclude>
     <ClInclude Include="afp-source\fp-classes\AutoLock.h">
       <Filter>Source Files\fp-classes</Filter>
@@ -241,7 +166,7 @@
     <ClInclude Include="afp-source\fp-classes\DesktopDatabase.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\fp-classes\UsersAndGroupsArray.h">
+    <ClInclude Include="afp-source\fp-classes\users_and_groups_array.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
     <ClInclude Include="afp-source\fp-classes\VolumeArray.h">
@@ -250,8 +175,20 @@
     <ClInclude Include="afp-source\server-core\afpnotify.h">
       <Filter>Source Files\server-core</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\fp-core\afpxattr.h">
-      <Filter>Source Files\fp-core</Filter>
+    <ClInclude Include="afp-source\fp-classes\AFPArray.h">
+      <Filter>Source Files\fp-classes</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\fp-classes\afp_critical_section.h">
+      <Filter>Source Files\fp-classes</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\fp-classes\AFPFileIndex.h">
+      <Filter>Source Files\fp-classes</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\fp-classes\AFPOpenFile.h">
+      <Filter>Source Files\fp-classes</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\fp-classes\AFPSession.h">
+      <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

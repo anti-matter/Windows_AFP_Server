@@ -410,7 +410,7 @@ AFPERROR FPLogin(
         //
         //Extract the domain name (if there is one) from the username buffer.
         //
-        AFPExtractDomainAndUserName(
+        afp_extract_domain_and_user_name(
             szUserName, 
             sizeof(szUserName), 
             szDomainName, 
@@ -472,7 +472,7 @@ AFPERROR FPLogin(
             //byte preceeded or null terminated.
             //
             afpRequest.GetRawData(afpPassword, UAM_CLRTXTPWDLEN);
-            AFPMacToWindowsString(afpPassword, sizeof(afpPasswordW), afpPasswordW);
+            afp_mac_to_windows_string(afpPassword, sizeof(afpPasswordW), afpPasswordW);
 
             DBGWRITE(dbg_level_info, L"[afp:FPLogin]Cleartext password = %s\n", afpPasswordW);
             break;
@@ -614,7 +614,7 @@ AFPERROR FPContLogin(
                 //using the Windows Logon API.
                 //
 
-                if (!AFPMacToWindowsString(szPassword, sizeof(szPasswordW), szPasswordW))
+                if (!afp_mac_to_windows_string(szPassword, sizeof(szPasswordW), szPasswordW))
                 {
                     DBGWRITE(dbg_level_warning, L"[afp:FPContLogin]Error converting password to unicode\n");
                     return( afpMiscErr );
@@ -804,7 +804,7 @@ AFPERROR FPChangePassword(
             
             if (AFP_SUCCESS(afpError))
             {
-                if (!AFPMacToWindowsString(szNewPassword, sizeof(szNewPasswordW), szNewPasswordW))
+                if (!afp_mac_to_windows_string(szNewPassword, sizeof(szNewPasswordW), szNewPasswordW))
                 {
                     DBGWRITE(dbg_level_warning, L"[afp:FPChangePswd]Error converting new password to unicode\n");
                     afpError = afpMiscErr;
@@ -926,7 +926,7 @@ AFPERROR FPMapID(
     {
         //Looking for user name
         case 1:
-            afpError = AFPGetUserNameByID(afpUserID, szName);
+            afpError = afp_get_user_name_by_id(afpUserID, szName);
 
             if (AFP_SUCCESS(afpError))
             {
@@ -942,7 +942,7 @@ AFPERROR FPMapID(
 
         //Unicode user name
         case 3:
-            afpError = AFPGetUserNameByID(afpUserID, szName);
+            afpError = afp_get_user_name_by_id(afpUserID, szName);
 
             if (AFP_SUCCESS(afpError))
             {

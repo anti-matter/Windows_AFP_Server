@@ -1,7 +1,3 @@
-//===================================================================
-// afphelp.h
-//===================================================================
-
 #pragma once
 
 #include "afp.h"
@@ -39,33 +35,21 @@ using status_t = HRESULT;
 			(p) += sizeof(DWORD); \
 }
 
-//
-//Pushes a WORD into a buffer and advances the pointer.
-//
 #define PUSH_WORD_NBO(w,p) { \
 			(*(WORD*)(p)) = htons(w); \
 			(p) += sizeof(WORD); \
 }
 
-//
-//Pushes a DWORD into a buffer and advances the pointer.
-//
 #define PUSH_DWRD_NBO(w,p) { \
 			(*(DWORD*)(p)) = htonl(w); \
 			(p) += sizeof(DWORD); \
 }
 
-//
-//Pushes a BYTE into a buffer and advances the pointer.
-//
 #define PUSH_BYTE(b, p) { \
 			*(p) = b; \
 			(p) += sizeof(BYTE); \
 }
 
-//
-//Pushes a ULONGLONG into a buffer and advances the pointer
-//
 #define PUSH_UINT64_NBO(i, p) { \
 			(*(ULONGLONG*)(p)) = _byteswap_uint64(i); \
 			(p) += sizeof(ULONGLONG); \
@@ -73,7 +57,7 @@ using status_t = HRESULT;
 
 #define EXTRACT_STRING(p,s,c) { \
 			CHAR	_temp[MAX_AFP_STRING_LEN]; \
-			RtlCopyMemory(_temp, p+sizeof(BYTE), (BYTE)*(p));	\
+			RtlCopyMemory(_temp, (p)+sizeof(BYTE), (BYTE)*(p));	\
 			_temp[(BYTE)*(p)] = '\0'; \
 			(p) += (sizeof(BYTE) + (BYTE)*(p)); \
 			AFPMacToWindowsPath(_temp, s, (c)); \
@@ -84,30 +68,25 @@ using status_t = HRESULT;
 			} \
 }
 
-//
 //Pushes a null terminated string into the buffer and
 //precedes it with a length byte (pascal style string).
-//
-#define PUSH_CSTRING(s,p) {											\
-			CHAR	_temp[MAX_AFP_STRING_LEN];						\
-			RtlZeroMemory(_temp, sizeof(_temp));					\
-			AFPWindowsToMacPath(s, sizeof(_temp), NULL, _temp);		\
-			*p = strlen(_temp);										\
-			p += sizeof(BYTE);										\
-			RtlCopyMemory(p, _temp, strlen(_temp));					\
-			p += strlen(_temp);										\
+#define PUSH_CSTRING(s,p) { \
+			CHAR	_temp[MAX_AFP_STRING_LEN]; \
+			RtlZeroMemory(_temp, sizeof(_temp)); \
+			AFPWindowsToMacPath(s, sizeof(_temp), NULL, _temp); \
+			*(p) = strlen(_temp); \
+			(p) += sizeof(BYTE); \
+			RtlCopyMemory(p, _temp, strlen(_temp)); \
+			(p) += strlen(_temp); \
 }
 
-#define PUSH_ANSI_CSTRING(s,p) {							\
-			*p = strlen(s);									\
-			p += sizeof(BYTE);								\
-			RtlCopyMemory(p, s, strlen(s));					\
-			p += strlen(s);									\
+#define PUSH_ANSI_CSTRING(s,p) { \
+			*(p) = strlen(s); \
+			(p) += sizeof(BYTE); \
+			RtlCopyMemory(p, s, strlen(s)); \
+			(p) += strlen(s); \
 }
 
-/*
- * Convenience macros
- */
 #define SAFE_CLOSE_HANDLE(h) if ((h) != nullptr)  CloseHandle(h)
 
 enum
@@ -121,144 +100,137 @@ typedef struct
 	BYTE type;
 	DWORD id;
 	WCHAR name[64];
-} AFP_USERGROUP_NAME, *PAFP_USERGROUP_NAME;
+} afp_user_group_name;
 
-BOOL AFPGetLogonSID(
-	IN HANDLE hToken,
-	OUT PSID* ppSID
+BOOL afp_get_logon_sid(
+	IN HANDLE h_token,
+	OUT PSID* pp_sid
 );
 
-BOOL IsUserAdmin(
+BOOL is_user_admin(
 	IN HANDLE token
 );
 
-PSID AFPGetSIDforUser(
-	IN PWCHAR userName,
-	IN PWCHAR domainName
+PSID afp_get_sid_for_user(
+	IN PWCHAR user_name,
+	IN PWCHAR domain_name
 );
 
-AFPERROR AFPGetDirectoryRights(
+DWORD afp_get_directory_rights(
 	IN HANDLE token, //login token
-	IN PWCHAR pDirWinPath, //directory to check
-	IN PWCHAR pUserName,
-	IN PWCHAR pDomainName,
-	IN DWORD* afpRights
+	IN PWCHAR p_dir_win_path, //directory to check
+	IN PWCHAR p_user_name,
+	IN PWCHAR p_domain_name,
+	IN DWORD* afp_rights
 );
 
-AFPERROR AFPGetUserNameByID(
-	IN DWORD dwID,
-	IN PWCHAR szName
+AFPERROR afp_get_user_name_by_id(
+	IN DWORD id,
+	IN PWCHAR name
 );
 
-AFPERROR AFPGetDirectoryOwnerAndGroupID(
-	IN PWCHAR pDirWinPath,
-	OUT DWORD* dwOwnerID,
-	OUT DWORD* dwGroupID
+DWORD afp_get_directory_owner_and_group_id(
+	IN PWCHAR p_dir_win_path,
+	OUT DWORD* owner_id,
+	OUT DWORD* group_id
 );
 
-void AFPExtractDomainAndUserName(
-	IN PWCHAR pUserName,
-	IN size_t cbUserName,
-	OUT PWCHAR pDomain,
-	IN size_t cbDomain
+void afp_extract_domain_and_user_name(
+	IN PWCHAR p_user_name,
+	IN size_t cb_user_name,
+	OUT PWCHAR p_domain,
+	IN size_t cb_domain
 );
 
-ULONG AFPWindowsToMacTime(
-	IN PFILETIME filetime
+ULONG afp_windows_to_mac_time(
+	IN PFILETIME file_time
 );
 
-ULONG AFPWindowsToMacLocalTime(
-	IN PFILETIME fileTime
+ULONG afp_windows_to_mac_local_time(
+	IN PFILETIME file_time
 );
 
-void AFPMacToWindowsTime(
-	IN ULONG dwMacTime,
-	IN PFILETIME filetime
+void afp_mac_to_windows_time(
+	IN ULONG mac_time,
+	IN PFILETIME file_time
 );
 
-void AFPMacToWindowsLocalTime(
-	IN ULONG dwMacTime,
-	IN PFILETIME fileTime
+void afp_mac_to_windows_local_time(
+	IN ULONG mac_time,
+	IN PFILETIME file_time
 );
 
-BOOL OpenCurrentToken(
-	IN OUT PHANDLE Token
+BOOL open_current_token(
+	IN OUT PHANDLE token
 );
 
-BOOL AFPAdjustPrivilege(
-	IN PWCHAR szPrivilege,
-	IN BOOL bEnable,
-	IN HANDLE hToken = INVALID_HANDLE_VALUE
+BOOL afp_adjust_privilege(
+	IN PWCHAR privilege,
+	IN BOOL enable,
+	IN HANDLE h_token = INVALID_HANDLE_VALUE
 );
 
-BOOL AFPAdjustAccountRight(
-	IN HANDLE hUserToken,
-	PWCHAR szPriv,
-	USHORT cbPriv //count in bytes the size of the szPriv buffer
+BOOL afp_adjust_account_right(
+	IN HANDLE h_user_token,
+	PWCHAR privileges,
+	USHORT cb_privileges //count in bytes the size of the privileges buffer
 );
 
-BOOL AFPImpersonateUser(
-	IN HANDLE hUserToken
+BOOL afp_impersonate_user(
+	IN HANDLE h_user_token
 );
 
-BOOL AFPRevertToSelf(
-	IN HANDLE hUserToken
+BOOL afp_revert_to_self(
+	IN HANDLE h_user_token
 );
 
-PWCHAR AFPMacToWindowsString(
-	IN PCHAR pMacString,
-	IN WORD cbWideString,
-	OUT PWCHAR pWideString
+PWCHAR afp_mac_to_windows_string(
+	IN PCHAR p_mac_string,
+	IN WORD cb_wide_string,
+	OUT PWCHAR p_wide_string
 );
 
-PWCHAR AFPMacToWindowsPath(
-	IN PCHAR pAFPPath,
-	OUT PWCHAR pWidePath,
-	OUT AFPCHARMAPARRAY pCharMap
+PWCHAR afp_mac_to_windows_path(
+	IN PCHAR p_afp_path,
+	OUT PWCHAR p_wide_path,
+	OUT AFPCHARMAPARRAY p_char_map
 );
 
-PCHAR AFPWindowsToMacPath(
-	IN PWCHAR pWinPath,
-	IN WORD wAFPBuffSize,
-	IN AFPCHARMAPARRAY pCharMap,
-	OUT PCHAR pAFPPath
+PCHAR afp_windows_to_mac_path(
+	IN PWCHAR p_win_path,
+	IN WORD afp_buff_size,
+	IN AFPCHARMAPARRAY p_char_map,
+	OUT PCHAR p_afp_path
 );
 
-bool IsWhiteSpace(char c);
+bool is_white_space(char c);
 
-void AFPGetObjectNameFromPath(
-	IN PWCHAR pPath,
-	OUT PWCHAR pNameBuff,
-	IN size_t cbNameBuff
+void afp_get_object_name_from_path(
+	IN PWCHAR p_path,
+	OUT PWCHAR p_name_buff,
+	IN size_t cb_name_buff
 );
 
-void AFPGetObjectDot3Extension(
-	IN PWCHAR pPath,
-	OUT PWCHAR pNameBuff,
-	IN size_t cbNameBuff
+void afp_get_object_dot3_extension(
+	IN PWCHAR p_path,
+	OUT PWCHAR p_name_buff,
+	IN size_t cb_name_buff
 );
 
-void AFPGetObjectPath(
-	IN PWCHAR pPath,
-	OUT PWCHAR pPathBuff
+void afp_get_object_path(
+	IN PWCHAR p_path,
+	OUT PWCHAR p_path_buff
 );
 
-AFPERROR AFPMapWinErrorToAFP(
-	IN DWORD dwWinError,
-	IN DWORD dwDefaultError
+AFPERROR afp_map_win_error_to_afp(
+	IN DWORD win_error,
+	IN AFPERROR default_error
 );
 
-PVOID AFPReAlloc(
-	IN PCHAR pOldBuffer,
-	IN DWORD dwOldBufferSize,
-	IN DWORD dwNewSize,
-	IN BOOL fCopyOldToNew
-);
-
-HRESULT AFPExtractStringAndAdvanceBuffPtr(
-	IN PCHAR* pBuffer,
-	IN PWCHAR pWinString,
-	IN WORD cchWinString,
-	IN BOOL fIsPath = true,
-	OPTIONAL LPAFPCHARMAP pCharMap = nullptr
+HRESULT afp_extract_string_and_advance_buff_ptr(
+	IN PCHAR* p_buffer,
+	IN PWCHAR p_win_string,
+	IN WORD cch_win_string,
+	IN BOOL f_is_path = true,
+	OPTIONAL LPAFPCHARMAP p_char_map = nullptr
 );

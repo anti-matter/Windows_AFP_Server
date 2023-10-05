@@ -228,8 +228,8 @@ AFPERROR AFPGetObjectParms(
     }
 
     if (afpBitmap & kFPParentID)	afpReply.AddInteger<UINT32>(afpEntry->parID);
-    if (afpBitmap & kFPCreateDate)	afpReply.AddInteger<UINT32>(AFPWindowsToMacTime(&winAttributes.ftCreationTime));
-    if (afpBitmap & kFPModDate)		afpReply.AddInteger<UINT32>(AFPWindowsToMacTime(&winAttributes.ftLastWriteTime));
+    if (afpBitmap & kFPCreateDate)	afpReply.AddInteger<UINT32>(afp_windows_to_mac_time(&winAttributes.ftCreationTime));
+    if (afpBitmap & kFPModDate)		afpReply.AddInteger<UINT32>(afp_windows_to_mac_time(&winAttributes.ftLastWriteTime));
     if (afpBitmap & kFPBackupDate)	afpReply.AddInteger<UINT32>(0x80000000);
     
     if (afpBitmap & kFPFinderInfo)
@@ -291,7 +291,7 @@ AFPERROR AFPGetObjectParms(
         {
             uint32	afpRights		= 0;
 
-            afpError = AFPGetDirectoryRights(
+            afpError = afp_get_directory_rights(
                             afpSession->hUserToken,
                             afpEntry->szPath,
                             afpSession->userName,
@@ -484,7 +484,7 @@ AFPERROR AFPSetFileDirParms(
             dwError = GetLastError();
             DBGWRITE(dbg_level_info, L"[FDP]SetFileAttributes() failed! (%d)\n", dwError);
             
-            return(AFPMapWinErrorToAFP(dwError, static_cast<DWORD>(afpMiscErr)));
+            return(afp_map_win_error_to_afp(dwError, static_cast<DWORD>(afpMiscErr)));
         }
     }
     
@@ -624,17 +624,17 @@ AFPERROR AFPSetFileTime(
     //
     if (plwCreation != NULL)
     {
-        AFPMacToWindowsTime(*plwCreation, &creation);
+        afp_mac_to_windows_time(*plwCreation, &creation);
         pCreation = &creation;
     }
     if (plwModification != NULL)
     {
-        AFPMacToWindowsTime(*plwModification, &mod);
+        afp_mac_to_windows_time(*plwModification, &mod);
         pMod = &mod;
     }
     if (plwBackup != NULL)
     {
-        AFPMacToWindowsTime(*plwBackup, &backup);
+        afp_mac_to_windows_time(*plwBackup, &backup);
         pBackup = &backup;
     }
     

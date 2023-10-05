@@ -909,7 +909,7 @@ AFPERROR FPCreateDir(
     //Impersonate the logged on user. This makes sure only those who
     //are allowed can create directories.
     //
-    if (!AFPImpersonateUser(afpSession->hUserToken))
+    if (!afp_impersonate_user(afpSession->hUserToken))
     {
         return( afpAccessDenied );
     }
@@ -917,12 +917,12 @@ AFPERROR FPCreateDir(
     //
     //Create the new directory using the Win32 API.
     //
-    afpError = (CreateDirectory(winPath, NULL)) ? AFP_OK : AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpMiscErr));
+    afpError = (CreateDirectory(winPath, NULL)) ? AFP_OK : afp_map_win_error_to_afp(GetLastError(), static_cast<DWORD>(afpMiscErr));
 
     //
     //Revert back to the systems control and context.
     //
-    AFPRevertToSelf(afpSession->hUserToken);
+    afp_revert_to_self(afpSession->hUserToken);
 
     if (AFP_SUCCESS(afpError))
     {
@@ -1075,7 +1075,7 @@ AFPERROR FPDelete(
     //Impersonate the logged on user. This makes sure only those who
     //are allowed can delete files.
     //
-    if (!AFPImpersonateUser(afpSession->hUserToken))
+    if (!afp_impersonate_user(afpSession->hUserToken))
     {
         return( afpAccessDenied );
     }
@@ -1094,7 +1094,7 @@ AFPERROR FPDelete(
                     GetLastError()
                     );
             
-            afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
+            afpError = afp_map_win_error_to_afp(GetLastError(), static_cast<DWORD>(afpParmErr));
         }
     }
     else
@@ -1107,11 +1107,11 @@ AFPERROR FPDelete(
                     GetLastError()
                     );
             
-            afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
+            afpError = afp_map_win_error_to_afp(GetLastError(), static_cast<DWORD>(afpParmErr));
         }
     }
 
-    AFPRevertToSelf(afpSession->hUserToken);
+    afp_revert_to_self(afpSession->hUserToken);
     
     //
     //If we successfully deleted the file or directory, we need to
@@ -1302,7 +1302,7 @@ AFPERROR FPCopyFile(
     //Setup the correct impersonation for this API call. We have to
     //have the right credentials for copy file.
     //
-    if (!AFPImpersonateUser(afpSession->hUserToken))
+    if (!afp_impersonate_user(afpSession->hUserToken))
     {
         //
         //Impersonation failed, don't allow any further operations.
@@ -1319,10 +1319,10 @@ AFPERROR FPCopyFile(
     {
         DBGWRITE(dbg_level_info, L"[afp:FPCopyFile]CopyFile() failed (%d) (%s)!\n", GetLastError(), newWinPath);
 
-        afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
+        afpError = afp_map_win_error_to_afp(GetLastError(), static_cast<DWORD>(afpParmErr));
     }
 
-    AFPRevertToSelf(afpSession->hUserToken);
+    afp_revert_to_self(afpSession->hUserToken);
 
     if (AFP_SUCCESS(afpError))
     {
@@ -1543,7 +1543,7 @@ AFPERROR FPMoveAndRename(
     //
     //Impersonate the current user for permissions sakes.
     //
-    if (!AFPImpersonateUser(afpSession->hUserToken))
+    if (!afp_impersonate_user(afpSession->hUserToken))
     {
         //
         //Impersonation failed, don't allow any further operations.
@@ -1558,10 +1558,10 @@ AFPERROR FPMoveAndRename(
     {
         DBGWRITE(dbg_level_info, L"[afp:FPMoveAndRename]MoveFile() failed! (%d)\n", GetLastError());
         
-        afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
+        afpError = afp_map_win_error_to_afp(GetLastError(), static_cast<DWORD>(afpParmErr));
     }
 
-    AFPRevertToSelf(afpSession->hUserToken);
+    afp_revert_to_self(afpSession->hUserToken);
     
     if (AFP_SUCCESS(afpError))
     {
@@ -1732,7 +1732,7 @@ AFPERROR FPRename(
     //
     //Impersonate the currently logged on user.
     //
-    if (!AFPImpersonateUser(afpSession->hUserToken))
+    if (!afp_impersonate_user(afpSession->hUserToken))
     {
         //
         //Impersonation failed, don't allow any further operations.
@@ -1747,10 +1747,10 @@ AFPERROR FPRename(
     {
         DBGWRITE(dbg_level_info, L"[AFP]MoveFile() failed! (%d)\n", GetLastError());
         
-        afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
+        afpError = afp_map_win_error_to_afp(GetLastError(), static_cast<DWORD>(afpParmErr));
     }
 
-    AFPRevertToSelf(afpSession->hUserToken);
+    afp_revert_to_self(afpSession->hUserToken);
 
     if (AFP_SUCCESS(afpError))
     {

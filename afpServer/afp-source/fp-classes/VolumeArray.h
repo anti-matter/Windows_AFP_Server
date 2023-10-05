@@ -26,7 +26,7 @@ public:
     *		Finds a user and groups structure by name.
     *
     *	Returns
-    *		AFP_USERGROUP_NAME*
+    *		AFP_USER_GROUP_NAME*
     */
 
     AFP_VOLUME_INFO* FindByName(PWCHAR name)
@@ -55,7 +55,7 @@ public:
     *		Finds a user and groups structure by id.
     *
     *	Returns
-    *		AFP_USERGROUP_NAME*
+    *		AFP_USER_GROUP_NAME*
     */
 
     AFP_VOLUME_INFO* FindById(WORD volId)

@@ -13,7 +13,7 @@
 #include "afpworker.h"
 #include "AutoLock.h"
 #include "AFPSession.h"
-#include "AFPCriticalSection.h"
+#include "afp_critical_section.h"
 #include "counters.h"
 #include "afpEvents.h"
 
@@ -443,12 +443,12 @@ DWORD WINAPI DSIWorkerThread(
 	//Adjust the privilege of this thread so we can accept
 	//logons over the network.
 	//
-	if (!AFPAdjustPrivilege(SE_TCB_NAME, TRUE))
+	if (!afp_adjust_privilege(SE_TCB_NAME, TRUE))
 	{
 		DBGWRITE(dbg_level_info, L"[DSI]AdjustPrivilege() in worker failed enabling SE_TCB_NAME!\n");
 	}
 
-	if (!AFPAdjustPrivilege(SE_SECURITY_NAME, TRUE))
+	if (!afp_adjust_privilege(SE_SECURITY_NAME, TRUE))
 	{
 		DBGWRITE(dbg_level_info, L"[DSI]AdjustPrivilege() in worker failed enabling SE_SECURITY_NAME!\n");
 	}

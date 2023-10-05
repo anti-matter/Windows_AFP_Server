@@ -111,7 +111,7 @@ AFPERROR AfpBuffer::GetString(
 			//
 			if (isPath)
 			{
-				if (AFPMacToWindowsPath(ansi_string, string, charMap) == nullptr)
+				if (afp_mac_to_windows_path(ansi_string, string, charMap) == nullptr)
 				{
 					DBGWRITE(dbg_level_info, L"[afp:GetString]Failed converting path to unicode!\n");
 					afpError = afpParmErr;
@@ -119,7 +119,7 @@ AFPERROR AfpBuffer::GetString(
 			}
 			else
 			{
-				if (AFPMacToWindowsString(ansi_string, cbstring, string) == nullptr)
+				if (afp_mac_to_windows_string(ansi_string, cbstring, string) == nullptr)
 				{
 					DBGWRITE(dbg_level_info, L"[afp:GetString]Failed converting string to unicode!\n");
 					afpError = afpParmErr;
@@ -169,7 +169,7 @@ AFPERROR AfpBuffer::GetUniString(WCHAR* string, UINT16 cbstring, UINT16* sLen)
 	{
 		RtlCopyMemory(ansi_string, GetCurrentPosPtr(), stringLen);
 
-		if (AFPMacToWindowsString(ansi_string, cbstring, string) == nullptr)
+		if (afp_mac_to_windows_string(ansi_string, cbstring, string) == nullptr)
 		{
 			return afpParmErr;
 		}
@@ -430,7 +430,7 @@ AFPERROR AfpBuffer::AddUniStringAsPascal(unichar* string, AFPCHARMAPARRAY charMa
 {
 	char ansi_string[MAX_AFP_PATH];
 
-	if (AFPWindowsToMacPath(string, sizeof(ansi_string), charMap, ansi_string) != nullptr)
+	if (afp_windows_to_mac_path(string, sizeof(ansi_string), charMap, ansi_string) != nullptr)
 	{
 		return AddCStringAsPascal(ansi_string);
 	}
@@ -457,7 +457,7 @@ AFPERROR AfpBuffer::AddUniString(unichar* string, AFPCHARMAPARRAY charMap)
 	{
 		if (((mCurrentPos - mBuffer) + (cbstring * 2) + 2) <= mBufferSize)
 		{
-			if (AFPWindowsToMacPath(string, sizeof(ansi_string), charMap, ansi_string) != nullptr)
+			if (afp_windows_to_mac_path(string, sizeof(ansi_string), charMap, ansi_string) != nullptr)
 			{
 				auto stringLen = strlen(ansi_string);
 

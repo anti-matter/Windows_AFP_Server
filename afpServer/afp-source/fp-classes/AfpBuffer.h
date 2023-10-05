@@ -42,7 +42,7 @@ public:
 		if (mCurrentPos - mBuffer + sizeof(T) > mBufferSize)
 			return afpParmErr;
 
-		*reinterpret_cast<T*>(mCurrentPos) = ByteSwap<T>(value);
+		*reinterpret_cast<T*>(mCurrentPos) = byte_swap<T>(value);
 		Advance(sizeof(T));
 
 		return AFP_OK;

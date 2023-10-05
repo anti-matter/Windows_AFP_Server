@@ -131,7 +131,7 @@ AFPERROR AFPOpenFile::AFPOpenFileFork(PWCHAR streamName, DWORD afpCreationDispos
 		auto dwError = GetLastError();
 		DBGWRITE(dbg_level_info, L"[AFPOpenFile:AFPOpenFileFork]CreateFile() failed! (%d) (%s)\n", dwError, szFilePath);
 
-		return AFPMapWinErrorToAFP(dwError, static_cast<DWORD>(afpParmErr));
+		return afp_map_win_error_to_afp(dwError, static_cast<DWORD>(afpParmErr));
 	}
 
 	//
@@ -287,7 +287,7 @@ AFPERROR AFPOpenFile::ReadFork(
 
 	if (!success)
 	{
-		afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
+		afpError = afp_map_win_error_to_afp(GetLastError(), static_cast<DWORD>(afpParmErr));
 		DBGWRITE(dbg_level_warning, L"[AFPOpenFile::ReadFork]ReadFile() failed! (%d)\n", GetLastError());
 	}
 	else if (afpReqCount > 0 && *afpActualRead == 0)
@@ -365,7 +365,7 @@ AFPERROR AFPOpenFile::WriteFork(
 
 		if (!success)
 		{
-			afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
+			afpError = afp_map_win_error_to_afp(GetLastError(), static_cast<DWORD>(afpParmErr));
 			DBGWRITE(dbg_level_info, L"[AFPOpenFile:WriteFork]WriteFile() failed! (%d)\n", GetLastError());
 		}
 		else
