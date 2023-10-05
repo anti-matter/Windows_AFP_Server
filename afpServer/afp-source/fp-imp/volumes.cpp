@@ -3,8 +3,6 @@
 //===================================================================
 
 #include "stdafx.h"
-#include <stdlib.h>
-
 #include "afpdebug.h"
 #include "afphelp.h"
 #include "volumes.h"
@@ -156,7 +154,7 @@ AFP_VOLUME_INFO* AFPAddVolume(
        IN DWORD dwFlags
 )
 {
-    LPAFPINDEX pIndex;
+    p_afp_index pIndex;
     WIN32_FILE_ATTRIBUTE_DATA winAttribData;
     DWORD dwError;
     WCHAR szWinPath[MAX_PATH];
@@ -194,16 +192,16 @@ AFP_VOLUME_INFO* AFPAddVolume(
     //
     lstrcpyn(szWinPath, pszPath, lstrlen(pszPath) - (lstrlen(pszShareName)));
 
-    newVolume->index = new AFPFileIndex();
+    newVolume->index = new afp_file_index();
 
-    newVolume->index->AddEntry(
+    newVolume->index->add_entry(
         static_cast<DWORD>(-1),
         TEXT("Parent"),
         szWinPath,
         true
     );
 
-    pIndex = newVolume->index->AddEntry(
+    pIndex = newVolume->index->add_entry(
         kParentOfRoot,
         pszShareName,
         pszPath,
@@ -214,7 +212,7 @@ AFP_VOLUME_INFO* AFPAddVolume(
     //Create the Afp_AfpInfo stream that holds FinderInfo for the root dir.
     //
     AFPCheckForAndAddFinderInfoStream(pIndex);
-    StringCbPrintf(szWinPath, sizeof(szWinPath), TEXT("%s:%s"), pIndex->szPath, AFP_INFO_STREAM_NAME);
+    StringCbPrintf(szWinPath, sizeof(szWinPath), TEXT("%s:%s"), pIndex->sz_path, AFP_INFO_STREAM_NAME);
 
     hFile = CreateFile(
         szWinPath,
@@ -743,7 +741,7 @@ AFPERROR AFPIndexBuild(
        IN AFP_VOLUME_INFO* pVInfo
 )
 {
-    LPAFPINDEX pIndex;
+    p_afp_index pIndex;
     const auto cbPath = MAX_PATH * sizeof(WCHAR);
     WIN32_FIND_DATA findData;
 
@@ -916,7 +914,7 @@ void AFPAddDirectoryToIndexWorkerQueue(
 // Add a new directory or file to the afp index.
 //
 
-LPAFPINDEX AFPIndexAddEntry(
+p_afp_index AFPIndexAddEntry(
     IN AFP_VOLUME_INFO* pPassedVolInfo OPTIONAL,
        IN WORD wVolID OPTIONAL,
        IN DWORD dwParID,
@@ -945,7 +943,7 @@ LPAFPINDEX AFPIndexAddEntry(
         pVolInfo = pPassedVolInfo;
     }
 
-    auto pEntry = pVolInfo->index->AddEntry(
+    auto pEntry = pVolInfo->index->add_entry(
         dwParID,
         pObjectName,
         pObjectPath,
@@ -966,8 +964,8 @@ LPAFPINDEX AFPIndexAddEntry(
 AFPERROR AFPIndexUpdateEntry(
     IN AFP_VOLUME_INFO* pVolInfo,
        IN WORD wVolID,
-       IN LPAFPINDEX pEntry,
-       IN LPAFPINDEX pNewParentEntry,
+       IN p_afp_index pEntry,
+       IN p_afp_index pNewParentEntry,
        IN PWCHAR pNewName
 )
 {
@@ -986,7 +984,7 @@ AFPERROR AFPIndexUpdateEntry(
         }
     }
 
-    pVInfo->index->UpdateEntry(pEntry, pNewParentEntry, pNewName);
+    pVInfo->index->update_entry(pEntry, pNewParentEntry, pNewName);
 
     return NO_ERROR;
 }
@@ -1002,7 +1000,7 @@ AFPERROR AFPIndexUpdateEntry(
 //
 
 AFPERROR AFPIndexUpdateEntryFlags(
-    IN LPAFPINDEX pEntry,
+    IN p_afp_index pEntry,
        IN WORD wFlags
 )
 {
@@ -1012,28 +1010,28 @@ AFPERROR AFPIndexUpdateEntryFlags(
     //If the "set item" flag is set, then we are setting the flags. Otherwise
     //we are clearing the bits.
     //
-    if (wFlags & FLAG_INDEX_SETITEM)
+    if (wFlags & flag_index_set_item)
     {
-        if (wFlags & FLAG_INDEX_RESOPEN)
+        if (wFlags & flag_index_resource_fork_open)
         {
-            pEntry->flags |= FLAG_INDEX_RESOPEN;
+            pEntry->flags |= flag_index_resource_fork_open;
         }
 
-        if (wFlags & FLAG_INDEX_DATAOPEN)
+        if (wFlags & flag_index_data_fork_open)
         {
-            pEntry->flags |= FLAG_INDEX_DATAOPEN;
+            pEntry->flags |= flag_index_data_fork_open;
         }
     }
     else
     {
-        if (wFlags & FLAG_INDEX_RESOPEN)
+        if (wFlags & flag_index_resource_fork_open)
         {
-            pEntry->flags &= ~FLAG_INDEX_RESOPEN;
+            pEntry->flags &= ~flag_index_resource_fork_open;
         }
 
-        if (wFlags & FLAG_INDEX_DATAOPEN)
+        if (wFlags & flag_index_data_fork_open)
         {
-            pEntry->flags &= ~FLAG_INDEX_DATAOPEN;
+            pEntry->flags &= ~flag_index_data_fork_open;
         }
     }
 
@@ -1049,11 +1047,11 @@ AFPERROR AFPIndexUpdateEntryFlags(
 
 void AFPIndexRemoveEntry(
     IN AFP_VOLUME_INFO* pInfo,
-       IN LPAFPINDEX pEntry,
+       IN p_afp_index pEntry,
        IN bool deleteDirectorySubTree
 )
 {
-    pInfo->index->RemoveEntry(pEntry->objectID, deleteDirectorySubTree);
+    pInfo->index->remove_entry(pEntry->object_id, deleteDirectorySubTree);
 }
 
 
@@ -1068,7 +1066,7 @@ AFPERROR AFPIndexFindEntryWithVolIDAndPath(
     IN WORD wVolID,
        IN DWORD dwDirID,
        IN PWCHAR pPath,
-       OUT LPAFPINDEX* ppEntry
+       OUT p_afp_index* ppEntry
 )
 {
     AFP_VOLUME_INFO* pVolInfo;
@@ -1105,14 +1103,14 @@ AFPERROR AFPIndexFindEntryWithPath(
     IN AFP_VOLUME_INFO* pVolInfo,
        IN DWORD dwSearchID,
        IN PWCHAR pPath,
-       OUT LPAFPINDEX* ppEntry
+       OUT p_afp_index* ppEntry
 )
 {
     auto pFileIndex = pVolInfo->index;
     WCHAR szTemp[MAX_PATH]{};
 
     *ppEntry = nullptr;
-    auto pEntry = pFileIndex->GetEntry(dwSearchID);
+    auto pEntry = pFileIndex->get_entry(dwSearchID);
 
     if (pEntry == nullptr)
     {
@@ -1129,7 +1127,7 @@ AFPERROR AFPIndexFindEntryWithPath(
     //
     if (pPath != nullptr && lstrlen(pPath) > 0)
     {
-        StringCbPrintf(szTemp, sizeof(szTemp), TEXT("%s\\%s"), pEntry->szPath, pPath);
+        StringCbPrintf(szTemp, sizeof(szTemp), TEXT("%s\\%s"), pEntry->sz_path, pPath);
     }
     else
     {
@@ -1143,7 +1141,7 @@ AFPERROR AFPIndexFindEntryWithPath(
     //
     //Now, search for the full path string in the index.
     //
-    pEntry = pFileIndex->FindEntryWithFullPath(szTemp);
+    pEntry = pFileIndex->find_entry_with_full_path(szTemp);
 
     if (pEntry != nullptr)
     {
@@ -1170,12 +1168,12 @@ AFPERROR AFPIndexFindEntryWithPath(
 AFPERROR AFPIndexFindEntry(
     IN AFP_VOLUME_INFO* pVolInfo,
        IN DWORD dwSearchID,
-       OUT LPAFPINDEX* ppEntry
+       OUT p_afp_index* ppEntry
 )
 {
     ASSERT(pVolInfo != nullptr);
 
-    auto pEntry = pVolInfo->index->GetEntry(dwSearchID);
+    auto pEntry = pVolInfo->index->get_entry(dwSearchID);
 
     if (pEntry == nullptr)
     {
@@ -1208,13 +1206,13 @@ AFPERROR AFPIndexGetFullPath(
        IN size_t cbPath
 )
 {
-    LPAFPINDEX pEntry;
+    p_afp_index pEntry;
 
     ASSERT(pPath != NULL);
 
     if (AFPIndexFindEntry(pVolInfo, dwDirID, &pEntry) == NO_ERROR)
     {
-        StringCbCopy(pPath, cbPath, pEntry->szPath);
+        StringCbCopy(pPath, cbPath, pEntry->sz_path);
         return NO_ERROR;
     }
 
@@ -1286,10 +1284,9 @@ AFPCheckVolumePassword(
 //
 
 void AFPDumpAFPIndex(
-    IN AFPFileIndex* index
+    IN afp_file_index* index
 )
 {
-    index->DumpIndex();
+    index->dump_index();
 }
-
 #endif

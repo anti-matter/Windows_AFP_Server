@@ -15,50 +15,50 @@
 
 
 BOOL AFPCheckForAndAddFinderInfoStream(
-	IN	LPAFPINDEX		pEntry,
+	IN	p_afp_index		pEntry,
 	IN	AFPCHARMAPARRAY	pCharmap		= NULL,
 	IN	BOOL			fMakeInvisible	= false
 );
 
 AFPERROR AFPGetFinderInfo(
-	IN	LPAFPINDEX		pEntry,
+	IN	p_afp_index		pEntry,
 	OUT	PFINDER_INFO	pInfo
 );
 
 AFPERROR AFPGetFinderInfoEx(
-	IN	LPAFPINDEX				pEntry,
+	IN	p_afp_index				pEntry,
 	OUT	LPEXTENDED_FINDER_INFO	pInfo
 );
 
 AFPERROR AFPSetFinderInfo(
-	IN	LPAFPINDEX		pEntry,
+	IN	p_afp_index		pEntry,
 	IN	PFINDER_INFO	pInfo,
 	IN	BOOL			fCreateAlways = false
 );
 
 AFPERROR AFPSetFinderInfoEx(
-	IN	LPAFPINDEX				pEntry,
+	IN	p_afp_index				pEntry,
 	IN	LPEXTENDED_FINDER_INFO	pInfo,
 	IN	BOOL					fCreateAlways = false
 );
 
 AFPERROR AFPUpdateEntryCharMap(
-	IN	LPAFPINDEX		pEntry,
+	IN	p_afp_index		pEntry,
 	IN	AFPCHARMAPARRAY	pCharmap
 );
 
 AFPERROR AFPAddCharMapToIndexEntry(
-	IN	LPAFPINDEX		pEntry,
+	IN	p_afp_index		pEntry,
 	IN	AFPCHARMAPARRAY	pCharmap
 );
 
 AFPERROR AFPGetCharMapForIndexEntry(
-	IN	LPAFPINDEX		pEntry,
+	IN	p_afp_index		pEntry,
 	OUT	AFPCHARMAPARRAY	pCharmap
 );
 
 BOOL AFPCheckForCharMap(
-	IN	LPAFPINDEX	pEntry
+	IN	p_afp_index	pEntry
 );
 
 #endif //__fpinfo__

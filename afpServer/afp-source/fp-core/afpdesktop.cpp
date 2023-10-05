@@ -293,7 +293,7 @@ AFPERROR FPAddComment(
     UNREFERENCED_PARAMETER(afpReply);
 
     DESKTOP_ENTRY newEntry;
-    LPAFPINDEX afpEntry = nullptr;
+    p_afp_index afpEntry = nullptr;
 
     DBGWRITE(dbg_level_all, L"[afp:FPAddComment]Enter\n");
 
@@ -334,7 +334,7 @@ AFPERROR FPAddComment(
         &afpEntry);
 
     if ((!AFP_SUCCESS(afpError)) ||
-        (GetFileAttributes(afpEntry->szPath) == AFP_MAX_DWORD))
+        (GetFileAttributes(afpEntry->sz_path) == AFP_MAX_DWORD))
     {
         //
         //We couldn't find the requested object.
@@ -368,7 +368,7 @@ AFPERROR FPGetComment(
 {
     DESKTOP_ENTRY searchEntry;
     DESKTOP_ENTRY foundEntry;
-    LPAFPINDEX afpEntry = nullptr;
+    p_afp_index afpEntry = nullptr;
 
     DBGWRITE(dbg_level_all, L"[afp:FPGetComment]Enter\n");
 
@@ -404,7 +404,7 @@ AFPERROR FPGetComment(
         &afpEntry);
 
     if ((!AFP_SUCCESS(afpError)) ||
-        (GetFileAttributes(afpEntry->szPath) == AFP_MAX_DWORD))
+        (GetFileAttributes(afpEntry->sz_path) == AFP_MAX_DWORD))
     {
         //
         //We couldn't find the requested object.
@@ -489,7 +489,7 @@ AFPERROR FPGetAPPL(
 {
     WIN32_FILE_ATTRIBUTE_DATA winAttributes;
     DESKTOP_ENTRY searchEntry, foundEntry;
-    LPAFPINDEX afpEntry = nullptr;
+    p_afp_index afpEntry = nullptr;
     uint16 afpVolumeID = 0;
 
     afpRequest.Advance(sizeof(int16));
@@ -529,7 +529,7 @@ AFPERROR FPGetAPPL(
             //
             //Collect attribute data on the file or folder.
             //
-            if (!GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes))
+            if (!GetFileAttributesEx(afpEntry->sz_path, GetFileExInfoStandard, &winAttributes))
             {
                 return afpObjectNotFound;
             }

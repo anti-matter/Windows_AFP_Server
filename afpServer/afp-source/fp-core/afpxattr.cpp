@@ -44,7 +44,7 @@ AFPERROR FPGetExtAttribute(
     uint32				afpDataLen		= 0;
     uint32				afpActualRead	= 0;
     AFPERROR			afpError		= AFP_OK;
-    LPAFPINDEX			afpEntry		= NULL;
+    p_afp_index			afpEntry		= NULL;
     
     DBGWRITE(dbg_level_all, L"[FPGetExtAttribute]Enter...\n");
     
@@ -122,7 +122,7 @@ AFPERROR FPGetExtAttribute(
         //Get the size of the attribute data. Note we don't pass the name of the
         //stream because we already have an open handle to the right stream.
         //
-        afpDataLen = (uint32)GetStreamLen(afpEntry->szPath, afpAttrName);
+        afpDataLen = (uint32)GetStreamLen(afpEntry->sz_path, afpAttrName);
         
         if (afpDataLen != BAD_LENGTH_32)
         {
@@ -141,7 +141,7 @@ AFPERROR FPGetExtAttribute(
                 {
                     HANDLE hFile = INVALID_HANDLE_VALUE;
                     
-                    StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->szPath, afpAttrName);
+                    StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->sz_path, afpAttrName);
                     
                     if (!afp_impersonate_user(afpSession->hUserToken))
                     {
@@ -245,7 +245,7 @@ AFPERROR FPSetExtAttribute(
 
     WCHAR			afpPathname[MAX_AFP_PATH];
     WCHAR			afpAttrName[MAX_AFP_NAME];
-    LPAFPINDEX		afpEntry		= NULL;
+    p_afp_index		afpEntry		= NULL;
     int16			afpVolID		= 0;
     int32			afpDirID		= 0;
     int64			afpOffset		= 0;
@@ -335,7 +335,7 @@ AFPERROR FPSetExtAttribute(
         //We have different errors to check for based on the supplied attribute
         //flags (replace and/or already exists).
         //
-        status = (uint32)GetStreamLen(afpEntry->szPath, afpAttrName);
+        status = (uint32)GetStreamLen(afpEntry->sz_path, afpAttrName);
         
         if ((status == BAD_LENGTH_32) && (afpBitmap & kXAttrCreate))
         {
@@ -346,7 +346,7 @@ AFPERROR FPSetExtAttribute(
             return( afpObjectNotFound );
         }
         
-        StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->szPath, afpAttrName);
+        StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->sz_path, afpAttrName);
         
         if (!afp_impersonate_user(afpSession->hUserToken))
         {
@@ -417,7 +417,7 @@ AFPERROR FPListExtAttribute(
     )
 {
     WCHAR			afpPathname[MAX_AFP_PATH];
-    LPAFPINDEX		afpEntry		= NULL;
+    p_afp_index		afpEntry		= NULL;
     int16			afpVolID		= 0;
     int32			afpDirID		= 0;
     uint16			afpBitmap		= 0;
@@ -482,7 +482,7 @@ AFPERROR FPListExtAttribute(
         
         DBGWRITE(
             dbg_level_info,
-            (L"[FPListExtAttribute]Getting stream list for %s\n", afpEntry->szPath)
+            (L"[FPListExtAttribute]Getting stream list for %s\n", afpEntry->sz_path)
             );
         
         if (!afp_impersonate_user(afpSession->hUserToken))
@@ -493,7 +493,7 @@ AFPERROR FPListExtAttribute(
             return( afpAccessDenied );
         }
         
-        afpError = GetStreams(afpEntry->szPath, streamArray);
+        afpError = GetStreams(afpEntry->sz_path, streamArray);
         
         if (AFP_SUCCESS(afpError))
         {
@@ -609,7 +609,7 @@ AFPERROR FPRemoveExtAttribute(
 
     WCHAR			afpPathname[MAX_AFP_PATH];
     WCHAR			afpAttrName[MAX_PATH];
-    LPAFPINDEX		afpEntry		= NULL;
+    p_afp_index		afpEntry		= NULL;
     int16			afpVolID		= 0;
     int32			afpDirID		= 0;
     uint16			afpBitmap		= 0;
@@ -697,7 +697,7 @@ AFPERROR FPRemoveExtAttribute(
     
     DBGWRITE(dbg_level_info, L"[FPRemoveExtAttribute]Removing attr, file=%s, attr=%s\n", afpPathname, afpAttrName);
 
-    StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->szPath, afpAttrName);
+    StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->sz_path, afpAttrName);
     
     if (!afp_impersonate_user(afpSession->hUserToken))
     {
@@ -711,7 +711,7 @@ AFPERROR FPRemoveExtAttribute(
     {
         DBGWRITE(dbg_level_info,
                 L"[FPRemoveExtAttribute]DeleteFile failed on %s! (%d)\n",
-                afpEntry->szPath,
+                afpEntry->sz_path,
                 GetLastError()
                 );
         

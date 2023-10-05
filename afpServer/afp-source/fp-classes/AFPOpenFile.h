@@ -27,7 +27,7 @@ public:
 		int32 inDirID,
 		int16 inAccessMode,
 		uint8 inFork,
-		LPAFPINDEX inEntry,
+		p_afp_index inEntry,
 		WCHAR* inWinPath
 	);
 
@@ -65,7 +65,7 @@ public:
 	int16 GetVolID() const { return mVolumeID; }
 	int32 GetDirID() const { return mDirID; }
 	WCHAR* GetWinPath() { return mWindowsPath; }
-	LPAFPINDEX GetEntry() const { return mEntry; }
+	p_afp_index GetEntry() const { return mEntry; }
 
 private:
 
@@ -77,7 +77,7 @@ private:
 	int16 mAccessMode;
 	uint8 mFork;
 
-	LPAFPINDEX mEntry;
+	p_afp_index mEntry;
 
 	WCHAR mWindowsPath[MAX_PATH];
 };

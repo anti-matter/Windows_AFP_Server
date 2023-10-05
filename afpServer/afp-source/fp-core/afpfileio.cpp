@@ -99,7 +99,7 @@ AFPERROR FPOpenFork(
     int16				afpMode			= 0;
     uint16				afpNewRefNum	= 0;
     AFPERROR			afpError		= AFP_OK;
-    LPAFPINDEX			afpEntry		= NULL;
+    p_afp_index			afpEntry		= NULL;
 
     WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
     
@@ -166,10 +166,10 @@ AFPERROR FPOpenFork(
     //
     //Collect attribute data on the file or folder.
     //
-    if (!GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes))
+    if (!GetFileAttributesEx(afpEntry->sz_path, GetFileExInfoStandard, &winAttributes))
     {
         DBGWRITE(dbg_level_info, L"[afp:FPOpenFork]GetFileAttributesEx() failed! (%d)\n", GetLastError());
-        DBGWRITE(dbg_level_info, L"[afp:FPOpenFork]path = %s\n", afpEntry->szPath);
+        DBGWRITE(dbg_level_info, L"[afp:FPOpenFork]path = %s\n", afpEntry->sz_path);
                 
         return( afpObjectNotFound );
     }
@@ -190,7 +190,7 @@ AFPERROR FPOpenFork(
                             afpMode,
                             afpFork,
                             afpEntry,
-                            afpEntry->szPath
+                            afpEntry->sz_path
                             );
 
     afpError = (afpAFPOpenFile == NULL) ? afpMiscErr : AFP_OK;
@@ -456,7 +456,7 @@ AFPERROR FPCreateFile(
     unichar				afpPathname[MAX_AFP_PATH];
     unichar				winPath[MAX_PATH];
     AFPCHARMAPARRAY		charMap;
-    LPAFPINDEX			afpEntry		= NULL;
+    p_afp_index			afpEntry		= NULL;
     AFP_VOLUME_INFO*	afpVolumeInfo	= NULL;
     int8				createFlag		= 0;
     int16				afpVolumeID		= 0;
@@ -551,7 +551,7 @@ AFPERROR FPCreateFile(
     //
     //Create the full path to the new file.
     //
-    StringCbPrintf(winPath, sizeof(winPath), TEXT("%s\\%s"), afpEntry->szPath, afpPathname);
+    StringCbPrintf(winPath, sizeof(winPath), TEXT("%s\\%s"), afpEntry->sz_path, afpPathname);
     
     //
     //Don't let the change notify mechanism do anything yet.

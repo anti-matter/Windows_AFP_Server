@@ -11,7 +11,7 @@
 #include "afpworker.h"
 #include "afp.h"
 #include "volumes.h"
-#include "AFPFileIndex.h"
+#include "afp_file_index.h"
 #include "afpEvents.h"
 
 extern BOOL		g_running;
@@ -120,15 +120,15 @@ DWORD WINAPI AFPWorkerThread(
             switch(workerElement->dwWorkerFunction)
             {
                 case AFP_WORKER_DELETE_INDEX_ENTRY:
-                    ((AFPFileIndex*)workerElement->pParam1)->RemoveEntry(
-                            ((LPAFPINDEX)workerElement->pParam2)->objectID,
+                    ((afp_file_index*)workerElement->pParam1)->remove_entry(
+                            ((p_afp_index)workerElement->pParam2)->object_id,
                             true
                             );
                     
                     //
                     //Decrement the ref counter preventing the class from going away.
                     //
-                    ((AFPFileIndex*)workerElement->pParam1)->DecRef();
+                    ((afp_file_index*)workerElement->pParam1)->dec_ref();
                     break;
 
                 case AFP_WORKER_INDEX_DIRECTORY:

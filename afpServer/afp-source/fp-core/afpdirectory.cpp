@@ -1,12 +1,3 @@
-/*
- *	afpdirectory.cpp
- *	Created 3/5/2005
- *
- *	Copyright © 2005, Michael J. Conrad. All Rights Reserved.
- *
- *	Core FP directory routines.
- */
-
 #include "StdAfx.h"
 #include "afpdirectory.h"
 
@@ -29,7 +20,7 @@ AFPERROR FPResolveID(
     int16				afpVolumeID		= 0;
     int32				afpFileID		= 0;
     int16				afpBitmap		= 0;
-    LPAFPINDEX			afpEntry		= NULL;
+    p_afp_index			afpEntry		= NULL;
     AFP_VOLUME_INFO*	afpVolumeInfo	= NULL;
     AFPERROR			afpError		= AFP_OK;
 
@@ -70,10 +61,10 @@ AFPERROR FPResolveID(
         //
         //Collect attribute data on the file or folder.
         //
-        if (!GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes))
+        if (!GetFileAttributesEx(afpEntry->sz_path, GetFileExInfoStandard, &winAttributes))
         {
             DBGWRITE(dbg_level_info, L"[afp:FPResolveID]GetFileAttributesEx() failed! (%d)\n", GetLastError());
-            DBGWRITE(dbg_level_info, L"[afp:FPResolveID]path = %s\n", afpEntry->szPath);
+            DBGWRITE(dbg_level_info, L"[afp:FPResolveID]path = %s\n", afpEntry->sz_path);
                     
             return( afpObjectNotFound );
         }
@@ -82,7 +73,7 @@ AFPERROR FPResolveID(
                         afpReply,
                         afpBitmap,
                         afpVolumeID,
-                        afpEntry->parID,
+                        afpEntry->par_id,
                         afpSession,
                         afpEntry,
                         winAttributes
@@ -122,7 +113,7 @@ AFPERROR FPGetFileDirParms(
     int32						afpDirID		= 0;
     int8						afpPathtype		= 0;
     AFPERROR					afpError		= AFP_OK;
-    LPAFPINDEX					afpEntry		= NULL;
+    p_afp_index					afpEntry		= NULL;
     
     DBGWRITE(dbg_level_all, L"[afp:FPGetFileDirParms]Enter...\n");
         
@@ -176,7 +167,7 @@ AFPERROR FPGetFileDirParms(
     //
     //Collect attribute data on the file or folder.
     //
-    if (!GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes))
+    if (!GetFileAttributesEx(afpEntry->sz_path, GetFileExInfoStandard, &winAttributes))
     {
         return( afpObjectNotFound );
     }
@@ -272,8 +263,8 @@ AFPERROR FPEnumerate(
     int32				afpMaxReplySize	= 0;
     int8				afpPathType		= 0;
     AFPERROR			afpError		= AFP_OK;
-    LPAFPINDEX			afpTargetEntry	= NULL;
-    LPAFPINDEX			afpEntry		= NULL;
+    p_afp_index			afpTargetEntry	= NULL;
+    p_afp_index			afpEntry		= NULL;
     AFP_VOLUME_INFO*	afpVolumeInfo	= NULL;
 
     WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
@@ -396,12 +387,12 @@ AFPERROR FPEnumerate(
     //Create a temporary index array to hold all the offspring for the
     //target directory.
     //
-    std::vector<LPAFPINDEX>* afpTempIndex;
+    std::vector<p_afp_index>* afpTempIndex;
         
     //
     //Now populate the temp array with the offspring in the target dir.
     //
-    afpVolumeInfo->index->GetOffspring(afpTargetEntry->objectID, &afpTempIndex);
+    afpVolumeInfo->index->get_offspring(afpTargetEntry->object_id, &afpTempIndex);
             
     //
     //Go through the entire index and find entries that have the dirID as their parent.
@@ -411,10 +402,10 @@ AFPERROR FPEnumerate(
         afpEntry = *it;
 
         #ifdef _DEBUG
-        if ((afpEntry->parID == afpTargetEntry->objectID) && (GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes) == 0))
+        if ((afpEntry->par_id == afpTargetEntry->object_id) && (GetFileAttributesEx(afpEntry->sz_path, GetFileExInfoStandard, &winAttributes) == 0))
         {
             DBGWRITE(dbg_level_info, L"[afp:FPEnumerate]GetFileAttributesEx() failed (%d)\n", GetLastError());
-            DBGWRITE(dbg_level_info, L"[afp:FPEnumerate]File = %s\n", afpEntry->szPath);
+            DBGWRITE(dbg_level_info, L"[afp:FPEnumerate]File = %s\n", afpEntry->sz_path);
         }
         #endif
         
@@ -422,11 +413,11 @@ AFPERROR FPEnumerate(
         //We don't include some files (like the desktop db) since they
         //are server specific and the macs shouldn't see or edit them.
         //
-        if (!lstrcmp(afpEntry->szObjectName, DESKTOP_FILE_NAME)) {
+        if (!lstrcmp(afpEntry->sz_object_name, DESKTOP_FILE_NAME)) {
             continue;
         }
         
-        if (GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes))
+        if (GetFileAttributesEx(afpEntry->sz_path, GetFileExInfoStandard, &winAttributes))
         {
             bool		afpIsDirectory;
             uint8		tempBuffer[1024];
@@ -444,9 +435,9 @@ AFPERROR FPEnumerate(
                 continue;
             }
             
-            DBGWRITE(dbg_level_all, L"[afp:FPEnumerate]Enumerating %s\n", afpEntry->szObjectName);
+            DBGWRITE(dbg_level_all, L"[afp:FPEnumerate]Enumerating %s\n", afpEntry->sz_object_name);
             
-            afpIsDirectory = (afpEntry->flags & FLAG_INDEX_ISDIR);
+            afpIsDirectory = (afpEntry->flags & flag_index_is_dir);
 
             //
             //Check to make sure we don't include items not to be included
@@ -645,7 +636,7 @@ AFPERROR FPSetFileDirParms(
     int8		afpPathType	= 0;
     int8		afpCommand	= 0;
     AFPERROR	afpError	= AFP_OK;
-    LPAFPINDEX	afpEntry	= NULL;
+    p_afp_index	afpEntry	= NULL;
 
     WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
 
@@ -767,7 +758,7 @@ AFPERROR FPSetFileDirParms(
     //Collect attribute data on the file or folder. We need to determine
     //whether this is a dir of a file.
     //
-    if (!GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes))
+    if (!GetFileAttributesEx(afpEntry->sz_path, GetFileExInfoStandard, &winAttributes))
     {
         DBGWRITE(dbg_level_info, L"[afp:FPSetFileParms]GetFileAttributesEx() failed! (%d)\n", GetLastError());
         return( afpObjectNotFound );
@@ -807,7 +798,7 @@ AFPERROR FPCreateDir(
     int8				afpPathType	= 0;
     AFPERROR			afpError	= AFP_OK;
     AFP_VOLUME_INFO*	afpVolume	= NULL;
-    LPAFPINDEX			afpEntry	= NULL;
+    p_afp_index			afpEntry	= NULL;
     
     DBGWRITE(dbg_level_all, L"[AFP]FPCreateDir...\n");
         
@@ -890,7 +881,7 @@ AFPERROR FPCreateDir(
     //
     //Build the path to the new directory using the parent dir's entry.
     //
-    StringCbPrintf(winPath, sizeof(winPath), TEXT("%s\\%s"), afpEntry->szPath, afpPathname);
+    StringCbPrintf(winPath, sizeof(winPath), TEXT("%s\\%s"), afpEntry->sz_path, afpPathname);
     
     //
     //See if a directory or file by that name already exists.
@@ -989,7 +980,7 @@ AFPERROR FPDelete(
     UNREFERENCED_PARAMETER(afpReply);
 
     unichar				afpPathname[MAX_AFP_PATH];
-    LPAFPINDEX			afpEntry		= NULL;
+    p_afp_index			afpEntry		= NULL;
     AFP_VOLUME_INFO*	afpVolumeInfo	= NULL;
     int16				afpVolumeID		= 0;
     int32				afpDirID		= 0;
@@ -1084,13 +1075,13 @@ AFPERROR FPDelete(
     //We take 2 different approaches to deleting the object based on whether it's
     //a directory or a file.
     //
-    if (afpEntry->flags & FLAG_INDEX_ISDIR)
+    if (afpEntry->flags & flag_index_is_dir)
     {
-        if (!RemoveDirectory(afpEntry->szPath))
+        if (!RemoveDirectory(afpEntry->sz_path))
         {
             DBGWRITE(dbg_level_info,
                     L"[afp:FPDelete]RemoveDirectory() failed on %s! (%d)\n",
-                    afpEntry->szPath,
+                    afpEntry->sz_path,
                     GetLastError()
                     );
             
@@ -1099,11 +1090,11 @@ AFPERROR FPDelete(
     }
     else
     {
-        if (!DeleteFile(afpEntry->szPath))
+        if (!DeleteFile(afpEntry->sz_path))
         {
             DBGWRITE(dbg_level_info,
                     L"[afp:FPDelete]DeleteFile failed on %s! (%d)\n",
-                    afpEntry->szPath,
+                    afpEntry->sz_path,
                     GetLastError()
                     );
             
@@ -1151,8 +1142,8 @@ AFPERROR FPCopyFile(
     unichar				newWinPath[MAX_PATH];
     AFPCHARMAPARRAY		destCharMap;
     AFPCHARMAPARRAY		newCharMap;
-    LPAFPINDEX			afpSrcEntry		= NULL;
-    LPAFPINDEX			afpDstEntry		= NULL;
+    p_afp_index			afpSrcEntry		= NULL;
+    p_afp_index			afpDstEntry		= NULL;
     int16				afpSrcVolID		= 0;
     int32				afpSrcDirID		= 0;
     int16				afpDstVolID		= 0;
@@ -1259,7 +1250,7 @@ AFPERROR FPCopyFile(
     //Make sure the path doesn't point to a directory, we only work with
     //files as per the spec.
     //
-    if (afpSrcEntry->flags & FLAG_INDEX_ISDIR)
+    if (afpSrcEntry->flags & flag_index_is_dir)
     {
         return( afpObjectTypeErr );
     }
@@ -1281,14 +1272,14 @@ AFPERROR FPCopyFile(
     //
     if (lstrlen(afpNewName) > 0)
     {
-        StringCbPrintf(newWinPath, sizeof(newWinPath), TEXT("%s\\%s"), afpDstEntry->szPath, afpNewName);
+        StringCbPrintf(newWinPath, sizeof(newWinPath), TEXT("%s\\%s"), afpDstEntry->sz_path, afpNewName);
     }
     else
     {
-        StringCbPrintf(newWinPath, sizeof(newWinPath), TEXT("%s\\%s"), afpDstEntry->szPath, afpSrcEntry->szObjectName);
+        StringCbPrintf(newWinPath, sizeof(newWinPath), TEXT("%s\\%s"), afpDstEntry->sz_path, afpSrcEntry->sz_object_name);
     }
     
-    DBGWRITE(dbg_level_all, L"[afp:FPCopyFile]copying from %s\n", afpSrcEntry->szPath);
+    DBGWRITE(dbg_level_all, L"[afp:FPCopyFile]copying from %s\n", afpSrcEntry->sz_path);
     DBGWRITE(dbg_level_all, L"[afp:FPCopyFile]copying to %s\n", newWinPath);
     
     //
@@ -1313,7 +1304,7 @@ AFPERROR FPCopyFile(
     //
     //Call the Windows API to do the dirty work of copying the file for us.
     //
-    BOOL fSucceeded = CopyFile(afpSrcEntry->szPath, newWinPath, true);
+    BOOL fSucceeded = CopyFile(afpSrcEntry->sz_path, newWinPath, true);
 
     if (!fSucceeded)
     {
@@ -1326,7 +1317,7 @@ AFPERROR FPCopyFile(
 
     if (AFP_SUCCESS(afpError))
     {
-        LPAFPINDEX	pNewIndex = NULL;
+        p_afp_index	pNewIndex = NULL;
 
         //
         //Add the new file to the afp index for tracking purposes.
@@ -1334,8 +1325,8 @@ AFPERROR FPCopyFile(
         pNewIndex = AFPIndexAddEntry(
                         NULL,
                         afpDstVolID,
-                        afpDstEntry->objectID,
-                        (lstrlen(afpNewName) > 0) ? afpNewName : afpSrcEntry->szObjectName,
+                        afpDstEntry->object_id,
+                        (lstrlen(afpNewName) > 0) ? afpNewName : afpSrcEntry->sz_object_name,
                         newWinPath,
                         false,
                         NULL
@@ -1391,8 +1382,8 @@ AFPERROR FPMoveAndRename(
     unichar			winDstPath[MAX_PATH];
     AFPCHARMAP		destCharMap[MAX_DIR_NAME];
     AFPCHARMAP		newCharMap[MAX_DIR_NAME];
-    LPAFPINDEX		afpSrcEntry;
-    LPAFPINDEX		afpDstEntry;
+    p_afp_index		afpSrcEntry;
+    p_afp_index		afpDstEntry;
     int16			afpVolumeID		= 0;
     int32			afpSrcDirID		= 0;
     int32			afpDstDirID		= 0;
@@ -1464,7 +1455,7 @@ AFPERROR FPMoveAndRename(
     //
     //Check to make sure that the exiting item can be renamed.
     //
-    if (!GetFileAttributesEx(afpSrcEntry->szPath, GetFileExInfoStandard, &winAttributes))
+    if (!GetFileAttributesEx(afpSrcEntry->sz_path, GetFileExInfoStandard, &winAttributes))
     {
         DBGWRITE(dbg_level_info, L"[afp:FPMoveAndRename]Could not get attributes on src entry!\n");
         return( afpObjectNotFound );
@@ -1522,12 +1513,12 @@ AFPERROR FPMoveAndRename(
     //
     if (lstrlen(afpNewPathname) > 0)
     {
-        StringCbPrintf(winDstPath, sizeof(winDstPath), TEXT("%s\\%s"), afpDstEntry->szPath, afpNewPathname);
-        StringCbCopy(afpSrcEntry->szObjectName, sizeof(afpSrcEntry->szObjectName), afpNewPathname);
+        StringCbPrintf(winDstPath, sizeof(winDstPath), TEXT("%s\\%s"), afpDstEntry->sz_path, afpNewPathname);
+        StringCbCopy(afpSrcEntry->sz_object_name, sizeof(afpSrcEntry->sz_object_name), afpNewPathname);
     }
     else
     {
-        StringCbPrintf(winDstPath, sizeof(winDstPath), TEXT("%s\\%s"), afpDstEntry->szPath, afpSrcEntry->szObjectName);
+        StringCbPrintf(winDstPath, sizeof(winDstPath), TEXT("%s\\%s"), afpDstEntry->sz_path, afpSrcEntry->sz_object_name);
     }
 
     //
@@ -1554,7 +1545,7 @@ AFPERROR FPMoveAndRename(
     //
     //Now use the windows API to perform the actual movement in the filesystem.
     //
-    if (!MoveFile(afpSrcEntry->szPath, winDstPath))
+    if (!MoveFile(afpSrcEntry->sz_path, winDstPath))
     {
         DBGWRITE(dbg_level_info, L"[afp:FPMoveAndRename]MoveFile() failed! (%d)\n", GetLastError());
         
@@ -1616,7 +1607,7 @@ AFPERROR FPRename(
     unichar			afpPathname[MAX_AFP_PATH];
     unichar			winPath[MAX_PATH];
     AFPCHARMAP		newCharMap[MAX_DIR_NAME];
-    LPAFPINDEX		afpEntry		= NULL;
+    p_afp_index		afpEntry		= NULL;
     int16			afpVolumeID		= 0;
     int32			afpDirID		= 0;
     int8			afpPathType		= 0;
@@ -1685,7 +1676,7 @@ AFPERROR FPRename(
     //
     //Check to make sure that the exiting item can be renamed.
     //
-    if (!GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes))
+    if (!GetFileAttributesEx(afpEntry->sz_path, GetFileExInfoStandard, &winAttributes))
     {
         DBGWRITE(dbg_level_info, L"[afp:FPMoveAndRename]Could not get attributes on src entry!\n");
         return( afpObjectNotFound );
@@ -1717,7 +1708,7 @@ AFPERROR FPRename(
     //
     //Get the new full path to the renamed file.
     //
-    StringCbPrintf(winPath, sizeof(winPath), TEXT("%s\\%s"), ((LPAFPINDEX)afpEntry->parEntry)->szPath, afpPathname); 
+    StringCbPrintf(winPath, sizeof(winPath), TEXT("%s\\%s"), ((p_afp_index)afpEntry->par_entry)->sz_path, afpPathname); 
 
     DBGWRITE(dbg_level_info, L"[afp:FPRename]Renaming to new path = %s\n", winPath);
 
@@ -1743,7 +1734,7 @@ AFPERROR FPRename(
     //
     //Call the windows API to do the actual rename on disk.
     //
-    if (!MoveFile(afpEntry->szPath, winPath))
+    if (!MoveFile(afpEntry->sz_path, winPath))
     {
         DBGWRITE(dbg_level_info, L"[AFP]MoveFile() failed! (%d)\n", GetLastError());
         
@@ -1758,7 +1749,7 @@ AFPERROR FPRename(
                 NULL,
                 afpVolumeID,
                 afpEntry,
-                (LPAFPINDEX)afpEntry->parEntry,
+                (p_afp_index)afpEntry->par_entry,
                 afpPathname
                 );
                 

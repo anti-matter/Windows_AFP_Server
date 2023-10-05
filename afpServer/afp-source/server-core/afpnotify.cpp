@@ -179,7 +179,7 @@ void AFPReadDirChanges(
 		else
 		{
 			FILE_NOTIFY_INFORMATION*	pInfo	= (FILE_NOTIFY_INFORMATION*)pResultBuffer;
-			LPAFPINDEX					pEntry	= NULL;
+			p_afp_index					pEntry	= NULL;
 			WCHAR						szFileName[MAX_PATH];
 			WCHAR						szNewName[64];
 
@@ -264,7 +264,7 @@ void AFPReadDirChanges(
 									pVolInfo,
 									pVolInfo->wVolID,
 									pEntry,
-									(LPAFPINDEX)pEntry->parEntry,
+									(p_afp_index)pEntry->par_entry,
 									szFileName
 							);
 							
@@ -323,8 +323,8 @@ void AFPChngNotifyAdd(
 	TCHAR						szNewItemName[MAX_PATH];
 	DWORD						dwNewDirID;
 	DWORD						dwError;
-	LPAFPINDEX					pExisting	= NULL;
-	LPAFPINDEX					pEntry		= NULL;
+	p_afp_index					pExisting	= NULL;
+	p_afp_index					pEntry		= NULL;
 	WIN32_FILE_ATTRIBUTE_DATA	attribData;
 
 	//
@@ -388,7 +388,7 @@ void AFPChngNotifyAdd(
 	//the entry in the index for the parent directory.
 	//
 	ZeroMemory(szTempPath, sizeof(szTempPath));
-	StringCbPrintf(szTempPath, sizeof(szTempPath), TEXT("%s\\%s"), pEntry->szPath, szNewItemName);
+	StringCbPrintf(szTempPath, sizeof(szTempPath), TEXT("%s\\%s"), pEntry->sz_path, szNewItemName);
 
 	DBGWRITE(dbg_level_all, L"[NOTIFY-ADD]Full path to new item = %s\n", szTempPath);
 
@@ -422,7 +422,7 @@ void AFPChngNotifyAdd(
 			pEntry = AFPIndexAddEntry(
 							pVolInfo,
 							pVolInfo->wVolID,
-							pEntry->objectID,
+							pEntry->object_id,
 							szNewItemName,
 							szTempPath,
 							((attribData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0),
@@ -437,7 +437,7 @@ void AFPChngNotifyAdd(
 			{
 				DBGWRITE(dbg_level_all,
 						(L"[NOTIFY-ADD]Added new item in notify id=%d name=%s\n",
-						pEntry->objectID,
+						pEntry->object_id,
 						szNewItemPathname
 						));
 
@@ -453,7 +453,7 @@ void AFPChngNotifyAdd(
 					//If the item is a directory, we add all of its contents
 					//to the index as well.
 					//
-					AFPAddDirectoryToIndexWorkerQueue(pVolInfo, szTempPath, pEntry->objectID);
+					AFPAddDirectoryToIndexWorkerQueue(pVolInfo, szTempPath, pEntry->object_id);
 				}
 				else
 				{
@@ -494,7 +494,7 @@ void AFPChngNotifyRemove(
 {
 	TCHAR						szItemPathname[MAX_PATH];
 	DWORD						dwError		= NO_ERROR;
-	LPAFPINDEX					pEntry		= NULL;
+	p_afp_index					pEntry		= NULL;
 	WIN32_FILE_ATTRIBUTE_DATA	attribData;
 
 	//
@@ -536,7 +536,7 @@ void AFPChngNotifyRemove(
 	//one was deleted. This normally can only happen by batch file or stress
 	//applications.
 	//
-	if (GetFileAttributesEx(pEntry->szPath, GetFileExInfoStandard, &attribData))
+	if (GetFileAttributesEx(pEntry->sz_path, GetFileExInfoStandard, &attribData))
 	{
 		//
 		//This would be really bad as we couldn't find the object

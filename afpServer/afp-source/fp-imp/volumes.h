@@ -1,11 +1,7 @@
-//===================================================================
-// volumes.h
-//===================================================================
-
 #pragma once
 
 #include "afp.h"
-#include "AFPFileIndex.h"
+#include "afp_file_index.h"
 #include "desktop_database.h"
 
 #define MAX_LEVELS_DEEP				128
@@ -45,7 +41,7 @@ struct AFP_VOLUME_INFO
 
     CRITICAL_SECTION csNotifyQueue;
 
-    AFPFileIndex* index;
+    afp_file_index* index;
     desktop_database* desktop;
 
     HANDLE notifyEvent;
@@ -54,7 +50,7 @@ struct AFP_VOLUME_INFO
 struct AFP_INDEX_REMOVE_ENTRY_WORKER_ELEMENT
 {
     AFP_VOLUME_INFO* pVolInfo;
-    LPAFPINDEX pEntryToRemove;
+    p_afp_index pEntryToRemove;
 };
 typedef AFP_INDEX_REMOVE_ENTRY_WORKER_ELEMENT* PAFP_INDEX_REMOVE_ENTRY_WORKER_ELEMENT;
 
@@ -135,7 +131,7 @@ AFPAddDirectoryToIndexWorkerQueue(
        IN DWORD dwParentID
 );
 
-LPAFPINDEX
+p_afp_index
 AFPIndexAddEntry(
     IN AFP_VOLUME_INFO* pPassedVolInfo OPTIONAL,
        IN WORD wVolID OPTIONAL,
@@ -147,7 +143,7 @@ AFPIndexAddEntry(
 );
 
 AFPERROR AFPIndexUpdateEntryFlags(
-    IN LPAFPINDEX pEntry,
+    IN p_afp_index pEntry,
        IN WORD wFlags
 );
 
@@ -155,14 +151,14 @@ AFPERROR
 AFPIndexUpdateEntry(
     IN AFP_VOLUME_INFO* pVolInfo,
        IN WORD wVolID,
-       IN LPAFPINDEX pEntry,
-       IN LPAFPINDEX pNewParentEntry,
+       IN p_afp_index pEntry,
+       IN p_afp_index pNewParentEntry,
        IN PWCHAR pNewName
 );
 
 void AFPIndexRemoveEntry(
     IN AFP_VOLUME_INFO* pInfo,
-       IN LPAFPINDEX pEntry,
+       IN p_afp_index pEntry,
        IN bool deleteDirectorySubTree
 );
 
@@ -171,7 +167,7 @@ AFPIndexFindEntryWithVolIDAndPath(
     IN WORD wVolID,
        IN DWORD dwDirID,
        IN PWCHAR pPath,
-       OUT LPAFPINDEX* ppEntry
+       OUT p_afp_index* ppEntry
 );
 
 AFPERROR
@@ -179,14 +175,14 @@ AFPIndexFindEntryWithPath(
     IN AFP_VOLUME_INFO* pVolInfo,
        IN DWORD dwSearchID,
        IN PWCHAR pPath,
-       OUT LPAFPINDEX* ppEntry
+       OUT p_afp_index* ppEntry
 );
 
 AFPERROR
 AFPIndexFindEntry(
     IN AFP_VOLUME_INFO* pVolInfo,
        IN DWORD dwDirID,
-       OUT LPAFPINDEX* ppEntry
+       OUT p_afp_index* ppEntry
 );
 
 AFPERROR
@@ -241,7 +237,7 @@ inline void RELEASE_NOTIFY_LOCK_ID(const WORD volumeID)
 #ifdef _DEBUG
 
 void AFPDumpAFPIndex(
-    IN AFPFileIndex* index
+    IN afp_index* index
 );
 
 #endif

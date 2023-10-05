@@ -23,7 +23,7 @@
  */
 
 BOOL AFPCheckForAndAddFinderInfoStream(
-	IN LPAFPINDEX pEntry,
+	IN p_afp_index pEntry,
 	   IN AFPCHARMAPARRAY pCharmap,
 	   IN BOOL fMakeInvisible
 )
@@ -34,7 +34,7 @@ BOOL AFPCheckForAndAddFinderInfoStream(
 	{
 		memset(&finderInfo, 0, sizeof(finderInfo));
 
-		auto dwAttributes = GetFileAttributes(pEntry->szPath);
+		auto dwAttributes = GetFileAttributes(pEntry->sz_path);
 
 		if (((dwAttributes != 0xFFFFFFFF) &&
 				(dwAttributes & FILE_ATTRIBUTE_HIDDEN)) ||
@@ -77,7 +77,7 @@ BOOL AFPCheckForAndAddFinderInfoStream(
  */
 
 AFPERROR AFPGetFinderInfo(
-	IN LPAFPINDEX pEntry,
+	IN p_afp_index pEntry,
 	   OUT PFINDER_INFO pInfo
 )
 {
@@ -107,7 +107,7 @@ AFPERROR AFPGetFinderInfo(
  */
 
 AFPERROR AFPGetFinderInfoEx(
-	IN LPAFPINDEX pEntry,
+	IN p_afp_index pEntry,
 	   OUT LPEXTENDED_FINDER_INFO pInfo
 )
 {
@@ -118,8 +118,8 @@ AFPERROR AFPGetFinderInfoEx(
 	//
 	//First, build the path to the finder info stream.
 	//
-	ASSERT(lstrlen(pEntry->szPath) > 0);
-	StringCbPrintf(szPath, sizeof(szPath), TEXT("%s:%s"), pEntry->szPath, AFP_INFO_STREAM_NAME);
+	ASSERT(lstrlen(pEntry->sz_path) > 0);
+	StringCbPrintf(szPath, sizeof(szPath), TEXT("%s:%s"), pEntry->sz_path, AFP_INFO_STREAM_NAME);
 
 	//
 	//Now open the AFP_Info stream to write to it.
@@ -172,7 +172,7 @@ AFPERROR AFPGetFinderInfoEx(
  */
 
 AFPERROR AFPSetFinderInfo(
-	IN LPAFPINDEX pEntry,
+	IN p_afp_index pEntry,
 	   IN PFINDER_INFO pInfo,
 	   IN BOOL fCreateAlways
 )
@@ -209,7 +209,7 @@ AFPERROR AFPSetFinderInfo(
  */
 
 AFPERROR AFPSetFinderInfoEx(
-	IN LPAFPINDEX pEntry,
+	IN p_afp_index pEntry,
 	   IN LPEXTENDED_FINDER_INFO pInfo,
 	   IN BOOL fCreateAlways
 )
@@ -220,12 +220,12 @@ AFPERROR AFPSetFinderInfoEx(
 	TCHAR szPath[MAX_PATH];
 
 	ASSERT(pEntry != NULL);
-	ASSERT(lstrlen(pEntry->szPath) > 0);
+	ASSERT(lstrlen(pEntry->sz_path) > 0);
 
 	//
 	//First, build the path to the finder info stream.
 	//
-	StringCbPrintf(szPath, sizeof(szPath), TEXT("%s:%s"), pEntry->szPath, AFP_INFO_STREAM_NAME);
+	StringCbPrintf(szPath, sizeof(szPath), TEXT("%s:%s"), pEntry->sz_path, AFP_INFO_STREAM_NAME);
 
 	for (;;)
 	{
@@ -314,7 +314,7 @@ AFPERROR AFPSetFinderInfoEx(
  */
 
 AFPERROR AFPUpdateEntryCharMap(
-	IN LPAFPINDEX pEntry,
+	IN p_afp_index pEntry,
 	   IN AFPCHARMAPARRAY pCharmap
 )
 {
@@ -344,17 +344,17 @@ AFPERROR AFPUpdateEntryCharMap(
  */
 
 AFPERROR AFPAddCharMapToIndexEntry(
-	IN LPAFPINDEX pEntry,
+	IN p_afp_index pEntry,
 	   IN AFPCHARMAPARRAY pCharmap
 )
 {
 	if (pCharmap[0].wKeyCode != 0)
 	{
-		pEntry->flags |= FLAG_INDEX_HASCHARMAP;
+		pEntry->flags |= flag_index_has_charmap;
 	}
 	else
 	{
-		pEntry->flags &= ~FLAG_INDEX_HASCHARMAP;
+		pEntry->flags &= ~flag_index_has_charmap;
 	}
 
 	return AFPUpdateEntryCharMap(pEntry, pCharmap);
@@ -372,14 +372,14 @@ AFPERROR AFPAddCharMapToIndexEntry(
  */
 
 AFPERROR AFPGetCharMapForIndexEntry(
-	IN LPAFPINDEX pEntry,
+	IN p_afp_index pEntry,
 	   OUT AFPCHARMAPARRAY pCharmap
 )
 {
 	EXTENDED_FINDER_INFO infoEx;
 	AFPERROR afpError = AFP_OK;
 
-	if (pEntry->flags & FLAG_INDEX_HASCHARMAP)
+	if (pEntry->flags & flag_index_has_charmap)
 	{
 		memset(&infoEx, 0, sizeof(EXTENDED_FINDER_INFO));
 
@@ -407,7 +407,7 @@ AFPERROR AFPGetCharMapForIndexEntry(
  */
 
 BOOL AFPCheckForCharMap(
-	IN LPAFPINDEX pEntry
+	IN p_afp_index pEntry
 )
 {
 	EXTENDED_FINDER_INFO infoEx;
@@ -416,7 +416,7 @@ BOOL AFPCheckForCharMap(
 	{
 		if (infoEx.charMap[0].wKeyCode != 0)
 		{
-			pEntry->flags |= FLAG_INDEX_HASCHARMAP;
+			pEntry->flags |= flag_index_has_charmap;
 			return true;
 		}
 	}

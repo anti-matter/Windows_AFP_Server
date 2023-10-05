@@ -116,14 +116,14 @@
     <ClCompile Include="afp-source\fp-classes\AFPSession.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="afp-source\fp-classes\AFPFileIndex.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="afp-source\fp-classes\AFPOpenFile.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="afp-source\fp-classes\AFPRegistry.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="afp-source\fp-classes\afp_file_index.cpp">
+      <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -181,7 +181,7 @@
     <ClInclude Include="afp-source\fp-classes\afp_critical_section.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\fp-classes\AFPFileIndex.h">
+    <ClInclude Include="afp-source\fp-classes\afp_file_index.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
     <ClInclude Include="afp-source\fp-classes\AFPOpenFile.h">

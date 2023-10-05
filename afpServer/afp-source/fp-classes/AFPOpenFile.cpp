@@ -25,7 +25,7 @@ AFPOpenFile::AFPOpenFile(
 	int32 inDirID,
 	int16 inAccessMode,
 	uint8 inFork,
-	LPAFPINDEX inEntry,
+	p_afp_index inEntry,
 	WCHAR* inWinPath
 )
 {
@@ -76,7 +76,7 @@ AFPERROR AFPOpenFile::AFPOpenFileFork(PWCHAR streamName, DWORD afpCreationDispos
 {
 	WCHAR szFilePath[MAX_PATH];
 	uint32 desiredAccess = 0;
-	int16 afpFlags = FLAG_INDEX_SETITEM;
+	int16 afpFlags = flag_index_set_item;
 	DWORD dwFlagsAndAttr = FILE_ATTRIBUTE_NORMAL;
 
 	if (mAccessMode & kReadMode) desiredAccess |= GENERIC_READ;
@@ -87,12 +87,12 @@ AFPERROR AFPOpenFile::AFPOpenFileFork(PWCHAR streamName, DWORD afpCreationDispos
 	switch (mFork)
 	{
 	case kDataFork:
-		afpFlags |= FLAG_INDEX_DATAOPEN;
+		afpFlags |= flag_index_data_fork_open;
 		break;
 
 	case kRsrcFork:
 		StringCbCat(szFilePath, sizeof(szFilePath), AFP_RESOURCE_FORK_NAME);
-		afpFlags |= FLAG_INDEX_RESOPEN;
+		afpFlags |= flag_index_resource_fork_open;
 		break;
 
 	case kAttrFork:
@@ -104,7 +104,7 @@ AFPERROR AFPOpenFile::AFPOpenFileFork(PWCHAR streamName, DWORD afpCreationDispos
 			StringCbCat(szFilePath, sizeof(szFilePath), TEXT(":"));
 			StringCbCat(szFilePath, sizeof(szFilePath), streamName);
 
-			afpFlags |= FLAG_INDEX_ATTROPEN;
+			afpFlags |= flag_index_attribute_open;
 			dwFlagsAndAttr = FILE_FLAG_BACKUP_SEMANTICS;
 		}
 		break;
@@ -164,22 +164,22 @@ AFPERROR AFPOpenFile::CloseFileFork()
 	int16 afpFlags = 0;
 
 	//
-	//First we need to update the flags in the afpindex as to the state of
+	//First we need to update the flags in the afp_index as to the state of
 	//of this file fork. Note that AFPIndexUpdateEntryFlags() takes care of
 	//actually clearing the bits in the index entry.
 	//
 	switch (mFork)
 	{
 	case kDataFork:
-		afpFlags |= FLAG_INDEX_DATAOPEN;
+		afpFlags |= flag_index_data_fork_open;
 		break;
 
 	case kRsrcFork:
-		afpFlags |= FLAG_INDEX_RESOPEN;
+		afpFlags |= flag_index_resource_fork_open;
 		break;
 
 	case kAttrFork:
-		afpFlags |= FLAG_INDEX_ATTROPEN;
+		afpFlags |= flag_index_attribute_open;
 		break;
 
 	default:

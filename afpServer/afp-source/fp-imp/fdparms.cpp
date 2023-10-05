@@ -121,14 +121,14 @@ AFPERROR AFPMapAFPToWindowsPath(
 // it using defaults.
 //
 void AFPCheckForAndCreateFinderRsrcStream(
-    IN	LPAFPINDEX		pEntry
+    IN	p_afp_index		pEntry
 )
 {
     WCHAR		szTempPath[MAX_PATH];
     HANDLE		hFile;
     DWORD		dwError;
 
-    StringCbPrintf(szTempPath, sizeof(szTempPath), TEXT("%s%s"), pEntry->szPath, AFP_RESOURCE_FORK_NAME);
+    StringCbPrintf(szTempPath, sizeof(szTempPath), TEXT("%s%s"), pEntry->sz_path, AFP_RESOURCE_FORK_NAME);
     
     hFile = CreateFile(
                 szTempPath,
@@ -192,7 +192,7 @@ AFPERROR AFPGetObjectParms(
     IN	uint16						afpVolumeID,
     IN	int32						afpDirID,
     IN	LPSESSION					afpSession,
-    IN	LPAFPINDEX					afpEntry,
+    IN	p_afp_index					afpEntry,
     IN	WIN32_FILE_ATTRIBUTE_DATA	winAttributes
     )
 {
@@ -215,11 +215,11 @@ AFPERROR AFPGetObjectParms(
         //
         if ((winAttributes.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0)
         {
-            if (afpEntry->flags & FLAG_INDEX_RESOPEN) {
+            if (afpEntry->flags & flag_index_resource_fork_open) {
                 afpAttributes |= kFileRsrcForkOpen;
             }
             
-            if (afpEntry->flags & FLAG_INDEX_DATAOPEN) {
+            if (afpEntry->flags & flag_index_data_fork_open) {
                 afpAttributes |= kFileDataForkOpen;
             }
         }
@@ -227,7 +227,7 @@ AFPERROR AFPGetObjectParms(
 		afpReply.AddInteger<UINT16>(afpAttributes);
     }
 
-    if (afpBitmap & kFPParentID)	afpReply.AddInteger<UINT32>(afpEntry->parID);
+    if (afpBitmap & kFPParentID)	afpReply.AddInteger<UINT32>(afpEntry->par_id);
     if (afpBitmap & kFPCreateDate)	afpReply.AddInteger<UINT32>(afp_windows_to_mac_time(&winAttributes.ftCreationTime));
     if (afpBitmap & kFPModDate)		afpReply.AddInteger<UINT32>(afp_windows_to_mac_time(&winAttributes.ftLastWriteTime));
     if (afpBitmap & kFPBackupDate)	afpReply.AddInteger<UINT32>(0x80000000);
@@ -260,7 +260,7 @@ AFPERROR AFPGetObjectParms(
         afpReply.Advance(sizeof(int16));
     }
 
-    if (afpBitmap & kFPFileNum)	afpReply.AddInteger<UINT32>(afpEntry->objectID);
+    if (afpBitmap & kFPFileNum)	afpReply.AddInteger<UINT32>(afpEntry->object_id);
     
     //
     //The maps are a little different here for file and directories.
@@ -293,7 +293,7 @@ AFPERROR AFPGetObjectParms(
 
             afpError = afp_get_directory_rights(
                             afpSession->hUserToken,
-                            afpEntry->szPath,
+                            afpEntry->sz_path,
                             afpSession->userName,
                             (lstrlen(afpSession->domainName) > 0) ? afpSession->domainName : NULL,
                             &afpRights
@@ -315,7 +315,7 @@ AFPERROR AFPGetObjectParms(
     {
         if (afpBitmap & (kFPDFLen | kFPExtDataForkLen))
         {
-            dataSize64.LowPart = GetCompressedFileSize(afpEntry->szPath, (LPDWORD)&dataSize64.HighPart);
+            dataSize64.LowPart = GetCompressedFileSize(afpEntry->sz_path, (LPDWORD)&dataSize64.HighPart);
 
             if ((dataSize64.LowPart == INVALID_FILE_SIZE) && (GetLastError() != NO_ERROR))
             {
@@ -334,7 +334,7 @@ AFPERROR AFPGetObjectParms(
 
         if (afpBitmap & (kFPRFLen | kFPExtRsrcForkLen))
         {
-            AFPOpenFile afpFile(afpVolumeID, afpDirID, kReadMode, kAttrFork, afpEntry, afpEntry->szPath);
+            AFPOpenFile afpFile(afpVolumeID, afpDirID, kReadMode, kAttrFork, afpEntry, afpEntry->sz_path);
 
             rsrcSize64.QuadPart = afpFile.GetStreamLength(AFP_RESOURCE_FORK_NAME_PLAIN);
             
@@ -343,7 +343,7 @@ AFPERROR AFPGetObjectParms(
                 //
                 //There was an error getting the file size
                 //
-                DBGWRITE(dbg_level_all, L"[FDP]GetStreamLength() failed! (%d) (%s)\n", GetLastError(), afpEntry->szObjectName);
+                DBGWRITE(dbg_level_all, L"[FDP]GetStreamLength() failed! (%d) (%s)\n", GetLastError(), afpEntry->sz_object_name);
                 rsrcSize64.QuadPart = 0;
             }
             else {
@@ -389,13 +389,13 @@ AFPERROR AFPGetObjectParms(
         if (afpBitmap & kFPLongName)
         {
             *longNameOffset = htons((uint16)(afpReply.GetCurrentPosPtr() - pParmsStart));
-            afpReply.AddUniStringAsPascal(afpEntry->szObjectName, charMap);
+            afpReply.AddUniStringAsPascal(afpEntry->sz_object_name, charMap);
         }
 
         if (afpBitmap & kFPUnicodeName)
         {			
             *uniNameOffset = htons((uint16)(afpReply.GetCurrentPosPtr() - pParmsStart));
-            afpReply.AddUniString(afpEntry->szObjectName, charMap);
+            afpReply.AddUniString(afpEntry->sz_object_name, charMap);
         }
     }
     
@@ -410,7 +410,7 @@ AFPERROR AFPGetObjectParms(
 //
 WORD AFPGetDirOffspringCount(
     IN	WORD		wVolID,
-    IN	LPAFPINDEX	pDirEntry
+    IN	p_afp_index	pDirEntry
 )
 {
     AFP_VOLUME_INFO*	pVolInfo;
@@ -422,7 +422,7 @@ WORD AFPGetDirOffspringCount(
         return(static_cast<WORD>(afpParmErr));
     }
     
-    wCount = (WORD)(pVolInfo->index->GetOffspring(pDirEntry->objectID));
+    wCount = (WORD)(pVolInfo->index->get_offspring(pDirEntry->object_id));
 
     return( wCount );
 }
@@ -435,7 +435,7 @@ WORD AFPGetDirOffspringCount(
 //
 AFPERROR AFPSetFileDirParms(
     IN	WORD		wBitmap,
-    IN	LPAFPINDEX	pEntry,
+    IN	p_afp_index	pEntry,
     IN	PCHAR		pParms,
     IN	DWORD		dwFileAttributes
 )
@@ -479,7 +479,7 @@ AFPERROR AFPSetFileDirParms(
                 dwAttributes &= ~FILE_ATTRIBUTE_ARCHIVE;
         }
         
-        if (!SetFileAttributes(pEntry->szPath, dwAttributes))
+        if (!SetFileAttributes(pEntry->sz_path, dwAttributes))
         {
             dwError = GetLastError();
             DBGWRITE(dbg_level_info, L"[FDP]SetFileAttributes() failed! (%d)\n", dwError);
@@ -542,7 +542,7 @@ AFPERROR AFPSetFileDirParms(
     if (wBitmap & (kFPCreateDate | kFPModDate | kFPBackupDate))
     {
         AFPSetFileTime(
-            pEntry->szPath,
+            pEntry->sz_path,
             (dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? TRUE : FALSE,
             (lwCreateDate == 0) ? NULL : &lwCreateDate,
             (lwModDate == 0) 	? NULL : &lwModDate,

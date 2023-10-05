@@ -171,7 +171,7 @@ AFPOpenFile* AFPSession::NewAFPOpenFileObject(
     uint32 inDirID,
     int16 inAccessMode,
     int8 inFork,
-    LPAFPINDEX inEntry,
+    p_afp_index inEntry,
     WCHAR* inWinPath
 )
 {

@@ -176,7 +176,7 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
       <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">MultiThreaded</RuntimeLibrary>
     </ClCompile>
     <ClCompile Include="afp-source\fp-classes\AFPSession.cpp" />
-    <ClCompile Include="afp-source\fp-classes\AFPFileIndex.cpp" />
+    <ClCompile Include="afp-source\fp-classes\afp_file_index.cpp" />
     <ClCompile Include="afp-source\fp-classes\AFPOpenFile.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Full</Optimization>
       <FavorSizeOrSpeed Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Speed</FavorSizeOrSpeed>
@@ -204,7 +204,7 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
     <ClInclude Include="afp-source\fp-classes\users_and_groups_array.h" />
     <ClInclude Include="afp-source\fp-classes\volume_array.h" />
     <ClInclude Include="afp-source\fp-classes\afp_array.h" />
-    <ClInclude Include="afp-source\fp-classes\AFPFileIndex.h" />
+    <ClInclude Include="afp-source\fp-classes\afp_file_index.h" />
     <ClInclude Include="afp-source\headers\afpworker.h" />
     <ClInclude Include="afp-source\headers\counters.h" />
     <ClInclude Include="afp-source\helpers\afpdebug.h" />
