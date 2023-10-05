@@ -80,7 +80,7 @@ public:
 
         if (it != mData.end())
         {
-            DBGWRITE(DbgLevelInfo, L"[AFPArray<T>::RemoveItem]Removing item from array.\n");
+            DBGWRITE(dbg_level_info, L"[AFPArray<T>::RemoveItem]Removing item from array.\n");
             mData.erase(it);
         }
     }

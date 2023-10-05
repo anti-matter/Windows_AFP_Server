@@ -24,8 +24,8 @@
 //
 //A couple needed globals to keep the thread running, etc.
 //
-extern BOOL		gRunning;				//from dsi.cpp, true while app is running
-extern SHORT	gWorkerThreadRefCount;	//Thread reference counter so we wait while cleaining up
+extern BOOL		g_running;				//from dsi.cpp, true while app is running
+extern SHORT	g_worker_thread_ref_count;	//Thread reference counter so we wait while cleaining up
 
 //
 //These globals are needed to track some of the perf
@@ -70,7 +70,7 @@ ULONG AFPInitializePerfCounters()
     }
     else
     {
-        DBGWRITE(DbgLevelWarning,
+        DBGWRITE(dbg_level_warning,
             L"[counters]CounterInitialize() returned failure: %d\n", status
             );
     }
@@ -168,19 +168,19 @@ DWORD WINAPI AFPCounterThread(
     //Increment thread reference count so the app will wait until thread is
     //shutdown and cleanup complete before quitting.
     //
-    gWorkerThreadRefCount++;
+    g_worker_thread_ref_count++;
 
     status = AFPCreateCounterInstance(&connectionsInstance);
     if (status != ERROR_SUCCESS)
     {
-        DBGWRITE(DbgLevelWarning,
+        DBGWRITE(dbg_level_warning,
             L"[**counters**]AFPCreateCounterInstance() returned failure: %d\n", status
             );
 
         goto cleanup;
     }
 
-    while(gRunning)
+    while(g_running)
     {
         //
         //Update the number of DSI connections active for this server.
@@ -194,7 +194,7 @@ DWORD WINAPI AFPCounterThread(
 
         if (status != ERROR_SUCCESS)
         {
-            DBGWRITE(DbgLevelWarning,
+            DBGWRITE(dbg_level_warning,
                 L"[counters]PerfSetULongCounterValue(ID_CONNECTIONS) returned failure: %d\n", status
                 );
 
@@ -218,7 +218,7 @@ DWORD WINAPI AFPCounterThread(
 
         if (status != ERROR_SUCCESS)
         {
-            DBGWRITE(DbgLevelWarning,
+            DBGWRITE(dbg_level_warning,
                 L"[counters]PerfSetULongCounterValue(ID_BYTESRCVDPERSEC) returned failure: %d\n", status
                 );
 
@@ -247,7 +247,7 @@ DWORD WINAPI AFPCounterThread(
 
         if (status != ERROR_SUCCESS)
         {
-            DBGWRITE(DbgLevelWarning,
+            DBGWRITE(dbg_level_warning,
                 L"[counters]PerfSetULongCounterValue(ID_BYTESSENTPERSEC) returned failure: %d\n", status
                 );
 
@@ -275,7 +275,7 @@ DWORD WINAPI AFPCounterThread(
 
         if (status != ERROR_SUCCESS)
         {
-            DBGWRITE(DbgLevelWarning,
+            DBGWRITE(dbg_level_warning,
                 L"[counters]PerfSetULongCounterValue(ID_AFPREQUESTSPROCESSED) returned failure: %d\n", status
                 );
 
@@ -296,7 +296,7 @@ DWORD WINAPI AFPCounterThread(
 
 cleanup:
 
-    gWorkerThreadRefCount--;
+    g_worker_thread_ref_count--;
 
     //
     //This is from afpCounters.h, the auto-generated file from

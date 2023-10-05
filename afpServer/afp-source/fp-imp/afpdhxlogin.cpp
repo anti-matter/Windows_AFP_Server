@@ -51,7 +51,7 @@ AFPERROR DHXLogin(
     
     if (dhxInfo == NULL)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:DHXLogin]dhxInfo invalid\n");
+        DBGWRITE(dbg_level_info, L"[afp:DHXLogin]dhxInfo invalid\n");
         return( afpParmErr );
     }
     
@@ -62,7 +62,7 @@ AFPERROR DHXLogin(
     
     if (bn == NULL)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:DHXLogin]BN_bin2bn() failed obtaining the client's key\n");
+        DBGWRITE(dbg_level_info, L"[afp:DHXLogin]BN_bin2bn() failed obtaining the client's key\n");
         goto exit;
     }
                 
@@ -73,7 +73,7 @@ AFPERROR DHXLogin(
     
     if (gbn == NULL)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:DHXLogin]BN_bin2bn() failed obtaining obtaining our primes1\n");
+        DBGWRITE(dbg_level_info, L"[afp:DHXLogin]BN_bin2bn() failed obtaining obtaining our primes1\n");
         goto exit;
     }
     
@@ -81,7 +81,7 @@ AFPERROR DHXLogin(
     
     if (pbn == NULL)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:DHXLogin]BN_bin2bn() failed obtaining our primes2\n");
+        DBGWRITE(dbg_level_info, L"[afp:DHXLogin]BN_bin2bn() failed obtaining our primes2\n");
         goto exit;
     }
     
@@ -89,7 +89,7 @@ AFPERROR DHXLogin(
     
     if (dh == NULL)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:DHXLogin]DH_new() failed creating new DH context\n");
+        DBGWRITE(dbg_level_info, L"[afp:DHXLogin]DH_new() failed creating new DH context\n");
         goto exit;
     }
     
@@ -105,7 +105,7 @@ AFPERROR DHXLogin(
     
     if (!DH_generate_key(dh) || (BN_num_bytes(DH_get0_pub_key(dh)) > DHX_KEYSIZE))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:DHXLogin]DH_generate_key() failed generating our public keys\n");
+        DBGWRITE(dbg_level_info, L"[afp:DHXLogin]DH_generate_key() failed generating our public keys\n");
         goto exit;
     }
     
@@ -203,7 +203,7 @@ AFPERROR DHXLoginContinue(
     
     if (dhxInfo == NULL)
     {
-        DBGWRITE(DbgLevelInfo, L"[afpuser:DHXLoginContinue]dhxInfo invalid\n");
+        DBGWRITE(dbg_level_info, L"[afpuser:DHXLoginContinue]dhxInfo invalid\n");
         return( afpMiscErr );
     }
         
@@ -216,7 +216,7 @@ AFPERROR DHXLoginContinue(
     
     if (sessionID != dhxInfo->sessionID)
     {
-        DBGWRITE(DbgLevelInfo, L"[afpuser:DHXLoginContinue]Session ID's don't match! (%d vs. %d)\n", sessionID, dhxhash((ULONG_PTR)dsiSession));
+        DBGWRITE(dbg_level_info, L"[afpuser:DHXLoginContinue]Session ID's don't match! (%d vs. %d)\n", sessionID, dhxhash((ULONG_PTR)dsiSession));
         return( afpParmErr );
     }
     
@@ -241,7 +241,7 @@ AFPERROR DHXLoginContinue(
     
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelInfo, L"[afpuser:DHXLoginContinue]Randnum check failed, exiting\n");
+        DBGWRITE(dbg_level_info, L"[afpuser:DHXLoginContinue]Randnum check failed, exiting\n");
         goto exit;
     }
 
@@ -259,7 +259,7 @@ AFPERROR DHXLoginContinue(
     //
     if (DHX_PASSWDLEN > afpPasswordLen)
     {
-        DBGWRITE(DbgLevelInfo, L"[afpuser:DHXLoginContinue]Password buffer too small\n");
+        DBGWRITE(dbg_level_info, L"[afpuser:DHXLoginContinue]Password buffer too small\n");
                 
         afpError = afpParmErr;
         goto exit;
@@ -267,7 +267,7 @@ AFPERROR DHXLoginContinue(
     
     memcpy(afpPassword, tempBuf, DHX_PASSWDLEN);
         
-    DBGWRITE(DbgLevelInfo, L"[afpuser:DHXLoginContinue]Successful continued login for DHCAST128\n");
+    DBGWRITE(dbg_level_info, L"[afpuser:DHXLoginContinue]Successful continued login for DHCAST128\n");
     afpError = AFP_OK;
     
 exit:
@@ -307,7 +307,7 @@ AFPERROR DHXChangePassword(
     
     if (dhxInfo == NULL)
     {
-        DBGWRITE(DbgLevelInfo, L"[afpuser:DHXChangePassword]dhxInfo invalid\n");
+        DBGWRITE(dbg_level_info, L"[afpuser:DHXChangePassword]dhxInfo invalid\n");
         return( afpMiscErr );
     }
     
@@ -325,7 +325,7 @@ AFPERROR DHXChangePassword(
     //
     if (sessionID == 0)
     {
-        DBGWRITE(DbgLevelInfo, L"[afpuser:DHXChangePassword]First time through, calling DHXLogin()\n");
+        DBGWRITE(dbg_level_info, L"[afpuser:DHXChangePassword]First time through, calling DHXLogin()\n");
         
         return( DHXLogin(
                     afpRequest,
@@ -334,7 +334,7 @@ AFPERROR DHXChangePassword(
                     dhxInfo)		);
     }
     
-    DBGWRITE(DbgLevelInfo, L"[afpuser:DHXChangePassword]Second time through, completing decryption\n");
+    DBGWRITE(dbg_level_info, L"[afpuser:DHXChangePassword]Second time through, completing decryption\n");
     
     //
     //If we have a sessionID, then that means we're on the second time
@@ -342,7 +342,7 @@ AFPERROR DHXChangePassword(
     //
     if (sessionID != dhxInfo->sessionID)
     {
-        DBGWRITE(DbgLevelInfo, L"[afpuser:DHXChangePassword]Session ID's don't match! (%d vs. %d)\n", sessionID, dhxhash((ULONG_PTR)dsiSession));
+        DBGWRITE(dbg_level_info, L"[afpuser:DHXChangePassword]Session ID's don't match! (%d vs. %d)\n", sessionID, dhxhash((ULONG_PTR)dsiSession));
         return( afpParmErr );
     }
     
@@ -367,7 +367,7 @@ AFPERROR DHXChangePassword(
     
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelInfo, L"[afpuser:DHXChangePassword]Randnum check failed, exiting with parmErr\n");
+        DBGWRITE(dbg_level_info, L"[afpuser:DHXChangePassword]Randnum check failed, exiting with parmErr\n");
         goto exit;
     }
     
@@ -393,8 +393,8 @@ AFPERROR DHXChangePassword(
     tempBuff[DHX_PASSWDLEN] = '\0';
     StringCbCopyA(newPassword, cbNewPassword, (char*)tempBuff);
     
-    DBGWRITE(DbgLevelInfo, L"[afpuser:DHXChangePassword]Old password: %s\n", oldPassword);
-    DBGWRITE(DbgLevelInfo, L"[afpuser:DHXChangePassword]New password: %s\n", newPassword);
+    DBGWRITE(dbg_level_info, L"[afpuser:DHXChangePassword]Old password: %s\n", oldPassword);
+    DBGWRITE(dbg_level_info, L"[afpuser:DHXChangePassword]New password: %s\n", newPassword);
     
     //
     //If we get to this point, everything should be peachy
@@ -407,7 +407,7 @@ exit:
     //
     memset(tempBuff, 0, DHX_PASSWDLEN*2);
         
-    DBGWRITE(DbgLevelInfo, L"[afpuser:DHXChangePassword]Returning: %d\n", afpError);
+    DBGWRITE(dbg_level_info, L"[afpuser:DHXChangePassword]Returning: %d\n", afpError);
     
     return( afpError );
 }
@@ -440,7 +440,7 @@ AFPERROR DHXCheckRandnum(
     
     if (bn1 == NULL)
     {
-        DBGWRITE(DbgLevelInfo, L"[afpuser:DHXCheckRandnum]Failed to extract random number key\n");
+        DBGWRITE(dbg_level_info, L"[afpuser:DHXCheckRandnum]Failed to extract random number key\n");
         goto exit;
     }
     
@@ -448,7 +448,7 @@ AFPERROR DHXCheckRandnum(
     
     if (bn2 == NULL)
     {
-        DBGWRITE(DbgLevelInfo, L"[afpuser:DHXCheckRandnum]Failed to get random number\n");
+        DBGWRITE(dbg_level_info, L"[afpuser:DHXCheckRandnum]Failed to get random number\n");
         goto exit;
     }
     
@@ -459,7 +459,7 @@ AFPERROR DHXCheckRandnum(
     
     if (bnResult == NULL)
     {
-        DBGWRITE(DbgLevelInfo, L"[afpuser:DHXCheckRandnum]Failed to create BIGNUM 3\n");
+        DBGWRITE(dbg_level_info, L"[afpuser:DHXCheckRandnum]Failed to create BIGNUM 3\n");
         goto exit;
     }
     
@@ -467,7 +467,7 @@ AFPERROR DHXCheckRandnum(
     
     if (!BN_is_one(bnResult))
     {
-        DBGWRITE(DbgLevelInfo, L"[afpuser:DHXCheckRandnum]Random was not incremented by 1 by client!\n");
+        DBGWRITE(dbg_level_info, L"[afpuser:DHXCheckRandnum]Random was not incremented by 1 by client!\n");
         goto exit;
     }
     
@@ -482,7 +482,7 @@ exit:
     if (bn2)		BN_free(bn2);
     if (bnResult)	BN_free(bnResult);
     
-    DBGWRITE(DbgLevelInfo, L"[afpuser:DHXCheckRandnum]Returning: %d\n", afpError);
+    DBGWRITE(dbg_level_info, L"[afpuser:DHXCheckRandnum]Returning: %d\n", afpError);
     
     return( afpError );
     

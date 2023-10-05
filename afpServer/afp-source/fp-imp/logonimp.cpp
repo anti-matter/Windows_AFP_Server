@@ -48,7 +48,7 @@ AFPERROR afpImpUserLogon(
         //
         //Logon failed, return the appropriate afp error code.
         //
-        DBGWRITE(DbgLevelInfo, L"[logonimp]LogonUser() failed (%d)\n", GetLastError());
+        DBGWRITE(dbg_level_info, L"[logonimp]LogonUser() failed (%d)\n", GetLastError());
         
         afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpUserNotAuth));
     }
@@ -62,7 +62,7 @@ AFPERROR afpImpUserLogon(
         if (!DuplicateTokenEx(hToken, MAXIMUM_ALLOWED, NULL,
                     SecurityImpersonation, TokenPrimary, &afpSession->hUserToken))
         {
-            DBGWRITE(DbgLevelInfo, L"[logonimp]DuplicateToken() failed! (%d)\n", GetLastError());
+            DBGWRITE(dbg_level_info, L"[logonimp]DuplicateToken() failed! (%d)\n", GetLastError());
             ASSERT(0);
         }
         
@@ -76,7 +76,7 @@ AFPERROR afpImpUserLogon(
         //
         afpSession->dwState |= sessAuthenticated;
         
-        DBGWRITE(DbgLevelInfo, L"[logonimp]Login for user %s successfull!\n", afpSession->userName);
+        DBGWRITE(dbg_level_info, L"[logonimp]Login for user %s successfull!\n", afpSession->userName);
     }
     
     if (AFP_SUCCESS(afpError))
@@ -90,7 +90,7 @@ AFPERROR afpImpUserLogon(
 
         if (afpAFPSession == NULL)
         {
-            DBGWRITE(DbgLevelWarning, L"[logonimp]Failed to allocate new afp session object!\n");
+            DBGWRITE(dbg_level_warning, L"[logonimp]Failed to allocate new afp session object!\n");
             ASSERT(0);
 
             afpError = afpMiscErr;

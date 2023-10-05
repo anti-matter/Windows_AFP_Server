@@ -1,97 +1,83 @@
 /*
- *	AFPCriticalSection.h
- *	Created 03/28/09
+ * AFPCriticalSection.h
+ * Created 03/28/09
  *
- *	Copyright © 2009, Michael J. Conrad. All Rights Reserved.
+ * Copyright (c) 2009, Michael J. Conrad. All Rights Reserved.
  */
 
-#ifndef __AFPCriticalSection__
-#define __AFPCriticalSection__
+#pragma once
 
-#include "afpdebug.h"
 #include <cassert>
 
 
 class AFPCriticalSection
 {
 public:
-    AFPCriticalSection(
-        IN PCRITICAL_SECTION	cSection			= NULL,
-        IN bool					fLockImmediately	= false
+	explicit AFPCriticalSection(
+        IN const PCRITICAL_SECTION	critical_section = nullptr,
+        IN const bool lock_immediately = false
         )
     {
-        mIsLocked = false;
+        m_is_locked_ = false;
 
-        if (cSection != NULL)
+        if (critical_section != nullptr)
         {
-            mCriticalSection = cSection;
-            mOwnsStructure = false;
+            m_critical_section_ = critical_section;
+            m_owns_structure_ = false;
         }
         else
         {
-            mCriticalSection = (PCRITICAL_SECTION)malloc(sizeof(CRITICAL_SECTION));
-            mOwnsStructure = true;
-
-            InitializeCriticalSection( mCriticalSection );
+            m_critical_section_ = static_cast<PCRITICAL_SECTION>(malloc(sizeof(CRITICAL_SECTION)));
+            if (m_critical_section_ != nullptr)
+            {
+                m_owns_structure_ = true;
+                InitializeCriticalSection(m_critical_section_);
+            }
         }
 
-        if (fLockImmediately) {
-
-            this->Lock();
-        }
-    }
-
-    ~AFPCriticalSection()
-    {
-        if (mIsLocked) {
-
-            Unlock();
-        }
-
-        if ((mOwnsStructure) && (mCriticalSection != NULL))
+        if (lock_immediately)
         {
-            DeleteCriticalSection( mCriticalSection );
-            delete [] mCriticalSection;
+	        AFPCriticalSection::lock();
         }
     }
 
-    virtual void Lock()
+    virtual ~AFPCriticalSection()
     {
-        assert(mCriticalSection != NULL);
+        if (m_is_locked_) {
+	        AFPCriticalSection::unlock();
+        }
 
-        if (mCriticalSection != NULL) {
-
-            EnterCriticalSection( mCriticalSection );
-            mIsLocked = true;
+        if (m_owns_structure_ && m_critical_section_ != nullptr)
+        {
+            DeleteCriticalSection( m_critical_section_ );
+            delete [] m_critical_section_;
         }
     }
 
-    virtual void Unlock()
+    virtual void lock()
     {
-        assert(mCriticalSection != NULL);
+        assert(m_critical_section_ != nullptr);
 
-        if ((mIsLocked) && (mCriticalSection != NULL)) {
+        if (m_critical_section_ != nullptr) {
 
-            LeaveCriticalSection( mCriticalSection );
-            mIsLocked = false;
+            EnterCriticalSection( m_critical_section_ );
+            m_is_locked_ = true;
+        }
+    }
+
+    virtual void unlock()
+    {
+        assert(m_critical_section_ != nullptr);
+
+        if ((m_is_locked_) && (m_critical_section_ != nullptr)) {
+
+            LeaveCriticalSection( m_critical_section_ );
+            m_is_locked_ = false;
         }
     }
 
 private:
-    PCRITICAL_SECTION	mCriticalSection;
-    bool				mIsLocked;
-    bool				mOwnsStructure;
+    PCRITICAL_SECTION	m_critical_section_;
+    bool				m_is_locked_;
+    bool				m_owns_structure_;
 };
-
-
-
-
-
-
-
-
-
-
-
-
-#endif //__AFPCriticalSection

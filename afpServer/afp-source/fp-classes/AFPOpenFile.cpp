@@ -96,7 +96,7 @@ AFPERROR AFPOpenFile::AFPOpenFileFork(PWCHAR streamName, DWORD afpCreationDispos
 		break;
 
 	case kAttrFork:
-		DBGWRITE(DbgLevelInfo, L"[AFPOpenFile:AFPOpenFileFork]Opening stream %s\n", streamName);
+		DBGWRITE(dbg_level_info, L"[AFPOpenFile:AFPOpenFileFork]Opening stream %s\n", streamName);
 		ASSERT(streamName != nullptr);
 
 		if (streamName != nullptr)
@@ -114,7 +114,7 @@ AFPERROR AFPOpenFile::AFPOpenFileFork(PWCHAR streamName, DWORD afpCreationDispos
 		break;
 	}
 
-	DBGWRITE(DbgLevelAll, L"[AFPOpenFile:AFPOpenFileFork]Opening file %s\n", szFilePath);
+	DBGWRITE(dbg_level_all, L"[AFPOpenFile:AFPOpenFileFork]Opening file %s\n", szFilePath);
 
 	auto hFile = CreateFile(
 		szFilePath,
@@ -129,7 +129,7 @@ AFPERROR AFPOpenFile::AFPOpenFileFork(PWCHAR streamName, DWORD afpCreationDispos
 	if (hFile == INVALID_HANDLE_VALUE)
 	{
 		auto dwError = GetLastError();
-		DBGWRITE(DbgLevelInfo, L"[AFPOpenFile:AFPOpenFileFork]CreateFile() failed! (%d) (%s)\n", dwError, szFilePath);
+		DBGWRITE(dbg_level_info, L"[AFPOpenFile:AFPOpenFileFork]CreateFile() failed! (%d) (%s)\n", dwError, szFilePath);
 
 		return AFPMapWinErrorToAFP(dwError, static_cast<DWORD>(afpParmErr));
 	}
@@ -187,7 +187,7 @@ AFPERROR AFPOpenFile::CloseFileFork()
 		break;
 	}
 
-	DBGWRITE(DbgLevelAll, L"[AFPOpenFile:CloseFileFork]Closing file %s, fork = %d\n", mWindowsPath, mFork);
+	DBGWRITE(dbg_level_all, L"[AFPOpenFile:CloseFileFork]Closing file %s, fork = %d\n", mWindowsPath, mFork);
 
 	//
 	//Now set the appropriate flags to indicate the state of the forks.
@@ -204,7 +204,7 @@ AFPERROR AFPOpenFile::CloseFileFork()
 	}
 	else
 	{
-		DBGWRITE(DbgLevelAll, L"[AFPOpenFile:CloseFileFork]Invalid file handle for %s\n", mWindowsPath);
+		DBGWRITE(dbg_level_all, L"[AFPOpenFile:CloseFileFork]Invalid file handle for %s\n", mWindowsPath);
 	}
 
 	return AFP_OK;
@@ -239,7 +239,7 @@ AFPERROR AFPOpenFile::ReadFork(
 		return afpParmErr;
 	}
 
-	DBGWRITE(DbgLevelAll, L"[AFPOpenFile::ReadFork]Reading %lld bytes from file %s from fork %d\n", afpReqCount, mWindowsPath, mFork);
+	DBGWRITE(dbg_level_all, L"[AFPOpenFile::ReadFork]Reading %lld bytes from file %s from fork %d\n", afpReqCount, mWindowsPath, mFork);
 
 	//
 	//We have to make sure our buffer is big enough for
@@ -253,7 +253,7 @@ AFPERROR AFPOpenFile::ReadFork(
 		afpReqCount = afpReply.GetBufferSize() - DSI_HEADER_SIZE;
 
 		DBGWRITE(
-			DbgLevelWarning,
+			dbg_level_warning,
 			L"[AFPOpenFile::ReadFork]Buffer too small! (needed=%d, have=%d)\n",
 			(DSI_HEADER_SIZE+afpReqCount),
 			afpReply.GetBufferSize()
@@ -288,7 +288,7 @@ AFPERROR AFPOpenFile::ReadFork(
 	if (!success)
 	{
 		afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
-		DBGWRITE(DbgLevelWarning, L"[AFPOpenFile::ReadFork]ReadFile() failed! (%d)\n", GetLastError());
+		DBGWRITE(dbg_level_warning, L"[AFPOpenFile::ReadFork]ReadFile() failed! (%d)\n", GetLastError());
 	}
 	else if (afpReqCount > 0 && *afpActualRead == 0)
 	{
@@ -366,7 +366,7 @@ AFPERROR AFPOpenFile::WriteFork(
 		if (!success)
 		{
 			afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
-			DBGWRITE(DbgLevelInfo, L"[AFPOpenFile:WriteFork]WriteFile() failed! (%d)\n", GetLastError());
+			DBGWRITE(dbg_level_info, L"[AFPOpenFile:WriteFork]WriteFile() failed! (%d)\n", GetLastError());
 		}
 		else
 		{
@@ -374,7 +374,7 @@ AFPERROR AFPOpenFile::WriteFork(
 
 			*afpLastByteWritten = afpOffset + afpActual;
 
-			DBGWRITE(DbgLevelAll,
+			DBGWRITE(dbg_level_all,
 				L"[AFPOpenFile:WriteFork]WRITE:\n\tActual written: %d\n\tLast Byte:      %d\n",
 				afpActual,
 				*afpLastByteWritten
@@ -408,7 +408,7 @@ AFPERROR AFPOpenFile::FileSeek(
 
 	if (distance.LowPart == INVALID_SET_FILE_POINTER && GetLastError() != NO_ERROR)
 	{
-		DBGWRITE(DbgLevelInfo, L"[AFPOpenFile:FileSeek]SetFilePointer() failed %d\n", GetLastError());
+		DBGWRITE(dbg_level_info, L"[AFPOpenFile:FileSeek]SetFilePointer() failed %d\n", GetLastError());
 		afpError = afpParmErr;
 	}
 
@@ -451,7 +451,7 @@ uint64 AFPOpenFile::GetStreamLength(PWCHAR streamName)
 			else
 			{
 				DBGWRITE(
-					DbgLevelInfo,
+					dbg_level_info,
 					L"[AFPOpenFile:GetStreamLength]GetFileSizeEx() failed (%d)\n",
 					GetLastError()
 				);

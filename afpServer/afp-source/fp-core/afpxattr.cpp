@@ -46,7 +46,7 @@ AFPERROR FPGetExtAttribute(
     AFPERROR			afpError		= AFP_OK;
     LPAFPINDEX			afpEntry		= NULL;
     
-    DBGWRITE(DbgLevelAll, L"[FPGetExtAttribute]Enter...\n");
+    DBGWRITE(dbg_level_all, L"[FPGetExtAttribute]Enter...\n");
     
     //
     //Advance beyond command and pad byte
@@ -67,7 +67,7 @@ AFPERROR FPGetExtAttribute(
     //	
     if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolID))
     {
-        DBGWRITE(DbgLevelWarning, L"[FPGetExtAttribute]User does not have volume open!\n");
+        DBGWRITE(dbg_level_warning, L"[FPGetExtAttribute]User does not have volume open!\n");
         return( afpParmErr );
     }
     
@@ -78,7 +78,7 @@ AFPERROR FPGetExtAttribute(
     
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelWarning, L"[FPGetExtAttribute]Could not retrieve pathname! (%d)\n", afpError);
+        DBGWRITE(dbg_level_warning, L"[FPGetExtAttribute]Could not retrieve pathname! (%d)\n", afpError);
         return( afpError );
     }
     
@@ -100,11 +100,11 @@ AFPERROR FPGetExtAttribute(
     
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelWarning, L"[FPGetExtAttribute]Could not retrieve attribute name! (%d)\n", afpError);
+        DBGWRITE(dbg_level_warning, L"[FPGetExtAttribute]Could not retrieve attribute name! (%d)\n", afpError);
         return( afpError );
     }
     
-    DBGWRITE(DbgLevelAll, L"[FPGetExtAttribute]Getting attr, file=%s, attr=%s\n", afpPathname, afpAttrName);
+    DBGWRITE(dbg_level_all, L"[FPGetExtAttribute]Getting attr, file=%s, attr=%s\n", afpPathname, afpAttrName);
     
     //
     //Set the entry object that will point to the object we're working with.
@@ -133,7 +133,7 @@ AFPERROR FPGetExtAttribute(
             afpReply.AddInt16(afpBitmap);
             afpReply.AddInt32(afpDataLen);
             
-            DBGWRITE(DbgLevelAll, L"[FPGetExtAttribute]DataLen == %d\n", afpDataLen);
+            DBGWRITE(dbg_level_all, L"[FPGetExtAttribute]DataLen == %d\n", afpDataLen);
             
             if (afpMaxReplySize > 0)
             {
@@ -182,7 +182,7 @@ AFPERROR FPGetExtAttribute(
                         afpReply.Advance(afpActualRead);
                         
                         DBGWRITE(
-                            DbgLevelAll,
+                            dbg_level_all,
                             L"[FPGetExtAttribute]ReadFile() returned: %d, read %d bytes\n",
                             GetLastError(),
                             afpActualRead
@@ -196,7 +196,7 @@ AFPERROR FPGetExtAttribute(
                     //
                     //Not enough space in the reply buffer.
                     //
-                    DBGWRITE(DbgLevelWarning, L"[FPGetExtAttribute]Not enough space in reply buffer!\n");
+                    DBGWRITE(dbg_level_warning, L"[FPGetExtAttribute]Not enough space in reply buffer!\n");
                     ASSERT(0);
                     
                     return( afpMiscErr );
@@ -205,21 +205,21 @@ AFPERROR FPGetExtAttribute(
         }
         else
         {
-            DBGWRITE(DbgLevelWarning, L"[FPGetExtAttribute]GetStreamLen() failed!\n");
+            DBGWRITE(dbg_level_warning, L"[FPGetExtAttribute]GetStreamLen() failed!\n");
             afpError = afpMiscErr;
         }
     }
     else
     {
         DBGWRITE(
-            DbgLevelWarning,
+            dbg_level_warning,
             L"[FPGetExtAttribute]Object not found! (name = %s, dirID = %d)\n",
             afpPathname,
             afpDirID
             );
     }
     
-    DBGWRITE(DbgLevelAll, L"[FPGetExtAttribute]Returning: %d\n", afpError);
+    DBGWRITE(dbg_level_all, L"[FPGetExtAttribute]Returning: %d\n", afpError);
     
     return( afpError );
 }
@@ -257,7 +257,7 @@ AFPERROR FPSetExtAttribute(
     DWORD			status			= AFP_OK;
     DWORD			bytesWritten	= 0;
     
-    DBGWRITE(DbgLevelInfo, L"[afp:FPSetExtAttribute]Enter...\n");
+    DBGWRITE(dbg_level_info, L"[afp:FPSetExtAttribute]Enter...\n");
     
     //
     //Advance beyond command and pad byte
@@ -277,7 +277,7 @@ AFPERROR FPSetExtAttribute(
     
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPSetExtAttribute]Could not retrieve pathname! (%d)\n", afpError);
+        DBGWRITE(dbg_level_info, L"[afp:FPSetExtAttribute]Could not retrieve pathname! (%d)\n", afpError);
         return( afpError );
     }
     
@@ -296,11 +296,11 @@ AFPERROR FPSetExtAttribute(
     
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPSetExtAttribute]Could not retrieve attribute name! (%d)\n", afpError);
+        DBGWRITE(dbg_level_info, L"[afp:FPSetExtAttribute]Could not retrieve attribute name! (%d)\n", afpError);
         return( afpError );
     }
     
-    DBGWRITE(DbgLevelInfo, L"[afp:FPSetExtAttribute]Setting attr, file=%s, attr=%s\n", afpPathname, afpAttrName);
+    DBGWRITE(dbg_level_info, L"[afp:FPSetExtAttribute]Setting attr, file=%s, attr=%s\n", afpPathname, afpAttrName);
     
     //
     //The attribute data length we're going to write.
@@ -313,7 +313,7 @@ AFPERROR FPSetExtAttribute(
     //
     if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolID))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPSetExtAttribute]User does not have volume open!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPSetExtAttribute]User does not have volume open!\n");
         return( afpParmErr );
     }
 
@@ -375,7 +375,7 @@ AFPERROR FPSetExtAttribute(
             CloseHandle(hFile);
             
             DBGWRITE(
-                DbgLevelInfo,
+                dbg_level_info,
                 L"[FPGetExtAttribute]WriteFile() returned: %d\n",
                 GetLastError()
                 );
@@ -389,13 +389,13 @@ AFPERROR FPSetExtAttribute(
         //
         if (bytesWritten != afpAttrDataLen)
         {
-            DBGWRITE(DbgLevelInfo, L"[afp:FPSetExtAttribute]WriteFork() wrote out the wrong number of bytes!\n", afpError);
+            DBGWRITE(dbg_level_info, L"[afp:FPSetExtAttribute]WriteFork() wrote out the wrong number of bytes!\n", afpError);
             return( afpMiscErr );
         }
     }
 
-    DBGWRITE(DbgLevelInfo, L"[FPSetExtAttribute]Wrote(bytes): %d\n", bytesWritten);
-    DBGWRITE(DbgLevelInfo, L"[FPSetExtAttribute]Returning:    %d\n", afpError);
+    DBGWRITE(dbg_level_info, L"[FPSetExtAttribute]Wrote(bytes): %d\n", bytesWritten);
+    DBGWRITE(dbg_level_info, L"[FPSetExtAttribute]Returning:    %d\n", afpError);
     
     return( afpError );
 }
@@ -429,7 +429,7 @@ AFPERROR FPListExtAttribute(
     uint32*			saveDL			= NULL;
     AFPERROR		afpError		= AFP_OK;
     
-    DBGWRITE(DbgLevelInfo, L"[FPListExtAttribute]Enter...\n");
+    DBGWRITE(dbg_level_info, L"[FPListExtAttribute]Enter...\n");
     
     //
     //Advance beyond command and pad byte
@@ -450,7 +450,7 @@ AFPERROR FPListExtAttribute(
     //
     if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolID))
     {
-        DBGWRITE(DbgLevelInfo, L"[FPListExtAttribute]User does not have volume open!\n");
+        DBGWRITE(dbg_level_info, L"[FPListExtAttribute]User does not have volume open!\n");
         return( afpParmErr );
     }
     
@@ -461,7 +461,7 @@ AFPERROR FPListExtAttribute(
     
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelInfo, L"[FPListExtAttribute]Could not retrieve pathname! (%d)\n", afpError);
+        DBGWRITE(dbg_level_info, L"[FPListExtAttribute]Could not retrieve pathname! (%d)\n", afpError);
         return( afpError );
     }
     
@@ -481,7 +481,7 @@ AFPERROR FPListExtAttribute(
         char			ansi_string[MAX_AFP_NAME];
         
         DBGWRITE(
-            DbgLevelInfo,
+            dbg_level_info,
             (L"[FPListExtAttribute]Getting stream list for %s\n", afpEntry->szPath)
             );
         
@@ -540,7 +540,7 @@ AFPERROR FPListExtAttribute(
                         if (afpDataLen <= afpMaxReplySize)
                         {
                             DBGWRITE(
-                                DbgLevelInfo,
+                                dbg_level_info,
                                 (L"[FPListExtAttribute]New attr name added: %s\n",
                                 afpAttrInfo.wszStreamName)
                                 );
@@ -556,7 +556,7 @@ AFPERROR FPListExtAttribute(
                             //Our buffer will grow larger than the client can handle. Stop
                             //including new names, adjust the reported data size and return.
                             //
-                            DBGWRITE(DbgLevelInfo, L"[FPListExtAttribute]Data len exceeds client buffer size! (%d)\n", afpMaxReplySize);
+                            DBGWRITE(dbg_level_info, L"[FPListExtAttribute]Data len exceeds client buffer size! (%d)\n", afpMaxReplySize);
                             
                             afpDataLen -= cbStreamName + 1;
                             break;
@@ -583,8 +583,8 @@ AFPERROR FPListExtAttribute(
         AFPRevertToSelf(afpSession->hUserToken);
     }
     
-    DBGWRITE(DbgLevelInfo, L"[FPListExtAttribute]Name list datalen = %d\n", afpDataLen);
-    DBGWRITE(DbgLevelInfo, L"[FPListExtAttribute]Returning %d\n", afpError);
+    DBGWRITE(dbg_level_info, L"[FPListExtAttribute]Name list datalen = %d\n", afpDataLen);
+    DBGWRITE(dbg_level_info, L"[FPListExtAttribute]Returning %d\n", afpError);
     
     return( afpError );
 }
@@ -617,7 +617,7 @@ AFPERROR FPRemoveExtAttribute(
     uint16			afpNameLen		= 0;
     AFPERROR		afpError		= AFP_OK;
     
-    DBGWRITE(DbgLevelInfo, L"[FPRemoveExtAttribute]Enter...\n");
+    DBGWRITE(dbg_level_info, L"[FPRemoveExtAttribute]Enter...\n");
     
     //
     //Advance beyond command and pad byte
@@ -635,7 +635,7 @@ AFPERROR FPRemoveExtAttribute(
     //
     if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolID))
     {
-        DBGWRITE(DbgLevelInfo, L"[FPRemoveExtAttribute]User does not have volume open!\n");
+        DBGWRITE(dbg_level_info, L"[FPRemoveExtAttribute]User does not have volume open!\n");
         return( afpParmErr );
     }
     
@@ -656,7 +656,7 @@ AFPERROR FPRemoveExtAttribute(
     
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelInfo, L"[FPRemoveExtAttribute]Could not retrieve pathname! (%d)\n", afpError);
+        DBGWRITE(dbg_level_info, L"[FPRemoveExtAttribute]Could not retrieve pathname! (%d)\n", afpError);
         return( afpError );
     }
     
@@ -672,7 +672,7 @@ AFPERROR FPRemoveExtAttribute(
         
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelInfo, L"[FPRemoveExtAttribute]Object not found! (name = %s, dirID = %d)\n", afpPathname, afpDirID);
+        DBGWRITE(dbg_level_info, L"[FPRemoveExtAttribute]Object not found! (name = %s, dirID = %d)\n", afpPathname, afpDirID);
         return( afpError );
     }
     
@@ -691,11 +691,11 @@ AFPERROR FPRemoveExtAttribute(
     
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelInfo, L"[FPRemoveExtAttribute]Could not retrieve attribute name! (%d)\n", afpError);
+        DBGWRITE(dbg_level_info, L"[FPRemoveExtAttribute]Could not retrieve attribute name! (%d)\n", afpError);
         return( afpError );
     }
     
-    DBGWRITE(DbgLevelInfo, L"[FPRemoveExtAttribute]Removing attr, file=%s, attr=%s\n", afpPathname, afpAttrName);
+    DBGWRITE(dbg_level_info, L"[FPRemoveExtAttribute]Removing attr, file=%s, attr=%s\n", afpPathname, afpAttrName);
 
     StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->szPath, afpAttrName);
     
@@ -709,7 +709,7 @@ AFPERROR FPRemoveExtAttribute(
     
     if (!DeleteFile(afpPathname))
     {
-        DBGWRITE(DbgLevelInfo,
+        DBGWRITE(dbg_level_info,
                 L"[FPRemoveExtAttribute]DeleteFile failed on %s! (%d)\n",
                 afpEntry->szPath,
                 GetLastError()
@@ -720,7 +720,7 @@ AFPERROR FPRemoveExtAttribute(
         
     AFPRevertToSelf(afpSession->hUserToken);
     
-    DBGWRITE(DbgLevelInfo, L"[FPRemoveExtAttribute]Returning %d\n", afpError);
+    DBGWRITE(dbg_level_info, L"[FPRemoveExtAttribute]Returning %d\n", afpError);
     
     return( afpError );
 }
@@ -755,7 +755,7 @@ uint64 GetStreamLen(
             }
         }
             
-        DBGWRITE(DbgLevelInfo, L"[afpxattr:GetStreamLen]Stream name not found!\n");
+        DBGWRITE(dbg_level_info, L"[afpxattr:GetStreamLen]Stream name not found!\n");
     }
     
     return BAD_LENGTH_64;
@@ -798,7 +798,7 @@ AFPERROR GetStreams(
                                             );
     if (NtQueryInformationFile == nullptr)
     {
-        DBGWRITE(DbgLevelInfo, L"[afpxattr:GetStreams]GetProcAddress() failed! (%d)\n", GetLastError());
+        DBGWRITE(dbg_level_info, L"[afpxattr:GetStreams]GetProcAddress() failed! (%d)\n", GetLastError());
         return( afpParmErr );
     }
     
@@ -906,7 +906,7 @@ AFPERROR GetStreams(
             {
                 if (!GetFileSizeEx(hFile, &streamSize))
                 {
-                    DBGWRITE(DbgLevelInfo, L"[afpxattr:GetStreams]GetFileSizeEx() failed (%d)\n", GetLastError());
+                    DBGWRITE(dbg_level_info, L"[afpxattr:GetStreams]GetFileSizeEx() failed (%d)\n", GetLastError());
                 }
             
                 CloseHandle(hFile);

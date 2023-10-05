@@ -251,7 +251,7 @@ void DoRemoveVolume(HWND hParent)
 
         if (dwResult == LB_ERR)
         {
-            DBGWRITE(DbgLevelInfo, L"[MAIN]Bad list offset removing volume\n");
+            DBGWRITE(dbg_level_info, L"[MAIN]Bad list offset removing volume\n");
             return;
         }
 
@@ -264,7 +264,7 @@ void DoRemoveVolume(HWND hParent)
         
         if (dlgResult != IDCANCEL)
         {
-            DBGWRITE(DbgLevelInfo, L"[MAIN]Removing volume: %s\n", szSharename);
+            DBGWRITE(dbg_level_info, L"[MAIN]Removing volume: %s\n", szSharename);
 
             //
             //Call the volume API that will unshare the volume and remove the
@@ -279,7 +279,7 @@ void DoRemoveVolume(HWND hParent)
 
                 MessageBox(hParent, szTxtBody, szDlgTitle, MB_OK);
 
-                DBGWRITE(DbgLevelInfo, L"[MAIN]Removing volume failed! (%d)\n", dwError);
+                DBGWRITE(dbg_level_info, L"[MAIN]Removing volume failed! (%d)\n", dwError);
                 return;
             }
 
@@ -362,7 +362,7 @@ void FillVolumeListBox(
             
             count++;
 
-            DBGWRITE(DbgLevelInfo, L"[SRVR]Adding volume to list (%s)\n", szShareName);
+            DBGWRITE(dbg_level_info, L"[SRVR]Adding volume to list (%s)\n", szShareName);
 
             //
             //See if the volume is still indexing. If so, then we append a
@@ -581,14 +581,14 @@ void HandleROCheckbox(
                 //
                 if (IsDlgButtonChecked(hDlg, IDC_VOLREADONLY))
                 {
-                    DBGWRITE(DbgLevelInfo, L"[MAIN]Setting RO to true\n");
+                    DBGWRITE(dbg_level_info, L"[MAIN]Setting RO to true\n");
 
                     volFlags				|= FLAG_VOLUME_READONLY;
                     afpVolume->wVolumeFlags |= FLAG_VOLUME_READONLY;
                 }
                 else
                 {
-                    DBGWRITE(DbgLevelInfo, L"[MAIN]Setting RO to false\n");
+                    DBGWRITE(dbg_level_info, L"[MAIN]Setting RO to false\n");
 
                     volFlags				&= ~FLAG_VOLUME_READONLY;
                     afpVolume->wVolumeFlags &= ~FLAG_VOLUME_READONLY;
@@ -627,7 +627,7 @@ void ServerShutdown(
         //Shutdown the afp server by calling a routine that will
         //wait until shutdown is complete.
         //
-        DSIShutdown();
+        dsi_shutdown();
         AFPRemoveAllVolumes();
 
         //
@@ -677,7 +677,7 @@ BOOL CALLBACK MainDialogProc(
             AFPInitializeVolumes();
             AFPInitDesktop();
 
-            DSIInit();
+            dsi_init();
     
             FillLogonMessageBox(hDlg);
             SetMiscDialogItems(hDlg);
@@ -864,7 +864,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     status = EventRegisterAFPServer();
     if (status != ERROR_SUCCESS)
     {
-        DBGWRITE(DbgLevelWarning, L"EventRegisterSG_AFP_Server_Provider() failed: %d\n", status);
+        DBGWRITE(dbg_level_warning, L"EventRegisterSG_AFP_Server_Provider() failed: %d\n", status);
     }
 
     //

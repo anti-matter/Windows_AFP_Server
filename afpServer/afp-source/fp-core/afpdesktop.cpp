@@ -295,7 +295,7 @@ AFPERROR FPAddComment(
     DESKTOP_ENTRY newEntry;
     LPAFPINDEX afpEntry = nullptr;
 
-    DBGWRITE(DbgLevelAll, L"[afp:FPAddComment]Enter\n");
+    DBGWRITE(dbg_level_all, L"[afp:FPAddComment]Enter\n");
 
     afpRequest.Advance(sizeof(int16));
 
@@ -339,7 +339,7 @@ AFPERROR FPAddComment(
         //
         //We couldn't find the requested object.
         //
-        DBGWRITE(DbgLevelInfo, L"[afp:FPAddComment]Path not found!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPAddComment]Path not found!\n");
         afpError = afpObjectNotFound;
     }
     else
@@ -370,7 +370,7 @@ AFPERROR FPGetComment(
     DESKTOP_ENTRY foundEntry;
     LPAFPINDEX afpEntry = nullptr;
 
-    DBGWRITE(DbgLevelAll, L"[afp:FPGetComment]Enter\n");
+    DBGWRITE(dbg_level_all, L"[afp:FPGetComment]Enter\n");
 
     afpRequest.Advance(sizeof(int16));
 
@@ -409,7 +409,7 @@ AFPERROR FPGetComment(
         //
         //We couldn't find the requested object.
         //
-        DBGWRITE(DbgLevelInfo, L"[afp:FPGetComment]Path not found!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPGetComment]Path not found!\n");
         afpError = afpObjectNotFound;
     }
     else

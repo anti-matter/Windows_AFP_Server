@@ -22,8 +22,8 @@
 
 #define CHNG_NOTIFY_RESULT_BUFFER_SIZE	(64*1024)
 
-extern SHORT	gWorkerThreadRefCount;
-extern BOOL		gRunning;
+extern SHORT	g_worker_thread_ref_count;
+extern BOOL		g_running;
 
 //---------------------------------------------------------------------
 // AFPNotifyThread()
@@ -45,7 +45,7 @@ DWORD WINAPI AFPNotifyThread(
 	//
 	//For worker thread tracking...
 	//
-	gWorkerThreadRefCount++;
+	g_worker_thread_ref_count++;
 
 	//
 	//Get a handle to the directory we'll be watch for changes.
@@ -62,7 +62,7 @@ DWORD WINAPI AFPNotifyThread(
 
 	if (hDirectory == INVALID_HANDLE_VALUE)
 	{
-		DBGWRITE(	DbgLevelInfo,
+		DBGWRITE(	dbg_level_info,
 					L"[NOTIFY]Error opening directory at %s (%d)\n",
 					pVolInfo->szPath,
 					GetLastError()	);
@@ -76,7 +76,7 @@ DWORD WINAPI AFPNotifyThread(
 
 	if (pResultBuffer == NULL)
 	{
-		DBGWRITE(	DbgLevelInfo,
+		DBGWRITE(	dbg_level_info,
 					L"[NOTIFY]Error allocating result buffer for %s (%d)\n",
 					pVolInfo->szPath,
 					GetLastError()	);
@@ -91,7 +91,7 @@ DWORD WINAPI AFPNotifyThread(
 	//
 	pVolInfo->dwRefCount++;
 
-	while((gRunning) && (pVolInfo->wVolumeFlags & FLAG_VOLUME_SHARED))
+	while((g_running) && (pVolInfo->wVolumeFlags & FLAG_VOLUME_SHARED))
 	{
 		AFPReadDirChanges(pVolInfo, hDirectory, pResultBuffer);
 		ZeroMemory(pResultBuffer, CHNG_NOTIFY_RESULT_BUFFER_SIZE);
@@ -102,9 +102,9 @@ DWORD WINAPI AFPNotifyThread(
 	DBG_FREE(pResultBuffer);
 	CloseHandle(hDirectory);
 
-	gWorkerThreadRefCount--;
+	g_worker_thread_ref_count--;
 
-	DBGWRITE(DbgLevelInfo, L"[NOTIFY]Notify thread gone for %s\n", pVolInfo->szShareName);
+	DBGWRITE(dbg_level_info, L"[NOTIFY]Notify thread gone for %s\n", pVolInfo->szShareName);
 	return(0);
 }
 
@@ -150,9 +150,9 @@ void AFPReadDirChanges(
 	{
 		while (!GetOverlappedResult(hDirectory, &overlapped, &dwNumBytesReturned, FALSE))
 		{
-			if ((GetLastError() != ERROR_IO_INCOMPLETE) || (!gRunning) || (!(pVolInfo->wVolumeFlags & FLAG_VOLUME_SHARED)))
+			if ((GetLastError() != ERROR_IO_INCOMPLETE) || (!g_running) || (!(pVolInfo->wVolumeFlags & FLAG_VOLUME_SHARED)))
 			{
-				DBGWRITE(	DbgLevelInfo, 
+				DBGWRITE(	dbg_level_info, 
 							L"[NOTIFY]ReadDirectoryChangesW() failed during async! (%d)\n",
 							GetLastError()
 							);
@@ -174,7 +174,7 @@ void AFPReadDirChanges(
 		//
 		if (dwNumBytesReturned == 0)
 		{
-			DBGWRITE(DbgLevelInfo, L"[NOTIFY]0 bytes transferred in change! (%s)\n", pVolInfo->szPath);
+			DBGWRITE(dbg_level_info, L"[NOTIFY]0 bytes transferred in change! (%s)\n", pVolInfo->szPath);
 		}
 		else
 		{
@@ -187,8 +187,8 @@ void AFPReadDirChanges(
 			//We have a successful change notify. Flip through the array of
 			//changes and take appropriate action depending on the change.
 			//
-			DBGWRITE(DbgLevelAll, L"[NOTIFY]Change notify data received!! (%d bytes)\n", dwNumBytesReturned);
-			DBGWRITE(DbgLevelAll, L"[NOTIFY]NextEntryOffset = %d\n", pInfo->NextEntryOffset);
+			DBGWRITE(dbg_level_all, L"[NOTIFY]Change notify data received!! (%d bytes)\n", dwNumBytesReturned);
+			DBGWRITE(dbg_level_all, L"[NOTIFY]NextEntryOffset = %d\n", pInfo->NextEntryOffset);
 
 			do
 			{
@@ -212,7 +212,7 @@ void AFPReadDirChanges(
 					case FILE_ACTION_RENAMED_OLD_NAME:
 						lstrcpyn(szFileName, pInfo->FileName, pInfo->FileNameLength);
 
-						DBGWRITE(	DbgLevelAll, 
+						DBGWRITE(	dbg_level_all, 
 									L"[NOTIFY]File renamed, old name = %s\n", 
 									szFileName);
 
@@ -244,7 +244,7 @@ void AFPReadDirChanges(
 					case FILE_ACTION_RENAMED_NEW_NAME:
 						lstrcpyn(szFileName, pInfo->FileName, pInfo->FileNameLength);
 
-						DBGWRITE(	DbgLevelAll, 
+						DBGWRITE(	dbg_level_all, 
 									L"[NOTIFY]File renamed, new name = %s\n", 
 									szFileName);
 						//
@@ -299,7 +299,7 @@ void AFPReadDirChanges(
 	}
 	else
 	{
-		DBGWRITE(DbgLevelInfo, L"[NOTIFY]ReadDirectoryChangesW() failed! (%d)\n", GetLastError());
+		DBGWRITE(dbg_level_info, L"[NOTIFY]ReadDirectoryChangesW() failed! (%d)\n", GetLastError());
 	}
 
 	CloseHandle(overlapped.hEvent);
@@ -354,8 +354,8 @@ void AFPChngNotifyAdd(
 	//
 	AFPGetObjectPath(szNewItemPathname, szTempPath);
 
-	DBGWRITE(DbgLevelAll, L"[NOTIFY-ADD]New item pathname = %s\n", szNewItemPathname);
-	DBGWRITE(DbgLevelAll, L"[NOTIFY-ADD]Parent dir path = %s\n", szTempPath);
+	DBGWRITE(dbg_level_all, L"[NOTIFY-ADD]New item pathname = %s\n", szNewItemPathname);
+	DBGWRITE(dbg_level_all, L"[NOTIFY-ADD]Parent dir path = %s\n", szTempPath);
 
 	//
 	//We may have AFP modifying the index entry for the new object
@@ -376,7 +376,7 @@ void AFPChngNotifyAdd(
 		//reason to continue.
 		//
 		DBGWRITE(
-			DbgLevelInfo,
+			dbg_level_info,
 			L"[NOTIFY-ADD]AFPIndexFindEntryWithPath() failed (%d) (%s)\n", dwError, szTempPath);
 
 		LeaveCriticalSection(&pVolInfo->csNotifyQueue);
@@ -390,7 +390,7 @@ void AFPChngNotifyAdd(
 	ZeroMemory(szTempPath, sizeof(szTempPath));
 	StringCbPrintf(szTempPath, sizeof(szTempPath), TEXT("%s\\%s"), pEntry->szPath, szNewItemName);
 
-	DBGWRITE(DbgLevelAll, L"[NOTIFY-ADD]Full path to new item = %s\n", szTempPath);
+	DBGWRITE(dbg_level_all, L"[NOTIFY-ADD]Full path to new item = %s\n", szTempPath);
 
 	//
 	//See if there is already an index entry for this object. If so, then we
@@ -398,7 +398,7 @@ void AFPChngNotifyAdd(
 	//
 	dwError = AFPIndexFindEntryWithPath(pVolInfo, kRootDirID, szNewItemPathname, &pExisting);
 
-	DBGWRITE(DbgLevelAll, L"[NOTIFY-ADD]AFPIndexFindEntryWithPath returned: %d\n", dwError);
+	DBGWRITE(dbg_level_all, L"[NOTIFY-ADD]AFPIndexFindEntryWithPath returned: %d\n", dwError);
 
 	if (dwError != NO_ERROR)
 	{
@@ -412,7 +412,7 @@ void AFPChngNotifyAdd(
 			//This would be really bad as we couldn't find the object
 			//we're supposedly adding!
 			//
-			DBGWRITE(DbgLevelInfo, L"[NOTIFY-ADD]Item not found on disk!\n");
+			DBGWRITE(dbg_level_info, L"[NOTIFY-ADD]Item not found on disk!\n");
 		}
 		else
 		{
@@ -431,11 +431,11 @@ void AFPChngNotifyAdd(
 			
 			if (pEntry == NULL)
 			{
-				DBGWRITE(DbgLevelInfo, L"[NOTIFY-ADD]AFPIndexAddEntry() failed!\n");
+				DBGWRITE(dbg_level_info, L"[NOTIFY-ADD]AFPIndexAddEntry() failed!\n");
 			}
 			else
 			{
-				DBGWRITE(DbgLevelAll,
+				DBGWRITE(dbg_level_all,
 						(L"[NOTIFY-ADD]Added new item in notify id=%d name=%s\n",
 						pEntry->objectID,
 						szNewItemPathname
@@ -473,7 +473,7 @@ void AFPChngNotifyAdd(
 	}
 	else
 	{
-		DBGWRITE(DbgLevelAll, L"[NOTIFY-ADD]Object already exists in index\n");
+		DBGWRITE(dbg_level_all, L"[NOTIFY-ADD]Object already exists in index\n");
 	}
 
 	LeaveCriticalSection(&pVolInfo->csNotifyQueue);
@@ -503,7 +503,7 @@ void AFPChngNotifyRemove(
 	//
 	lstrcpyn(szItemPathname, pInfo->FileName, pInfo->FileNameLength);
 
-	DBGWRITE(DbgLevelAll, L"[NOTIFY-RMV]Removing %s\n", szItemPathname);
+	DBGWRITE(dbg_level_all, L"[NOTIFY-RMV]Removing %s\n", szItemPathname);
 
 	//
 	//Check to see if we're supposed to ignore this change notify.
@@ -522,7 +522,7 @@ void AFPChngNotifyRemove(
 		//reason to continue.
 		//
 		DBGWRITE(
-			DbgLevelAll,
+			dbg_level_all,
 			L"[NOTIFY-RMV]AFPIndexFindEntryWithPath() failed (%d)\n", dwError
 			);
 
@@ -542,7 +542,7 @@ void AFPChngNotifyRemove(
 		//This would be really bad as we couldn't find the object
 		//we're supposedly adding!
 		//
-		DBGWRITE(DbgLevelInfo, L"[NOTIFY-RMV]Object still exists on disk! Leaving in index.\n");
+		DBGWRITE(dbg_level_info, L"[NOTIFY-RMV]Object still exists on disk! Leaving in index.\n");
 	}
 	else
 	{

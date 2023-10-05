@@ -138,8 +138,8 @@ BOOL IsUserAdmin(
 //---------------------------------------------------------------------
 //
 PSID AFPGetSIDforUser(
-	IN PWCHAR userName,
-	   IN PWCHAR domainName
+	IN const PWCHAR userName,
+	   IN const PWCHAR domainName
 )
 {
 	UNREFERENCED_PARAMETER(domainName);
@@ -178,7 +178,7 @@ PSID AFPGetSIDforUser(
 			//
 			//For some reason we failed to get the account SID.
 			//
-			DBGWRITE(DbgLevelInfo, L"[AFPHELP]LookupAccountName() failed getting user SID for [%s] (%d)\n", userName, GetLastError());
+			DBGWRITE(dbg_level_info, L"[AFPHELP]LookupAccountName() failed getting user SID for [%s] (%d)\n", userName, GetLastError());
 
 			LocalFree(pSid);
 			return nullptr;
@@ -206,10 +206,10 @@ AFPERROR AFPGetDirectoryRights(
 	PSID pSidGroup = nullptr;
 	PSID pSidOwner = nullptr;
 	ACCESS_MASK accessRights = 0;
-	TRUSTEE trustee;
+	TRUSTEE trustee = {};
 
-	DBGWRITE(DbgLevelAll, L"[AFPHELP]AFPGetDirectoryRights() enter...\n");
-	DBGWRITE(DbgLevelAll, L"[AFPHELP]user name = %s\n", pUserName);
+	DBGWRITE(dbg_level_all, L"[AFPHELP]AFPGetDirectoryRights() enter...\n");
+	DBGWRITE(dbg_level_all, L"[AFPHELP]user name = %s\n", pUserName);
 
 	*afpRights = 0;
 
@@ -234,14 +234,14 @@ AFPERROR AFPGetDirectoryRights(
 		//Check to see if the current user is the owner of the directory. If not, we
 		//get the access rights for this user as allowed by it's SID.
 		//
-		auto userSid = AFPGetSIDforUser(pUserName, pDomainName);
+		const auto user_sid = AFPGetSIDforUser(pUserName, pDomainName);
 
-		if (userSid != nullptr)
+		if (user_sid != nullptr)
 		{
-			if (EqualSid(userSid, pSidOwner))
+			if (EqualSid(user_sid, pSidOwner))
 			{
-				DBGWRITE(DbgLevelAll, L"[AFPHELP]Logged on user is owner!!\n");
-				DBGWRITE(DbgLevelAll, L"[AFPHELP]Checking access rights for owner\n");
+				DBGWRITE(dbg_level_all, L"[AFPHELP]Logged on user is owner!!\n");
+				DBGWRITE(dbg_level_all, L"[AFPHELP]Checking access rights for owner\n");
 
 				//
 				//Use the handy-dandy routine to build the trustee for us.
@@ -249,18 +249,18 @@ AFPERROR AFPGetDirectoryRights(
 				BuildTrusteeWithSid(&trustee, pSidOwner);
 				dwError = GetEffectiveRightsFromAcl(pDACL, &trustee, &accessRights);
 
-				DBGWRITE(DbgLevelAll, L"[AFPHELP]GetEffectiveRightsFromAcl() returned %d\n", dwError);
+				DBGWRITE(dbg_level_all, L"[AFPHELP]GetEffectiveRightsFromAcl() returned %d\n", dwError);
 
 				if (accessRights & (WRITE_OWNER | WRITE_DAC | DELETE))
 				{
 					*afpRights |= (kAccess_OW | kAccess_UAW);
-					DBGWRITE(DbgLevelAll, L"[AFPHELP]Owner has write access!\n");
+					DBGWRITE(dbg_level_all, L"[AFPHELP]Owner has write access!\n");
 				}
 
 				if (accessRights & READ_CONTROL)
 				{
 					*afpRights |= (kAccess_OS | kAccess_OR | kAccess_UAS | kAccess_UAR);
-					DBGWRITE(DbgLevelAll, L"[AFPHELP]Owner has read access!\n");
+					DBGWRITE(dbg_level_all, L"[AFPHELP]Owner has read access!\n");
 				}
 
 				*afpRights |= kAccess_Owner;
@@ -272,7 +272,7 @@ AFPERROR AFPGetDirectoryRights(
 				//
 				accessRights = 0;
 
-				BuildTrusteeWithSid(&trustee, userSid);
+				BuildTrusteeWithSid(&trustee, user_sid);
 				dwError = GetEffectiveRightsFromAcl(pDACL, &trustee, &accessRights);
 
 				if (SUCCEEDED(dwError))
@@ -280,13 +280,13 @@ AFPERROR AFPGetDirectoryRights(
 					if (accessRights & (WRITE_OWNER | WRITE_DAC | DELETE))
 					{
 						*afpRights |= kAccess_UAW;
-						DBGWRITE(DbgLevelAll, L"[AFPHELP]User has write access!\n");
+						DBGWRITE(dbg_level_all, L"[AFPHELP]User has write access!\n");
 					}
 
 					if (accessRights & READ_CONTROL)
 					{
 						*afpRights |= kAccess_UAS | kAccess_UAR;
-						DBGWRITE(DbgLevelAll, L"[AFPHELP]User has read access!\n");
+						DBGWRITE(dbg_level_all, L"[AFPHELP]User has read access!\n");
 					}
 
 					//
@@ -300,7 +300,7 @@ AFPERROR AFPGetDirectoryRights(
 				}
 			}
 
-			LocalFree(userSid);
+			LocalFree(user_sid);
 		}
 
 		//
@@ -309,16 +309,17 @@ AFPERROR AFPGetDirectoryRights(
 		//BUGBUG: I cannot find a way to get the name of the guest account. This
 		//will fail on international systems as the guest name is different.
 		//
-		auto guestSID = AFPGetSIDforUser(TEXT("Guest"), nullptr);
+		constexpr WCHAR guest[] = L"Guest";
+		const auto guest_sid = AFPGetSIDforUser(const_cast<PWCHAR>(guest), nullptr);
 
-		if (guestSID != nullptr)
+		if (guest_sid != nullptr)
 		{
 			//
 			//Get the explicit access rights for this user.
 			//
 			accessRights = 0;
 
-			BuildTrusteeWithSid(&trustee, guestSID);
+			BuildTrusteeWithSid(&trustee, guest_sid);
 			dwError = GetEffectiveRightsFromAcl(pDACL, &trustee, &accessRights);
 
 			if (SUCCEEDED(dwError))
@@ -326,17 +327,17 @@ AFPERROR AFPGetDirectoryRights(
 				if (accessRights & (WRITE_OWNER | WRITE_DAC | DELETE))
 				{
 					*afpRights |= kAccess_WW;
-					DBGWRITE(DbgLevelAll, L"[AFPHELP]Guest has write access!\n");
+					DBGWRITE(dbg_level_all, L"[AFPHELP]Guest has write access!\n");
 				}
 
 				if (accessRights & READ_CONTROL)
 				{
 					*afpRights |= kAccess_WS | kAccess_WR;
-					DBGWRITE(DbgLevelAll, L"[AFPHELP]Guest has read access!\n");
+					DBGWRITE(dbg_level_all, L"[AFPHELP]Guest has read access!\n");
 				}
 			}
 
-			LocalFree(guestSID);
+			LocalFree(guest_sid);
 		}
 
 #if 0
@@ -380,7 +381,7 @@ AFPERROR AFPGetDirectoryRights(
 	}
 	else
 	{
-		DBGWRITE(DbgLevelInfo, L"[AFPHELP]GetNamedSecurityInfo() failed getting dir rights (%d)!\n", dwError);
+		DBGWRITE(dbg_level_info, L"[AFPHELP]GetNamedSecurityInfo() failed getting dir rights (%d)!\n", dwError);
 	}
 
 	return dwError;
@@ -451,11 +452,11 @@ AFPERROR AFPGetDirectoryOwnerAndGroupID(
 
 	if (SUCCEEDED(dwError))
 	{
-		WCHAR szName[64];
-		WCHAR szDomainName[64];
-		DWORD cbName = sizeof(szName);
-		DWORD cbDomainName = sizeof(szDomainName);
-		DWORD sidType = 0;
+		WCHAR sz_name[64];
+		WCHAR sz_domain_name[64];
+		DWORD cb_name = sizeof(sz_name) / 2;
+		DWORD cb_domain_name = sizeof(sz_domain_name) / 2;
+		DWORD sid_type = 0;
 
 		//
 		//First we get the name of the owner of the directory.
@@ -463,11 +464,11 @@ AFPERROR AFPGetDirectoryOwnerAndGroupID(
 		auto succeeded = LookupAccountSid(
 			nullptr,
 			pSidOwner,
-			szName,
-			&cbName,
-			szDomainName,
-			&cbDomainName,
-			reinterpret_cast<PSID_NAME_USE>(&sidType)
+			sz_name,
+			&cb_name,
+			sz_domain_name,
+			&cb_domain_name,
+			reinterpret_cast<PSID_NAME_USE>(&sid_type)
 		);
 
 		if (succeeded)
@@ -476,18 +477,18 @@ AFPERROR AFPGetDirectoryOwnerAndGroupID(
 			//We successfully got the owner name from the directory SID. Now we
 			//need to convert it to an AFP user ID.
 			//
-			DBGWRITE(DbgLevelInfo, L"[AFPHELP]Owner name from SID = %s for dir %s\n", szName, pDirWinPath);
+			DBGWRITE(dbg_level_info, L"[AFPHELP]Owner name from SID = %s for dir %s\n", sz_name, pDirWinPath);
 
 			//
 			//We only care about user SID's, check to make sure that's what we got.
 			//
-			if (sidType == SidTypeUser)
+			if (sid_type == SidTypeUser)
 			{
 				//
 				//First, search to see if the user name is already in our tables with
 				//a valid afp user ID.
 				//
-                auto userAndGroup = gUserAndGroupID.FindByName(szName, AFP_USERNAME_TYPE);
+                auto userAndGroup = gUserAndGroupID.FindByName(sz_name, afp_user_name_type);
                 if (userAndGroup != nullptr)
                 {
                     *dwOwnerID = userAndGroup->id;
@@ -504,13 +505,13 @@ AFPERROR AFPGetDirectoryOwnerAndGroupID(
 					{
 						*dwOwnerID = gNextUserID++;
 						userOrGroupName->id = *dwOwnerID;
-						userOrGroupName->type = AFP_USERNAME_TYPE;
+						userOrGroupName->type = afp_user_name_type;
 
-						lstrcpyn(userOrGroupName->name, szName, lstrlen(szName) + 1);
+						lstrcpyn(userOrGroupName->name, sz_name, lstrlen(sz_name) + 1);
 
 						gUserAndGroupID.AddItem(userOrGroupName);
 
-						DBGWRITE(DbgLevelInfo, L"[AFPHELP]Added username %s to the array\n", userOrGroupName->name);
+						DBGWRITE(dbg_level_info, L"[AFPHELP]Added username %s to the array\n", userOrGroupName->name);
 					}
 				}
 			}
@@ -522,14 +523,14 @@ AFPERROR AFPGetDirectoryOwnerAndGroupID(
 			//
 			dwError = GetLastError();
 
-			DBGWRITE(DbgLevelInfo, L"[AFPHELP]****Error getting owner name for [%s], error code: %d\n",
+			DBGWRITE(dbg_level_info, L"[AFPHELP]****Error getting owner name for [%s], error code: %d\n",
 				pDirWinPath,
 				dwError
 			);
 		}
 
-		cbName = sizeof(szName);
-		cbDomainName = sizeof(szDomainName);
+		cb_name = sizeof(sz_name) / 2;
+		cb_domain_name = sizeof(sz_domain_name) / 2;
 
 		//
 		//Get the name of the group that owns the directory.
@@ -537,11 +538,11 @@ AFPERROR AFPGetDirectoryOwnerAndGroupID(
 		succeeded = LookupAccountSid(
 			nullptr,
 			pSidGroup,
-			szName,
-			&cbName,
-			szDomainName,
-			&cbDomainName,
-			reinterpret_cast<PSID_NAME_USE>(&sidType)
+			sz_name,
+			&cb_name,
+			sz_domain_name,
+			&cb_domain_name,
+			reinterpret_cast<PSID_NAME_USE>(&sid_type)
 		);
 
 		if (succeeded)
@@ -550,12 +551,12 @@ AFPERROR AFPGetDirectoryOwnerAndGroupID(
 			//We successfully got the group name from the directory SID. Now we
 			//need to convert it to an AFP group ID.
 			//
-			DBGWRITE(DbgLevelAll, L"[AFPHELP]Group name from SID = %s for dir %s\n", szName, pDirWinPath);
+			DBGWRITE(dbg_level_all, L"[AFPHELP]Group name from SID = %s for dir %s\n", sz_name, pDirWinPath);
 
 			//
 			//We only care about group SID's, check to make sure that's what we got.
 			//
-			if (sidType == SidTypeGroup)
+			if (sid_type == SidTypeGroup)
 			{
 			}
 		}
@@ -566,7 +567,7 @@ AFPERROR AFPGetDirectoryOwnerAndGroupID(
 			//
 			dwError = GetLastError();
 
-			DBGWRITE(DbgLevelInfo, L"[AFPHELP]****Error getting group name! (%d)\n", dwError);
+			DBGWRITE(dbg_level_info, L"[AFPHELP]****Error getting group name! (%d)\n", dwError);
 		}
 
 		if (pSecurityDescriptor)
@@ -636,7 +637,7 @@ void AFPExtractDomainAndUserName(
 	//
 	//Now get just the username in the username buffer.
 	//
-	lstrcpyn(szUserName, pUserName, sizeof(szUserName));
+	lstrcpyn(szUserName, pUserName, sizeof(szUserName) / 2);
 
 	pTemp = wcschr(szUserName, '\\');
 
@@ -669,10 +670,10 @@ ULONG AFPWindowsToMacTime(
 	fTime.LowPart = filetime->dwLowDateTime;
 	fTime.HighPart = filetime->dwHighDateTime;
 
-	seconds.QuadPart = fTime.QuadPart / NUM_100ns_PER_SECOND;
+	seconds.QuadPart = fTime.QuadPart / num_100_ns_per_second;
 	seconds.QuadPart = seconds.QuadPart - SecondsToStartOf1980.QuadPart;
 
-	return seconds.LowPart - SECONDS_FROM_1980_2000;
+	return seconds.LowPart - seconds_from_1980_2000;
 }
 
 //---------------------------------------------------------------------
@@ -692,10 +693,10 @@ ULONG AFPWindowsToMacLocalTime(
 
 	FileTimeToLocalFileTime(filetime, reinterpret_cast<PFILETIME>(&localTime));
 
-	seconds.QuadPart = localTime.QuadPart / NUM_100ns_PER_SECOND;
+	seconds.QuadPart = localTime.QuadPart / num_100_ns_per_second;
 	seconds.QuadPart = seconds.QuadPart - SecondsToStartOf1980.QuadPart;
 
-	return seconds.LowPart - SECONDS_FROM_1980_2000;
+	return seconds.LowPart - seconds_from_1980_2000;
 }
 
 //---------------------------------------------------------------------
@@ -713,10 +714,10 @@ void AFPMacToWindowsTime(
 	SecondsToStartOf1980.LowPart = 0xc8df3700;
 	SecondsToStartOf1980.HighPart = 0x00000002;
 
-	dwMacTime += SECONDS_FROM_1980_2000;
+	dwMacTime += seconds_from_1980_2000;
 
 	localTime.QuadPart = dwMacTime + SecondsToStartOf1980.QuadPart;
-	localTime.QuadPart = localTime.QuadPart * NUM_100ns_PER_SECOND;
+	localTime.QuadPart = localTime.QuadPart * num_100_ns_per_second;
 
 	filetime->dwLowDateTime = localTime.LowPart;
 	filetime->dwHighDateTime = localTime.HighPart;
@@ -766,7 +767,7 @@ BOOL OpenCurrentToken(
 			TOKEN_ADJUST_PRIVILEGES,
 			Token))
 		{
-			DBGWRITE(DbgLevelInfo, L"[SEC]OpenProcessToken() failed! (%d)\n", GetLastError());
+			DBGWRITE(dbg_level_info, L"[SEC]OpenProcessToken() failed! (%d)\n", GetLastError());
 			return FALSE;
 		}
 	}
@@ -793,7 +794,7 @@ BOOL AFPAdjustPrivilege(
 
 	if (!LookupPrivilegeValue(nullptr, szPrivilege, &luid))
 	{
-		DBGWRITE(DbgLevelInfo, L"[SEC]LookupPrivilegeValue() failed for %s! (%d)\n", szPrivilege, GetLastError());
+		DBGWRITE(dbg_level_info, L"[SEC]LookupPrivilegeValue() failed for %s! (%d)\n", szPrivilege, GetLastError());
 		return FALSE;
 	}
 
@@ -805,7 +806,7 @@ BOOL AFPAdjustPrivilege(
 	{
 		if (!OpenCurrentToken(&Token))
 		{
-			DBGWRITE(DbgLevelInfo, L"[SEC]OpenCurrentToken() failed! (%d)\n", GetLastError());
+			DBGWRITE(dbg_level_info, L"[SEC]OpenCurrentToken() failed! (%d)\n", GetLastError());
 			return FALSE;
 		}
 	}
@@ -831,7 +832,7 @@ BOOL AFPAdjustPrivilege(
 	{
 		dwError = GetLastError();
 
-		DBGWRITE(DbgLevelInfo, L"[SEC]AdjustTokenPrivileges() failed! (%d)\n", dwError);
+		DBGWRITE(dbg_level_info, L"[SEC]AdjustTokenPrivileges() failed! (%d)\n", dwError);
 
 		//
 		//If we have an invalid handle, we don't want to make a call on
@@ -846,7 +847,7 @@ BOOL AFPAdjustPrivilege(
 		return FALSE;
 	}
 
-	DBGWRITE(DbgLevelAll, L"[SEC]AdjustTokenPrivileges() succeeded for %s\n", szPrivilege);
+	DBGWRITE(dbg_level_all, L"[SEC]AdjustTokenPrivileges() succeeded for %s\n", szPrivilege);
 
 	//
 	//We only want to close the Token handle if we created it
@@ -907,13 +908,13 @@ BOOL AFPAdjustAccountRight(
 
 		if (status != ERROR_SUCCESS)
 		{
-			DBGWRITE(DbgLevelInfo, L"[SEC:AFPAdjustAccountRight]LsaAddAccountRights() failed %lu\n", LsaNtStatusToWinError(status));
+			DBGWRITE(dbg_level_info, L"[SEC:AFPAdjustAccountRight]LsaAddAccountRights() failed %lu\n", LsaNtStatusToWinError(status));
 			return FALSE;
 		}
 	}
 	else
 	{
-		DBGWRITE(DbgLevelInfo, L"[SEC:AFPAdjustAccountRight]LsaOpenPolicy() failed %lu\n", LsaNtStatusToWinError(status));
+		DBGWRITE(dbg_level_info, L"[SEC:AFPAdjustAccountRight]LsaOpenPolicy() failed %lu\n", LsaNtStatusToWinError(status));
 		return FALSE;
 	}
 
@@ -944,7 +945,7 @@ BOOL AFPImpersonateUser(
 	{
 		success = ImpersonateLoggedOnUser(hUserToken);
 
-		DBGWRITE(DbgLevelAll, L"[SEC:AFPImpersonateUser]Impersonation succeeded:  %s\n", (success) ? L"YES" : L"NO");
+		DBGWRITE(dbg_level_all, L"[SEC:AFPImpersonateUser]Impersonation succeeded:  %s\n", (success) ? L"YES" : L"NO");
 	}
 
 	return success;
@@ -999,7 +1000,7 @@ PWCHAR AFPMacToWindowsString(
 	{
 		auto dwError = GetLastError();
 
-		DBGWRITE(DbgLevelInfo, L"[HELP]MultiByteToWideChar() failed in AFPMacToWindowsString()! (%d)\n", dwError);
+		DBGWRITE(dbg_level_info, L"[HELP]MultiByteToWideChar() failed in AFPMacToWindowsString()! (%d)\n", dwError);
 		return nullptr;
 	}
 
@@ -1060,7 +1061,7 @@ PWCHAR AFPMacToWindowsPath(
 				pCharMap[wCharMapPos].wKeyCode = static_cast<BYTE>(pAFPPath[i]);
 				pCharMap[wCharMapPos].wOffset = i;
 
-				DBGWRITE(DbgLevelAll, L"[HELP]Adding keycode %d offset %d\n",
+				DBGWRITE(dbg_level_all, L"[HELP]Adding keycode %d offset %d\n",
 					pCharMap[wCharMapPos].wKeyCode,
 					pCharMap[wCharMapPos].wOffset);
 
@@ -1138,7 +1139,7 @@ PWCHAR AFPMacToWindowsPath(
 	{
 		auto dwError = GetLastError();
 
-		DBGWRITE(DbgLevelInfo, L"[HELP]MultiByteToWideChar() failed! (%d)\n", dwError);
+		DBGWRITE(dbg_level_info, L"[HELP]MultiByteToWideChar() failed! (%d)\n", dwError);
 		return nullptr;
 	}
 
@@ -1191,7 +1192,7 @@ PCHAR AFPWindowsToMacPath(
 	if (wSize == 0)
 	{
 		auto dwError = GetLastError();
-		DBGWRITE(DbgLevelInfo, L"[HELP]WideCharToMultiByte() failed! (%d)\n", dwError);
+		DBGWRITE(dbg_level_info, L"[HELP]WideCharToMultiByte() failed! (%d)\n", dwError);
 	}
 
 	pAFPPath[wSize] = '\0';
@@ -1209,7 +1210,7 @@ PCHAR AFPWindowsToMacPath(
 
 			pAFPPath[pCharMap[i].wOffset] = static_cast<char>(pCharMap[i].wKeyCode);
 
-			DBGWRITE(DbgLevelAll, L"[HELP]Converting keycode %d offset %d\n",
+			DBGWRITE(dbg_level_all, L"[HELP]Converting keycode %d offset %d\n",
 				pCharMap[i].wKeyCode,
 				pCharMap[i].wOffset);
 

@@ -55,7 +55,7 @@ AFPERROR FPCloseFork(
     uint16			afpRefNum		= 0;
     AFPERROR		afpError		= AFP_OK;
     
-    DBGWRITE(DbgLevelAll, L"[afp:FPCloseFork]Enter...\n");
+    DBGWRITE(dbg_level_all, L"[afp:FPCloseFork]Enter...\n");
             
     //
     //Parameters start after first word (afp cmd and 0 byte)
@@ -103,7 +103,7 @@ AFPERROR FPOpenFork(
 
     WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
     
-    DBGWRITE(DbgLevelAll, L"[afp:FPOpenFork]Enter\n");
+    DBGWRITE(dbg_level_all, L"[afp:FPOpenFork]Enter\n");
     
     //
     //The first byte contains the afp command.
@@ -148,7 +148,7 @@ AFPERROR FPOpenFork(
     //
     if (lstrlen(afpPathname) == 0)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPOpenFork]Null pathname!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPOpenFork]Null pathname!\n");
         return( afpParmErr );
     }
 
@@ -159,7 +159,7 @@ AFPERROR FPOpenFork(
     
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPOpenFork]Index entry not found! (%s)\n", afpPathname);
+        DBGWRITE(dbg_level_info, L"[afp:FPOpenFork]Index entry not found! (%s)\n", afpPathname);
         return( afpObjectNotFound );
     }
 
@@ -168,8 +168,8 @@ AFPERROR FPOpenFork(
     //
     if (!GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPOpenFork]GetFileAttributesEx() failed! (%d)\n", GetLastError());
-        DBGWRITE(DbgLevelInfo, L"[afp:FPOpenFork]path = %s\n", afpEntry->szPath);
+        DBGWRITE(dbg_level_info, L"[afp:FPOpenFork]GetFileAttributesEx() failed! (%d)\n", GetLastError());
+        DBGWRITE(dbg_level_info, L"[afp:FPOpenFork]path = %s\n", afpEntry->szPath);
                 
         return( afpObjectNotFound );
     }
@@ -179,7 +179,7 @@ AFPERROR FPOpenFork(
     //
     if (afpAFPSession->GetNumFilesOpen() > MAX_AFP_FILES_OPEN)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPOpenFork]****Can't open file, too many open already! (%d)\n", afpAFPSession->GetNumFilesOpen());
+        DBGWRITE(dbg_level_info, L"[afp:FPOpenFork]****Can't open file, too many open already! (%d)\n", afpAFPSession->GetNumFilesOpen());
         return( afpTooManyFilesOpen );
     }
 
@@ -292,7 +292,7 @@ AFPERROR FPSetForkParms(
     uint32			afpForkLen		= 0;
     AFPERROR		afpError		= AFP_OK;
     
-    DBGWRITE(DbgLevelAll, L"[afp:FPSetForkParms]Enter\n");
+    DBGWRITE(dbg_level_all, L"[afp:FPSetForkParms]Enter\n");
     
     //
     //The first byte contains the afp command.
@@ -322,7 +322,7 @@ AFPERROR FPSetForkParms(
         {
             if (afpAFPOpenFile->GetFork() != kDataFork)
             {
-                DBGWRITE(DbgLevelAll, L"[afp:FPSetForkParms]Data fork is not open!\n");
+                DBGWRITE(dbg_level_all, L"[afp:FPSetForkParms]Data fork is not open!\n");
                 return( afpBitmapErr );
             }
         }
@@ -331,14 +331,14 @@ AFPERROR FPSetForkParms(
         {
             if (afpAFPOpenFile->GetFork() != kRsrcFork)
             {
-                DBGWRITE(DbgLevelAll, L"[afp:FPSetForkParms]Resource fork is not open! (%x)\n");
+                DBGWRITE(dbg_level_all, L"[afp:FPSetForkParms]Resource fork is not open! (%x)\n");
                 return( afpBitmapErr );
             }
         }
     }
     else
     {
-        DBGWRITE(DbgLevelAll, L"[afp:FPSetForkParms]Fork item not found!\n");
+        DBGWRITE(dbg_level_all, L"[afp:FPSetForkParms]Fork item not found!\n");
     }
     
     return( afpError );
@@ -368,7 +368,7 @@ AFPERROR FPGetForkParms(
 
     WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
 
-    DBGWRITE(DbgLevelAll, L"[afp:FPGetForkParms]Enter\n");
+    DBGWRITE(dbg_level_all, L"[afp:FPGetForkParms]Enter\n");
     
     //
     //The first byte contains the afp command.
@@ -402,7 +402,7 @@ AFPERROR FPGetForkParms(
         if (((afpBitmap & kFPDFLen) && (afpAFPOpenFile->GetFork() == kRsrcFork))	||
             ((afpBitmap & kFPRFLen) && (afpAFPOpenFile->GetFork() == kDataFork))	)
         {
-            DBGWRITE(DbgLevelInfo, L"[afp:FPGetForkParms]Attempt to get length of wrong fork!\n");
+            DBGWRITE(dbg_level_info, L"[afp:FPGetForkParms]Attempt to get length of wrong fork!\n");
             return( afpBitmapErr );
         }
 
@@ -430,7 +430,7 @@ AFPERROR FPGetForkParms(
                         );
     }
     
-    DBGWRITE(DbgLevelAll, L"[afp:FPGetForkParms]Returning %d\n", afpError);
+    DBGWRITE(dbg_level_all, L"[afp:FPGetForkParms]Returning %d\n", afpError);
 
     return( afpError );
 }
@@ -465,7 +465,7 @@ AFPERROR FPCreateFile(
     AFPERROR			afpError		= AFP_OK;
     HANDLE				hFile			= INVALID_HANDLE_VALUE;
 
-    DBGWRITE(DbgLevelAll, L"[afp:FPCreateFile]Enter\n");
+    DBGWRITE(dbg_level_all, L"[afp:FPCreateFile]Enter\n");
     
     //
     //First byte is padding.
@@ -522,14 +522,14 @@ AFPERROR FPCreateFile(
     //
     if (lstrlen(afpPathname) == 0)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPCreateFile]Null pathname!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPCreateFile]Null pathname!\n");
         return( afpParmErr );
     }
 
     afpVolumeInfo = ((AFPSession*)afpSession->afpSessionObject)->SessionFindOpenVolumeBlock(afpVolumeID);
     if (afpVolumeInfo == NULL)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPCreateFile]Bad volume ID!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPCreateFile]Bad volume ID!\n");
         return( afpParmErr );
     }
     
@@ -544,7 +544,7 @@ AFPERROR FPCreateFile(
         //
         //We couldn't find the requested object.
         //
-        DBGWRITE(DbgLevelInfo, L"[afp:FPCreateFile]Path not found in FPCreatFile!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPCreateFile]Path not found in FPCreatFile!\n");
         return( afpError );
     }
 
@@ -587,7 +587,7 @@ AFPERROR FPCreateFile(
     
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        DBGWRITE(DbgLevelInfo, 
+        DBGWRITE(dbg_level_info, 
                     L"[afp:FPCreateFile]CreateFile() for data fork failed! (%d) (%s)\n",
                     GetLastError(),
                     winPath);
@@ -745,9 +745,9 @@ AFPERROR FPByteRangeLock(
                 }
             }
             
-            DBGWRITE(DbgLevelInfo, L"[afp:FPByteRangeLock]Unlocking...\n");
-            DBGWRITE(DbgLevelInfo, L"[afp:FPByteRangeLock]Offset = %d\n", afpOffset);
-            DBGWRITE(DbgLevelInfo, L"[afp:FPByteRangeLock]Length = %d\n", afpLength);
+            DBGWRITE(dbg_level_info, L"[afp:FPByteRangeLock]Unlocking...\n");
+            DBGWRITE(dbg_level_info, L"[afp:FPByteRangeLock]Offset = %d\n", afpOffset);
+            DBGWRITE(dbg_level_info, L"[afp:FPByteRangeLock]Length = %d\n", afpLength);
             
             //
             //BUGBUG: Actual unlocking code goes here.
@@ -771,7 +771,7 @@ AFPERROR FPByteRangeLock(
                     //The offset can only be negative if we are working from the
                     //end of a file.
                     //
-                    DBGWRITE(DbgLevelInfo, L"[afp:FPByteRangeLock]Negative offset from start!\n");
+                    DBGWRITE(dbg_level_info, L"[afp:FPByteRangeLock]Negative offset from start!\n");
                     return( afpParmErr );
                 }
                 
@@ -799,9 +799,9 @@ AFPERROR FPByteRangeLock(
                 }
             }//from beginning
 
-            DBGWRITE(DbgLevelInfo, L"[afp:FPByteRangeLock]Locking...\n");
-            DBGWRITE(DbgLevelInfo, L"[afp:FPByteRangeLock]Offset = %d\n", afpOffset);
-            DBGWRITE(DbgLevelInfo, L"[afp:FPByteRangeLock]Length = %d\n", afpLength);
+            DBGWRITE(dbg_level_info, L"[afp:FPByteRangeLock]Locking...\n");
+            DBGWRITE(dbg_level_info, L"[afp:FPByteRangeLock]Offset = %d\n", afpOffset);
+            DBGWRITE(dbg_level_info, L"[afp:FPByteRangeLock]Length = %d\n", afpLength);
 
             //
             //BUGBUG: Actual locking code goes here.
@@ -854,7 +854,7 @@ AFPERROR FPRead(
     uint32			afpActCount		= 0;
     AFPERROR		afpError		= AFP_OK;
     
-    DBGWRITE(DbgLevelAll, L"[afp:FPRead]Enter\n");
+    DBGWRITE(dbg_level_all, L"[afp:FPRead]Enter\n");
     
     //
     //The first byte contains the afp command.
@@ -915,7 +915,7 @@ AFPERROR FPRead(
     //
     afpReply.SetDSIReturnValue(afpActCount);
     
-    DBGWRITE(DbgLevelAll, L"[afp:FPRead]Returning error %d and count %d\n", afpError, afpActCount);
+    DBGWRITE(dbg_level_all, L"[afp:FPRead]Returning error %d and count %d\n", afpError, afpActCount);
 
     return( afpError );
 }
@@ -946,7 +946,7 @@ AFPERROR FPWrite(
     int8			afpFlag			= 0;
     AFPERROR		afpError		= AFP_OK;
     
-    DBGWRITE(DbgLevelAll, L"[afp:FPWrite]Enter\n");
+    DBGWRITE(dbg_level_all, L"[afp:FPWrite]Enter\n");
     
     //
     //The first byte contains the afp command.

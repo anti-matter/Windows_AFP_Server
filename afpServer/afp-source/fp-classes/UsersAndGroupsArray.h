@@ -34,13 +34,13 @@ public:
 
         std::vector<std::unique_ptr<AFP_USERGROUP_NAME>>::iterator it = std::find_if(mData.begin(), mData.end(), [=](const std::unique_ptr<AFP_USERGROUP_NAME>& ug)
         {
-            DBGWRITE(DbgLevelInfo, L"[UsersAndGroupsArray:FindByName]Found user %s (%d)\n", ug->name, ug->id);
+            DBGWRITE(dbg_level_info, L"[UsersAndGroupsArray:FindByName]Found user %s (%d)\n", ug->name, ug->id);
             return lstrcmp(ug->name, name) == 0 && ug->type == nameType;
         });
 
         if (it != mData.end())
         {
-            DBGWRITE(DbgLevelInfo, L"[UsersAndGroupsArray:FindByName]Found user by name (%s)(%d)\n", it->get()->name, it->get()->id);
+            DBGWRITE(dbg_level_info, L"[UsersAndGroupsArray:FindByName]Found user by name (%s)(%d)\n", it->get()->name, it->get()->id);
             return it->get();
         }
 
@@ -63,13 +63,13 @@ public:
 
         std::vector<std::unique_ptr<AFP_USERGROUP_NAME>>::iterator it = std::find_if(mData.begin(), mData.end(), [=](const std::unique_ptr<AFP_USERGROUP_NAME>& ug)
         {
-            DBGWRITE(DbgLevelInfo, L"[UsersAndGroupsArray:FindById]Found user %s (%d)\n", ug->name, ug->id);
+            DBGWRITE(dbg_level_info, L"[UsersAndGroupsArray:FindById]Found user %s (%d)\n", ug->name, ug->id);
             return ug->id == id;
         });
 
         if (it != mData.end())
         {
-            DBGWRITE(DbgLevelInfo, L"[UsersAndGroupsArray:FindById]Found user name by id (%s)(%d)\n", it->get()->name, it->get()->id);
+            DBGWRITE(dbg_level_info, L"[UsersAndGroupsArray:FindById]Found user name by id (%s)(%d)\n", it->get()->name, it->get()->id);
             return it->get();
         }
 

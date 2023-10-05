@@ -137,7 +137,7 @@ AFPERROR AFPGetFinderInfoEx(
 	if (hFile == INVALID_HANDLE_VALUE)
 	{
 		dwError = GetLastError();
-		DBGWRITE(DbgLevelAll, L"[fpinfo]CreatFile() failed in AFPGetFinderInfo! (%d) (%s)\n", dwError, szPath);
+		DBGWRITE(dbg_level_all, L"[fpinfo]CreatFile() failed in AFPGetFinderInfo! (%d) (%s)\n", dwError, szPath);
 
 		return AFPMapWinErrorToAFP(dwError, static_cast<DWORD>(afpMiscErr));
 	}
@@ -151,7 +151,7 @@ AFPERROR AFPGetFinderInfoEx(
 		//Failure, get the error code and get out of here.
 		//
 		dwError = GetLastError();
-		DBGWRITE(DbgLevelInfo, L"[fpinfo]ReadFile() failed! (%d)\n", dwError);
+		DBGWRITE(dbg_level_info, L"[fpinfo]ReadFile() failed! (%d)\n", dwError);
 
 		dwError = AFPMapWinErrorToAFP(dwError, static_cast<DWORD>(afpMiscErr));
 	}
@@ -253,7 +253,7 @@ AFPERROR AFPSetFinderInfoEx(
 			//
 			if (dwError == ERROR_SHARING_VIOLATION)
 			{
-				DBGWRITE(DbgLevelInfo, L"[fpinfo:AFPSetFinderInfoEx]Sleeping for 100ns for notify wait!\n");
+				DBGWRITE(dbg_level_info, L"[fpinfo:AFPSetFinderInfoEx]Sleeping for 100ns for notify wait!\n");
 
 				Sleep(500);
 
@@ -265,7 +265,7 @@ AFPERROR AFPSetFinderInfoEx(
 			}
 			else
 			{
-				DBGWRITE(DbgLevelInfo,
+				DBGWRITE(dbg_level_info,
 					L"[fpinfo:AFPSetFinderInfoEx]CreatFile() failed! (%d) (%s)\n",
 					dwError,
 					szPath);
@@ -288,13 +288,13 @@ AFPERROR AFPSetFinderInfoEx(
 			//Failure, get the error code and get out of here.
 			//
 			dwError = GetLastError();
-			DBGWRITE(DbgLevelInfo, L"[fpinfo:AFPSetFinderInfoEx]WriteFile() failed! (%d)\n", dwError);
+			DBGWRITE(dbg_level_info, L"[fpinfo:AFPSetFinderInfoEx]WriteFile() failed! (%d)\n", dwError);
 
 			dwError = AFPMapWinErrorToAFP(dwError, static_cast<DWORD>(afpMiscErr));
 		}
 
 		ASSERT(dwBytesWritten == sizeof(EXTENDED_FINDER_INFO));
-		DBGWRITE(DbgLevelAll, L"[fpinfo:AFPSetFinderInfoEx]FinderInfo updated successfully for %s.\n", szPath);
+		DBGWRITE(dbg_level_all, L"[fpinfo:AFPSetFinderInfoEx]FinderInfo updated successfully for %s.\n", szPath);
 
 		CloseHandle(hFile);
 	}

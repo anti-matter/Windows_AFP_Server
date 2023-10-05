@@ -86,7 +86,7 @@ AFPRegistry::OpenBaseKey()
 				
 	if (dwError != ERROR_SUCCESS)
 	{
-		DBGWRITE(DbgLevelInfo, L"[AFPRegistry]RegCreateKeyEx() failed opening base key, error code = %d\n", dwError);
+		DBGWRITE(dbg_level_info, L"[AFPRegistry]RegCreateKeyEx() failed opening base key, error code = %d\n", dwError);
 		return(dwError);
 	}
 
@@ -108,7 +108,7 @@ AFPRegistry::OpenVolumeListRegKey()
 
 	if (mVolumeEnumKey != NULL)
 	{
-		DBGWRITE(DbgLevelInfo, L"[AFPRegistry]Volume enum key already open\n");
+		DBGWRITE(dbg_level_info, L"[AFPRegistry]Volume enum key already open\n");
 		return(true);
 	}
 
@@ -125,7 +125,7 @@ AFPRegistry::OpenVolumeListRegKey()
 				
 	if (dwError != ERROR_SUCCESS)
 	{
-		DBGWRITE(DbgLevelInfo, L"[AFPRegistry]RegCreateKeyEx() failed, error code = %d\n", dwError);
+		DBGWRITE(dbg_level_info, L"[AFPRegistry]RegCreateKeyEx() failed, error code = %d\n", dwError);
 		return(false);
 	}
 	else
@@ -157,7 +157,7 @@ AFPRegistry::OpenVolumeRegKey(
 
 	if (mVolumeKey != NULL)
 	{
-		DBGWRITE(DbgLevelInfo, L"[AFPRegistry]Volume key already open\n");
+		DBGWRITE(dbg_level_info, L"[AFPRegistry]Volume key already open\n");
 		return(false);
 	}
 
@@ -176,7 +176,7 @@ AFPRegistry::OpenVolumeRegKey(
 				
 	if (dwError != ERROR_SUCCESS)
 	{
-		DBGWRITE(DbgLevelInfo, L"[AFPRegistry::OpenVolumeRegKey]RegCreateKeyEx() failed, error code = %d\n", dwError);
+		DBGWRITE(dbg_level_info, L"[AFPRegistry::OpenVolumeRegKey]RegCreateKeyEx() failed, error code = %d\n", dwError);
 		return(false);
 	}
 
@@ -218,7 +218,7 @@ AFPRegistry::NextVolume(
 	{
 		if (dwError != ERROR_NO_MORE_ITEMS)
 		{
-			DBGWRITE(DbgLevelInfo, L"[AFPRegistry]RegEnuKeyEx() failed with error = %d\n", dwError);
+			DBGWRITE(dbg_level_info, L"[AFPRegistry]RegEnuKeyEx() failed with error = %d\n", dwError);
 		}
 
 		//
@@ -246,7 +246,7 @@ AFPRegistry::NextVolume(
 
 		if (dwError == ERROR_SUCCESS)
 		{
-			DBGWRITE(DbgLevelInfo, L"[AFPRegistry]Found volume path in registry = %s\n", szPath);
+			DBGWRITE(dbg_level_info, L"[AFPRegistry]Found volume path in registry = %s\n", szPath);
 			
 			//
 			//Copy the sharename and path into our return variables.
@@ -296,7 +296,7 @@ AFPRegistry::NextVolume(
 
 		if (dwError != ERROR_SUCCESS)
 		{
-			DBGWRITE(DbgLevelInfo, L"[AFPRegistry]Failed to get volume flags key\n");
+			DBGWRITE(dbg_level_info, L"[AFPRegistry]Failed to get volume flags key\n");
 		}
 
 		RegCloseKey(hVolKey);
@@ -502,7 +502,7 @@ AFPRegistry::GetLogonMessage(
 
 	if (dwError != NO_ERROR)
 	{
-		DBGWRITE(DbgLevelInfo, L"[AFPRegistry]GetLogonMsg failed = %d\n", dwError);
+		DBGWRITE(dbg_level_info, L"[AFPRegistry]GetLogonMsg failed = %d\n", dwError);
 		dwError = AFPERR_REGISTRY_NOLOGONMSG;
 	}
 
@@ -539,7 +539,7 @@ AFPRegistry::GetForceEncryptedLogon(
 
 	if (dwError != NO_ERROR)
 	{
-		DBGWRITE(DbgLevelInfo, L"[AFPRegistry]Get encryption setting failed = %d\n", dwError);
+		DBGWRITE(dbg_level_info, L"[AFPRegistry]Get encryption setting failed = %d\n", dwError);
 	}
 
 	return(dwError);
@@ -605,7 +605,7 @@ AFPRegistry::GetAllowGuestsSetting(
 
 	if (dwError != NO_ERROR)
 	{
-		DBGWRITE(DbgLevelInfo, L"[AFPRegistry]Get allow guests failed = %d\n", dwError);
+		DBGWRITE(dbg_level_info, L"[AFPRegistry]Get allow guests failed = %d\n", dwError);
 		dwError = AFPERR_REGISTRY_NOGUESTSETTING;
 	}
 
@@ -671,7 +671,7 @@ AFPRegistry::GetMaxSessions(
 
 	if (dwError != NO_ERROR)
 	{
-		DBGWRITE(DbgLevelInfo, L"[AFPRegistry]Get max sessions failed = %d\n", dwError);
+		DBGWRITE(dbg_level_info, L"[AFPRegistry]Get max sessions failed = %d\n", dwError);
 		dwError = AFPERR_REGISTRY_NOGUESTSETTING;
 	}
 
@@ -738,7 +738,7 @@ AFPRegistry::GetVolumeFlags(
 
 	if (dwError != NO_ERROR)
 	{
-		DBGWRITE(DbgLevelInfo, L"[AFPRegistry]Get volume flags failed = %d\n", dwError);
+		DBGWRITE(dbg_level_info, L"[AFPRegistry]Get volume flags failed = %d\n", dwError);
 		dwError = AFPERR_REGISTRY_GETFAILED;
 	}
 	
@@ -776,7 +776,7 @@ AFPRegistry::SetVolumeFlags(
 		//For some reason (a rarity??), we could not add the value to
 		//the reg key.
 		//
-		DBGWRITE(DbgLevelInfo, L"[AFPRegistry::SetVolumeFlags]RegSetValueEx() failed!\n");
+		DBGWRITE(dbg_level_info, L"[AFPRegistry::SetVolumeFlags]RegSetValueEx() failed!\n");
 		return(AFPERR_REGISTRY_SETFAILED);
 	}
 
@@ -810,11 +810,11 @@ AFPRegistry::GetVolumePassword(
 
 	if (dwError != NO_ERROR)
 	{
-		DBGWRITE(DbgLevelInfo, L"[AFPRegistry::GetVolumePassword]Failed to get vol password (%d)\n", dwError);
+		DBGWRITE(dbg_level_info, L"[AFPRegistry::GetVolumePassword]Failed to get vol password (%d)\n", dwError);
 		dwError = AFPERR_REGISTRY_GETFAILED;
 	}
 
-	DBGWRITE(DbgLevelInfo, L"[AFPRegistry::GetVolumePassword]Got password: %s\n", szPassword);
+	DBGWRITE(dbg_level_info, L"[AFPRegistry::GetVolumePassword]Got password: %s\n", szPassword);
 
 	return(dwError);
 }
@@ -907,7 +907,7 @@ AFPRegistry::SetVolumePassword(
 		//For some reason (a rarity??), we could not add the value to
 		//the reg key.
 		//
-		DBGWRITE(DbgLevelInfo, L"[AFPRegistry::SetVolumePassword]RegSetValueEx() failed!\n");
+		DBGWRITE(dbg_level_info, L"[AFPRegistry::SetVolumePassword]RegSetValueEx() failed!\n");
 		return(AFPERR_REGISTRY_SETFAILED);
 	}
 

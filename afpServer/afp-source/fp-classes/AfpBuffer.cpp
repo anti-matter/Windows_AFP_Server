@@ -92,7 +92,7 @@ AFPERROR AfpBuffer::GetString(
 		break;
 
 	default:
-		DBGWRITE(DbgLevelInfo, L"[afp:GetString]Bad string type! (%d)\n", pathType);
+		DBGWRITE(dbg_level_info, L"[afp:GetString]Bad string type! (%d)\n", pathType);
 		afpError = afpParmErr;
 		break;
 	}
@@ -113,7 +113,7 @@ AFPERROR AfpBuffer::GetString(
 			{
 				if (AFPMacToWindowsPath(ansi_string, string, charMap) == nullptr)
 				{
-					DBGWRITE(DbgLevelInfo, L"[afp:GetString]Failed converting path to unicode!\n");
+					DBGWRITE(dbg_level_info, L"[afp:GetString]Failed converting path to unicode!\n");
 					afpError = afpParmErr;
 				}
 			}
@@ -121,14 +121,14 @@ AFPERROR AfpBuffer::GetString(
 			{
 				if (AFPMacToWindowsString(ansi_string, cbstring, string) == nullptr)
 				{
-					DBGWRITE(DbgLevelInfo, L"[afp:GetString]Failed converting string to unicode!\n");
+					DBGWRITE(dbg_level_info, L"[afp:GetString]Failed converting string to unicode!\n");
 					afpError = afpParmErr;
 				}
 			}
 		}
 		else
 		{
-			DBGWRITE(DbgLevelInfo, L"[afp:GetString]Buffer too small for new string!\n");
+			DBGWRITE(dbg_level_info, L"[afp:GetString]Buffer too small for new string!\n");
 			ASSERT(0);
 
 			afpError = afpParmErr;
@@ -161,7 +161,7 @@ AFPERROR AfpBuffer::GetUniString(WCHAR* string, UINT16 cbstring, UINT16* sLen)
 	//
 	if ((stringLen + sizeof(char)) > cbstring)
 	{
-		DBGWRITE(DbgLevelInfo, L"[AfpBuffer:GetUniString]String buffer too small! (%d vs %d)\n", cbstring, stringLen);
+		DBGWRITE(dbg_level_info, L"[AfpBuffer:GetUniString]String buffer too small! (%d vs %d)\n", cbstring, stringLen);
 		return afpParmErr;
 	}
 
@@ -226,7 +226,7 @@ AFPERROR AfpBuffer::GetUnicodeString(char* string, UINT16 cbstring, INT16* sLen,
 	if ((stringLen < 0) || (stringLen >= MAX_AFP_PATH))
 	{
 		DBGWRITE(
-			DbgLevelInfo,
+			dbg_level_info,
 			L"[AfpBuffer:GetUnicodeString]Bogus string length passed (%d)\n", stringLen
 		);
 
@@ -240,7 +240,7 @@ AFPERROR AfpBuffer::GetUnicodeString(char* string, UINT16 cbstring, INT16* sLen,
 	if ((stringLen + sizeof(char)) > cbstring)
 	{
 		DBGWRITE(
-			DbgLevelInfo,
+			dbg_level_info,
 			L"[AfpBuffer:GetUnicodeString]String buffer too small! (%d vs %d)\n", cbstring, stringLen
 		);
 
@@ -280,7 +280,7 @@ AFPERROR AfpBuffer::GetPascalString(char* string, UINT16 cbstring, INT16* sLen)
 	//
 	if (stringLen + sizeof(char) > cbstring)
 	{
-		DBGWRITE(DbgLevelInfo, L"[AfpBuffer:GetPascalString]String buffer too small! (%d)\n", stringLen);
+		DBGWRITE(dbg_level_info, L"[AfpBuffer:GetPascalString]String buffer too small! (%d)\n", stringLen);
 		return afpParmErr;
 	}
 
@@ -435,7 +435,7 @@ AFPERROR AfpBuffer::AddUniStringAsPascal(unichar* string, AFPCHARMAPARRAY charMa
 		return AddCStringAsPascal(ansi_string);
 	}
 
-	DBGWRITE(DbgLevelInfo, L"[AfpBuffer:AddUniStringAsPascal]Failed to convert characters!\n");
+	DBGWRITE(dbg_level_info, L"[AfpBuffer:AddUniStringAsPascal]Failed to convert characters!\n");
 
 	return afpParmErr;
 }

@@ -91,7 +91,7 @@ AFPERROR FPGetSrvrParms(
             continue;
         }
 
-        DBGWRITE(DbgLevelAll, L"[AFP]Stuffing volume: %s\n", afpVolumeInfo->szShareName);
+        DBGWRITE(dbg_level_all, L"[AFP]Stuffing volume: %s\n", afpVolumeInfo->szShareName);
             
         afpReply.AddInt8(afpVolumeInfo->bAFPFlags);
         afpReply.AddUniStringAsPascal(afpVolumeInfo->szShareName);
@@ -242,7 +242,7 @@ AFPERROR FPZzzz(
 
     uint32			afpFlag		= 0;
 
-    DBGWRITE(DbgLevelInfo, L"[AFP:FpZzzz]Enter...\n");
+    DBGWRITE(dbg_level_info, L"[AFP:FpZzzz]Enter...\n");
     
     afpRequest.Advance(sizeof(int16));
 

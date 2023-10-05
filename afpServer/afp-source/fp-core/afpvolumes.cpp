@@ -96,7 +96,7 @@ AFPERROR FPOpenVol(
         return( afpParmErr );
     }
 
-    DBGWRITE(DbgLevelAll, L"[afp:FPOpenVol]Opening volume: %s\n", afpVolumeName);
+    DBGWRITE(dbg_level_all, L"[afp:FPOpenVol]Opening volume: %s\n", afpVolumeName);
     
     //
     //A padding byte is added if the volume name doesn't end on an
@@ -114,7 +114,7 @@ AFPERROR FPOpenVol(
     //
     if (!AFPMapVolumeNameToID(afpVolumeName, &afpVolumeID))
     {
-        DBGWRITE(DbgLevelWarning, L"[afp:FPOpenVol]Requested volume doesn't exist! (%s)\n", afpVolumeName);
+        DBGWRITE(dbg_level_warning, L"[afp:FPOpenVol]Requested volume doesn't exist! (%s)\n", afpVolumeName);
         return( afpParmErr );
     }
 
@@ -148,7 +148,7 @@ AFPERROR FPOpenVol(
     }
     else
     {
-        DBGWRITE(DbgLevelWarning, L"[afp:FPOpenVol]AFPGetVolumeParameters() failed (%d)\n", afpError);
+        DBGWRITE(dbg_level_warning, L"[afp:FPOpenVol]AFPGetVolumeParameters() failed (%d)\n", afpError);
         afpReply.Rewind();
     }
     
@@ -215,7 +215,7 @@ AFPERROR FPGetVolParms(
     uint16		afpVolumeID	= 0;
     AFPERROR	afpError	= AFP_OK;
     
-    DBGWRITE(DbgLevelAll, L"[afp:FPGetVolParms]FPGetVolParms...\n");
+    DBGWRITE(dbg_level_all, L"[afp:FPGetVolParms]FPGetVolParms...\n");
     
     //
     //First WORD is afp command and padding byte.
@@ -235,7 +235,7 @@ AFPERROR FPGetVolParms(
         //
         //The volume has not been opened, we need to return error.
         //
-        DBGWRITE(DbgLevelInfo, L"[afp:FPGetVolParms]Bad volume ID passed by client!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPGetVolParms]Bad volume ID passed by client!\n");
         return( afpParmErr );
     }
 
@@ -251,7 +251,7 @@ AFPERROR FPGetVolParms(
     
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPGetVolParms]AFPGetVolumeParameters() failed (%d)\n", afpError);
+        DBGWRITE(dbg_level_info, L"[afp:FPGetVolParms]AFPGetVolumeParameters() failed (%d)\n", afpError);
         afpReply.Rewind();
     }
     

@@ -92,7 +92,7 @@ AFPERROR AFPMapAFPToWindowsPath(
         
     if (AFPGetVolumeInfoBlock(NULL, wVolID, &pVolInfo) == FALSE)
     {
-        DBGWRITE(DbgLevelInfo, L"[FDP]Failed to get vol info block!\n");
+        DBGWRITE(dbg_level_info, L"[FDP]Failed to get vol info block!\n");
         return(afpParmErr);
     }
     
@@ -158,7 +158,7 @@ void AFPCheckForAndCreateFinderRsrcStream(
 
             if (hFile != INVALID_HANDLE_VALUE)
             {
-                DBGWRITE(DbgLevelAll, 
+                DBGWRITE(dbg_level_all, 
                         L"[FDP]Successfully created new resource stream (%s)\n",
                         szTempPath
                         );
@@ -167,7 +167,7 @@ void AFPCheckForAndCreateFinderRsrcStream(
             }
             else
             {
-                DBGWRITE(DbgLevelInfo, 
+                DBGWRITE(dbg_level_info, 
                         L"[FDP]Failed to create resource stream for %s! (%d)\n",
                         szTempPath,
                         GetLastError()
@@ -320,10 +320,10 @@ AFPERROR AFPGetObjectParms(
             if ((dataSize64.LowPart == INVALID_FILE_SIZE) && (GetLastError() != NO_ERROR))
             {
                 dataSize64.LowPart = 0;
-                DBGWRITE(DbgLevelInfo, L"[FDP]GetCompressedFileSize() failed! (%d)\n", GetLastError());
+                DBGWRITE(dbg_level_info, L"[FDP]GetCompressedFileSize() failed! (%d)\n", GetLastError());
             }
             else {
-                DBGWRITE(DbgLevelAll, L"[FDP]Data fork size =  (%d)\n", dataSize64.LowPart);
+                DBGWRITE(dbg_level_all, L"[FDP]Data fork size =  (%d)\n", dataSize64.LowPart);
             }
 
             if (afpBitmap & kFPDFLen) {
@@ -343,11 +343,11 @@ AFPERROR AFPGetObjectParms(
                 //
                 //There was an error getting the file size
                 //
-                DBGWRITE(DbgLevelAll, L"[FDP]GetStreamLength() failed! (%d) (%s)\n", GetLastError(), afpEntry->szObjectName);
+                DBGWRITE(dbg_level_all, L"[FDP]GetStreamLength() failed! (%d) (%s)\n", GetLastError(), afpEntry->szObjectName);
                 rsrcSize64.QuadPart = 0;
             }
             else {
-                DBGWRITE(DbgLevelAll, L"[FDP]Resource fork size =  (%d)\n", rsrcSize64.LowPart);
+                DBGWRITE(dbg_level_all, L"[FDP]Resource fork size =  (%d)\n", rsrcSize64.LowPart);
             }
         }
 
@@ -418,7 +418,7 @@ WORD AFPGetDirOffspringCount(
 
     if (AFPGetVolumeInfoBlock(NULL, wVolID, &pVolInfo) == FALSE)
     {
-        DBGWRITE(DbgLevelInfo, L"[FDP]Failed to get vol info block in AFPGetDirOffspringCount()!\n");
+        DBGWRITE(dbg_level_info, L"[FDP]Failed to get vol info block in AFPGetDirOffspringCount()!\n");
         return(static_cast<WORD>(afpParmErr));
     }
     
@@ -482,7 +482,7 @@ AFPERROR AFPSetFileDirParms(
         if (!SetFileAttributes(pEntry->szPath, dwAttributes))
         {
             dwError = GetLastError();
-            DBGWRITE(DbgLevelInfo, L"[FDP]SetFileAttributes() failed! (%d)\n", dwError);
+            DBGWRITE(dbg_level_info, L"[FDP]SetFileAttributes() failed! (%d)\n", dwError);
             
             return(AFPMapWinErrorToAFP(dwError, static_cast<DWORD>(afpMiscErr)));
         }
@@ -605,7 +605,7 @@ AFPERROR AFPSetFileTime(
     {
         dwError = GetLastError();
         
-        DBGWRITE(DbgLevelInfo, 
+        DBGWRITE(dbg_level_info, 
                 L"[FDP]CreatFile() failed in AFPSetFileTime! (%d)\n", dwError);
         
         switch(dwError)
@@ -643,7 +643,7 @@ AFPERROR AFPSetFileTime(
     //
     if (!SetFileTime(hFile, pCreation, NULL, pMod))
     {
-        DBGWRITE(DbgLevelInfo,
+        DBGWRITE(dbg_level_info,
                 L"[FDP]SetFileTime() failed! (%d)\n", GetLastError());
         
         dwError = static_cast<DWORD>(afpMiscErr);
@@ -708,32 +708,32 @@ void AFPExtractDirParms(
     if (wBitMap & kFPDirAttribute)
     {
         EXTRACT_WORD(pTemp, wTemp);
-        DBGWRITE(DbgLevelInfo, L"[FDP]attributes = %d\n", wTemp);
+        DBGWRITE(dbg_level_info, L"[FDP]attributes = %d\n", wTemp);
     }
     if (wBitMap & kFPDirParentID)
     {
         EXTRACT_LONG(pTemp, dwTemp);
-        DBGWRITE(DbgLevelInfo, L"[FDP]parent id = %d\n", dwTemp);
+        DBGWRITE(dbg_level_info, L"[FDP]parent id = %d\n", dwTemp);
     }
     if (wBitMap & kFPDirCreateDate)
     {
         EXTRACT_LONG(pTemp, dwTemp);
-        DBGWRITE(DbgLevelInfo, L"[FDP]dir create date = %d\n", dwTemp);
+        DBGWRITE(dbg_level_info, L"[FDP]dir create date = %d\n", dwTemp);
     }
     if (wBitMap & kFPDirModDate)
     {
         EXTRACT_LONG(pTemp, dwTemp);
-        DBGWRITE(DbgLevelInfo, L"[FDP]dir mod date = %d\n", dwTemp);
+        DBGWRITE(dbg_level_info, L"[FDP]dir mod date = %d\n", dwTemp);
     }
     if (wBitMap & kFPDirBackupDate)
     {
         EXTRACT_LONG(pTemp, dwTemp);
-        DBGWRITE(DbgLevelInfo, L"[FDP]dir backup date = %d\n", dwTemp);
+        DBGWRITE(dbg_level_info, L"[FDP]dir backup date = %d\n", dwTemp);
     }
     if (wBitMap & kFPDirFinderInfo)
     {
-        DBGWRITE(DbgLevelInfo, L"[FDP]FinderInfo:\n");
-        HexDumpBuffer((PCHAR)pTemp, FINDERINFO_LEN);
+        DBGWRITE(dbg_level_info, L"[FDP]FinderInfo:\n");
+        hex_dump_buffer((PCHAR)pTemp, FINDERINFO_LEN);
         pTemp += FINDERINFO_LEN;
     }
     if (wBitMap & kFPDirLongName)
@@ -746,7 +746,7 @@ void AFPExtractDirParms(
         strncpy_s(name, sizeof(name), (PCHAR)pTemp2, wLen);
         pTemp += sizeof(WORD);
         
-        DBGWRITE(DbgLevelInfo, L"[FDP]dir long name = %s\n", name);
+        DBGWRITE(dbg_level_info, L"[FDP]dir long name = %s\n", name);
     }
     if (wBitMap & kFPDirShortName)
     {
@@ -758,32 +758,32 @@ void AFPExtractDirParms(
         strncpy_s(name, sizeof(name), (PCHAR)pTemp2, wLen);
         pTemp += sizeof(WORD);
         
-        DBGWRITE(DbgLevelInfo, L"[FDP]dir short name = %s\n", name);
+        DBGWRITE(dbg_level_info, L"[FDP]dir short name = %s\n", name);
     }
     if (wBitMap & kFPDirID)
     {
         EXTRACT_LONG(pTemp, dwTemp);
-        DBGWRITE(DbgLevelInfo, L"[FDP]dir id = %d\n", dwTemp);
+        DBGWRITE(dbg_level_info, L"[FDP]dir id = %d\n", dwTemp);
     }
     if (wBitMap & kFPDirOffCount)
     {
         EXTRACT_WORD(pTemp, wTemp);
-        DBGWRITE(DbgLevelInfo, L"[FDP]dir offspring = %d\n", wTemp);
+        DBGWRITE(dbg_level_info, L"[FDP]dir offspring = %d\n", wTemp);
     }
     if (wBitMap & kFPDirOwnerID)
     {
         EXTRACT_LONG(pTemp, dwTemp);
-        DBGWRITE(DbgLevelInfo, L"[FDP]dir owner ID = %d\n", dwTemp);
+        DBGWRITE(dbg_level_info, L"[FDP]dir owner ID = %d\n", dwTemp);
     }
     if (wBitMap & kFPDirGroupID)
     {
         EXTRACT_LONG(pTemp, dwTemp);
-        DBGWRITE(DbgLevelInfo, L"[FDP]dir group ID = %d\n", dwTemp);
+        DBGWRITE(dbg_level_info, L"[FDP]dir group ID = %d\n", dwTemp);
     }
     if (wBitMap & kFPDirAccess)
     {
         EXTRACT_LONG(pTemp, dwTemp);
-        DBGWRITE(DbgLevelInfo, L"[FDP]dir access = %x\n", dwTemp);
+        DBGWRITE(dbg_level_info, L"[FDP]dir access = %x\n", dwTemp);
     }
 }
 #endif

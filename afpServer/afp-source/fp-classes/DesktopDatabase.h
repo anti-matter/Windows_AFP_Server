@@ -1,7 +1,7 @@
 /*
 *	DesktopDatabase.h
 *
-*	Copyright © Michael J. Conrad. All Rights Reserved.
+*	Copyright (c) Michael J. Conrad. All Rights Reserved.
 */
 
 #pragma once
@@ -12,99 +12,93 @@
 #include "AFPArray.h"
 #include "desktop.h"
 
-struct DTDeleter {
-    void operator()(DESKTOP_ENTRY* b) const { UNREFERENCED_PARAMETER(b); }
+struct dt_deleter {
+    void operator()(const DESKTOP_ENTRY* b) const { UNREFERENCED_PARAMETER(b); }
 };
 
-class DesktopDatabase : public AFPArray<DESKTOP_ENTRY, DTDeleter>
+class DesktopDatabase : public AFPArray<DESKTOP_ENTRY, dt_deleter>
 {
 public:
-    DesktopDatabase() : AFPArray() 
-    {
-    }
+    DesktopDatabase() = default;
 
-    ~DesktopDatabase()
+    AFPERROR add_entry(const LPDESKTOP_ENTRY entry)
     {
-    }
-
-    AFPERROR AddEntry(LPDESKTOP_ENTRY entry)
-    {
-        std::unique_ptr<DESKTOP_ENTRY, DTDeleter> newEntry(entry);
-        AddItem(newEntry);
+        std::unique_ptr<DESKTOP_ENTRY, dt_deleter> new_entry(entry);
+        AddItem(new_entry);
 
         return AFP_OK;
     }
 
-    AFPERROR RemoveEntry(LPDESKTOP_ENTRY entry)
+    AFPERROR remove_entry(const LPDESKTOP_ENTRY entry)
     {
         AutoLock lock(&mMutex);
 
-        std::vector<std::unique_ptr<DESKTOP_ENTRY, DTDeleter>>::iterator it =
-            std::find_if(mData.begin(), mData.end(), [=](const std::unique_ptr<DESKTOP_ENTRY, DTDeleter>& item)
+        const auto it =
+            std::find_if(mData.begin(), mData.end(), [=](const std::unique_ptr<DESKTOP_ENTRY, dt_deleter>& item)
         {
-            return memcmp(item.get(), entry, sizeof(DESKTOP_ENTRY)) == 0;
+            return memcmp(item.get(), entry, sizeof(DESKTOP_ENTRY)) == 0;  // NOLINT(bugprone-suspicious-memory-comparison)
         });
 
         if (it != mData.end())
         {
-            DBGWRITE(DbgLevelInfo, L"[AFPArray<T>::RemoveItem]Removing item from array.\n");
+            DBGWRITE(dbg_level_info, L"[AFPArray<T>::RemoveItem]Removing item from array.\n");
             mData.erase(it);
         }
         return AFP_OK;
     }
 
-    LPDESKTOP_ENTRY FindEntry(LPDESKTOP_ENTRY searchParam, UINT16 searchIndex = 0)
+    LPDESKTOP_ENTRY find_entry(const LPDESKTOP_ENTRY search_param, const UINT16 search_index = 0)
     {
         AutoLock lock(&mMutex);
 
-        UINT16 foundIndex = 0;
+        UINT16 found_index = 0;
 
-        std::vector<std::unique_ptr<DESKTOP_ENTRY, DTDeleter>>::iterator it = 
-            std::find_if(mData.begin(), mData.end(), [&](const std::unique_ptr<DESKTOP_ENTRY, DTDeleter>& d)
+        const auto it = 
+            std::find_if(mData.begin(), mData.end(), [&](const std::unique_ptr<DESKTOP_ENTRY, dt_deleter>& d)
         {
-            if (searchParam->entryType == d.get()->entryType)
+            if (search_param->entryType == d->entryType)
             {
-                switch (searchParam->entryType)
+                switch (search_param->entryType)
                 {
                 case ENTRY_TYPE_APPL:
-                    if (searchParam->fileCreator == d.get()->fileCreator)
+                    if (search_param->fileCreator == d->fileCreator)
                     {
-                        foundIndex++;
+                        found_index++;
 
-                        if (foundIndex >= searchIndex)
+                        if (found_index >= search_index)
                         {
-                            DBGWRITE(DbgLevelInfo, L"[desk]Found APPL entry!\n");
+                            DBGWRITE(dbg_level_info, L"[desk]Found APPL entry!\n");
                             return true;
                         }
                     }
                     break;
 
                 case ENTRY_TYPE_CMNT:
-                    if ((searchParam->dirID == d.get()->dirID) && (!lstrcmp(searchParam->pathname, d.get()->pathname)))
+                    if ((search_param->dirID == d->dirID) && (!lstrcmp(search_param->pathname, d->pathname)))
                     {
-                        foundIndex++;
+                        found_index++;
 
-                        if (foundIndex >= searchIndex)
+                        if (found_index >= search_index)
                         {
-                            DBGWRITE(DbgLevelInfo, L"[desk]Found CMNT entry!\n");
+                            DBGWRITE(dbg_level_info, L"[desk]Found CMNT entry!\n");
                             return true;
                         }
                     }
                     break;
 
                 case ENTRY_TYPE_ICON:
-                    if (searchParam->fileCreator == d.get()->fileCreator)
+                    if (search_param->fileCreator == d->fileCreator)
                     {
                         //
                         //This means we're in a search for FPGetIconInfo
                         //
-                        if (searchIndex != 0)
+                        if (search_index != 0)
                         {
-                            foundIndex++;
+                            found_index++;
 
-                            if (foundIndex >= searchIndex)
+                            if (found_index >= search_index)
                             {
-                                DBGWRITE(DbgLevelInfo, L"[desk]Found ICON entry!\n");
+                                DBGWRITE(dbg_level_info, L"[desk]Found ICON entry!\n");
                                 return true;
                             }
                         }
@@ -113,9 +107,9 @@ public:
                         //
                         else
                         {
-                            if ((searchParam->fileType == d.get()->fileType) && (searchParam->iconType == d.get()->iconType))
+                            if ((search_param->fileType == d->fileType) && (search_param->iconType == d->iconType))
                             {
-                                DBGWRITE(DbgLevelInfo, L"[desk]Found ICON entry!\n");
+                                DBGWRITE(dbg_level_info, L"[desk]Found ICON entry!\n");
                                 return true;
                             }
                         }
@@ -139,72 +133,78 @@ public:
     }
 
     /*
-    * ToFile()
+    * to_file()
     *
     * Description:
     *		Saves the desktop contents to a file.
     *
-    * Returns: None
+    * Returns: true if successful.
     */
-    bool ToFile(std::wstring path)
+    bool to_file(const std::wstring& path)
     {
         FILE *file;
         AutoLock lock(&mMutex);
 
-        auto success = _wfopen_s(&file, path.c_str(), L"wb");
+        const auto success = _wfopen_s(&file, path.c_str(), L"wb");
         if (success != 0)
-            return false;
-
-        auto size = mData.size();
-        fwrite(&size, sizeof(size), 1, file);
-
-        for (auto it = mData.begin(); it < mData.end(); ++it)
         {
-            fwrite(it->get(), sizeof(DESKTOP_ENTRY), 1, file);
+	        return false;
         }
 
-        fclose(file);
-        return true;
+        const auto size = mData.size();
+        const auto written = fwrite(&size, sizeof(size), 1, file);
+        if (written == sizeof(size))
+        {
+            for (auto it = mData.begin(); it < mData.end(); ++it)
+            {
+	            const auto wrote = fwrite(it->get(), sizeof(DESKTOP_ENTRY), 1, file);
+                if (wrote != sizeof(DESKTOP_ENTRY))
+                {
+                    DBGWRITE(dbg_level_warning, L"Failed to write entire desktop entry!");
+                    break;
+                }
+            }
+        }
+
+        return fclose(file) == 0;
     }
 
     /*
-    * FromFile()
+    * from_file()
     *
     * Description:
     *		Reads in the array data from a file.
     *
     * Returns: true if database was read successfully.
     */
-    bool FromFile(std::wstring path)
+    bool from_file(const std::wstring& path)
     {
         FILE *file;
         AutoLock lock(&mMutex);
 
-        auto success = _wfopen_s(&file, path.c_str(), L"w+b");
+        const auto success = _wfopen_s(&file, path.c_str(), L"w+b");
         if (success != 0)
             return false;
 
-        std::vector<std::unique_ptr<DESKTOP_ENTRY, DTDeleter>>::size_type size;
+        std::vector<std::unique_ptr<DESKTOP_ENTRY, dt_deleter>>::size_type size;
         if (fread(&size, sizeof(size), 1, file) == 0)
         {
             return true;
         }
 
-        for (std::vector<std::unique_ptr<DESKTOP_ENTRY, DTDeleter>>::size_type i = 0; i < size; ++i)
+        for (std::vector<std::unique_ptr<DESKTOP_ENTRY, dt_deleter>>::size_type i = 0; i < size; ++i)
         {
             DESKTOP_ENTRY entry;
 
             if (fread(&entry, sizeof(entry), 1, file) != 0)
             {
-                auto ep = std::unique_ptr<DESKTOP_ENTRY, DTDeleter>(new DESKTOP_ENTRY);
+                auto ep = std::unique_ptr<DESKTOP_ENTRY, dt_deleter>(new DESKTOP_ENTRY);
                 memcpy(ep.get(), &entry, sizeof(DESKTOP_ENTRY));
 
                 AddItem(ep);
             }
         }
 
-        fclose(file);
-        return true;
+        return fclose(file) == 0;
     }
 };
-

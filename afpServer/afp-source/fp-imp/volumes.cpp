@@ -170,7 +170,7 @@ AFP_VOLUME_INFO* AFPAddVolume(
     //
     if (!GetFileAttributesEx(pszPath, GetFileExInfoStandard, &winAttribData))
     {
-        DBGWRITE(DbgLevelWarning, L"[VOL]ERROR: Share path not found! (%d)\n", GetLastError());
+        DBGWRITE(dbg_level_warning, L"[VOL]ERROR: Share path not found! (%d)\n", GetLastError());
         return nullptr;
     }
 
@@ -235,7 +235,7 @@ AFP_VOLUME_INFO* AFPAddVolume(
         //
         if (dwError != ERROR_FILE_EXISTS)
         {
-            DBGWRITE(DbgLevelInfo, L"[AFP]CreateFile() for info fork failed in AddVolume! (%d)\n", dwError);
+            DBGWRITE(dbg_level_info, L"[AFP]CreateFile() for info fork failed in AddVolume! (%d)\n", dwError);
         }
     }
     else
@@ -326,7 +326,7 @@ AFPERROR AFPRemoveVolume(
         Sleep(500);
     }
 
-    DBGWRITE(DbgLevelInfo, L"[VOL]Removing volume %s\n", pVolInfo->szShareName);
+    DBGWRITE(dbg_level_info, L"[VOL]Removing volume %s\n", pVolInfo->szShareName);
 
     //
     //Now erase the entire index structure for this volume from memory.
@@ -484,7 +484,7 @@ AFPERROR AFPGetVolumeParameters(
     //
     if (AFPGetVolumeInfoBlock(nullptr, afpVolumeID, &afpVolume) == FALSE)
     {
-        DBGWRITE(DbgLevelWarning, L"[VOL]Volume ID not found in AFPGetVolumeParameters()!\n");
+        DBGWRITE(dbg_level_warning, L"[VOL]Volume ID not found in AFPGetVolumeParameters()!\n");
         return afpIDNotFound;
     }
 
@@ -508,7 +508,7 @@ AFPERROR AFPGetVolumeParameters(
 
             if ((dwError != ERROR_IO_PENDING) && (dwError != NO_ERROR))
             {
-                DBGWRITE(DbgLevelWarning, L"[VOL]GetFreeDiskSpaceEx() failed! (%d)\n", dwError);
+                DBGWRITE(dbg_level_warning, L"[VOL]GetFreeDiskSpaceEx() failed! (%d)\n", dwError);
                 return afpMiscErr;
             }
         }
@@ -648,7 +648,7 @@ AFPERROR AFPGetVolumeParameters(
 
         afpReply.AddInt32(dwAllocationSize);
 
-        DBGWRITE(DbgLevelAll, L"[VOL]Allocation block size = %d\n", dwAllocationSize);
+        DBGWRITE(dbg_level_all, L"[VOL]Allocation block size = %d\n", dwAllocationSize);
     }
 
     if (afpBitmap & kFPVolNameBit)
@@ -680,7 +680,7 @@ void AFPMarkVolumeDirty(
         //We failed to find a block corresponding to the
         //supplied volume ID.
         //
-        DBGWRITE(DbgLevelWarning, L"[VOL]Bad volume ID in AFPMarkVolumeDirty()\n");
+        DBGWRITE(dbg_level_warning, L"[VOL]Bad volume ID in AFPMarkVolumeDirty()\n");
 
         //
         //There's nothing we can do here and this is a "fire and forget"
@@ -750,7 +750,7 @@ AFPERROR AFPIndexBuild(
 #if defined(DBG) || defined(_DEBUG)
     if (dwParID == kRootDirID)
     {
-        DBGWRITE(DbgLevelInfo, L"[VOL]Begin indexing share path %s\n", pPath);
+        DBGWRITE(dbg_level_info, L"[VOL]Begin indexing share path %s\n", pPath);
     }
 #endif
 
@@ -767,7 +767,7 @@ AFPERROR AFPIndexBuild(
 
     if (hFind == INVALID_HANDLE_VALUE)
     {
-        DBGWRITE(DbgLevelInfo, L"[VOL]Bad directory: %s\n", path.get());
+        DBGWRITE(dbg_level_info, L"[VOL]Bad directory: %s\n", path.get());
     }
     else
     {
@@ -838,7 +838,7 @@ AFPERROR AFPIndexBuild(
             }
             else
             {
-                DBGWRITE(DbgLevelInfo, L"[VOL]Failed to add entry to index!\n");
+                DBGWRITE(dbg_level_info, L"[VOL]Failed to add entry to index!\n");
                 ASSERT(0);
             }
         }
@@ -936,7 +936,7 @@ LPAFPINDEX AFPIndexAddEntry(
     {
         if (AFPGetVolumeInfoBlock(nullptr, wVolID, &pVolInfo) == FALSE)
         {
-            DBGWRITE(DbgLevelInfo, L"[VOL]Failed to get vol info block!\n");
+            DBGWRITE(dbg_level_info, L"[VOL]Failed to get vol info block!\n");
             return nullptr;
         }
     }
@@ -981,7 +981,7 @@ AFPERROR AFPIndexUpdateEntry(
     {
         if (AFPGetVolumeInfoBlock(nullptr, wVolID, &pVInfo) == FALSE)
         {
-            DBGWRITE(DbgLevelInfo, L"[VOL]Bad volume ID!\n");
+            DBGWRITE(dbg_level_info, L"[VOL]Bad volume ID!\n");
             return afpParmErr;
         }
     }
@@ -1078,7 +1078,7 @@ AFPERROR AFPIndexFindEntryWithVolIDAndPath(
     //
     if (AFPGetVolumeInfoBlock(nullptr, wVolID, &pVolInfo) == FALSE)
     {
-        DBGWRITE(DbgLevelInfo, L"[VOL]Bad volume ID!\n");
+        DBGWRITE(dbg_level_info, L"[VOL]Bad volume ID!\n");
         return afpParmErr;
     }
 
@@ -1117,7 +1117,7 @@ AFPERROR AFPIndexFindEntryWithPath(
     if (pEntry == nullptr)
     {
         DBGWRITE(
-            DbgLevelAll,
+            dbg_level_all,
             L"[AFPIndexFindEntryWithPath]Object ID not found in AFPIndexFindEntryWithPath\n"
         );
 
@@ -1152,7 +1152,7 @@ AFPERROR AFPIndexFindEntryWithPath(
     }
 
     DBGWRITE(
-        DbgLevelAll,
+        dbg_level_all,
         L"[AFPIndexFindEntryWithPath]Failed to find %s\n", szTemp
     );
 
@@ -1182,7 +1182,7 @@ AFPERROR AFPIndexFindEntry(
         //
         //We didn't find the directory ID in our volume index.
         //
-        DBGWRITE(DbgLevelAll,
+        DBGWRITE(dbg_level_all,
             L"[VOL]Directory not found in AFPIndexFindEntry() (dirid = %d)\n",
             dwSearchID);
 

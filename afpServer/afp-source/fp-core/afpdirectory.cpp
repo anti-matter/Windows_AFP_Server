@@ -72,8 +72,8 @@ AFPERROR FPResolveID(
         //
         if (!GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes))
         {
-            DBGWRITE(DbgLevelInfo, L"[afp:FPResolveID]GetFileAttributesEx() failed! (%d)\n", GetLastError());
-            DBGWRITE(DbgLevelInfo, L"[afp:FPResolveID]path = %s\n", afpEntry->szPath);
+            DBGWRITE(dbg_level_info, L"[afp:FPResolveID]GetFileAttributesEx() failed! (%d)\n", GetLastError());
+            DBGWRITE(dbg_level_info, L"[afp:FPResolveID]path = %s\n", afpEntry->szPath);
                     
             return( afpObjectNotFound );
         }
@@ -90,7 +90,7 @@ AFPERROR FPResolveID(
 
         if (!AFP_SUCCESS(afpError)) {
 
-            DBGWRITE(DbgLevelInfo, L"[afp:FPResolveID]AFPGetObjectParms() failed %d\n", afpError);
+            DBGWRITE(dbg_level_info, L"[afp:FPResolveID]AFPGetObjectParms() failed %d\n", afpError);
         }
     }
 
@@ -124,7 +124,7 @@ AFPERROR FPGetFileDirParms(
     AFPERROR					afpError		= AFP_OK;
     LPAFPINDEX					afpEntry		= NULL;
     
-    DBGWRITE(DbgLevelAll, L"[afp:FPGetFileDirParms]Enter...\n");
+    DBGWRITE(dbg_level_all, L"[afp:FPGetFileDirParms]Enter...\n");
         
     //
     //First WORD is afp command and padding byte.
@@ -166,7 +166,7 @@ AFPERROR FPGetFileDirParms(
     
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelAll, 
+        DBGWRITE(dbg_level_all, 
                 L"[AFP]Entry not found in GetFileDirParms! (dirID = %d)(name = %s)\n",
                 afpDirID, afpPathname);
         
@@ -278,7 +278,7 @@ AFPERROR FPEnumerate(
 
     WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
 
-    DBGWRITE(DbgLevelAll, L"[afp:FPEnumerate]Enter...\n");
+    DBGWRITE(dbg_level_all, L"[afp:FPEnumerate]Enter...\n");
 
     //
     //The first word contains the afp command and padding byte.
@@ -326,7 +326,7 @@ AFPERROR FPEnumerate(
         //
         //The volume has not been opened, we need to return error.
         //
-        DBGWRITE(DbgLevelInfo, L"[afp:FPEnumerate]Volume not opened!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPEnumerate]Volume not opened!\n");
         return( afpParmErr );
     }
 
@@ -378,7 +378,7 @@ AFPERROR FPEnumerate(
     
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPEnumerate]Failed to get index entry (vID = %d, dirID = %d, name = %s)\n",
+        DBGWRITE(dbg_level_info, L"[afp:FPEnumerate]Failed to get index entry (vID = %d, dirID = %d, name = %s)\n",
                     afpVolID,
                     afpDirID,
                     afpPathname
@@ -413,8 +413,8 @@ AFPERROR FPEnumerate(
         #ifdef _DEBUG
         if ((afpEntry->parID == afpTargetEntry->objectID) && (GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes) == 0))
         {
-            DBGWRITE(DbgLevelInfo, L"[afp:FPEnumerate]GetFileAttributesEx() failed (%d)\n", GetLastError());
-            DBGWRITE(DbgLevelInfo, L"[afp:FPEnumerate]File = %s\n", afpEntry->szPath);
+            DBGWRITE(dbg_level_info, L"[afp:FPEnumerate]GetFileAttributesEx() failed (%d)\n", GetLastError());
+            DBGWRITE(dbg_level_info, L"[afp:FPEnumerate]File = %s\n", afpEntry->szPath);
         }
         #endif
         
@@ -444,7 +444,7 @@ AFPERROR FPEnumerate(
                 continue;
             }
             
-            DBGWRITE(DbgLevelAll, L"[afp:FPEnumerate]Enumerating %s\n", afpEntry->szObjectName);
+            DBGWRITE(dbg_level_all, L"[afp:FPEnumerate]Enumerating %s\n", afpEntry->szObjectName);
             
             afpIsDirectory = (afpEntry->flags & FLAG_INDEX_ISDIR);
 
@@ -509,7 +509,7 @@ AFPERROR FPEnumerate(
                     //
                     //We need to stay inside the callers max reply size in the request.
                     //
-                    DBGWRITE(DbgLevelAll, L"[afp:FPEnumerate]Breaking out, size required too big!\n");
+                    DBGWRITE(dbg_level_all, L"[afp:FPEnumerate]Breaking out, size required too big!\n");
                     break;
                 }
                 
@@ -522,7 +522,7 @@ AFPERROR FPEnumerate(
                     //This should never happen (yeah right). In case it does, just
                     //bail from here.
                     //
-                    DBGWRITE(DbgLevelAll, L"[afp:FPEnumerate]Breaking out, reply buffer too small!\n");
+                    DBGWRITE(dbg_level_all, L"[afp:FPEnumerate]Breaking out, reply buffer too small!\n");
                     break;
                 }
                 
@@ -593,7 +593,7 @@ AFPERROR FPEnumerate(
                 //
                 //We had an error looking up the parms of an object.
                 //
-                DBGWRITE(DbgLevelInfo, L"[afp:Enumerate]Error finding parms for object\n");
+                DBGWRITE(dbg_level_info, L"[afp:Enumerate]Error finding parms for object\n");
             }
             
             //
@@ -612,8 +612,8 @@ AFPERROR FPEnumerate(
     //
     *afpActCountSpot = htons(afpActCount);
 
-    DBGWRITE(DbgLevelAll, L"[afp:Enumerate]afpActCount = %d\n", afpActCount);
-    DBGWRITE(DbgLevelAll, L"[afp:Enumerate]Returning: %d\n", (afpActCount == 0) ? afpObjectNotFound : AFP_OK);
+    DBGWRITE(dbg_level_all, L"[afp:Enumerate]afpActCount = %d\n", afpActCount);
+    DBGWRITE(dbg_level_all, L"[afp:Enumerate]Returning: %d\n", (afpActCount == 0) ? afpObjectNotFound : AFP_OK);
     
     delete afpTempIndex;
     
@@ -649,7 +649,7 @@ AFPERROR FPSetFileDirParms(
 
     WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
 
-    DBGWRITE(DbgLevelAll, L"[afp:FPSetFileDirParms]Enter...\n");
+    DBGWRITE(dbg_level_all, L"[afp:FPSetFileDirParms]Enter...\n");
 
     //
     //The first word is afp command and padding byte.
@@ -716,7 +716,7 @@ AFPERROR FPSetFileDirParms(
                                 kFPDirGroupID | kFPDirAccess | kFPDirUnicodeName |
                                 kFPExtDataForkLen | kFPExtRsrcForkLen)))
             {
-                DBGWRITE(DbgLevelAll, L"[afp:FPSetFileDirParms]Bad bitmap!\n");
+                DBGWRITE(dbg_level_all, L"[afp:FPSetFileDirParms]Bad bitmap!\n");
                 return( afpBitmapErr );
             }
             break;
@@ -725,7 +725,7 @@ AFPERROR FPSetFileDirParms(
             if ((afpBitmap & (	kFPParentID	   | kFPLongName | kFPShortName |
                                 kFPDirOffCount | kFPDirID | kFPDirUnicodeName)))
             {
-                DBGWRITE(DbgLevelAll, L"[afp:FPSetDirParms]Bad bitmap!\n");
+                DBGWRITE(dbg_level_all, L"[afp:FPSetDirParms]Bad bitmap!\n");
                 return( afpBitmapErr );
             }
             break;
@@ -735,7 +735,7 @@ AFPERROR FPSetFileDirParms(
                                 kFPFileNum  | kFPDFLen    | kFPRFLen     |
                                 kFPExtDataForkLen | kFPUnicodeName | kFPExtRsrcForkLen)))
             {
-                DBGWRITE(DbgLevelInfo, L"[afp:FPSetFileParms]Bad bitmap!\n");
+                DBGWRITE(dbg_level_info, L"[afp:FPSetFileParms]Bad bitmap!\n");
                 return( afpBitmapErr );
             }
             break;
@@ -756,7 +756,7 @@ AFPERROR FPSetFileDirParms(
         //
         //We couldn't find the requested object.
         //
-        DBGWRITE(DbgLevelInfo,
+        DBGWRITE(dbg_level_info,
                     L"[afp:FPSetFileParms]Index entry not found in FPSetFileDirParms! (dirID = %d  path = %s)\n", 
                     afpDirID, afpPathname);
         
@@ -769,7 +769,7 @@ AFPERROR FPSetFileDirParms(
     //
     if (!GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPSetFileParms]GetFileAttributesEx() failed! (%d)\n", GetLastError());
+        DBGWRITE(dbg_level_info, L"[afp:FPSetFileParms]GetFileAttributesEx() failed! (%d)\n", GetLastError());
         return( afpObjectNotFound );
     }
     
@@ -809,7 +809,7 @@ AFPERROR FPCreateDir(
     AFP_VOLUME_INFO*	afpVolume	= NULL;
     LPAFPINDEX			afpEntry	= NULL;
     
-    DBGWRITE(DbgLevelAll, L"[AFP]FPCreateDir...\n");
+    DBGWRITE(dbg_level_all, L"[AFP]FPCreateDir...\n");
         
     //
     //Parameters start after first word (afp cmd and 0 byte)
@@ -829,7 +829,7 @@ AFPERROR FPCreateDir(
     afpVolume = ((AFPSession*)afpSession->afpSessionObject)->SessionFindOpenVolumeBlock(afpVolumeID);
     if (afpVolume == NULL)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPCreateDir]Bad volume ID in FPCreateDir!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPCreateDir]Bad volume ID in FPCreateDir!\n");
         return( afpParmErr );
     }
 
@@ -862,7 +862,7 @@ AFPERROR FPCreateDir(
 
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPCreateDir]GetString failed for path!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPCreateDir]GetString failed for path!\n");
         return( afpError );
     }
 
@@ -871,7 +871,7 @@ AFPERROR FPCreateDir(
     //
     if (lstrlen(afpPathname) == 0)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPCreateDir]No pathname in FPCreateDir!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPCreateDir]No pathname in FPCreateDir!\n");
         return( afpParmErr );
     }
     
@@ -883,7 +883,7 @@ AFPERROR FPCreateDir(
         
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPCreateDir]Path not found in FPCreateDir!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPCreateDir]Path not found in FPCreateDir!\n");
         return( afpError );
     }
     
@@ -996,7 +996,7 @@ AFPERROR FPDelete(
     int8				afpPathType		= 0;
     AFPERROR			afpError		= AFP_OK;
 
-    DBGWRITE(DbgLevelAll, L"[afp:FPDelete]Enter\n");
+    DBGWRITE(dbg_level_all, L"[afp:FPDelete]Enter\n");
     
     //
     //First word is command and padding.
@@ -1043,7 +1043,7 @@ AFPERROR FPDelete(
     //
     if (lstrlen(afpPathname) == 0)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPDelete]Null pathname!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPDelete]Null pathname!\n");
         return( afpParmErr );
     }
 
@@ -1051,7 +1051,7 @@ AFPERROR FPDelete(
 
     if (afpVolumeInfo == NULL)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPDelete]Bad volume ID! (%d)\n", afpVolumeID);
+        DBGWRITE(dbg_level_info, L"[afp:FPDelete]Bad volume ID! (%d)\n", afpVolumeID);
         return( afpParmErr );
     }
 
@@ -1062,7 +1062,7 @@ AFPERROR FPDelete(
     
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPDelete]Index entry not found! (%s)\n", afpPathname);
+        DBGWRITE(dbg_level_info, L"[afp:FPDelete]Index entry not found! (%s)\n", afpPathname);
         return( afpError );
     }
 
@@ -1088,7 +1088,7 @@ AFPERROR FPDelete(
     {
         if (!RemoveDirectory(afpEntry->szPath))
         {
-            DBGWRITE(DbgLevelInfo,
+            DBGWRITE(dbg_level_info,
                     L"[afp:FPDelete]RemoveDirectory() failed on %s! (%d)\n",
                     afpEntry->szPath,
                     GetLastError()
@@ -1101,7 +1101,7 @@ AFPERROR FPDelete(
     {
         if (!DeleteFile(afpEntry->szPath))
         {
-            DBGWRITE(DbgLevelInfo,
+            DBGWRITE(dbg_level_info,
                     L"[afp:FPDelete]DeleteFile failed on %s! (%d)\n",
                     afpEntry->szPath,
                     GetLastError()
@@ -1160,7 +1160,7 @@ AFPERROR FPCopyFile(
     int8				afpPathType		= 0;
     AFPERROR			afpError		= AFP_OK;
     
-    DBGWRITE(DbgLevelAll, L"[afp:FPCopyFile]Enter...\n");
+    DBGWRITE(dbg_level_all, L"[afp:FPCopyFile]Enter...\n");
     
     //
     //Skip the first byte which is afp command.
@@ -1240,7 +1240,7 @@ AFPERROR FPCopyFile(
     //
     if (lstrlen(afpSrcPathname) == 0)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPCopyFile]NULL source pathname provided\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPCopyFile]NULL source pathname provided\n");
         return( afpParmErr );
     }
 
@@ -1251,7 +1251,7 @@ AFPERROR FPCopyFile(
     
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPCopyFile]Source index entry not found!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPCopyFile]Source index entry not found!\n");
         return( afpError );
     }
 
@@ -1271,7 +1271,7 @@ AFPERROR FPCopyFile(
 
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPCopyFile]Destination directory index entry not found!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPCopyFile]Destination directory index entry not found!\n");
         return( afpError );
     }
 
@@ -1288,8 +1288,8 @@ AFPERROR FPCopyFile(
         StringCbPrintf(newWinPath, sizeof(newWinPath), TEXT("%s\\%s"), afpDstEntry->szPath, afpSrcEntry->szObjectName);
     }
     
-    DBGWRITE(DbgLevelAll, L"[afp:FPCopyFile]copying from %s\n", afpSrcEntry->szPath);
-    DBGWRITE(DbgLevelAll, L"[afp:FPCopyFile]copying to %s\n", newWinPath);
+    DBGWRITE(dbg_level_all, L"[afp:FPCopyFile]copying from %s\n", afpSrcEntry->szPath);
+    DBGWRITE(dbg_level_all, L"[afp:FPCopyFile]copying to %s\n", newWinPath);
     
     //
     //Silence the notify thread while we do our work.
@@ -1317,7 +1317,7 @@ AFPERROR FPCopyFile(
 
     if (!fSucceeded)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPCopyFile]CopyFile() failed (%d) (%s)!\n", GetLastError(), newWinPath);
+        DBGWRITE(dbg_level_info, L"[afp:FPCopyFile]CopyFile() failed (%d) (%s)!\n", GetLastError(), newWinPath);
 
         afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
     }
@@ -1361,7 +1361,7 @@ AFPERROR FPCopyFile(
             //much we can do at this point. Hopefully, the notify will add the
             //new entry.
             //
-            DBGWRITE(DbgLevelInfo, L"[afp:FPCopyFile]Failed to add new entry!\n");
+            DBGWRITE(dbg_level_info, L"[afp:FPCopyFile]Failed to add new entry!\n");
         }
     }
 
@@ -1402,7 +1402,7 @@ AFPERROR FPMoveAndRename(
 
     WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
     
-    DBGWRITE(DbgLevelAll, L"[afp:FPMoveAndRename]Enter\n");
+    DBGWRITE(dbg_level_all, L"[afp:FPMoveAndRename]Enter\n");
     
     //
     //The first byte contains the afp command.
@@ -1457,7 +1457,7 @@ AFPERROR FPMoveAndRename(
         
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPMoveAndRename]Src Index entry not found!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPMoveAndRename]Src Index entry not found!\n");
         return( afpError );
     }
 
@@ -1466,7 +1466,7 @@ AFPERROR FPMoveAndRename(
     //
     if (!GetFileAttributesEx(afpSrcEntry->szPath, GetFileExInfoStandard, &winAttributes))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPMoveAndRename]Could not get attributes on src entry!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPMoveAndRename]Could not get attributes on src entry!\n");
         return( afpObjectNotFound );
     }
 
@@ -1474,7 +1474,7 @@ AFPERROR FPMoveAndRename(
 
     if (afpAttributes & (kFileDeleteInhibit | kFileRenameInhibit))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPMoveAndRename]Cannot rename, object locked!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPMoveAndRename]Cannot rename, object locked!\n");
         return( afpObjectLocked );
     }
     
@@ -1501,7 +1501,7 @@ AFPERROR FPMoveAndRename(
     
     if (!AFP_SUCCESS(afpError))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPMoveAndRename]Dst dir Index entry not found!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPMoveAndRename]Dst dir Index entry not found!\n");
         return( afpError );
     }
 
@@ -1538,7 +1538,7 @@ AFPERROR FPMoveAndRename(
     AutoLock lock(&volumeInfo->csNotifyQueue);
 
     
-    DBGWRITE(DbgLevelInfo, L"[afp:FPMoveAndRename]Renaming to new path = %s\n", winDstPath);
+    DBGWRITE(dbg_level_info, L"[afp:FPMoveAndRename]Renaming to new path = %s\n", winDstPath);
 
     //
     //Impersonate the current user for permissions sakes.
@@ -1556,7 +1556,7 @@ AFPERROR FPMoveAndRename(
     //
     if (!MoveFile(afpSrcEntry->szPath, winDstPath))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPMoveAndRename]MoveFile() failed! (%d)\n", GetLastError());
+        DBGWRITE(dbg_level_info, L"[afp:FPMoveAndRename]MoveFile() failed! (%d)\n", GetLastError());
         
         afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
     }
@@ -1625,7 +1625,7 @@ AFPERROR FPRename(
 
     WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
     
-    DBGWRITE(DbgLevelAll, L"[afp:FPRename]Enter\n");
+    DBGWRITE(dbg_level_all, L"[afp:FPRename]Enter\n");
     
     //
     //First word is command and padding.
@@ -1678,7 +1678,7 @@ AFPERROR FPRename(
         //
         //We couldn't find the requested object.
         //
-        DBGWRITE(DbgLevelInfo, L"[afp:FPRename]Dst entry not found! (%s)\n", afpPathname);
+        DBGWRITE(dbg_level_info, L"[afp:FPRename]Dst entry not found! (%s)\n", afpPathname);
         return( afpError );
     }
 
@@ -1687,7 +1687,7 @@ AFPERROR FPRename(
     //
     if (!GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPMoveAndRename]Could not get attributes on src entry!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPMoveAndRename]Could not get attributes on src entry!\n");
         return( afpObjectNotFound );
     }
 
@@ -1695,7 +1695,7 @@ AFPERROR FPRename(
 
     if (afpAttributes & (kFileRenameInhibit))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPMoveAndRename]Cannot rename, object locked!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPMoveAndRename]Cannot rename, object locked!\n");
         return( afpObjectLocked );
     }
 
@@ -1719,7 +1719,7 @@ AFPERROR FPRename(
     //
     StringCbPrintf(winPath, sizeof(winPath), TEXT("%s\\%s"), ((LPAFPINDEX)afpEntry->parEntry)->szPath, afpPathname); 
 
-    DBGWRITE(DbgLevelInfo, L"[afp:FPRename]Renaming to new path = %s\n", winPath);
+    DBGWRITE(dbg_level_info, L"[afp:FPRename]Renaming to new path = %s\n", winPath);
 
     //
     //Prevent the notification routines from interfering with us.
@@ -1745,7 +1745,7 @@ AFPERROR FPRename(
     //
     if (!MoveFile(afpEntry->szPath, winPath))
     {
-        DBGWRITE(DbgLevelInfo, L"[AFP]MoveFile() failed! (%d)\n", GetLastError());
+        DBGWRITE(dbg_level_info, L"[AFP]MoveFile() failed! (%d)\n", GetLastError());
         
         afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
     }

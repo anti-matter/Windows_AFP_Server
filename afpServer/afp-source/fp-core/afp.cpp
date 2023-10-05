@@ -128,7 +128,7 @@ AFPERROR FPUnimplemented(
     UNREFERENCED_PARAMETER(afpReply);
     UNREFERENCED_PARAMETER(afpSession);
 
-    DBGWRITE(DbgLevelInfo, L"[afp:FPUnimplemented]Call not implemented (%d)\n", afpRequest.GetInt8());
+    DBGWRITE(dbg_level_info, L"[afp:FPUnimplemented]Call not implemented (%d)\n", afpRequest.GetInt8());
     return( afpCallNotSupported );
 }
 
@@ -204,7 +204,7 @@ AFPERROR FPDispatchCommand(
                 break;
             
             default:
-                DBGWRITE(DbgLevelInfo, L"[afp:FPDispatchCommand]Call not implemented (%d)\n", afpCommand);
+                DBGWRITE(dbg_level_info, L"[afp:FPDispatchCommand]Call not implemented (%d)\n", afpCommand);
                 afpError = afpAccessDenied;
                 break;
         }

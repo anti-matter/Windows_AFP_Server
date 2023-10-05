@@ -50,7 +50,7 @@ AFPFileIndex::~AFPFileIndex()
 	//
 	while (mRefCount > 0)
 	{
-		DBGWRITE(DbgLevelInfo, L"[AFPFileIndex::~AFPFileIndex]Waiting for ref count before delete\n");
+		DBGWRITE(dbg_level_info, L"[AFPFileIndex::~AFPFileIndex]Waiting for ref count before delete\n");
 		ASSERT(0); //Remove if you ever hit this
 
 		Sleep(500);
@@ -148,7 +148,7 @@ LPAFPINDEX AFPFileIndex::GetEntry(uint32 objectID)
     else
     {
         DBGWRITE(
-            DbgLevelInfo,
+            dbg_level_info,
             L"[AFPFileIndex::GetEntry]Failed to find objectID! (%d)\n", objectID);
     }
 
@@ -194,7 +194,7 @@ void AFPFileIndex::RemoveEntry(uint32 objectID, bool deleteDirectorySubTree)
     if (it == mIndex.end())
     {
         DBGWRITE(
-            DbgLevelInfo,
+            dbg_level_info,
             L"[AFPFileIndex::RemoveEntry]Failed to find objectID! (%d)\n", objectID);
 
         ASSERT(0);
@@ -260,7 +260,7 @@ void AFPFileIndex::UpdateEntry(
 )
 {
 	DBGWRITE(
-		DbgLevelInfo,
+		dbg_level_info,
 		L"[AFPFileIndex::UpdateEntry]Updating entry:\n\toldName=%s\n\tnewName=%s\n\tnewParID=%d, oldParID=%d\n",
 		pEntry->szObjectName,
 		pNewName,
@@ -425,7 +425,7 @@ LPAFPINDEX AFPFileIndex::FindEntryWithFullPath(PWCHAR fullPath)
     if (it == mIndex.end())
     {
         DBGWRITE(
-            DbgLevelInfo,
+            dbg_level_info,
             L"[AFPFileIndex::FindEntryWithFullPath]Failed to find object! (%s)\n", fullPath);
 
         return nullptr;
@@ -490,13 +490,13 @@ uint32 AFPFileIndex::GetOffspring(uint32 parID, std::vector<LPAFPINDEX>** newInd
 
 void AFPFileIndex::DumpIndex()
 {
-    DBGWRITE(DbgLevelInfo, L"Dumping index...\n");
+    DBGWRITE(dbg_level_info, L"Dumping index...\n");
 
     for (auto it = mIndex.begin(); it < mIndex.end(); ++it)
     {
         auto entry = it->get();
 
-        DBGWRITE(DbgLevelInfo,
+        DBGWRITE(dbg_level_info,
             L"ID = %d parID = %d\tPath = %s\n", entry->objectID, entry->parID, entry->szPath);
     }
 }

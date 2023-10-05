@@ -165,12 +165,12 @@ typedef struct
 #define DWORD2DWORD(p, d)	*((DWORD UNALIGNED*)p) = d;
 #define WORD2WORD(p, w)		*((WORD UNALIGNED*)p) = w;
 
-DWORD DSIInit(void);
+DWORD dsi_init(void);
 
-void DSIShutdown(void);
+void dsi_shutdown(void);
 
-DWORD WINAPI DSIAcceptThread(
-	LPVOID	pParam
+DWORD WINAPI dsi_accept_thread(
+	LPVOID	param
 );
 
 DWORD WINAPI DSIWorkerThread(

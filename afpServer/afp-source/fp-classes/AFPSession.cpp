@@ -12,8 +12,8 @@
 #include "AFPOpenFile.h"
 #include <algorithm>
 
-extern LPSESSION gSessionsList;
-extern CRITICAL_SECTION gcsSessionList;
+extern LPSESSION g_sessions_list;
+extern CRITICAL_SECTION g_cs_session_list;
 
 
 /*
@@ -89,7 +89,7 @@ void AFPSession::SessionAssociateAFPOpenFile(AFPOpenFile* inAFPOpenFileObject)
     AutoLock lock(&mMutex);
 
     ASSERT(inAFPOpenFileObject != nullptr);
-    DBGWRITE(DbgLevelAll, L"[AFPSession:SessionAssociateAFPOpenFile]opening fileobject %x\n", inAFPOpenFileObject);
+    DBGWRITE(dbg_level_all, L"[AFPSession:SessionAssociateAFPOpenFile]opening fileobject %x\n", inAFPOpenFileObject);
 
     std::unique_ptr<AFPOpenFile> AFPOpenFileObject(inAFPOpenFileObject);
     mAFPOpenFiles.push_back(std::move(AFPOpenFileObject));
@@ -150,7 +150,7 @@ AFPOpenFile* AFPSession::FindAFPOpenFileObject(int16 inFileRef)
         return it->get();
     }
 
-    DBGWRITE(DbgLevelWarning, L"[AFPSession:FindAFPOpenFileObject]ERROR: Can't find open file!\n");
+    DBGWRITE(dbg_level_warning, L"[AFPSession:FindAFPOpenFileObject]ERROR: Can't find open file!\n");
 
     return nullptr;
 }
@@ -186,7 +186,7 @@ AFPOpenFile* AFPSession::NewAFPOpenFileObject(
 
     if (newFile == nullptr)
     {
-        DBGWRITE(DbgLevelWarning, L"[AFPSession:NewAFPOpenFileObject]****Failed to allocate new object!\n");
+        DBGWRITE(dbg_level_warning, L"[AFPSession:NewAFPOpenFileObject]****Failed to allocate new object!\n");
         return (nullptr);
     }
 
@@ -217,7 +217,7 @@ AFPERROR AFPSession::SessionOpenVolume(uint16 volumeID)
         //supplied volume ID.
         //
 
-        DBGWRITE(DbgLevelInfo, L"[AFPSession::SessionOpenVolume]Bad volume ID\n");
+        DBGWRITE(dbg_level_info, L"[AFPSession::SessionOpenVolume]Bad volume ID\n");
         return afpParmErr;
     }
 
@@ -230,7 +230,7 @@ AFPERROR AFPSession::SessionOpenVolume(uint16 volumeID)
     volumeInfo->dwRefCount++;
 
     DBGWRITE(
-        DbgLevelAll,
+        dbg_level_all,
         (L"[AFPSession::SessionOpenVolume]Volume %s opened\n",
             volumeInfo->szShareName
         ));
@@ -266,7 +266,7 @@ AFPERROR AFPSession::SessionCloseVolume(uint16 volumeID)
 
     if (it != mOpenVolumes.end())
     {
-        DBGWRITE(DbgLevelAll, L"[AFPSession::SessionCloseVolume]Volume %s was closed\n", (*it)->szShareName);
+        DBGWRITE(dbg_level_all, L"[AFPSession::SessionCloseVolume]Volume %s was closed\n", (*it)->szShareName);
 
         mOpenVolumes.erase(it);
         return AFP_OK;
@@ -423,9 +423,9 @@ void AFPSession::SetAFPID(int8* inID, uint32 inIDSize)
 
 AFPSession* AFPSession::FindSessionWithID(int8* afpID, uint32 inIDSize)
 {
-    auto pSession = gSessionsList;
+    auto pSession = g_sessions_list;
 
-    AutoLock lock(&gcsSessionList);
+    AutoLock lock(&g_cs_session_list);
 
     while (pSession)
     {
@@ -461,9 +461,9 @@ AFPSession* AFPSession::FindSessionWithID(int8* afpID, uint32 inIDSize)
 
 AFPSession* AFPSession::FindSessionByToken(int32 inToken)
 {
-    auto pSession = gSessionsList;
+    auto pSession = g_sessions_list;
 
-    AutoLock lock(&gcsSessionList);
+    AutoLock lock(&g_cs_session_list);
 
     while (pSession)
     {

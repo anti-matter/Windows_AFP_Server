@@ -100,7 +100,7 @@ AFPERROR FPGetSessionToken(
     int32			afpToken		= afpSessObject->GetToken();
     bool			fSavedID		= false;
     
-    DBGWRITE(DbgLevelInfo, L"[afp:FPGetSessionToken]Enter...\n");
+    DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]Enter...\n");
     
     //
     //First byte is afp command and padding.
@@ -112,7 +112,7 @@ AFPERROR FPGetSessionToken(
     {
         afpIDSize = afpRequest.GetInt32();
 
-        DBGWRITE(DbgLevelInfo, L"[afp:FPGetSessionToken]ID size from client = %d\n", afpIDSize);
+        DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]ID size from client = %d\n", afpIDSize);
 
         //
         //For types 3 & 4, a time stamp is included for additional comparison.
@@ -152,13 +152,13 @@ AFPERROR FPGetSessionToken(
         //the session that are open, free any locked resources, and disconnect the matching session
         //
         case kLoginWithID:
-            DBGWRITE(DbgLevelInfo, L"[afp:FPGetSessionToken]kLoginWithID...\n");
+            DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]kLoginWithID...\n");
 
             afpOldSession = AFPSession::FindSessionWithID(afpID, afpIDSize);
 
             if (afpOldSession != NULL)
             {
-                DBGWRITE(DbgLevelInfo, L"[afp:FPGetSessionToken]Found old session!!!\n");
+                DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]Found old session!!!\n");
                 DSICleanupSession(afpOldSession->GetDSISession());
                 break;
             }
@@ -177,13 +177,13 @@ AFPERROR FPGetSessionToken(
         //the timestamps DO NOT match.
         //
         case kLoginWithTimeAndID:
-            DBGWRITE(DbgLevelInfo, L"[afp:FPGetSessionToken]kLoginWithTimeAndID...\n");
+            DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]kLoginWithTimeAndID...\n");
 
             afpOldSession = AFPSession::FindSessionWithID(afpID, afpIDSize);
 
             if (afpOldSession != NULL)
             {
-                DBGWRITE(DbgLevelInfo, L"[afp:FPGetSessionToken]Found old session!!!\n");
+                DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]Found old session!!!\n");
 
                 if (afpOldSession->GetAFPTimeStamp() != afpTimeStamp)
                 {
@@ -207,7 +207,7 @@ AFPERROR FPGetSessionToken(
         //with the ID parameter.
         //
         case kReconnWithTimeAndID:
-            DBGWRITE(DbgLevelInfo, L"[afp:FPGetSessionToken]kReconnWithTimeAndID...\n");
+            DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]kReconnWithTimeAndID...\n");
 
             afpSessObject->SetAFPTimeStamp(afpTimeStamp);
             afpSessObject->SetAFPID(afpID, afpIDSize);
@@ -225,14 +225,14 @@ AFPERROR FPGetSessionToken(
             break;
         
         default:
-            DBGWRITE(DbgLevelInfo, L"[afp:FPGetSessionToken]Bad type! (%d)\n", afpType);
+            DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]Bad type! (%d)\n", afpType);
             return( afpParmErr );
     }
 
     afpReply.AddInt32(AFP_SESSION_TOKEN_SIZE);
     afpReply.AddInt32(afpToken);
     
-    DBGWRITE(DbgLevelInfo, L"[afp:FPGetSessionToken]Token = %x\n", afpToken);
+    DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]Token = %x\n", afpToken);
 
     if (!fSavedID) {
 
@@ -271,7 +271,7 @@ AFPERROR FPDisconnectOldSession(
     int32			afpTokenLength	= 0;
     int32			afpToken		= 0;
 
-    DBGWRITE(DbgLevelInfo, L"[afp:FPDisconnectOldSession]Enter...\n");
+    DBGWRITE(dbg_level_info, L"[afp:FPDisconnectOldSession]Enter...\n");
     
     afpRequest.Advance(sizeof(int16));
     
@@ -280,7 +280,7 @@ AFPERROR FPDisconnectOldSession(
     
     if (afpTokenLength != AFP_SESSION_TOKEN_SIZE)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPDisconnectOldSession]Bad token length\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPDisconnectOldSession]Bad token length\n");
         return( afpMiscErr );
     }
     
@@ -289,7 +289,7 @@ AFPERROR FPDisconnectOldSession(
     
     if (afpLostSession != NULL)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPDisconnectOldSession]Found diconnected session!\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPDisconnectOldSession]Found diconnected session!\n");
         DSICleanupSession(afpLostSession->GetDSISession());
     }
     
@@ -358,8 +358,8 @@ AFPERROR FPLogin(
     if (!AFP_SUCCESS(afpRequest.GetString(afpVersion, sizeof(afpVersion)))) return( afpParmErr );
     if (!AFP_SUCCESS(afpRequest.GetString(afpUAM, sizeof(afpUAM))))			return( afpParmErr );
 
-    DBGWRITE(DbgLevelInfo, L"[afp:FPLogin]AFP Version = %s\n", afpVersion);
-    DBGWRITE(DbgLevelInfo, L"[afp:FPLogin]UAM type    = %s\n", afpUAM);
+    DBGWRITE(dbg_level_info, L"[afp:FPLogin]AFP Version = %s\n", afpVersion);
+    DBGWRITE(dbg_level_info, L"[afp:FPLogin]UAM type    = %s\n", afpUAM);
 
     //
     //Get the AFP version passed by the client into a more usable type
@@ -368,7 +368,7 @@ AFPERROR FPLogin(
 
     if (afpSession->bAFPVersion == -1)
     {
-        DBGWRITE(DbgLevelWarning, L"[afp:FPLogin]Bad AFP version, terminating login\n");
+        DBGWRITE(dbg_level_warning, L"[afp:FPLogin]Bad AFP version, terminating login\n");
         return( afpBadUAM );
     }
 
@@ -379,7 +379,7 @@ AFPERROR FPLogin(
 
     if (afpSession->uamType == -1)
     {
-        DBGWRITE(DbgLevelWarning, L"[afp:FPLogin]Bad UAM type, terminating login\n");
+        DBGWRITE(dbg_level_warning, L"[afp:FPLogin]Bad UAM type, terminating login\n");
         return( afpBadUAM );
     }
         
@@ -395,7 +395,7 @@ AFPERROR FPLogin(
             afpPathType	= afpRequest.GetInt8();			
             if (!AFP_SUCCESS(afpRequest.GetString(szUserName, sizeof(szUserName), false, afpPathType)))
             {
-                DBGWRITE(DbgLevelWarning, L"[afp:FPLogin]Failed to retrieve user name, terminating login\n");
+                DBGWRITE(dbg_level_warning, L"[afp:FPLogin]Failed to retrieve user name, terminating login\n");
                 return( afpParmErr );
             }
             
@@ -417,8 +417,8 @@ AFPERROR FPLogin(
             sizeof(szDomainName)
             );
 
-        DBGWRITE(DbgLevelInfo, L"[afp:FPLogin]Username    = %s\n", szUserName);
-        DBGWRITE(DbgLevelInfo, L"[afp:FPLogin]Domain name = %s\n", szDomainName);
+        DBGWRITE(dbg_level_info, L"[afp:FPLogin]Username    = %s\n", szUserName);
+        DBGWRITE(dbg_level_info, L"[afp:FPLogin]Domain name = %s\n", szDomainName);
 
         //
         //We need the name and domain for later to get the user SID.
@@ -463,7 +463,7 @@ AFPERROR FPLogin(
             //
             if (gForceEncryptedLogon) 
             {
-                DBGWRITE(DbgLevelWarning, L"[afp:FPLogin]Attempted cleartext login when encryption is required\n");
+                DBGWRITE(dbg_level_warning, L"[afp:FPLogin]Attempted cleartext login when encryption is required\n");
                 return( afpBadUAM );
             }
 
@@ -474,7 +474,7 @@ AFPERROR FPLogin(
             afpRequest.GetRawData(afpPassword, UAM_CLRTXTPWDLEN);
             AFPMacToWindowsString(afpPassword, sizeof(afpPasswordW), afpPasswordW);
 
-            DBGWRITE(DbgLevelInfo, L"[afp:FPLogin]Cleartext password = %s\n", afpPasswordW);
+            DBGWRITE(dbg_level_info, L"[afp:FPLogin]Cleartext password = %s\n", afpPasswordW);
             break;
         }//afpUAMCleartext
 
@@ -499,7 +499,7 @@ AFPERROR FPLogin(
                 //between login api calls. No choice but to bail out.
                 //
                 
-                DBGWRITE(DbgLevelWarning, L"[afp:FPLogin]Failed to allocate DHXInfo structure, exiting.\n");
+                DBGWRITE(dbg_level_warning, L"[afp:FPLogin]Failed to allocate DHXInfo structure, exiting.\n");
                 return( afpMiscErr );
             }
                                     
@@ -527,7 +527,7 @@ AFPERROR FPLogin(
 
                 if (afpSession->extLoginInfo != NULL)
                 {
-                    DBGWRITE(DbgLevelWarning, L"[afp:FPLogin]WARNING: Alread have extended login info!\n");
+                    DBGWRITE(dbg_level_warning, L"[afp:FPLogin]WARNING: Alread have extended login info!\n");
                     ASSERT(0);
 
                     LocalFree(afpSession->extLoginInfo);
@@ -570,8 +570,8 @@ AFPERROR FPContLogin(
     
     afpRequest.Advance(sizeof(int16)); //command and padding
     
-    DBGWRITE(DbgLevelInfo, L"[afp:FPContLogin]Enter\n");
-    DBGWRITE(DbgLevelInfo, L"[afp:FPContLogin]LogonUAM = %d\n", afpSession->uamType);
+    DBGWRITE(dbg_level_info, L"[afp:FPContLogin]Enter\n");
+    DBGWRITE(dbg_level_info, L"[afp:FPContLogin]LogonUAM = %d\n", afpSession->uamType);
 
     switch(afpSession->uamType)
     {
@@ -587,7 +587,7 @@ AFPERROR FPContLogin(
             //
             if (dhxInfo == NULL)
             {
-                DBGWRITE(DbgLevelInfo, L"[afp:FPContLogin]DHXInfo is invalid\n");
+                DBGWRITE(dbg_level_info, L"[afp:FPContLogin]DHXInfo is invalid\n");
                 return( afpMiscErr );
             }
             
@@ -616,7 +616,7 @@ AFPERROR FPContLogin(
 
                 if (!AFPMacToWindowsString(szPassword, sizeof(szPasswordW), szPasswordW))
                 {
-                    DBGWRITE(DbgLevelWarning, L"[afp:FPContLogin]Error converting password to unicode\n");
+                    DBGWRITE(dbg_level_warning, L"[afp:FPContLogin]Error converting password to unicode\n");
                     return( afpMiscErr );
                 }
 
@@ -640,7 +640,7 @@ AFPERROR FPContLogin(
             return( afpParmErr );
     }
     
-    DBGWRITE(DbgLevelInfo, L"[afp:FPContLogin]Returning: %d\n", afpError);
+    DBGWRITE(dbg_level_info, L"[afp:FPContLogin]Returning: %d\n", afpError);
     
     return( afpError );
 }
@@ -666,7 +666,7 @@ AFPERROR FPChangePassword(
     int8			uamType		= 0;
     AFPERROR		afpError 	= afpParmErr;
     
-    DBGWRITE(DbgLevelInfo, L"[afpuser:FPChangePswd]Enter...\n");
+    DBGWRITE(dbg_level_info, L"[afpuser:FPChangePswd]Enter...\n");
     
     afpRequest.Advance(sizeof(int16));
     
@@ -689,8 +689,8 @@ AFPERROR FPChangePassword(
         afpRequest.AdvanceIfOdd();
     }
 
-    DBGWRITE(DbgLevelInfo, L"[afpuser:FPChangePswd]UAM Str:  %s\n", szUAMVersion);
-    DBGWRITE(DbgLevelInfo, L"[afpuser:FPChangePswd]Username: %s\n", szUserName);
+    DBGWRITE(dbg_level_info, L"[afpuser:FPChangePswd]UAM Str:  %s\n", szUAMVersion);
+    DBGWRITE(dbg_level_info, L"[afpuser:FPChangePswd]Username: %s\n", szUserName);
     
     switch(uamType)
     {
@@ -751,7 +751,7 @@ AFPERROR FPChangePassword(
                     //between login api calls. No choice but to bail out.
                     //
                     
-                    DBGWRITE(DbgLevelWarning, L"[afp:FPChangePswd]Failed to allocate DHXInfo structure, exiting.\n");
+                    DBGWRITE(dbg_level_warning, L"[afp:FPChangePswd]Failed to allocate DHXInfo structure, exiting.\n");
                     return( afpMiscErr );
                 }
             }
@@ -806,7 +806,7 @@ AFPERROR FPChangePassword(
             {
                 if (!AFPMacToWindowsString(szNewPassword, sizeof(szNewPasswordW), szNewPasswordW))
                 {
-                    DBGWRITE(DbgLevelWarning, L"[afp:FPChangePswd]Error converting new password to unicode\n");
+                    DBGWRITE(dbg_level_warning, L"[afp:FPChangePswd]Error converting new password to unicode\n");
                     afpError = afpMiscErr;
                 }
                 else
@@ -830,7 +830,7 @@ AFPERROR FPChangePassword(
             break;
     }
 
-    DBGWRITE(DbgLevelInfo, L"[afpuser:FPChangePswd]Returning: %d\n", afpError);
+    DBGWRITE(dbg_level_info, L"[afpuser:FPChangePswd]Returning: %d\n", afpError);
     
     return( afpError );
 }
@@ -920,7 +920,7 @@ AFPERROR FPMapID(
     //
     afpUserID = afpRequest.GetInt32();
 
-    DBGWRITE(DbgLevelInfo, L"[afp:FPMapID]Looking for ID %d\n", afpUserID);
+    DBGWRITE(dbg_level_info, L"[afp:FPMapID]Looking for ID %d\n", afpUserID);
         
     switch(afpSubFunc)
     {
@@ -930,7 +930,7 @@ AFPERROR FPMapID(
 
             if (AFP_SUCCESS(afpError))
             {
-                DBGWRITE(DbgLevelInfo, L"[afp:FPMapID]Mapped id to name %s\n", szName);
+                DBGWRITE(dbg_level_info, L"[afp:FPMapID]Mapped id to name %s\n", szName);
                 afpReply.AddUniStringAsPascal(szName);
             }
             break;
@@ -946,7 +946,7 @@ AFPERROR FPMapID(
 
             if (AFP_SUCCESS(afpError))
             {
-                DBGWRITE(DbgLevelInfo, L"[afp:FPMapID]Mapped id to name %s\n", szName);
+                DBGWRITE(dbg_level_info, L"[afp:FPMapID]Mapped id to name %s\n", szName);
                 afpReply.AddUniString(szName);
             }
             break;
@@ -1003,13 +1003,13 @@ AFPERROR FPGetSrvrMsg(
     switch (afpMessageType)
     {
         case AFP_MSG_LOGINTYPE:
-            DBGWRITE(DbgLevelInfo, L"[AFP]Message type = Logon\n");
+            DBGWRITE(dbg_level_info, L"[AFP]Message type = Logon\n");
 
             theRegistry.GetLogonMessage(message);
             break;
 
         case AFP_MSG_SERVERTYPE:
-            DBGWRITE(DbgLevelInfo, L"[AFP]Message type = Server\n");
+            DBGWRITE(dbg_level_info, L"[AFP]Message type = Server\n");
 
             //
             //Since the server message is not saved anywhere, we just grab
@@ -1019,12 +1019,12 @@ AFPERROR FPGetSrvrMsg(
             break;
 
         default:
-            DBGWRITE(DbgLevelWarning, L"[AFP]Bad message type in FPGetSrvrMsg!\n");
+            DBGWRITE(dbg_level_warning, L"[AFP]Bad message type in FPGetSrvrMsg!\n");
             ASSERT(0);
             break;
     }
     
-    DBGWRITE(DbgLevelInfo, L"[AFP]Message = %s\n", message);
+    DBGWRITE(dbg_level_info, L"[AFP]Message = %s\n", message);
 
     //
     //Pack in all the parameters.

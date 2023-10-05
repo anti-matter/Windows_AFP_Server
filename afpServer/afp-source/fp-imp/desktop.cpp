@@ -54,15 +54,15 @@ AFPERROR AFPFindEntry(
         //We failed to find a block corresponding to the
         //supplied volume ID.
         //
-        DBGWRITE(DbgLevelInfo, L"[desk]Bad volume ID in AFPFindEntry()\n");
+        DBGWRITE(dbg_level_info, L"[desk]Bad volume ID in AFPFindEntry()\n");
         return afpParmErr;
     }
 
-    auto entry = volumeInfo->desktop->FindEntry(searchEntry, wSearchIndex);
+    auto entry = volumeInfo->desktop->find_entry(searchEntry, wSearchIndex);
 
     if (entry != nullptr)
     {
-        DBGWRITE(DbgLevelInfo, L"[desk:AFPFindEntry]Found entry for file = %s\n", entry->pathname);
+        DBGWRITE(dbg_level_info, L"[desk:AFPFindEntry]Found entry for file = %s\n", entry->pathname);
 
         // Make a copy instead of passing original pointer.
         memcpy_s(foundEntry, sizeof(DESKTOP_ENTRY), entry, sizeof(DESKTOP_ENTRY));
@@ -72,7 +72,7 @@ AFPERROR AFPFindEntry(
 
     #ifdef _DEBUG
     auto const itemType = searchEntry->entryType == ENTRY_TYPE_ICON ? L"ICON" : L"APPLorCMNT";
-    DBGWRITE(DbgLevelInfo, L"[desk]Failed to find item in desktop DB! (type = %s)\n", itemType);
+    DBGWRITE(dbg_level_info, L"[desk]Failed to find item in desktop DB! (type = %s)\n", itemType);
     #endif
 
     return afpItemNotFound;
@@ -101,14 +101,14 @@ AFPERROR AFPAddEntry(
         //We failed to find a block corresponding to the
         //supplied volume ID.
         //
-        DBGWRITE(DbgLevelInfo, L"[desk]Bad volume ID in AFPAddEntry()\n");
+        DBGWRITE(dbg_level_info, L"[desk]Bad volume ID in AFPAddEntry()\n");
         return afpParmErr;
     }
 
     //
     //Search to see if the data we want to add already exists.
     //
-    auto existingEntry = volumeInfo->desktop->FindEntry(newEntry);
+    auto existingEntry = volumeInfo->desktop->find_entry(newEntry);
 
     //
     //If we find an entry in the data base that matches the new entry, we
@@ -128,14 +128,14 @@ AFPERROR AFPAddEntry(
             }
         }
 
-        DBGWRITE(DbgLevelInfo, L"[desk]Removing and replacing icon...\n");
+        DBGWRITE(dbg_level_info, L"[desk]Removing and replacing icon...\n");
 
-        volumeInfo->desktop->RemoveEntry(existingEntry);
+        volumeInfo->desktop->remove_entry(existingEntry);
     }
 
-    volumeInfo->desktop->AddEntry(newEntry);
+    volumeInfo->desktop->add_entry(newEntry);
 
-    DBGWRITE(DbgLevelInfo, L"[desk]Added new item to desktop database!\n");
+    DBGWRITE(dbg_level_info, L"[desk]Added new item to desktop database!\n");
 
     return AFP_OK;
 }
@@ -166,13 +166,13 @@ AFPERROR AFPRemoveEntry(
         //We failed to find a block corresponding to the
         //supplied volume ID.
         //
-        DBGWRITE(DbgLevelInfo, L"[desk]Bad volume ID in AFPAddEntry()\n");
+        DBGWRITE(dbg_level_info, L"[desk]Bad volume ID in AFPAddEntry()\n");
         return afpParmErr;
     }
 
-    DBGWRITE(DbgLevelInfo, L"[desk]Removing entry from DT array for file %s\n", removeEntry->pathname);
+    DBGWRITE(dbg_level_info, L"[desk]Removing entry from DT array for file %s\n", removeEntry->pathname);
 
-    return volumeInfo->desktop->RemoveEntry(removeEntry);;
+    return volumeInfo->desktop->remove_entry(removeEntry);;
 }
 
 
@@ -200,7 +200,7 @@ AFPERROR AFPOpenDeskTopDB(
         //We failed to find a block corresponding to the
         //supplied volume ID.
         //
-        DBGWRITE(DbgLevelInfo, L"[VOL]Bad volume ID in AFPOpenDeskTopDB()\n");
+        DBGWRITE(dbg_level_info, L"[VOL]Bad volume ID in AFPOpenDeskTopDB()\n");
         return afpParmErr;
     }
 
@@ -224,7 +224,7 @@ AFPERROR AFPOpenDeskTopDB(
 
         if (desktopFileExists)
         {
-            volumeInfo->desktop->FromFile(szPath);
+            volumeInfo->desktop->from_file(szPath);
         }
         else
         {
@@ -280,13 +280,13 @@ void AFPSynchronizeDesktopFile(
 
     if (!AFPGetVolumeInfoBlock(nullptr, wVolID, &volumeInfo))
     {
-        DBGWRITE(DbgLevelInfo, L"[desk:AFPSynchronizeDesktopFile]Bad volume ID in AFPSynchronizeDesktopFile()\n");
+        DBGWRITE(dbg_level_info, L"[desk:AFPSynchronizeDesktopFile]Bad volume ID in AFPSynchronizeDesktopFile()\n");
         return;
     }
 
     StringCbPrintf(szPath, sizeof(szPath), TEXT("%s\\%s"), volumeInfo->szPath, DESKTOP_FILE_NAME);
 
-    volumeInfo->desktop->ToFile(szPath);
+    volumeInfo->desktop->to_file(szPath);
 }
 
 

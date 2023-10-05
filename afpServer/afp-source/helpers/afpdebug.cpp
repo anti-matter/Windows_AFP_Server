@@ -1,261 +1,264 @@
 //===================================================================
 // afpdebug.c
-// Copyright (c) 1998-2000, Microsoft Corp. All Rights Reserved.
-//
-// Michael J. Conrad (mconrad@microsoft.com)
 //===================================================================
 
 #include "StdAfx.h"
 #include "afpdebug.h"
-#include <stdlib.h>
+
+#include <codecvt>
+#include <future>
 
 
 #if defined(DBG) || defined(_DEBUG)
 
 //----------------------------------------------------------------------------
-// AFPDebugWrite()
+// afp_debug_write()
 //----------------------------------------------------------------------------
 // Debug string cmd for macro.
-void AFPDebugWrite(_In_ const DbgLevel debugLevel, _In_ const WCHAR* format, ...)
+void afp_debug_write(_In_ const dbg_level debug_level, _In_ const std::string& function, _In_ const WCHAR* format, ...)
 {
-    if (debugLevel <= CurrentDebugLevel)
-    {
-        va_list args = nullptr;
-        va_start(args, format);
+	if (debug_level > current_debug_level)
+	{
+		return;
+	}
+
+	va_list args;
+	va_start(args, format);
+
+	// Don't halt thread execution waiting for debug output.
+	auto future = std::async(std::launch::async, [function,format,args]()
+	{
+		std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
+		const std::wstring combined = L"[" + converter.from_bytes(function) + L"]" + format;
 
 		// Len + terminating character
-		auto len = _vscwprintf(format, args) + 1;
-		auto buffer = std::unique_ptr<WCHAR>(new WCHAR[len]);
+		const auto len = _vscwprintf(combined.c_str(), args) + 1;
+		const auto buffer = std::unique_ptr<WCHAR>(new WCHAR[len]);
 
-		vswprintf_s(buffer.get(), len, format, args);
-        va_end(args);
+		const auto chars_written = vswprintf_s(buffer.get(), len, combined.c_str(), args);
+		if (chars_written > 0)
+		{
+			OutputDebugString(buffer.get());
+		}
+	});
 
-        OutputDebugString(buffer.get());
-    }
+	va_end(args);
 }
 
 //----------------------------------------------------------------------------
-// DumpBitmap()
+// dump_bitmap()
 //----------------------------------------------------------------------------
 // Dump a bitmap to the debugger window in readable form.
 
-void DumpBitmap(DWORD dwBitmap)
+void dump_bitmap(const DWORD bitmap)
 {
-    DWORD	bit = 0x01;
-    WORD	x;
-    CHAR	buffer[64];
-    
-    StringCbPrintfA(buffer, sizeof(buffer), "Bitmap dump:\n\n");
-    OutputDebugStringA(buffer);
-    
-    StringCbPrintfA(buffer, sizeof(buffer), "0        10        20        30\n");
-    OutputDebugStringA(buffer);
-    
-    StringCbPrintfA(buffer, sizeof(buffer), "12345678901234567890123456789012\n");
-    OutputDebugStringA(buffer);
-    
-    RtlZeroMemory(buffer, 64);
-    
-    for(x = 1; x <= 32; x++, bit += bit)
-    {
-        if (dwBitmap & bit) {
-            StringCbCatA(buffer, sizeof(buffer), "^");
-        }
-        else {
-            StringCbCatA(buffer, sizeof(buffer), " ");
-        }
-    }
+	DWORD bit = 0x01;
+	WORD x;
+	CHAR buffer[64];
 
-    StringCbCatA(buffer, sizeof(buffer), "\n");
-    OutputDebugStringA(buffer);
-    
-    bit = 0x1;
-    
-    for(x = 1; x <= 32; x++, bit += bit)
-    {
-        StringCbPrintfA(buffer, sizeof(buffer), "%#-10x = %d\n", bit, ((dwBitmap & bit)?1:0));
-        OutputDebugStringA(buffer);
-    }
-}
+	// ReSharper disable CppFunctionResultShouldBeUsed
 
+	StringCbPrintfA(buffer, sizeof(buffer), "Bitmap dump:\n\n");
+	OutputDebugStringA(buffer);
 
-//
-//This is needed in BloodShed since it sin't in the stdlib
-//
-bool isprint(UCHAR c)
-{
-    if (    ((c >= 'a') || (c <= 'z'))      ||
-            ((c >= 'A') || (c <= 'Z'))      ||
-            ((c >= '0') || (c <= '9'))      )
-    {
-        return( true );
-    }
-    
-    return( false );
+	StringCbPrintfA(buffer, sizeof(buffer), "0        10        20        30\n");
+	OutputDebugStringA(buffer);
+
+	StringCbPrintfA(buffer, sizeof(buffer), "12345678901234567890123456789012\n");
+	OutputDebugStringA(buffer);
+
+	RtlZeroMemory(buffer, 64);
+
+	for (x = 1; x <= 32; x++, bit += bit)
+	{
+		if (bitmap & bit)
+		{
+			StringCbCatA(buffer, sizeof(buffer), "^");
+		}
+		else
+		{
+			StringCbCatA(buffer, sizeof(buffer), " ");
+		}
+	}
+
+	StringCbCatA(buffer, sizeof(buffer), "\n");
+	OutputDebugStringA(buffer);
+
+	bit = 0x1;
+
+	for (x = 1; x <= 32; x++, bit += bit)
+	{
+		StringCbPrintfA(buffer, sizeof(buffer), "%#-10x = %d\n", bit, ((bitmap & bit) ? 1 : 0));
+		OutputDebugStringA(buffer);
+	}
+
+	// ReSharper restore CppFunctionResultShouldBeUsed
 }
 
 
 //----------------------------------------------------------------------------
-//		HexDumpBuffer()
+// hex_dump_buffer()
 //----------------------------------------------------------------------------
 // Dumps a buffer in hex and chars to the output text window.
 
-void HexDumpBuffer(CHAR *pBuffer, DWORD dwLen)
+void hex_dump_buffer(const CHAR* p_buffer, const DWORD length)
 {
-    CHAR	szLine[128];
-    UCHAR	szLittle[16];
-    CHAR	szPart[16];
-    DWORD	i,j,k;
-    CHAR	foo[2];
-    
-    szLine[0] = 0;
-    
-    j = 0;
-    
-    for (i = 0; i < dwLen; i++)
-    {
-        if (!(i % 16) && j)
-        {
-            StringCbCatA(szLine, sizeof(szLine), "   ");
-            
-            for (k = 0; k < j; k++)
-            {
-                if (isprint(szLittle[k]))
-                {
-                    foo[0] = szLittle[k];
-                    foo[1] = 0;
-                    StringCbCatA(szLine, sizeof(szLine), foo);
-                }
-                else
-                    StringCbCatA(szLine, sizeof(szLine), ".");
-            }
-            
-            StringCbCatA(szLine, sizeof(szLine), "\n");
-            OutputDebugStringA(szLine);
-            
-            szLine[0] = 0;
-            j = 0;
-        }
-        
-        StringCbPrintfA(szPart, sizeof(szPart), "%02x ", (UCHAR)(pBuffer[i] & 0xFF));
-        StringCbCatA(szLine, sizeof(szLine), szPart);
-        szLittle[j++] = (UCHAR)pBuffer[i];
-    }
-    
-    if (j)
-    {
-        for (i = j; i < 16; i++)
-            StringCbCatA(szLine, sizeof(szLine), "   ");
-        
-        StringCbCatA(szLine, sizeof(szLine), "    ");
-        
-        for (k = 0; k < j; k++)
-        {
-            if (isprint(szLittle[k]))
-            {
-                foo[0] = szLittle[k];
-                foo[1] = 0;
-                StringCbCatA(szLine, sizeof(szLine), foo);
-            }
-            else
-                StringCbCatA(szLine, sizeof(szLine), ".");
-        }
-        
-        StringCbCatA(szLine, sizeof(szLine), "\n");
-        OutputDebugStringA(szLine);
-    }
+	CHAR line[128];
+	CHAR little[16];
+	CHAR foo[2];
+	DWORD j = 0;
+	line[0] = 0;
+
+	// ReSharper disable CppFunctionResultShouldBeUsed
+
+	for (DWORD i = 0; i < length; i++)
+	{
+		CHAR part[16];
+
+		if (!(i % 16) && j)
+		{
+			StringCbCatA(line, sizeof(line), "   ");
+
+			for (DWORD k = 0; k < j; k++)
+			{
+				if (std::isprint(little[k]))
+				{
+					foo[0] = little[k];
+					foo[1] = 0;
+					StringCbCatA(line, sizeof(line), foo);
+				}
+				else
+					StringCbCatA(line, sizeof(line), ".");
+			}
+
+			StringCbCatA(line, sizeof(line), "\n");
+			OutputDebugStringA(line);
+
+			line[0] = 0;
+			j = 0;
+		}
+
+		StringCbPrintfA(part, sizeof(part), "%02x ", static_cast<UCHAR>(p_buffer[i] & 0xFF));
+		StringCbCatA(line, sizeof(line), part);
+		little[j++] = p_buffer[i];
+	}
+
+	if (j)
+	{
+		for (DWORD i = j; i < 16; i++)
+		{
+			StringCbCatA(line, sizeof(line), "   ");
+		}
+
+		StringCbCatA(line, sizeof(line), "    ");
+
+		for (DWORD k = 0; k < j; k++)
+		{
+			if (std::isprint(little[k]))
+			{
+				foo[0] = little[k];
+				foo[1] = 0;
+				StringCbCatA(line, sizeof(line), foo);
+			}
+			else
+				StringCbCatA(line, sizeof(line), ".");
+		}
+
+		StringCbCatA(line, sizeof(line), "\n");
+		OutputDebugStringA(line);
+	}
+
+	// ReSharper restore CppFunctionResultShouldBeUsed
 }
 
 
 //---------------------------------------------------------------------
-// DBGOutputBufferToDebugger()
+// dbg_output_buffer_to_debugger()
 //---------------------------------------------------------------------
-// Outputs the entire contents of a buffer to the debuffer.
+// Outputs the entire contents of a buffer to the debug buffer.
 
-void DBGOutputBufferToDebugger(
-        IN PBYTE pBuffer,
-        IN DWORD dwSize
+void dbg_output_buffer_to_debugger(
+	IN const PBYTE p_buffer,
+	IN const DWORD size
 )
 {
-    DWORD 	i;
-    CHAR	c[15];
+	for (DWORD i = 0; i < size; i++)
+	{
+		CHAR c[15];
+		const auto result = StringCbPrintfA(c, sizeof(c), "%-4x ", p_buffer[i]);
+		if (SUCCEEDED(result) && (i + 1) % 8 == 0)
+		{
+			// ReSharper disable once CppFunctionResultShouldBeUsed
+			StringCbCatA(c, sizeof(c), "\n");
+		}
 
-    for (i = 0; i < dwSize; i++)
-    {
-        StringCbPrintfA(c, sizeof(c), "%-4x ", pBuffer[i]);		
-        if (((i+1) % 8) == 0) {
-            StringCbCatA(c, sizeof(c), "\n");
-        }
-        
-        OutputDebugStringA(c);
-    }
+		OutputDebugStringA(c);
+	}
 
-    OutputDebugStringA("\n");
+	OutputDebugStringA("\n");
 }
 
 
 //---------------------------------------------------------------------
-// DBGMemFree()
+// dbg_free()
 //---------------------------------------------------------------------
 // Internal use memory release routine.
 
-void DBGMemFree(
-        IN  PBYTE 	pPtr
+void dbg_free(
+	IN const PBYTE ptr
 )
-{	
-    if (pPtr == NULL)
-    {
-        DBGWRITE(DbgLevelInfo, L"[DBG]Attempted to free NULL block!\n");
-        ASSERT(0);
-        
-        return;
-    }
-            
-    HeapFree(GetProcessHeap(), 0, pPtr);
+{
+	if (ptr == nullptr)
+	{
+		DBGWRITE(dbg_level_info, L"Attempted to free NULL block!\n");
+		ASSERT(0);
+
+		return;
+	}
+
+	HeapFree(GetProcessHeap(), 0, ptr);
 }
 
 
 //---------------------------------------------------------------------
-// DBGAllocMem()
+// dbg_alloc()
 //---------------------------------------------------------------------
 // Internal use memory allocation routine.
 
-PVOID DBGAllocMem(
-        IN 	DWORD 	dwSize,
-        IN	DWORD	dwLine,
-        IN	CHAR*	szFileName
+PVOID dbg_alloc(
+	IN const DWORD size,
+	IN const DWORD line,
+	IN const CHAR* file_name
 )
 {
-    PBYTE	pReturnBuff = NULL;	
-    
-    pReturnBuff = (PBYTE)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, dwSize);
-    
-    if (pReturnBuff == NULL)
-    {
-        WCHAR	temps[1024];
-        size_t	numconv;
+	const auto return_buff = static_cast<PBYTE>(HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size));
 
-        mbstowcs_s(
-            &numconv, 
-            temps, 
-            sizeof(temps), 
-            szFileName, 
-            strlen(szFileName)
-            );
+	if (return_buff == nullptr)
+	{
+		WCHAR temps[1024];
+		size_t numconv;
 
-        DBGWRITE(
-                DbgLevelInfo,
-                L"[DBG]Mem alloc of %d bytes failed in file: %s line: %d error: %d\n",
-                temps,
-                dwLine,
-                dwSize,
-                GetLastError()
-                );
+		mbstowcs_s( // NOLINT(cert-err33-c)
+			&numconv,
+			temps,
+			sizeof(temps) / 2,
+			file_name,
+			strlen(file_name)
+		);
 
-        return(NULL);
-    }
+		DBGWRITE(
+			dbg_level_info,
+			L"Mem alloc of %d bytes failed in file: %s line: %d error: %d\n",
+			temps,
+			line,
+			size,
+			GetLastError()
+		);
 
-    return((PVOID)pReturnBuff);
+		return nullptr;
+	}
+
+	return return_buff;
 }
 #endif
 
@@ -265,17 +268,21 @@ PVOID DBGAllocMem(
 //----------------------------------------------------------------------------
 // Put up a message box to report an error.
 
-void ReportError(CHAR *szError, DWORD dwError)
+void report_error(CHAR* sz_error, const DWORD dw_error)
 {
-    TCHAR	 szErrorMsg[256];
+	WCHAR sz_error_msg[256];
 
-    StringCbPrintf(szErrorMsg, sizeof(szErrorMsg), TEXT("%s\n\nError Code: %d"), szError, dwError);
-    
-    MessageBox(
-         NULL,
-         szErrorMsg,
-         ERROR_DLG_TITLE,
-         MB_OK | MB_ICONERROR | MB_SETFOREGROUND
-         );
+	const auto result = StringCbPrintf(sz_error_msg, sizeof(sz_error_msg), TEXT("%s\n\nError Code: %ld"), sz_error,
+	                                   dw_error);
+	if (FAILED(result))
+	{
+		return;
+	}
+
+	MessageBox(
+		nullptr,
+		sz_error_msg,
+		ERROR_DLG_TITLE,
+		MB_OK | MB_ICONERROR | MB_SETFOREGROUND
+	);
 }
-
