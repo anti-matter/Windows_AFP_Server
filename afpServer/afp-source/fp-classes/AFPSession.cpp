@@ -7,7 +7,7 @@
  */
 
 #include "StdAfx.h"
-#include "AutoLock.h"
+#include "auto_lock.h"
 #include "AFPSession.h"
 #include "AFPOpenFile.h"
 #include <algorithm>
@@ -86,7 +86,7 @@ AFPSession::~AFPSession()
 
 void AFPSession::SessionAssociateAFPOpenFile(AFPOpenFile* inAFPOpenFileObject)
 {
-    AutoLock lock(&mMutex);
+    auto_lock lock(&mMutex);
 
     ASSERT(inAFPOpenFileObject != nullptr);
     DBGWRITE(dbg_level_all, L"[AFPSession:SessionAssociateAFPOpenFile]opening fileobject %x\n", inAFPOpenFileObject);
@@ -107,7 +107,7 @@ void AFPSession::SessionAssociateAFPOpenFile(AFPOpenFile* inAFPOpenFileObject)
 
 AFPERROR AFPSession::SessionCloseFile(int16 inFileRefNum)
 {
-    AutoLock lock(&mMutex);
+    auto_lock lock(&mMutex);
 
     std::vector<std::unique_ptr<AFPOpenFile>>::iterator it =
         std::find_if(mAFPOpenFiles.begin(), mAFPOpenFiles.end(), [=](const std::unique_ptr<AFPOpenFile>& f)
@@ -137,7 +137,7 @@ AFPERROR AFPSession::SessionCloseFile(int16 inFileRefNum)
 
 AFPOpenFile* AFPSession::FindAFPOpenFileObject(int16 inFileRef)
 {
-    AutoLock lock(&mMutex);
+    auto_lock lock(&mMutex);
 
     std::vector<std::unique_ptr<AFPOpenFile>>::iterator it =
         std::find_if(mAFPOpenFiles.begin(), mAFPOpenFiles.end(), [=](const std::unique_ptr<AFPOpenFile>& f)
@@ -207,7 +207,7 @@ AFPOpenFile* AFPSession::NewAFPOpenFileObject(
 
 AFPERROR AFPSession::SessionOpenVolume(uint16 volumeID)
 {
-    AutoLock lock(&mMutex);
+    auto_lock lock(&mMutex);
     AFP_VOLUME_INFO* volumeInfo;
 
     if (!AFPGetVolumeInfoBlock(nullptr, volumeID, &volumeInfo))
@@ -250,7 +250,7 @@ AFPERROR AFPSession::SessionOpenVolume(uint16 volumeID)
 
 AFPERROR AFPSession::SessionCloseVolume(uint16 volumeID)
 {
-    AutoLock lock(&mMutex);
+    auto_lock lock(&mMutex);
 
     std::vector<AFP_VOLUME_INFO*>::iterator it =
         std::find_if(mOpenVolumes.begin(), mOpenVolumes.end(), [=](AFP_VOLUME_INFO* v)
@@ -288,7 +288,7 @@ AFPERROR AFPSession::SessionCloseVolume(uint16 volumeID)
 
 AFP_VOLUME_INFO* AFPSession::SessionFindOpenVolumeBlock(uint16 volumeID)
 {
-    AutoLock lock(&mMutex);
+    auto_lock lock(&mMutex);
 
     std::vector<AFP_VOLUME_INFO*>::iterator it =
         std::find_if(mOpenVolumes.begin(), mOpenVolumes.end(), [=](const AFP_VOLUME_INFO* v)
@@ -321,7 +321,7 @@ AFPERROR AFPSession::SessionOpenDesk(uint16 inVolumeID, uint16* outDTRefNum)
 
     if (AFP_SUCCESS(afpError))
     {
-        AutoLock lock(&mMutex);
+        auto_lock lock(&mMutex);
 
         *outDTRefNum = newOpenDesk->dtRefNum;
         mOpenDesks.push_back(std::move(newOpenDesk));
@@ -342,7 +342,7 @@ AFPERROR AFPSession::SessionOpenDesk(uint16 inVolumeID, uint16* outDTRefNum)
 
 AFPERROR AFPSession::SessionCloseDesk(uint16 inDeskRefNum)
 {
-    AutoLock lock(&mMutex);
+    auto_lock lock(&mMutex);
 
     std::vector<std::unique_ptr<OPEN_DESKTOP>>::iterator it =
         std::find_if(mOpenDesks.begin(), mOpenDesks.end(), [=](const std::unique_ptr<OPEN_DESKTOP>& odt)
@@ -374,7 +374,7 @@ AFPERROR AFPSession::SessionCloseDesk(uint16 inDeskRefNum)
 
 OPEN_DESKTOP* AFPSession::SessionFindDeskFile(uint16 inDeskRefNum)
 {
-    AutoLock lock(&mMutex);
+    auto_lock lock(&mMutex);
 
     std::vector<std::unique_ptr<OPEN_DESKTOP>>::iterator it =
         std::find_if(mOpenDesks.begin(), mOpenDesks.end(), [=](const std::unique_ptr<OPEN_DESKTOP>& odt)
@@ -425,7 +425,7 @@ AFPSession* AFPSession::FindSessionWithID(int8* afpID, uint32 inIDSize)
 {
     auto pSession = g_sessions_list;
 
-    AutoLock lock(&g_cs_session_list);
+    auto_lock lock(&g_cs_session_list);
 
     while (pSession)
     {
@@ -463,7 +463,7 @@ AFPSession* AFPSession::FindSessionByToken(int32 inToken)
 {
     auto pSession = g_sessions_list;
 
-    AutoLock lock(&g_cs_session_list);
+    auto_lock lock(&g_cs_session_list);
 
     while (pSession)
     {

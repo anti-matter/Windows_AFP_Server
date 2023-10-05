@@ -110,7 +110,7 @@
     <ClCompile Include="afp-source\fp-classes\AfpBuffer.cpp">
       <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
-    <ClCompile Include="afp-source\fp-classes\AutoLock.cpp">
+    <ClCompile Include="afp-source\fp-classes\auto_lock.cpp">
       <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
     <ClCompile Include="afp-source\fp-classes\AFPSession.cpp">
@@ -160,22 +160,22 @@
     <ClInclude Include="afp-source\helpers\ByteSwap.h">
       <Filter>Source Files\helpers</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\fp-classes\AutoLock.h">
+    <ClInclude Include="afp-source\fp-classes\auto_lock.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\fp-classes\DesktopDatabase.h">
+    <ClInclude Include="afp-source\fp-classes\desktop_database.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
     <ClInclude Include="afp-source\fp-classes\users_and_groups_array.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\fp-classes\VolumeArray.h">
+    <ClInclude Include="afp-source\fp-classes\volume_array.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
     <ClInclude Include="afp-source\server-core\afpnotify.h">
       <Filter>Source Files\server-core</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\fp-classes\AFPArray.h">
+    <ClInclude Include="afp-source\fp-classes\afp_array.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
     <ClInclude Include="afp-source\fp-classes\afp_critical_section.h">

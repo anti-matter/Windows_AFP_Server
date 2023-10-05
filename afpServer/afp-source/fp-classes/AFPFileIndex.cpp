@@ -9,7 +9,7 @@
 
 #include "afp.h"
 #include "afpworker.h"
-#include "AutoLock.h"
+#include "auto_lock.h"
 #include "AFPFileIndex.h"
 
 const int FirstDirectoryId = 1;
@@ -78,7 +78,7 @@ LPAFPINDEX AFPFileIndex::AddEntry(
 	uint32* pNewDirID
 )
 {
-    AutoLock lock(&mIndexCriticalSection);
+    auto_lock lock(&mIndexCriticalSection);
     auto entry = std::make_unique<AFPINDEX>();
 
 	//
@@ -134,7 +134,7 @@ LPAFPINDEX AFPFileIndex::AddEntry(
 
 LPAFPINDEX AFPFileIndex::GetEntry(uint32 objectID)
 {
-    AutoLock lock(&mIndexCriticalSection);
+    auto_lock lock(&mIndexCriticalSection);
 
     std::vector<std::unique_ptr<AFPINDEX>>::iterator it = std::find_if(mIndex.begin(), mIndex.end(),[=](const std::unique_ptr<AFPINDEX>& i)
     {
@@ -184,7 +184,7 @@ void AFPFileIndex::RemoveEntry(LPAFPINDEX entry, bool deleteDirectorySubTree)
 
 void AFPFileIndex::RemoveEntry(uint32 objectID, bool deleteDirectorySubTree)
 {
-    AutoLock lock(&mIndexCriticalSection);
+    auto_lock lock(&mIndexCriticalSection);
 
     std::vector<std::unique_ptr<AFPINDEX>>::iterator it = std::find_if(mIndex.begin(), mIndex.end(), [=](const std::unique_ptr<AFPINDEX>& i)
     {
@@ -304,7 +304,7 @@ void AFPFileIndex::UpdateEntry(
 	//
 	if (pEntry->flags & FLAG_INDEX_ISDIR)
 	{
-        AutoLock lock(&mIndexCriticalSection);
+        auto_lock lock(&mIndexCriticalSection);
 
         for (auto subIt = mIndex.begin(); subIt < mIndex.end(); ++subIt)
         {
@@ -415,7 +415,7 @@ LPAFPINDEX AFPFileIndex::FindEntryWithFullPath(PWCHAR fullPath)
 		return nullptr;
 	}
 
-    AutoLock lock(&mIndexCriticalSection);
+    auto_lock lock(&mIndexCriticalSection);
 
     std::vector<std::unique_ptr<AFPINDEX>>::iterator it = std::find_if(mIndex.begin(), mIndex.end(), [=](const std::unique_ptr<AFPINDEX>& i)
     {
@@ -453,7 +453,7 @@ uint32 AFPFileIndex::GetOffspring(uint32 parID, std::vector<LPAFPINDEX>** newInd
 {
     auto subIndex = new std::vector<LPAFPINDEX>();
 
-    AutoLock lock(&mIndexCriticalSection);
+    auto_lock lock(&mIndexCriticalSection);
 
     for (auto it = mIndex.begin(); it < mIndex.end(); ++it)
     {

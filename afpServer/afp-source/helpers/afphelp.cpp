@@ -9,7 +9,7 @@
 #include "afphelp.h"
 #include "afpdebug.h"
 #include "afp.h"
-#include "AFPArray.h"
+#include "afp_array.h"
 #include "users_and_groups_array.h"
 
 users_and_groups_array g_user_and_group_id;
@@ -500,7 +500,7 @@ DWORD afp_get_directory_owner_and_group_id(
 
 						lstrcpyn(user_or_group_name->name, sz_name, lstrlen(sz_name) + 1);
 
-						g_user_and_group_id.AddItem(user_or_group_name);
+						g_user_and_group_id.add_item(user_or_group_name);
 
 						DBGWRITE(dbg_level_info, L"[AFPHELP]Added username %s to the array\n", user_or_group_name->name);
 					}

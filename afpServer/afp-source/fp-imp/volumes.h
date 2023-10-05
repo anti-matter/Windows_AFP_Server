@@ -6,7 +6,7 @@
 
 #include "afp.h"
 #include "AFPFileIndex.h"
-#include "DesktopDatabase.h"
+#include "desktop_database.h"
 
 #define MAX_LEVELS_DEEP				128
 #define MAX_VOLUMES					256
@@ -46,7 +46,7 @@ struct AFP_VOLUME_INFO
     CRITICAL_SECTION csNotifyQueue;
 
     AFPFileIndex* index;
-    DesktopDatabase* desktop;
+    desktop_database* desktop;
 
     HANDLE notifyEvent;
 };

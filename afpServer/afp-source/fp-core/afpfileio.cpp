@@ -556,7 +556,7 @@ AFPERROR FPCreateFile(
     //
     //Don't let the change notify mechanism do anything yet.
     //
-    AutoLock lock(&afpVolumeInfo->csNotifyQueue);
+    auto_lock lock(&afpVolumeInfo->csNotifyQueue);
 
     //
     //Impersonate the logged on user. This makes sure only those who

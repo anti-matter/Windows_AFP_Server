@@ -14,9 +14,9 @@
 #include "afpworker.h"
 #include "AfpBuffer.h"
 #include "AFPRegistry.h"
-#include "VolumeArray.h"
+#include "volume_array.h"
 
-VolumeArray gVolumeArray;
+volume_array gVolumeArray;
 USHORT gNextVolumeID = 65535;
 
 
@@ -101,7 +101,7 @@ DWORD AFPRemoveVolumeFromUI(
     AFPRegistry registry;
     DWORD error = 2;
 
-    auto volume = gVolumeArray.FindByName(szShareName);
+    auto volume = gVolumeArray.find_by_name(szShareName);
     if (volume != nullptr)
     {
         error = AFPRemoveVolume(volume);
@@ -271,7 +271,7 @@ AFP_VOLUME_INFO* AFPAddVolume(
     //Add the new volume element to the volume list.
     //
     auto tempVolume = newVolume.get();
-    gVolumeArray.AddItem(newVolume);
+    gVolumeArray.add_item(newVolume);
 
     //
     //Now add the change notify thread.
@@ -340,7 +340,7 @@ AFPERROR AFPRemoveVolume(
     //First step is to remove the volume structure pointer
     //for the volume from the volume tracking array.
     //
-    gVolumeArray.RemoveItem(pVolInfo);
+    gVolumeArray.remove_item(pVolInfo);
 
     return AFP_OK;
 }
@@ -354,12 +354,12 @@ AFPERROR AFPRemoveVolume(
 
 AFPERROR AFPRemoveAllVolumes()
 {
-    AutoLock lock(gVolumeArray.Mutex());
+    auto_lock lock(gVolumeArray.mutex());
 
-    auto size = gVolumeArray.NumItems();
+    auto size = gVolumeArray.num_items();
     for (UINT32 i = 0; i < size; ++i)
     {
-        AFPRemoveVolume(gVolumeArray.GetItem(i));
+        AFPRemoveVolume(gVolumeArray.get_item(i));
     }
 
     return AFP_OK;
@@ -380,8 +380,8 @@ BOOL AFPGetVolumeInfoBlock(
 )
 {
     *ppVolInfo = szVolName != nullptr
-                    ? gVolumeArray.FindByName(szVolName)
-                    : gVolumeArray.FindById(wVolID);
+                    ? gVolumeArray.find_by_name(szVolName)
+                    : gVolumeArray.find_by_id(wVolID);
 
     return *ppVolInfo != nullptr;
 }
@@ -398,7 +398,7 @@ BOOL AFPMapVolumeNameToID(
        OUT PWORD wVolID
 )
 {
-    auto volumeInfo = gVolumeArray.FindByName(szVolumeName);
+    auto volumeInfo = gVolumeArray.find_by_name(szVolumeName);
 
     if (volumeInfo != nullptr)
     {
@@ -419,7 +419,7 @@ BOOL AFPMapVolumeNameToID(
 
 BYTE AFPNumVolumesActive()
 {
-    AutoLock lock(gVolumeArray.Mutex());
+    auto_lock lock(gVolumeArray.mutex());
     BYTE count = 0;
 
     for (auto it = gVolumeArray.begin(); it < gVolumeArray.end(); ++it)
@@ -446,7 +446,7 @@ BYTE AFPNumVolumesActive()
 
 BYTE AFPNumVolumesShared()
 {
-    return static_cast<BYTE>(gVolumeArray.NumItems());
+    return static_cast<BYTE>(gVolumeArray.num_items());
 }
 
 
@@ -773,7 +773,7 @@ AFPERROR AFPIndexBuild(
     {
         DWORD dwNewDirID;
 
-        AutoLock lock(&pVInfo->csNotifyQueue);
+        auto_lock lock(&pVInfo->csNotifyQueue);
 
         do
         {

@@ -7,12 +7,12 @@
 #include "volumes.h"
 #include "attention.h"
 #include "AFPSession.h"
-#include "VolumeArray.h"
+#include "volume_array.h"
 
 extern CRITICAL_SECTION g_cs_session_list;
 extern BOOL g_running;
 extern LPSESSION g_sessions_list;
-extern VolumeArray gVolumeArray;
+extern volume_array gVolumeArray;
 extern SHORT g_worker_thread_ref_count;
 
 //---------------------------------------------------------------------
@@ -38,7 +38,7 @@ DWORD WINAPI AFPAttentionThread(
     while (g_running)
     {
         {
-            AutoLock lock(gVolumeArray.Mutex());
+            auto_lock lock(gVolumeArray.mutex());
 
             for (auto it = gVolumeArray.begin(); it < gVolumeArray.end(); ++it)
             {

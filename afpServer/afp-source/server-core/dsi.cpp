@@ -11,7 +11,7 @@
 #include "attention.h"
 #include "volumes.h"
 #include "afpworker.h"
-#include "AutoLock.h"
+#include "auto_lock.h"
 #include "AFPSession.h"
 #include "afp_critical_section.h"
 #include "counters.h"
@@ -480,7 +480,7 @@ DWORD WINAPI DSIWorkerThread(
 		//memory before we go on.
 		//
 		{
-			AutoLock lock(&pSession->cs);
+			auto_lock lock(&pSession->cs);
 
 			if ((dwBytesXferd == 0) &&
 				((perIOData->operationType == RECV_POSTED) ||
@@ -515,7 +515,7 @@ DWORD WINAPI DSIWorkerThread(
 
 			if (DSIProcessRecvBytes(pSession, dwBytesXferd, perIOData) == FALSE)
 			{
-				AutoLock lock(&pSession->cs);
+				auto_lock lock(&pSession->cs);
 
 				//DBGWRITE(DbgLevelAll, L"[DSI]Request processed for session 0x%x\n", pSession));
 

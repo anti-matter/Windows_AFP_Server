@@ -390,7 +390,7 @@ AFPERROR FPEnumerate(
     //
     //Don't let the change notify mechanism do anything yet.
     //
-    AutoLock lock(&afpVolumeInfo->csNotifyQueue);
+    auto_lock lock(&afpVolumeInfo->csNotifyQueue);
 
     //
     //Create a temporary index array to hold all the offspring for the
@@ -903,7 +903,7 @@ AFPERROR FPCreateDir(
     //
     //Lock down so the notify thread and us don't compete.
     //
-    AutoLock lock(&afpVolume->csNotifyQueue);
+    auto_lock lock(&afpVolume->csNotifyQueue);
 
     //
     //Impersonate the logged on user. This makes sure only those who
@@ -1069,7 +1069,7 @@ AFPERROR FPDelete(
     //
     //Don't compete with the notify thread.
     //
-    AutoLock lock(&afpVolumeInfo->csNotifyQueue);
+    auto_lock lock(&afpVolumeInfo->csNotifyQueue);
         
     //
     //Impersonate the logged on user. This makes sure only those who
@@ -1296,7 +1296,7 @@ AFPERROR FPCopyFile(
     //
     AFP_VOLUME_INFO* volumeInfo = nullptr;
     AFPGetVolumeInfoBlock(nullptr, afpDstVolID, &volumeInfo);
-    AutoLock lock(&volumeInfo->csNotifyQueue);
+    auto_lock lock(&volumeInfo->csNotifyQueue);
 
     //
     //Setup the correct impersonation for this API call. We have to
@@ -1535,7 +1535,7 @@ AFPERROR FPMoveAndRename(
     //
     AFP_VOLUME_INFO* volumeInfo = nullptr;
     AFPGetVolumeInfoBlock(nullptr, afpVolumeID, &volumeInfo);
-    AutoLock lock(&volumeInfo->csNotifyQueue);
+    auto_lock lock(&volumeInfo->csNotifyQueue);
 
     
     DBGWRITE(dbg_level_info, L"[afp:FPMoveAndRename]Renaming to new path = %s\n", winDstPath);
@@ -1726,7 +1726,7 @@ AFPERROR FPRename(
     //
     AFP_VOLUME_INFO* volumeInfo = nullptr;
     AFPGetVolumeInfoBlock(nullptr, afpVolumeID, &volumeInfo);
-    AutoLock lock(&volumeInfo->csNotifyQueue);
+    auto_lock lock(&volumeInfo->csNotifyQueue);
 
 
     //

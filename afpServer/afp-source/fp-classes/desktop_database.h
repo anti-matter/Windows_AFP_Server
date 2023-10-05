@@ -1,60 +1,54 @@
-/*
-*	DesktopDatabase.h
-*
-*	Copyright (c) Michael J. Conrad. All Rights Reserved.
-*/
-
 #pragma once
 
 #include <algorithm>
 #include <iterator>
 #include <vector>
-#include "AFPArray.h"
+#include "afp_array.h"
 #include "desktop.h"
 
 struct dt_deleter {
     void operator()(const DESKTOP_ENTRY* b) const { UNREFERENCED_PARAMETER(b); }
 };
 
-class DesktopDatabase : public AFPArray<DESKTOP_ENTRY, dt_deleter>
+class desktop_database final : public afp_array<DESKTOP_ENTRY, dt_deleter>
 {
 public:
-    DesktopDatabase() = default;
+    desktop_database() = default;
 
     AFPERROR add_entry(const LPDESKTOP_ENTRY entry)
     {
         std::unique_ptr<DESKTOP_ENTRY, dt_deleter> new_entry(entry);
-        AddItem(new_entry);
+        add_item(new_entry);
 
         return AFP_OK;
     }
 
     AFPERROR remove_entry(const LPDESKTOP_ENTRY entry)
     {
-        AutoLock lock(&mMutex);
+        auto_lock lock(&m_mutex_);
 
         const auto it =
-            std::find_if(mData.begin(), mData.end(), [=](const std::unique_ptr<DESKTOP_ENTRY, dt_deleter>& item)
+            std::find_if(m_data_.begin(), m_data_.end(), [=](const std::unique_ptr<DESKTOP_ENTRY, dt_deleter>& item)
         {
             return memcmp(item.get(), entry, sizeof(DESKTOP_ENTRY)) == 0;  // NOLINT(bugprone-suspicious-memory-comparison)
         });
 
-        if (it != mData.end())
+        if (it != m_data_.end())
         {
             DBGWRITE(dbg_level_info, L"[AFPArray<T>::RemoveItem]Removing item from array.\n");
-            mData.erase(it);
+            m_data_.erase(it);
         }
         return AFP_OK;
     }
 
     LPDESKTOP_ENTRY find_entry(const LPDESKTOP_ENTRY search_param, const UINT16 search_index = 0)
     {
-        AutoLock lock(&mMutex);
+        auto_lock lock(&m_mutex_);
 
         UINT16 found_index = 0;
 
         const auto it = 
-            std::find_if(mData.begin(), mData.end(), [&](const std::unique_ptr<DESKTOP_ENTRY, dt_deleter>& d)
+            std::find_if(m_data_.begin(), m_data_.end(), [&](const std::unique_ptr<DESKTOP_ENTRY, dt_deleter>& d)
         {
             if (search_param->entryType == d->entryType)
             {
@@ -124,7 +118,7 @@ public:
             return false;
         });
 
-        if (it != mData.end())
+        if (it != m_data_.end())
         {
             return it->get();
         }
@@ -143,7 +137,7 @@ public:
     bool to_file(const std::wstring& path)
     {
         FILE *file;
-        AutoLock lock(&mMutex);
+        auto_lock lock(&m_mutex_);
 
         const auto success = _wfopen_s(&file, path.c_str(), L"wb");
         if (success != 0)
@@ -151,11 +145,11 @@ public:
 	        return false;
         }
 
-        const auto size = mData.size();
+        const auto size = m_data_.size();
         const auto written = fwrite(&size, sizeof(size), 1, file);
         if (written == sizeof(size))
         {
-            for (auto it = mData.begin(); it < mData.end(); ++it)
+            for (auto it = m_data_.begin(); it < m_data_.end(); ++it)
             {
 	            const auto wrote = fwrite(it->get(), sizeof(DESKTOP_ENTRY), 1, file);
                 if (wrote != sizeof(DESKTOP_ENTRY))
@@ -180,7 +174,7 @@ public:
     bool from_file(const std::wstring& path)
     {
         FILE *file;
-        AutoLock lock(&mMutex);
+        auto_lock lock(&m_mutex_);
 
         const auto success = _wfopen_s(&file, path.c_str(), L"w+b");
         if (success != 0)
@@ -201,7 +195,7 @@ public:
                 auto ep = std::unique_ptr<DESKTOP_ENTRY, dt_deleter>(new DESKTOP_ENTRY);
                 memcpy(ep.get(), &entry, sizeof(DESKTOP_ENTRY));
 
-                AddItem(ep);
+                add_item(ep);
             }
         }
 

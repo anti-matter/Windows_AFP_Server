@@ -9,9 +9,9 @@
 
 #include "StdAfx.h"
 #include "afpsrvr.h"
-#include "VolumeArray.h"
+#include "volume_array.h"
 
-extern VolumeArray gVolumeArray;
+extern volume_array gVolumeArray;
 extern BOOL	gAllowGuests;
 extern BOOL	gForceEncryptedLogon;
 

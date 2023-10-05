@@ -211,7 +211,7 @@ AFPERROR AFPOpenDeskTopDB(
 
     auto desktopFileExists = (GetFileAttributes(szPath) == MAXDWORD) ? false : true;
 
-    AutoLock lock(&volumeInfo->csNotifyQueue);
+    auto_lock lock(&volumeInfo->csNotifyQueue);
 
     deskFile->volID = wVolID;
     deskFile->dtRefNum = wVolID;
@@ -220,7 +220,7 @@ AFPERROR AFPOpenDeskTopDB(
     {
         afpError = afpMiscErr;
 
-        volumeInfo->desktop = new DesktopDatabase();
+        volumeInfo->desktop = new desktop_database();
 
         if (desktopFileExists)
         {
