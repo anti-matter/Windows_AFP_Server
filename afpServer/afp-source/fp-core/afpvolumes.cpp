@@ -35,7 +35,7 @@ AFPERROR FPFlush(
     //
     //First WORD is afp command and padding byte.
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     
     //
     //Extract the volume identifier that we're working with.
@@ -81,7 +81,7 @@ AFPERROR FPOpenVol(
     //
     //First WORD is afp command and padding byte.
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     
     //
     //Extract the bitmap that requests vol data from the buffer.
@@ -149,7 +149,7 @@ AFPERROR FPOpenVol(
     else
     {
         DBGWRITE(dbg_level_warning, L"[afp:FPOpenVol]AFPGetVolumeParameters() failed (%d)\n", afpError);
-        afpReply.Rewind();
+        afpReply.rewind();
     }
     
     return( afpError );
@@ -180,7 +180,7 @@ AFPERROR FPCloseVol(
     //
     //First WORD is afp command and padding byte.
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     
     //
     //Extract the volume identifier that we're working with.
@@ -220,7 +220,7 @@ AFPERROR FPGetVolParms(
     //
     //First WORD is afp command and padding byte.
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     
     //
     //Extract the volume identifier that we're working with.
@@ -252,7 +252,7 @@ AFPERROR FPGetVolParms(
     if (!AFP_SUCCESS(afpError))
     {
         DBGWRITE(dbg_level_info, L"[afp:FPGetVolParms]AFPGetVolumeParameters() failed (%d)\n", afpError);
-        afpReply.Rewind();
+        afpReply.rewind();
     }
     
     return( afpError );

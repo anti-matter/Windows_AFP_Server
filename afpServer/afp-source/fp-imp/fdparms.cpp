@@ -201,7 +201,7 @@ AFPERROR AFPGetObjectParms(
     LARGE_INTEGER		rsrcSize64 = { 0 };
     uint16*				longNameOffset = NULL;
     uint16*				uniNameOffset = NULL;
-    uint8*				pParmsStart = afpReply.GetCurrentPosPtr();
+    uint8*				pParmsStart = afpReply.get_current_pos_ptr();
     AFPERROR			afpError = AFP_OK;
     
     if (afpBitmap & kFPFileAttributes)
@@ -250,14 +250,14 @@ AFPERROR AFPGetObjectParms(
             finderInfo.fdLocation.y = htons(finderInfo.fdLocation.y);
             finderInfo.fdFldr		= htons(finderInfo.fdFldr);
             
-            afpReply.AddRawData(&finderInfo, sizeof(FINDER_INFO));
+            afpReply.push_raw_data(&finderInfo, sizeof(FINDER_INFO));
         }
     }
 
     if (afpBitmap & kFPLongName)
     {
-        longNameOffset = (uint16*)afpReply.GetCurrentPosPtr();
-        afpReply.Advance(sizeof(int16));
+        longNameOffset = (uint16*)afpReply.get_current_pos_ptr();
+        afpReply.advance_pos_ptr(sizeof(int16));
     }
 
     if (afpBitmap & kFPFileNum)	afpReply.push_num<UINT32>(afpEntry->object_id);
@@ -307,8 +307,8 @@ AFPERROR AFPGetObjectParms(
 
         if (afpBitmap & kFPUnicodeName)
         {
-            uniNameOffset = (uint16*)afpReply.GetCurrentPosPtr();
-            afpReply.Advance(sizeof(int16));
+            uniNameOffset = (uint16*)afpReply.get_current_pos_ptr();
+            afpReply.advance_pos_ptr(sizeof(int16));
         }
     }
     else
@@ -363,8 +363,8 @@ AFPERROR AFPGetObjectParms(
 
         if (afpBitmap & kFPUnicodeName)
         {
-            uniNameOffset = reinterpret_cast<uint16*>(afpReply.GetCurrentPosPtr());
-            afpReply.Advance(sizeof(int16));
+            uniNameOffset = reinterpret_cast<uint16*>(afpReply.get_current_pos_ptr());
+            afpReply.advance_pos_ptr(sizeof(int16));
         }
 
         if (afpBitmap & kFPExtRsrcForkLen)
@@ -388,14 +388,14 @@ AFPERROR AFPGetObjectParms(
 
         if (afpBitmap & kFPLongName)
         {
-            *longNameOffset = htons((uint16)(afpReply.GetCurrentPosPtr() - pParmsStart));
-            afpReply.AddUniStringAsPascal(afpEntry->sz_object_name, charMap);
+            *longNameOffset = htons((uint16)(afpReply.get_current_pos_ptr() - pParmsStart));
+            afpReply.push_pascal_string(afpEntry->sz_object_name, charMap);
         }
 
         if (afpBitmap & kFPUnicodeName)
         {			
-            *uniNameOffset = htons((uint16)(afpReply.GetCurrentPosPtr() - pParmsStart));
-            afpReply.AddUniString(afpEntry->sz_object_name, charMap);
+            *uniNameOffset = htons((uint16)(afpReply.get_current_pos_ptr() - pParmsStart));
+            afpReply.push_unicode_string(afpEntry->sz_object_name, charMap);
         }
     }
     

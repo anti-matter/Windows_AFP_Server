@@ -236,16 +236,16 @@ AFPERROR afp_open_file::read_fork(
 
 	//We have to make sure our buffer is big enough for
 	//the read operation.
-	if (afp_reply.GetBufferSize() < static_cast<size_t>(DSI_HEADER_SIZE + afp_req_count))
+	if (afp_reply.get_buffer_size() < static_cast<size_t>(DSI_HEADER_SIZE + afp_req_count))
 	{
 		//Our buffer is too small, adjust the amount to read.
-		afp_req_count = afp_reply.GetBufferSize() - DSI_HEADER_SIZE;
+		afp_req_count = afp_reply.get_buffer_size() - DSI_HEADER_SIZE;
 
 		DBGWRITE(
 			dbg_level_warning,
 			L"Buffer too small! (needed=%d, have=%d)\n",
 			(DSI_HEADER_SIZE+afp_req_count),
-			afp_reply.GetBufferSize()
+			afp_reply.get_buffer_size()
 		);
 	}
 
@@ -260,7 +260,7 @@ AFPERROR afp_open_file::read_fork(
 	//Call the Windows API to do all the work for us.
 	const auto success = ReadFile(
 		m_file_handle_,
-		afp_reply.GetCurrentPosPtr(),
+		afp_reply.get_current_pos_ptr(),
 		static_cast<uint32>(afp_req_count),
 		afp_actual_read,
 		&overlapped
@@ -279,7 +279,7 @@ AFPERROR afp_open_file::read_fork(
 	}
 	else if (*afp_actual_read > 0)
 	{
-		afp_reply.Advance(static_cast<INT32>(*afp_actual_read));
+		afp_reply.advance_pos_ptr(static_cast<INT32>(*afp_actual_read));
 	}
 
 	return afp_error;
@@ -311,7 +311,7 @@ AFPERROR afp_open_file::write_fork(
 	}
 
 	// Get the ptr to the actual block of data we want to write out.
-	afp_request.AdvanceTo(static_cast<INT32>(afp_request.GetDSIDataOffset()));
+	afp_request.advance_to(static_cast<INT32>(afp_request.get_dsi_data_offset()));
 
 	// Set the file position to the desired offset before writing.
 	auto afp_error = file_seek(afp_offset, (afp_from_start) ? FILE_BEGIN : FILE_END);
@@ -324,7 +324,7 @@ AFPERROR afp_open_file::write_fork(
 		// Call the Windows API to do all the work for us.
 		const auto success = WriteFile(
 			m_file_handle_,
-			afp_request.GetCurrentPosPtr(),
+			afp_request.get_current_pos_ptr(),
 			req_count,
 			&afp_actual,
 			nullptr

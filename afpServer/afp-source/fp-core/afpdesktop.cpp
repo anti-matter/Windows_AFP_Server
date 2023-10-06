@@ -36,14 +36,14 @@ AFPERROR FPOpenDT(
     //
     //First WORD is afp command and padding byte.
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
 
     afpVolumeID = afpRequest.pull_num<UINT16>();
     afpError = static_cast<afp_session*>(afpSession->afpSessionObject)->open_desk(afpVolumeID, &afpDTRefNum);
 
     if (AFP_SUCCESS(afpError))
     {
-        afpReply.AddInt16(afpDTRefNum);
+        afpReply.push_int16(afpDTRefNum);
     }
 
     return afpError;
@@ -70,7 +70,7 @@ AFPERROR FPCloseDT(
     uint16 afpDTRefNum;
     AFPERROR afpError;
 
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
 
     afpDTRefNum = afpRequest.pull_num<UINT16>();
     afpError = static_cast<afp_session*>(afpSession->afpSessionObject)->close_desk(afpDTRefNum);
@@ -102,7 +102,7 @@ AFPERROR FPAddIcon(
     //
     //The first work contains the command and padding byte.
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
 
     //
     //Get the refnum to our OPEN desktop database.
@@ -126,7 +126,7 @@ AFPERROR FPAddIcon(
     //
     //A padding byte, skip it.
     //
-    afpRequest.Advance(sizeof(int8));
+    afpRequest.advance_pos_ptr(sizeof(int8));
 
     //
     //Get the next 2 parameters; We don't know or care what the tag is and
@@ -153,7 +153,7 @@ AFPERROR FPAddIcon(
     //
     //Now copy the actual icon data into our buffer to store.
     //
-    afpRequest.GetRawData(iconEntry.data, iconEntry.dataSize);
+    afpRequest.pull_raw_data(iconEntry.data, iconEntry.dataSize);
 
     //
     //Now call the desktop routine to do the rest of the work.
@@ -187,7 +187,7 @@ AFPERROR FPGetIcon(
     DESKTOP_ENTRY searchEntry;
     DESKTOP_ENTRY iconEntry;
 
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
 
     uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
 
@@ -195,7 +195,7 @@ AFPERROR FPGetIcon(
     searchEntry.fileType = afpRequest.pull_num<UINT32>();
     searchEntry.iconType = afpRequest.pull_num<INT8>();
 
-    afpRequest.Advance(sizeof(int8));
+    afpRequest.advance_pos_ptr(sizeof(int8));
 
     uint16 afpLength = afpRequest.pull_num<UINT16>();
     searchEntry.entryType = ENTRY_TYPE_ICON;
@@ -221,7 +221,7 @@ AFPERROR FPGetIcon(
         //space, we still copy what we can.
         //
         auto afpCopySize = min(afpLength, iconEntry.dataSize);
-        afpReply.AddRawData(iconEntry.data, afpCopySize);
+        afpReply.push_raw_data(iconEntry.data, afpCopySize);
     }
 
     return afpError;
@@ -246,7 +246,7 @@ AFPERROR FPGetIconInfo(
     DESKTOP_ENTRY searchEntry;
     DESKTOP_ENTRY foundEntry;
 
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
 
     searchEntry.fileCreator = afpRequest.pull_num<UINT32>();
@@ -264,11 +264,11 @@ AFPERROR FPGetIconInfo(
 
     if (AFP_SUCCESS(afpError))
     {
-        afpReply.AddInt32(foundEntry.entryTag);
-        afpReply.AddRawData(&foundEntry.fileType, sizeof(FILETYPE));
-        afpReply.AddInt8(foundEntry.iconType);
-        afpReply.AddInt8(0);
-        afpReply.AddInt16(static_cast<int16>(foundEntry.dataSize));
+        afpReply.push_int32(foundEntry.entryTag);
+        afpReply.push_raw_data(&foundEntry.fileType, sizeof(FILETYPE));
+        afpReply.push_int8(foundEntry.iconType);
+        afpReply.push_int8(0);
+        afpReply.push_int16(static_cast<int16>(foundEntry.dataSize));
     }
 
     return afpError;
@@ -297,7 +297,7 @@ AFPERROR FPAddComment(
 
     DBGWRITE(dbg_level_all, L"[afp:FPAddComment]Enter\n");
 
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
 
     uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
     newEntry.dirID = afpRequest.pull_num<UINT32>();
@@ -310,7 +310,7 @@ AFPERROR FPAddComment(
         return (afpParmErr);
     }
 
-    afpRequest.AdvanceIfOdd();
+    afpRequest.advance_if_odd();
     afpRequest.get_pascal_string(newEntry.data, sizeof(newEntry.data));
 
     newEntry.entryType = ENTRY_TYPE_CMNT;
@@ -372,7 +372,7 @@ AFPERROR FPGetComment(
 
     DBGWRITE(dbg_level_all, L"[afp:FPGetComment]Enter\n");
 
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
 
     uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
     searchEntry.dirID = afpRequest.pull_num<UINT32>();
@@ -418,7 +418,7 @@ AFPERROR FPGetComment(
 
         if (AFP_SUCCESS(afpError))
         {
-            afpReply.AddCStringAsPascal(foundEntry.data);
+            afpReply.push_pascal_string(foundEntry.data);
         }
     }
 
@@ -445,7 +445,7 @@ AFPERROR FPRemoveComment(
 
     DESKTOP_ENTRY searchEntry;
 
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
 
     uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
     searchEntry.dirID = afpRequest.pull_num<UINT32>();
@@ -492,10 +492,10 @@ AFPERROR FPGetAPPL(
     p_afp_index afpEntry = nullptr;
     uint16 afpVolumeID = 0;
 
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
 
-    afpRequest.GetRawData(&searchEntry.fileCreator, sizeof(FILECREATOR));
+    afpRequest.pull_raw_data(&searchEntry.fileCreator, sizeof(FILECREATOR));
 
     uint16 afpIndex = afpRequest.pull_num<UINT16>();
     uint16 afpBitmap = afpRequest.pull_num<UINT16>();
@@ -534,8 +534,8 @@ AFPERROR FPGetAPPL(
                 return afpObjectNotFound;
             }
 
-            afpReply.AddInt16(afpBitmap);
-            afpReply.AddInt32(foundEntry.entryTag);
+            afpReply.push_int16(afpBitmap);
+            afpReply.push_int32(foundEntry.entryTag);
 
             afpError = AFPGetObjectParms(
                 afpReply,
@@ -572,7 +572,7 @@ AFPERROR FPAddAPPL(
 
     DESKTOP_ENTRY newEntry;
 
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
 
     uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
 
@@ -620,7 +620,7 @@ AFPERROR FPRemoveAPPL(
 
     DESKTOP_ENTRY searchEntry;
 
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
 
     uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
     searchEntry.dirID = afpRequest.pull_num<UINT32>();

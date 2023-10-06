@@ -58,7 +58,7 @@ AFPERROR DHXLogin(
     //
     //Obtain the client's public key
     //
-    bn = BN_bin2bn((unsigned char*)afpRequest.GetCurrentPosPtr(), DHX_KEYSIZE, NULL);
+    bn = BN_bin2bn((unsigned char*)afpRequest.get_current_pos_ptr(), DHX_KEYSIZE, NULL);
     
     if (bn == NULL)
     {
@@ -115,43 +115,43 @@ AFPERROR DHXLogin(
     //
     //Figure out the key, use the reply buffer as a temporary buffer.
     //
-    i = DH_compute_key((unsigned char*)afpReply.GetCurrentPosPtr(), bn, dh);
+    i = DH_compute_key((unsigned char*)afpReply.get_current_pos_ptr(), bn, dh);
     
     //
     //Now, set the key
     //
-    CAST_set_key(&castkey, i, (unsigned char*)afpReply.GetCurrentPosPtr());
+    CAST_set_key(&castkey, i, (unsigned char*)afpReply.get_current_pos_ptr());
     
     //
     //Compute and set the session id which is based on our session object
     //
     sessid = dhxhash((ULONG_PTR)dsiSession);
-    afpReply.AddInt16(sessid);
+    afpReply.push_int16(sessid);
     
     //
     //Send our public key along to the client
     //
-    BN_bn2bin(DH_get0_pub_key(dh), (unsigned char*)afpReply.GetCurrentPosPtr());
-    afpReply.Advance(DHX_KEYSIZE);
+    BN_bn2bin(DH_get0_pub_key(dh), (unsigned char*)afpReply.get_current_pos_ptr());
+    afpReply.advance_pos_ptr(DHX_KEYSIZE);
     
     //
     //Now we setup our buffer to be encrypted.
     //
     afpGetRandomNumber(dsiSession, (char*)randbuf, sizeof(randbuf));
     
-    memcpy((unsigned char*)afpReply.GetCurrentPosPtr(), &randbuf, sizeof(randbuf));
-    memset((unsigned char*)afpReply.GetCurrentPosPtr() + DHX_RANDBUFSIZE, 0, DHX_RANDBUFSIZE);
+    memcpy((unsigned char*)afpReply.get_current_pos_ptr(), &randbuf, sizeof(randbuf));
+    memset((unsigned char*)afpReply.get_current_pos_ptr() + DHX_RANDBUFSIZE, 0, DHX_RANDBUFSIZE);
     
     CAST_cbc_encrypt(
-            (unsigned char*)afpReply.GetCurrentPosPtr(),
-            (unsigned char*)afpReply.GetCurrentPosPtr(),
+            (unsigned char*)afpReply.get_current_pos_ptr(),
+            (unsigned char*)afpReply.get_current_pos_ptr(),
             DHX_CRYPTBUFLEN,
             &castkey,
             iv,
             CAST_ENCRYPT
             );
     
-    afpReply.Advance(DHX_CRYPTBUFLEN);
+    afpReply.advance_pos_ptr(DHX_CRYPTBUFLEN);
     
     //
     //Save off all the needed information for the login continue
@@ -199,7 +199,7 @@ AFPERROR DHXLoginContinue(
     unsigned char	iv[] 		= "LWallace";
     int16			sessionID	= 0;
     AFPERROR		afpError	= afpUserNotAuth;
-    uint8*			tempBuf		= afpReply.GetCurrentPosPtr();	//use as temporary buffer space
+    uint8*			tempBuf		= afpReply.get_current_pos_ptr();	//use as temporary buffer space
     
     if (dhxInfo == NULL)
     {
@@ -225,7 +225,7 @@ AFPERROR DHXLoginContinue(
     //use the reply buffer as temporary buffer space for now.
     //
     CAST_cbc_encrypt(
-            (unsigned char*)afpRequest.GetCurrentPosPtr(),
+            (unsigned char*)afpRequest.get_current_pos_ptr(),
             (unsigned char*)tempBuf,
             DHX_CRYPT2BUFLEN,
             &dhxInfo->castkey,
@@ -303,7 +303,7 @@ AFPERROR DHXChangePassword(
     unsigned char	iv[] 		= "LWallace";
     int16			sessionID	= 0;
     AFPERROR		afpError 	= afpParmErr;
-    uint8*			tempBuff	= afpReply.GetCurrentPosPtr(); //user as temporary buffer space
+    uint8*			tempBuff	= afpReply.get_current_pos_ptr(); //user as temporary buffer space
     
     if (dhxInfo == NULL)
     {
@@ -351,7 +351,7 @@ AFPERROR DHXChangePassword(
     //use the reply buffer as temporary buffer space for now.
     //
     CAST_cbc_encrypt(
-            (unsigned char*)afpRequest.GetCurrentPosPtr(),
+            (unsigned char*)afpRequest.get_current_pos_ptr(),
             (unsigned char*)tempBuff,
             DHX_CHNGPSWDBUFLEN,
             &dhxInfo->castkey,

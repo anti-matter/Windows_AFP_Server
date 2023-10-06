@@ -105,7 +105,7 @@ AFPERROR FPGetSessionToken(
     //
     //First byte is afp command and padding.
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     afpType	= afpRequest.pull_num<INT16>();
 
     if (afpType != kLoginWithoutID)
@@ -129,7 +129,7 @@ AFPERROR FPGetSessionToken(
 
         if (afpID != NULL) {
 
-            afpRequest.GetRawData(afpID, (int16)afpIDSize);
+            afpRequest.pull_raw_data(afpID, (int16)afpIDSize);
         }
     }
 
@@ -229,8 +229,8 @@ AFPERROR FPGetSessionToken(
             return( afpParmErr );
     }
 
-    afpReply.AddInt32(AFP_SESSION_TOKEN_SIZE);
-    afpReply.AddInt32(afpToken);
+    afpReply.push_int32(AFP_SESSION_TOKEN_SIZE);
+    afpReply.push_int32(afpToken);
     
     DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]Token = %x\n", afpToken);
 
@@ -273,7 +273,7 @@ AFPERROR FPDisconnectOldSession(
 
     DBGWRITE(dbg_level_info, L"[afp:FPDisconnectOldSession]Enter...\n");
     
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     
     afpType			= afpRequest.pull_num<INT8>();
     afpTokenLength	= afpRequest.pull_num<INT32>();
@@ -351,7 +351,7 @@ AFPERROR FPLogin(
     
     if (afpCommand == afpLoginExt)
     {
-        afpRequest.Advance(sizeof(int8));
+        afpRequest.advance_pos_ptr(sizeof(int8));
         afpFlags = afpRequest.pull_num<INT16>();
     }
 
@@ -426,7 +426,7 @@ AFPERROR FPLogin(
         lstrcpyn(afpSession->userName, szUserName, lstrlen(szUserName)+1);
         lstrcpyn(afpSession->domainName, szDomainName, lstrlen(szDomainName)+1);
 
-        afpRequest.AdvanceIfOdd();	//Padding byte
+        afpRequest.advance_if_odd();	//Padding byte
     }
 
     //
@@ -471,7 +471,7 @@ AFPERROR FPLogin(
             //The password is sent to us as an 8 byte array. This array is not length
             //byte preceeded or null terminated.
             //
-            afpRequest.GetRawData(afpPassword, UAM_CLRTXTPWDLEN);
+            afpRequest.pull_raw_data(afpPassword, UAM_CLRTXTPWDLEN);
             afp_mac_to_windows_string(afpPassword, sizeof(afpPasswordW), afpPasswordW);
 
             DBGWRITE(dbg_level_info, L"[afp:FPLogin]Cleartext password = %s\n", afpPasswordW);
@@ -568,7 +568,7 @@ AFPERROR FPContLogin(
 {	
     AFPERROR	afpError = afpUserNotAuth;
     
-    afpRequest.Advance(sizeof(int16)); //command and padding
+    afpRequest.advance_pos_ptr(sizeof(int16)); //command and padding
     
     DBGWRITE(dbg_level_info, L"[afp:FPContLogin]Enter\n");
     DBGWRITE(dbg_level_info, L"[afp:FPContLogin]LogonUAM = %d\n", afpSession->uamType);
@@ -668,25 +668,25 @@ AFPERROR FPChangePassword(
     
     DBGWRITE(dbg_level_info, L"[afpuser:FPChangePswd]Enter...\n");
     
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     
     afpRequest.get_pascal_string(szUAMVersion, sizeof(szUAMVersion));
     uamType = afpGetIntUAMType(szUAMVersion);
     
-    afpRequest.AdvanceIfOdd();
+    afpRequest.advance_if_odd();
         
     //
     //Starting with AFP3.0, the username is just 2 bytes of zeros.
     //
     if (dsiSession->bAFPVersion > afpVersion22)
     {
-        afpRequest.Advance(sizeof(int16));
+        afpRequest.advance_pos_ptr(sizeof(int16));
         StringCbCopy(szUserName, sizeof(szUserName), dsiSession->userName);
     }
     else
     {		
         afpRequest.get_pascal_string(szUserName, sizeof(szUserName));
-        afpRequest.AdvanceIfOdd();
+        afpRequest.advance_if_odd();
     }
 
     DBGWRITE(dbg_level_info, L"[afpuser:FPChangePswd]UAM Str:  %s\n", szUAMVersion);
@@ -705,9 +705,9 @@ AFPERROR FPChangePassword(
             //
             //Grab the old and new cleartext passwords from the buffer.
             //
-            afpRequest.GetRawData(szOldPassword, UAM_CLRTXTPWDLEN);
+            afpRequest.pull_raw_data(szOldPassword, UAM_CLRTXTPWDLEN);
             szOldPassword[UAM_CLRTXTPWDLEN+1] = 0;
-            afpRequest.GetRawData(szNewPassword, UAM_CLRTXTPWDLEN);
+            afpRequest.pull_raw_data(szNewPassword, UAM_CLRTXTPWDLEN);
             szNewPassword[UAM_CLRTXTPWDLEN+1] = 0;
 
             //**** TO BE IMPLEMENTED ****
@@ -908,7 +908,7 @@ AFPERROR FPMapID(
     uint32		afpUserID	= 0;
     WCHAR		szName[64];
 
-    afpRequest.Advance(sizeof(int8));
+    afpRequest.advance_pos_ptr(sizeof(int8));
     
     //
     //What are we doing, user or group?
@@ -931,13 +931,13 @@ AFPERROR FPMapID(
             if (AFP_SUCCESS(afpError))
             {
                 DBGWRITE(dbg_level_info, L"[afp:FPMapID]Mapped id to name %s\n", szName);
-                afpReply.AddUniStringAsPascal(szName);
+                afpReply.push_pascal_string(szName);
             }
             break;
         
         //Looking for group name
         case 2:
-            afpReply.AddCStringAsPascal("Everyone");
+            afpReply.push_pascal_string("Everyone");
             break;
 
         //Unicode user name
@@ -947,13 +947,13 @@ AFPERROR FPMapID(
             if (AFP_SUCCESS(afpError))
             {
                 DBGWRITE(dbg_level_info, L"[afp:FPMapID]Mapped id to name %s\n", szName);
-                afpReply.AddUniString(szName);
+                afpReply.push_unicode_string(szName);
             }
             break;
         
         //Unicode group name
         case 4:
-            afpReply.AddUniString(TEXT("Everyone"));
+            afpReply.push_unicode_string(TEXT("Everyone"));
             break;
         
         default:
@@ -995,7 +995,7 @@ AFPERROR FPGetSrvrMsg(
     uint16			afpMessageType		= 0;
     uint16			afpMessageBitmap	= 0;
     
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
 
     afpMessageType		= afpRequest.pull_num<UINT16>();
     afpMessageBitmap	= afpRequest.pull_num<UINT16>();
@@ -1029,8 +1029,8 @@ AFPERROR FPGetSrvrMsg(
     //
     //Pack in all the parameters.
     //
-    afpReply.AddInt16(afpMessageType);
-    afpReply.AddInt16(afpMessageBitmap);
+    afpReply.push_int16(afpMessageType);
+    afpReply.push_int16(afpMessageBitmap);
     
     //
     //Starting with AFP3.0, the client sets bit 1 of the message
@@ -1039,11 +1039,11 @@ AFPERROR FPGetSrvrMsg(
     //
     if (afpMessageBitmap & kSendMessageAsUnicode)
     {
-        afpReply.AddUniString(message);
+        afpReply.push_unicode_string(message);
     }
     else
     {
-        afpReply.AddUniStringAsPascal(message);
+        afpReply.push_pascal_string(message);
     }
     
     return( AFP_OK );

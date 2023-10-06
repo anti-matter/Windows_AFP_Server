@@ -15,13 +15,11 @@ public:
 	AFPERROR get_unicode_string(WCHAR* string, UINT16 cb_string, UINT16* s_len);
 	AFPERROR get_unicode_string(char* string, UINT16 cb_string, INT16* s_len, bool is_path, bool is_afp_name = true);
 
-	int64 GetInt64();
+	void pull_raw_data(void* buffer, size_t amount);
 
-	void GetRawData(void* buffer, size_t amount);
-
-	AFPERROR AddCStringAsPascal(char* string);
-	AFPERROR AddUniStringAsPascal(unichar* string, AFPCHARMAPARRAY charMap = nullptr);
-	AFPERROR AddUniString(unichar* string, AFPCHARMAPARRAY charMap = nullptr);
+	AFPERROR push_pascal_string(const char* string);
+	AFPERROR push_pascal_string(unichar* string, AFPCHARMAPARRAY char_map = nullptr);
+	AFPERROR push_unicode_string(unichar* string, AFPCHARMAPARRAY char_map = nullptr);
 
 	template <class T>
 	AFPERROR push_num(T value);
@@ -32,32 +30,34 @@ public:
 	template <class T>
 	T get_num() const;
 
-	AFPERROR AddInt8(INT8 value);
-	AFPERROR AddInt16(INT16 value);
-	AFPERROR AddInt32(INT32 value);
-	AFPERROR AddInt64(INT64 value);
+	AFPERROR push_int8(INT8 value);
+	AFPERROR push_int16(INT16 value);
+	AFPERROR push_int32(INT32 value);
+	AFPERROR push_int64(INT64 value);
 
-	AFPERROR AddRawData(void* data, size_t size);
+	AFPERROR push_raw_data(const void* data, size_t size);
 
-	INT32 GetDataLength() const;
+	INT32 get_data_length() const;
 
-	void AddParameterOffset(INT16 offset, INT16 value);
+	void add_parameter_offset(INT16 offset, INT16 value);
 
-	bool CheckSpaceNeeded(size_t spaceNeeded) const;
+	bool check_space_needed(size_t space_needed) const;
+	bool not_enough_space(const size_t space_needed) const;
+	bool will_overflow(const UINT32 value) const;
 
-	UINT8* GetCurrentPosPtr() const;
-	void Advance(INT32 amount);
-	void AdvanceIfOdd();
-	void AdvanceTo(INT32 offset);
-	UINT8* GetBuffer() const;
-	size_t GetBufferSize() const;
-	void Rewind();
+	UINT8* get_current_pos_ptr() const;
+	void advance_pos_ptr(const UINT32 offset);
+	void advance_if_odd();
+	void advance_to(INT32 offset);
+	UINT8* get_buffer() const;
+	size_t get_buffer_size() const;
+	void rewind();
 
-	void SetDSIReturnValue(UINT32 value);
-	UINT32 GetDSIReturnValue() const;
+	void set_dsi_return_value(UINT32 value);
+	UINT32 get_dsi_return_value() const;
 
-	void SetDSIDataOffset(UINT32 value);
-	UINT32 GetDSIDataOffset() const;
+	void set_dsi_data_offset(UINT32 value);
+	UINT32 get_dsi_data_offset() const;
 
 private:
 	UINT8* mBuffer;
@@ -91,7 +91,7 @@ __pragma(warning(disable:4127))
 template <class T>
 AFPERROR afp_net_buffer::push_num(T value)
 {
-	if (mCurrentPos - mBuffer + sizeof(T) > mBufferSize)
+	if (not_enough_space(sizeof(T)))
 	{
 		return afpParmErr;
 	}
@@ -105,7 +105,7 @@ AFPERROR afp_net_buffer::push_num(T value)
 		*reinterpret_cast<T*>(mCurrentPos) = value;
 	}
 
-	Advance(sizeof(T));
+	advance_pos_ptr(sizeof(T));
 
 	return AFP_OK;
 }
@@ -131,7 +131,7 @@ T afp_net_buffer::pull_num()
 		result = *reinterpret_cast<T*>(mCurrentPos);
 	}
 
-	Advance(sizeof(T));
+	advance_pos_ptr(sizeof(T));
 
 	return result;
 }
@@ -141,7 +141,7 @@ T afp_net_buffer::pull_num()
  *
  * Description:
  *		Retrieves a number of type T from the current position in the buffer.
- *		This method does NOT advance the position pointer.
+ *		This method does NOT advance_pos_ptr the position pointer.
  */
 template <class T>
 T afp_net_buffer::get_num() const
@@ -158,70 +158,94 @@ T afp_net_buffer::get_num() const
 
 __pragma(warning(pop))
 
-inline INT32 afp_net_buffer::GetDataLength() const
+inline INT32 afp_net_buffer::get_data_length() const
 {
 	return mCurrentPos - mBuffer;
 }
 
-inline void afp_net_buffer::AddParameterOffset(INT16 offset, INT16 value)
+inline void afp_net_buffer::add_parameter_offset(const INT16 offset, const INT16 value)
 {
+	if (will_overflow(offset + value))
+	{
+		DBGWRITE(dbg_level_error, L"Overflow adding parameter at offset!");
+		ASSERT(0);
+
+		return;
+	}
+
 	const auto save = mCurrentPos;
-	AdvanceTo(offset);
-	AddInt16(value);
+	advance_to(offset);
+	push_int16(value);
 	mCurrentPos = save;
 }
 
-inline UINT8* afp_net_buffer::GetCurrentPosPtr() const
+inline UINT8* afp_net_buffer::get_current_pos_ptr() const
 {
-	return (mCurrentPos);
+	return mCurrentPos;
 }
 
-inline void afp_net_buffer::Advance(INT32 amount)
+inline void afp_net_buffer::advance_pos_ptr(const UINT32 offset)
 {
-	mCurrentPos += amount;
+	if (will_overflow(offset))
+	{
+		DBGWRITE(dbg_level_error, L"Overflow advancing to offset!");
+		ASSERT(0);
+
+		return;
+	}
+
+	mCurrentPos += offset;
 }
 
-inline void afp_net_buffer::AdvanceIfOdd()
+inline void afp_net_buffer::advance_if_odd()
 {
-	if ((mCurrentPos - (mBuffer + DSI_HEADER_SIZE)) % 2) Advance(sizeof(INT8));
+	if ((mCurrentPos - (mBuffer + DSI_HEADER_SIZE)) % 2) advance_pos_ptr(sizeof(INT8));
 }
 
-inline void afp_net_buffer::AdvanceTo(INT32 offset)
+inline void afp_net_buffer::advance_to(const INT32 offset)
 {
+	if (will_overflow(offset))
+	{
+		DBGWRITE(dbg_level_error, L"Overflow advancing to offset!");
+		ASSERT(0);
+
+		return;
+	}
+
 	mCurrentPos = mBuffer + offset;
 }
 
-inline UINT8* afp_net_buffer::GetBuffer() const
+inline UINT8* afp_net_buffer::get_buffer() const
 {
-	return (mBuffer);
+	return mBuffer;
 }
 
-inline size_t afp_net_buffer::GetBufferSize() const
+inline size_t afp_net_buffer::get_buffer_size() const
 {
-	return (mBufferSize);
+	return mBufferSize;
 }
 
-inline void afp_net_buffer::Rewind()
+inline void afp_net_buffer::rewind()
 {
 	mCurrentPos = mBuffer;
 }
 
-inline void afp_net_buffer::SetDSIReturnValue(UINT32 value)
+inline void afp_net_buffer::set_dsi_return_value(const UINT32 value)
 {
 	mDSIReturnValue = value;
 }
 
-inline UINT32 afp_net_buffer::GetDSIReturnValue() const
+inline UINT32 afp_net_buffer::get_dsi_return_value() const
 {
 	return mDSIReturnValue;
 }
 
-inline void afp_net_buffer::SetDSIDataOffset(UINT32 value)
+inline void afp_net_buffer::set_dsi_data_offset(const UINT32 value)
 {
 	mDSIDataOffset = value;
 }
 
-inline UINT32 afp_net_buffer::GetDSIDataOffset() const
+inline UINT32 afp_net_buffer::get_dsi_data_offset() const
 {
 	return mDSIDataOffset;
 }

@@ -60,7 +60,7 @@ AFPERROR FPCloseFork(
     //
     //Parameters start after first word (afp cmd and 0 byte)
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     
     //
     //Extract the parameter and make the call.
@@ -108,7 +108,7 @@ AFPERROR FPOpenFork(
     //
     //The first byte contains the afp command.
     //
-    afpRequest.Advance(sizeof(int8));
+    afpRequest.advance_pos_ptr(sizeof(int8));
     
     //
     //Get the parameters for the file we're opening.
@@ -238,8 +238,8 @@ AFPERROR FPOpenFork(
             //
             //Add in the bitmap and new refnum id.
             //
-            afpReply.AddInt16(afpBitmap);
-            afpReply.AddInt16(afpNewRefNum);
+            afpReply.push_int16(afpBitmap);
+            afpReply.push_int16(afpNewRefNum);
 
             afpError = AFPGetObjectParms(
                             afpReply,
@@ -297,7 +297,7 @@ AFPERROR FPSetForkParms(
     //
     //The first byte contains the afp command.
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     
     afpForkRef 	= afpRequest.pull_num<UINT16>();
     afpBitmap	= afpRequest.pull_num<UINT16>();
@@ -373,7 +373,7 @@ AFPERROR FPGetForkParms(
     //
     //The first byte contains the afp command.
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     
     //
     //Get the parameters for the file we're opening.
@@ -409,7 +409,7 @@ AFPERROR FPGetForkParms(
         //
         //Add in the bitmap
         //
-        afpReply.AddInt16(afpBitmap);
+        afpReply.push_int16(afpBitmap);
 
         //
         //We need this to properly set the attributes.
@@ -470,7 +470,7 @@ AFPERROR FPCreateFile(
     //
     //First byte is padding.
     //
-    afpRequest.Advance(sizeof(int8));
+    afpRequest.advance_pos_ptr(sizeof(int8));
     
     createFlag	= afpRequest.pull_num<INT8>();
     afpVolumeID	= afpRequest.pull_num<UINT16>();
@@ -685,8 +685,8 @@ AFPERROR FPByteRangeLock(
             break;
         
         case afpByteRangeLockExt:
-            afpOffset	= afpRequest.GetInt64();
-            afpLength	= afpRequest.GetInt64();
+            afpOffset	= afpRequest.pull_num<INT64>();
+            afpLength	= afpRequest.pull_num<INT64>();
             break;
             
         default:
@@ -814,11 +814,11 @@ AFPERROR FPByteRangeLock(
         switch (afpCommand)
         {
             case afpByteRangeLock:
-                afpReply.AddInt32((uint32)afpOffset);
+                afpReply.push_int32((uint32)afpOffset);
                 break;
             
             case afpByteRangeLockExt:
-                afpReply.AddInt64(afpOffset);
+                afpReply.push_int64(afpOffset);
                 break;
                 
             default:
@@ -860,7 +860,7 @@ AFPERROR FPRead(
     //The first byte contains the afp command.
     //
     afpCommand = afpRequest.pull_num<INT8>();
-    afpRequest.Advance(sizeof(int8));
+    afpRequest.advance_pos_ptr(sizeof(int8));
     
     afpForkRef = afpRequest.pull_num<UINT16>();
     
@@ -913,7 +913,7 @@ AFPERROR FPRead(
     //FPRead is a special case in that the return value is returned
     //in the DSI Header's datasize field.
     //
-    afpReply.SetDSIReturnValue(afpActCount);
+    afpReply.set_dsi_return_value(afpActCount);
     
     DBGWRITE(dbg_level_all, L"[afp:FPRead]Returning error %d and count %d\n", afpError, afpActCount);
 
@@ -1009,11 +1009,11 @@ AFPERROR FPWrite(
             switch(afpCommand)
             {
                 case afpWrite:
-                    afpReply.AddInt32((int32)afpActCount);
+                    afpReply.push_int32((int32)afpActCount);
                     break;
                 
                 case afpWriteExt:
-                    afpReply.AddInt64(afpActCount);
+                    afpReply.push_int64(afpActCount);
                     break;
             }
         }

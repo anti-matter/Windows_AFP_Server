@@ -51,7 +51,7 @@ AFPERROR FPGetExtAttribute(
     //
     //Advance beyond command and pad byte
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     
     afpVolID		= afpRequest.pull_num<UINT16>();
     afpDirID		= afpRequest.pull_num<UINT32>();
@@ -85,7 +85,7 @@ AFPERROR FPGetExtAttribute(
     //
     //Advance if we need to in order to land on an even boundary
     //
-    afpRequest.AdvanceIfOdd();
+    afpRequest.advance_if_odd();
     
     //
     //Get the size of the attribute name string.
@@ -130,14 +130,14 @@ AFPERROR FPGetExtAttribute(
             //Plum the first 2 items in the reply block. These will always be
             //returned in every case beyond here.
             //
-            afpReply.AddInt16(afpBitmap);
-            afpReply.AddInt32(afpDataLen);
+            afpReply.push_int16(afpBitmap);
+            afpReply.push_int32(afpDataLen);
             
             DBGWRITE(dbg_level_all, L"[FPGetExtAttribute]DataLen == %d\n", afpDataLen);
             
             if (afpMaxReplySize > 0)
             {
-                if (afpReply.CheckSpaceNeeded(afpDataLen))
+                if (afpReply.check_space_needed(afpDataLen))
                 {
                     HANDLE hFile = INVALID_HANDLE_VALUE;
                     
@@ -168,7 +168,7 @@ AFPERROR FPGetExtAttribute(
                     {
                         ReadFile(
                             hFile,
-                            afpReply.GetCurrentPosPtr(),
+                            afpReply.get_current_pos_ptr(),
                             min((int)afpDataLen, (int)afpMaxReplySize),
                             &afpActualRead,
                             NULL
@@ -177,9 +177,9 @@ AFPERROR FPGetExtAttribute(
                         CloseHandle(hFile);
                         
                         //
-                        //We need to advance the data buffer the amount we read.
+                        //We need to advance_pos_ptr the data buffer the amount we read.
                         //
-                        afpReply.Advance(afpActualRead);
+                        afpReply.advance_pos_ptr(afpActualRead);
                         
                         DBGWRITE(
                             dbg_level_all,
@@ -262,7 +262,7 @@ AFPERROR FPSetExtAttribute(
     //
     //Advance beyond command and pad byte
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     
     afpVolID		= afpRequest.pull_num<UINT16>();
     afpDirID		= afpRequest.pull_num<UINT32>();
@@ -285,7 +285,7 @@ AFPERROR FPSetExtAttribute(
     //A pad byte is inserted to make the buffer end on an
     //even boundary.
     //
-    afpRequest.AdvanceIfOdd();
+    afpRequest.advance_if_odd();
     
     //
     //Now get the string. Note that on return afpNameLen now contains the actual
@@ -371,7 +371,7 @@ AFPERROR FPSetExtAttribute(
         
         if (hFile != INVALID_HANDLE_VALUE)
         {
-            WriteFile(hFile, afpRequest.GetCurrentPosPtr(), afpAttrDataLen, &bytesWritten, NULL);
+            WriteFile(hFile, afpRequest.get_current_pos_ptr(), afpAttrDataLen, &bytesWritten, NULL);
             CloseHandle(hFile);
             
             DBGWRITE(
@@ -434,7 +434,7 @@ AFPERROR FPListExtAttribute(
     //
     //Advance beyond command and pad byte
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     
     afpVolID		= afpRequest.pull_num<UINT16>();
     afpDirID		= afpRequest.pull_num<UINT32>();
@@ -500,13 +500,13 @@ AFPERROR FPListExtAttribute(
             //
             //The bitmap is always returned to the caller.
             //
-            afpReply.AddInt16(afpBitmap);
+            afpReply.push_int16(afpBitmap);
             
             //
             //Save the position of the datalen field...
             //
-            saveDL = (uint32*)afpReply.GetCurrentPosPtr();
-            afpReply.Advance(sizeof(uint32));
+            saveDL = (uint32*)afpReply.get_current_pos_ptr();
+            afpReply.advance_pos_ptr(sizeof(uint32));
     
             //
             //Now get the size of all the name strings and optionally plumb
@@ -547,7 +547,7 @@ AFPERROR FPListExtAttribute(
                             
                             if (afp_windows_to_mac_path(afpAttrInfo.stream_name, sizeof(ansi_string), NULL, ansi_string) != NULL)
                             {
-                                afpReply.AddRawData(ansi_string, strlen(ansi_string)+sizeof(char));
+                                afpReply.push_raw_data(ansi_string, strlen(ansi_string)+sizeof(char));
                             }
                         }
                         else
@@ -622,7 +622,7 @@ AFPERROR FPRemoveExtAttribute(
     //
     //Advance beyond command and pad byte
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     
     afpVolID		= afpRequest.pull_num<UINT16>();
     afpDirID		= afpRequest.pull_num<UINT32>();
@@ -680,7 +680,7 @@ AFPERROR FPRemoveExtAttribute(
     //A pad byte is inserted to make the buffer end on an
     //even boundary.
     //
-    afpRequest.AdvanceIfOdd();
+    afpRequest.advance_if_odd();
     
     //
     //Now get the string. Note that on return afpNameLen now contains the actual

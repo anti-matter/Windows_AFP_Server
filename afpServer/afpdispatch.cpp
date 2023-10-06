@@ -143,7 +143,7 @@ AFPERROR fp_dispatch_command(
 	//
 	//Save this value as some AFP functions need it (such as FPWrite).
 	//
-	afp_request.SetDSIDataOffset(ntohl(*reinterpret_cast<DWORD*>(&received_data->buffer[DSI_OFFSET_DATAOFFSET])));
+	afp_request.set_dsi_data_offset(ntohl(*reinterpret_cast<DWORD*>(&received_data->buffer[DSI_OFFSET_DATAOFFSET])));
 
 	//
 	//Whether we're authenticated or not is how we determine
@@ -206,11 +206,11 @@ AFPERROR fp_dispatch_command(
 		//
 		case afpRead:
 		case afpReadExt:
-			reply_queue->sendIOData.ioSize = afp_reply.GetDSIReturnValue();
+			reply_queue->sendIOData.ioSize = afp_reply.get_dsi_return_value();
 			break;
 
 		default:
-			reply_queue->sendIOData.ioSize = afp_reply.GetDataLength();
+			reply_queue->sendIOData.ioSize = afp_reply.get_data_length();
 			break;
 		}
 	}

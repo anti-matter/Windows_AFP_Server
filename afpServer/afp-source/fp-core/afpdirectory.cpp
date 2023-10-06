@@ -29,7 +29,7 @@ AFPERROR FPResolveID(
     //
     //First WORD is afp command and padding byte.
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
 
     afpVolumeID	= afpRequest.pull_num<UINT16>();
     afpFileID	= afpRequest.pull_num<UINT32>();
@@ -56,7 +56,7 @@ AFPERROR FPResolveID(
         //
         //Add in the bitmap and new refnum id.
         //
-        afpReply.AddInt16(afpBitmap);
+        afpReply.push_int16(afpBitmap);
 
         //
         //Collect attribute data on the file or folder.
@@ -120,7 +120,7 @@ AFPERROR FPGetFileDirParms(
     //
     //First WORD is afp command and padding byte.
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     
     //
     //Extract the volume and directory ID's, the bitmaps and the pathtype.
@@ -197,9 +197,9 @@ AFPERROR FPGetFileDirParms(
     //
     //We always return copies of the bitmaps and the attributes.
     //
-    afpReply.AddInt16(afpFileBitmap);
-    afpReply.AddInt16(afpDirBitmap);
-    afpReply.AddInt8(afpAttributes);
+    afpReply.push_int16(afpFileBitmap);
+    afpReply.push_int16(afpDirBitmap);
+    afpReply.push_int8(afpAttributes);
         
     //
     //If both bitmaps are null, then we are to just return
@@ -213,7 +213,7 @@ AFPERROR FPGetFileDirParms(
     //
     //We add a null byte when adding more parameters to separate the stuff.
     //
-    afpReply.AddInt8(0);
+    afpReply.push_int8(0);
     
     //
     //Call the worker routine to do all the dirty  work of getting and
@@ -275,7 +275,7 @@ AFPERROR FPEnumerate(
     //The first word contains the afp command and padding byte.
     //
     afpCommand = afpRequest.pull_num<INT8>();
-    afpRequest.Advance(sizeof(int8));
+    afpRequest.advance_pos_ptr(sizeof(int8));
 
     //
     //Extract the enumerate parameters for the API.
@@ -346,15 +346,15 @@ AFPERROR FPEnumerate(
     //
     //The first thing we do is add the bitmaps to the reply buffer.
     //
-    afpReply.AddInt16(afpFileBitmap);
-    afpReply.AddInt16(afpDirBitmap);
+    afpReply.push_int16(afpFileBitmap);
+    afpReply.push_int16(afpDirBitmap);
     
     //
     //This is where the actual number of bytes in the buffer will
     //be inserted into the buffer.
     //
-    afpActCountSpot = (int16*)afpReply.GetCurrentPosPtr();
-    afpReply.Advance(sizeof(int16));
+    afpActCountSpot = (int16*)afpReply.get_current_pos_ptr();
+    afpReply.advance_pos_ptr(sizeof(int16));
 
     //
     //Get a pointer to the volume info structure for this volume.
@@ -451,7 +451,7 @@ AFPERROR FPEnumerate(
             //
             //Call the appropriate GetXXXParms calls.
             //
-            parameter_buffer.Rewind();
+            parameter_buffer.rewind();
             afpAttributes = 0;
 
             afpError = AFPGetObjectParms(
@@ -483,7 +483,7 @@ AFPERROR FPEnumerate(
                 //Check to make sure there is enough room in the buffer to add the
                 //file/dir information.
                 //
-                sizeRequired = parameter_buffer.GetDataLength() + afpReply.GetDataLength();
+                sizeRequired = parameter_buffer.get_data_length() + afpReply.get_data_length();
                 
                 //
                 //There are items after the file dirs parms that are added to the buffer,
@@ -506,7 +506,7 @@ AFPERROR FPEnumerate(
                 //
                 //Make sure we didn't get bigger then our reply buffer can handle.
                 //
-                if (sizeRequired > afpReply.GetBufferSize())
+                if (sizeRequired > afpReply.get_buffer_size())
                 {
                     //
                     //This should never happen (yeah right). In case it does, just
@@ -526,44 +526,44 @@ AFPERROR FPEnumerate(
                 //
                 if (afpCommand > afpEnumerate)
                 {
-                    extStructLen = (int16*)afpReply.GetCurrentPosPtr();
-                    afpReply.Advance(sizeof(int16));
+                    extStructLen = (int16*)afpReply.get_current_pos_ptr();
+                    afpReply.advance_pos_ptr(sizeof(int16));
                 }
                 else
                 {
-                    structLen = afpReply.GetCurrentPosPtr();
-                    afpReply.Advance(sizeof(int8));
+                    structLen = afpReply.get_current_pos_ptr();
+                    afpReply.advance_pos_ptr(sizeof(int8));
                 }
                 
                 //
                 //Push in the attributes flag (dir, yes/no)
                 //
-                afpReply.AddInt8(afpAttributes);
+                afpReply.push_int8(afpAttributes);
                 
                 //
                 //For AFP3.x, we add an extra null byte for padding here.
                 //
                 if (afpCommand > afpEnumerate) {
-                    afpReply.AddInt8(0);
+                    afpReply.push_int8(0);
                 }
                 
                 //
                 //Insert the FDP parameters into the reply buffer.
                 //
-                afpReply.AddRawData(parameter_buffer.GetBuffer(), (int16)parameter_buffer.GetDataLength());
+                afpReply.push_raw_data(parameter_buffer.get_buffer(), (int16)parameter_buffer.get_data_length());
                 
                 //
                 //Set the structure length byte in the buffer. The extra bytes are
                 //for the first parms in the structure (structLen, attributes and padding).
                 //
-                len = (int16)parameter_buffer.GetDataLength() + ((afpCommand > afpEnumerate) ? 4 : 2);
+                len = (int16)parameter_buffer.get_data_length() + ((afpCommand > afpEnumerate) ? 4 : 2);
                 
                 //
                 //This entry must end on an even boundary.
                 //
                 if (len % 2)
                 {
-                    afpReply.AddInt8(0);
+                    afpReply.push_int8(0);
                     len++;
                 }
                 
@@ -590,7 +590,7 @@ AFPERROR FPEnumerate(
             //If we've gotten as much data as the client requested, then
             //exit this beast.
             //
-            if ((afpActCount >= afpReqCount) || (afpReply.GetDataLength() >= afpMaxReplySize))
+            if ((afpActCount >= afpReqCount) || (afpReply.get_data_length() >= afpMaxReplySize))
             {
                 break;
             }
@@ -645,7 +645,7 @@ AFPERROR FPSetFileDirParms(
     //The first word is afp command and padding byte.
     //
     afpCommand = afpRequest.pull_num<INT8>();
-    afpRequest.Advance(sizeof(int8));
+    afpRequest.advance_pos_ptr(sizeof(int8));
     
     //
     //Extract the volume and dir ID's as well as the bitmap that
@@ -691,7 +691,7 @@ AFPERROR FPSetFileDirParms(
     //The remaining parameters for the call must start on an
     //even boundary.
     //
-    afpRequest.AdvanceIfOdd();
+    afpRequest.advance_if_odd();
 
     //
     //Verify the bitmap contains valid settings, FPSetFileDirParms doesn't
@@ -766,7 +766,7 @@ AFPERROR FPSetFileDirParms(
     afpError = AFPSetFileDirParms(
                     afpBitmap,
                     afpEntry,
-                    (PCHAR)afpRequest.GetCurrentPosPtr(),
+                    (PCHAR)afpRequest.get_current_pos_ptr(),
                     winAttributes.dwFileAttributes
                     );
     
@@ -804,7 +804,7 @@ AFPERROR FPCreateDir(
     //
     //Parameters start after first word (afp cmd and 0 byte)
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     
     //
     //Extract the volID, dirID and pathtype parameters for the call.
@@ -954,7 +954,7 @@ AFPERROR FPCreateDir(
         //
         //Now build the reply block to send back to the client.
         //
-        afpReply.AddInt32(afpDirID);
+        afpReply.push_int32(afpDirID);
     }
 
     return( afpError );
@@ -991,7 +991,7 @@ AFPERROR FPDelete(
     //
     //First word is command and padding.
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     
     afpVolumeID	= afpRequest.pull_num<UINT16>();
     afpDirID	= afpRequest.pull_num<UINT32>();
@@ -1155,7 +1155,7 @@ AFPERROR FPCopyFile(
     //
     //Skip the first byte which is afp command.
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
 
     afpSrcVolID		= afpRequest.pull_num<UINT16>();
     afpSrcDirID		= afpRequest.pull_num<UINT32>();
@@ -1397,7 +1397,7 @@ AFPERROR FPMoveAndRename(
     //
     //The first byte contains the afp command.
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     
     afpVolumeID		= afpRequest.pull_num<UINT16>();
     afpSrcDirID		= afpRequest.pull_num<UINT32>();
@@ -1620,7 +1620,7 @@ AFPERROR FPRename(
     //
     //First word is command and padding.
     //
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
     
     afpVolumeID	= afpRequest.pull_num<UINT16>();
     afpDirID	= afpRequest.pull_num<UINT32>();

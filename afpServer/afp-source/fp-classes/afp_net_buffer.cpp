@@ -110,10 +110,6 @@ AFPERROR afp_net_buffer::get_pascal_string(char* string, const UINT16 cb_string,
 
 	memset(string, 0, cb_string);
 
-	//
-	//Check to make sure we were given a big enough buffer
-	//to copy the string into.
-	//
 	if (string_len + sizeof(char) > cb_string)
 	{
 		DBGWRITE(dbg_level_info, L"String buffer too small! (%d)\n", string_len);
@@ -122,14 +118,7 @@ AFPERROR afp_net_buffer::get_pascal_string(char* string, const UINT16 cb_string,
 
 	if (string_len > 0)
 	{
-		//
-		//Now copy the string into the supplied buffer.
-		//
-		GetRawData(string, string_len);
-
-		//
-		//Add a null terminator on the end of the new string.
-		//
+		pull_raw_data(string, string_len);
 		string[string_len] = '\0';
 	}
 
@@ -165,14 +154,14 @@ AFPERROR afp_net_buffer::get_unicode_string(WCHAR* string, const UINT16 cb_strin
 
 	if (string_len > 0)
 	{
-		RtlCopyMemory(ansi_string, GetCurrentPosPtr(), string_len);
+		RtlCopyMemory(ansi_string, get_current_pos_ptr(), string_len);
 
 		if (afp_mac_to_windows_string(ansi_string, cb_string, string) == nullptr)
 		{
 			return afpParmErr;
 		}
 
-		Advance(string_len);
+		advance_pos_ptr(string_len);
 		*s_len = static_cast<INT16>(lstrlen(string));
 	}
 
@@ -242,9 +231,9 @@ AFPERROR afp_net_buffer::get_unicode_string(
 
 	if (string_len > 0)
 	{
-		RtlCopyMemory(string, GetCurrentPosPtr(), string_len);
+		RtlCopyMemory(string, get_current_pos_ptr(), string_len);
 
-		Advance(string_len);
+		advance_pos_ptr(string_len);
 		*s_len = string_len;
 	}
 
@@ -252,25 +241,7 @@ AFPERROR afp_net_buffer::get_unicode_string(
 }
 
 /*
- * GetInt64()
- *
- * Description:
- *		Extracts an INT64 from the buffer and advances the
- *		buffer pointer. This function is byte-order aware
- *
- * Returns: INT64
- */
-INT64 afp_net_buffer::GetInt64()
-{
-	INT64 result = _byteswap_uint64(*reinterpret_cast<INT64*>(mCurrentPos));
-
-	mCurrentPos += sizeof(INT64);
-
-	return result;
-}
-
-/*
- * GetRawData()
+ * pull_raw_data()
  *
  * Description:
  *		Extracts an raw data from the buffer and advances the
@@ -278,33 +249,41 @@ INT64 afp_net_buffer::GetInt64()
  *
  * Returns: void
  */
-void afp_net_buffer::GetRawData(void* buffer, size_t amount)
+void afp_net_buffer::pull_raw_data(void* buffer, const size_t amount)
 {
+	if (mCurrentPos + amount > mBuffer + mBufferSize)
+	{
+		DBGWRITE(dbg_level_error, L"Reading past end of buffer!");
+		ASSERT(0);
+
+		return;
+	}
+
 	memcpy(buffer, mCurrentPos, amount);
 	mCurrentPos += amount;
 }
 
 /*
- * AddCStringAsPascal()
+ * push_pascal_string()
  *
  * Description:
  *		Converts a C style string into a pascal string and inAdds
  *		it into the afp buffer.
  *
- * Returns: AFPERROR
+ * Returns: error code.
  */
-AFPERROR afp_net_buffer::AddCStringAsPascal(char* string)
+AFPERROR afp_net_buffer::push_pascal_string(const char* string)
 {
 	if (string != nullptr)
 	{
-		auto cbstring = strlen(string);
+		const auto cb_string = strlen(string);
 
-		if (mCurrentPos - mBuffer + cbstring + 1 <= mBufferSize)
+		if (mCurrentPos - mBuffer + cb_string + 1 <= mBufferSize)
 		{
-			*mCurrentPos++ = static_cast<UINT8>(cbstring);
-			memcpy(mCurrentPos, string, cbstring);
+			*mCurrentPos++ = static_cast<UINT8>(cb_string);
+			memcpy(mCurrentPos, string, cb_string);
 
-			mCurrentPos += cbstring;
+			mCurrentPos += cb_string;
 
 			return AFP_OK;
 		}
@@ -314,21 +293,21 @@ AFPERROR afp_net_buffer::AddCStringAsPascal(char* string)
 }
 
 /*
- * AddUniStringAsPascal()
+ * push_pascal_string()
  *
  * Description:
  *		Converts a unicode style string into a pascal string and adds
  *		it into the afp buffer.
  *
- * Returns: AFPERROR
+ * Returns: error code.
  */
-AFPERROR afp_net_buffer::AddUniStringAsPascal(unichar* string, AFPCHARMAPARRAY charMap)
+AFPERROR afp_net_buffer::push_pascal_string(unichar* string, AFPCHARMAPARRAY char_map)
 {
 	char ansi_string[MAX_AFP_PATH];
 
-	if (afp_windows_to_mac_path(string, sizeof(ansi_string), charMap, ansi_string) != nullptr)
+	if (afp_windows_to_mac_path(string, sizeof(ansi_string), char_map, ansi_string) != nullptr)
 	{
-		return AddCStringAsPascal(ansi_string);
+		return push_pascal_string(ansi_string);
 	}
 
 	DBGWRITE(dbg_level_error, L"Failed to convert characters!\n");
@@ -337,50 +316,45 @@ AFPERROR afp_net_buffer::AddUniStringAsPascal(unichar* string, AFPCHARMAPARRAY c
 }
 
 /*
- * AddUniString()
+ * push_unicode_string()
  *
  * Description:
  *		Add a unicode string to the afp reply buffer.
  *
  * Returns: None
  */
-AFPERROR afp_net_buffer::AddUniString(unichar* string, AFPCHARMAPARRAY charMap)
+AFPERROR afp_net_buffer::push_unicode_string(unichar* string, AFPCHARMAPARRAY char_map)
 {
-	char ansi_string[MAX_AFP_PATH];
-	size_t cbstring = lstrlen(string);
+	const size_t cb_string = lstrlen(string);
 
 	if (string != nullptr)
 	{
-		if (((mCurrentPos - mBuffer) + (cbstring * 2) + 2) <= mBufferSize)
+		if (((mCurrentPos - mBuffer) + (cb_string * 2) + 2) <= mBufferSize)
 		{
-			if (afp_windows_to_mac_path(string, sizeof(ansi_string), charMap, ansi_string) != nullptr)
+			char ansi_string[MAX_AFP_PATH];
+			if (afp_windows_to_mac_path(string, sizeof(ansi_string), char_map, ansi_string) != nullptr)
 			{
-				auto stringLen = strlen(ansi_string);
+				const auto string_len = strlen(ansi_string);
 
-				//
-				//If charMap is not NULL that means we are dealing with a pathname.
-				//We only add the hint for paths, not any other type of string.
-				//
-				if (charMap != nullptr)
+				// If charMap is not NULL that means we are dealing with a pathname.
+				// We only add the hint for paths, not any other type of string.
+				if (char_map != nullptr)
 				{
-					//
-					//This is supposed to be the encoding hint. We need to
-					//build an encoding mapping table before we can use this.
-					//for now, 0 == MAC_ROMAN encoding.
-					//
-					AddInt32(0);
+					// This is supposed to be the encoding hint. We need to
+					// build an encoding mapping table before we can use this.
+					// for now, 0 == MAC_ROMAN encoding.
+					push_num<UINT32>(0);
 				}
 
-				AddInt16(static_cast<INT16>(stringLen));
-				AddRawData(ansi_string, stringLen);
+				push_num<UINT16>(static_cast<UINT16>(string_len));
+				push_raw_data(ansi_string, string_len);
 
 				return AFP_OK;
 			}
-			//
-			//If conversion failed, we want to write a 0 to the buffer
-			//to show that there is 0 sized string.
-			//
-			AddInt16(0);
+
+			// If conversion failed, we want to write a 0 to the buffer
+			// to show that there is 0 sized string.
+			push_num<INT16>(0);
 		}
 	}
 
@@ -388,94 +362,35 @@ AFPERROR afp_net_buffer::AddUniString(unichar* string, AFPCHARMAPARRAY charMap)
 }
 
 /*
- * AddInt8()
+ * AddIntNNN()
  *
  * Description:
- *		InAdds an INT8 into the buffer and advances the
- *		buffer pointer. This function is byte-order aware
+ *		Wrapper to deal with old code.
  *
  * Returns: AFPERROR
  */
-AFPERROR afp_net_buffer::AddInt8(INT8 value)
+AFPERROR afp_net_buffer::push_int8(const INT8 value)
 {
-	if (((mCurrentPos - mBuffer) + sizeof(value)) <= mBufferSize)
-	{
-		*mCurrentPos++ = value;
+	return push_num<INT8>(value);
+}
 
-		return AFP_OK;
-	}
+AFPERROR afp_net_buffer::push_int16(const INT16 value)
+{
+	return push_num<INT16>(value);
+}
 
-	return afpParmErr;
+AFPERROR afp_net_buffer::push_int32(const INT32 value)
+{
+	return push_num<INT32>(value);
+}
+
+AFPERROR afp_net_buffer::push_int64(const INT64 value)
+{
+	return push_num<INT64>(value);
 }
 
 /*
- * AddInt16()
- *
- * Description:
- *		InAdds an INT16 into the buffer and advances the
- *		buffer pointer. This function is byte-order aware
- *
- * Returns: AFPERROR
- */
-AFPERROR afp_net_buffer::AddInt16(INT16 value)
-{
-	if (((mCurrentPos - mBuffer) + sizeof(value)) <= mBufferSize)
-	{
-		*reinterpret_cast<INT16*>(mCurrentPos) = htons(value);
-		mCurrentPos += sizeof(INT16);
-
-		return AFP_OK;
-	}
-
-	return afpParmErr;
-}
-
-/*
- * AddInt32()
- *
- * Description:
- *		InAdds an INT32 into the buffer and advances the
- *		buffer pointer. This function is byte-order aware
- *
- * Returns: AFPERROR
- */
-AFPERROR afp_net_buffer::AddInt32(INT32 value)
-{
-	if (((mCurrentPos - mBuffer) + sizeof(value)) <= mBufferSize)
-	{
-		*reinterpret_cast<INT32*>(mCurrentPos) = htonl(value);
-		mCurrentPos += sizeof(INT32);
-
-		return AFP_OK;
-	}
-
-	return afpParmErr;
-}
-
-/*
- * AddInt64()
- *
- * Description:
- *		InAdds an INT64 into the buffer and advances the
- *		buffer pointer. This function is byte-order aware
- *
- * Returns: AFPERROR
- */
-AFPERROR afp_net_buffer::AddInt64(INT64 value)
-{
-	if (((mCurrentPos - mBuffer) + sizeof(value)) <= mBufferSize)
-	{
-		*reinterpret_cast<INT64*>(mCurrentPos) = _byteswap_uint64(value);
-		mCurrentPos += sizeof(INT64);
-
-		return AFP_OK;
-	}
-
-	return afpParmErr;
-}
-
-/*
- * AddRawData()
+ * push_raw_data()
  *
  * Description:
  *		InAdds raw data into the buffer and advances the
@@ -483,9 +398,9 @@ AFPERROR afp_net_buffer::AddInt64(INT64 value)
  *
  * Returns: AFPERROR
  */
-AFPERROR afp_net_buffer::AddRawData(void* data, size_t size)
+AFPERROR afp_net_buffer::push_raw_data(const void* data, const size_t size)
 {
-	if (((mCurrentPos - mBuffer) + size) <= mBufferSize)
+	if (mCurrentPos - mBuffer + size <= mBufferSize)
 	{
 		memcpy(mCurrentPos, data, size);
 		mCurrentPos += size;
@@ -496,20 +411,22 @@ AFPERROR afp_net_buffer::AddRawData(void* data, size_t size)
 	return afpParmErr;
 }
 
-/*
- * CheckSpaceNeeded()
- *
- * Description:
- *		Check to make sure there is enough space in the buffer.
- *
- * Returns: TRUE if there is enough space left in the buffer.
- */
-bool afp_net_buffer::CheckSpaceNeeded(size_t spaceNeeded) const
+bool afp_net_buffer::check_space_needed(const size_t space_needed) const
 {
-	if (((GetCurrentPosPtr() - GetBuffer()) + spaceNeeded) > mBufferSize)
+	if (get_current_pos_ptr() - get_buffer() + space_needed > mBufferSize)
 	{
 		return false;
 	}
 
 	return true;
+}
+
+bool afp_net_buffer::not_enough_space(const size_t space_needed) const
+{
+	return !check_space_needed(space_needed);
+}
+
+bool afp_net_buffer::will_overflow(const UINT32 value) const
+{
+	return mBuffer + value > mBuffer + mBufferSize;
 }

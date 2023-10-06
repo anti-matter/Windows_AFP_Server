@@ -474,7 +474,7 @@ AFPERROR AFPGetVolumeParameters(
     //
     //Put the bitmap into the buffer.
     //
-    afpReply.AddInt16(afpBitmap);
+    afpReply.push_int16(afpBitmap);
 
     //
     //Get a pointer to our volume information block which contains
@@ -554,16 +554,16 @@ AFPERROR AFPGetVolumeParameters(
             attributes |= kFPVolHasVolumePassword;
         }
 
-        afpReply.AddInt16(attributes);
+        afpReply.push_int16(attributes);
     }
 
-    if (afpBitmap & kFPVolSignatureBit) afpReply.AddInt16(kFixedDirectoryID);
+    if (afpBitmap & kFPVolSignatureBit) afpReply.push_int16(kFixedDirectoryID);
 
-    if (afpBitmap & kFPVolCreateDateBit) afpReply.AddInt32(afp_windows_to_mac_time(&afpVolume->ftCreationDate));
-    if (afpBitmap & kFPVolModDateBit) afpReply.AddInt32(afp_windows_to_mac_time(&afpVolume->ftModDate));
-    if (afpBitmap & kFPVolBackupDateBit) afpReply.AddInt32(afp_windows_to_mac_time(&afpVolume->ftBackupDate));
+    if (afpBitmap & kFPVolCreateDateBit) afpReply.push_int32(afp_windows_to_mac_time(&afpVolume->ftCreationDate));
+    if (afpBitmap & kFPVolModDateBit) afpReply.push_int32(afp_windows_to_mac_time(&afpVolume->ftModDate));
+    if (afpBitmap & kFPVolBackupDateBit) afpReply.push_int32(afp_windows_to_mac_time(&afpVolume->ftBackupDate));
 
-    if (afpBitmap & kFPVolIDBit) afpReply.AddInt16(afpVolume->wVolID);
+    if (afpBitmap & kFPVolIDBit) afpReply.push_int16(afpVolume->wVolID);
 
     if (afpBitmap & kFPVolBytesFreeBit)
     {
@@ -572,11 +572,11 @@ AFPERROR AFPGetVolumeParameters(
         //
         if (i64FreeBytesAvailable.QuadPart > MAXLONG)
         {
-            afpReply.AddInt32(MAXLONG);
+            afpReply.push_int32(MAXLONG);
         }
         else
         {
-            afpReply.AddInt32(i64FreeBytesAvailable.LowPart);
+            afpReply.push_int32(i64FreeBytesAvailable.LowPart);
         }
     }
 
@@ -589,11 +589,11 @@ AFPERROR AFPGetVolumeParameters(
         //
         if (i64NumBytesInDisk.QuadPart > MAXLONG)
         {
-            afpReply.AddInt32(MAXLONG);
+            afpReply.push_int32(MAXLONG);
         }
         else
         {
-            afpReply.AddInt32(i64NumBytesInDisk.LowPart);
+            afpReply.push_int32(i64NumBytesInDisk.LowPart);
         }
     }
 
@@ -603,16 +603,16 @@ AFPERROR AFPGetVolumeParameters(
     //
     if (afpBitmap & kFPVolNameBit)
     {
-        volNameOffset = reinterpret_cast<uint16*>(afpReply.GetCurrentPosPtr());
-        afpReply.Advance(sizeof(int16));
+        volNameOffset = reinterpret_cast<uint16*>(afpReply.get_current_pos_ptr());
+        afpReply.advance_pos_ptr(sizeof(int16));
     }
 
     //
     //The following 3 bits will only be set if the caller
     //is using AFP 2.2 or later.
     //
-    if (afpBitmap & kFPVolExtBytesFree) afpReply.AddInt64(i64NumFreeBytes.QuadPart);
-    if (afpBitmap & kFPVolExtBytesTotal) afpReply.AddInt64(i64NumBytesInDisk.QuadPart);
+    if (afpBitmap & kFPVolExtBytesFree) afpReply.push_int64(i64NumFreeBytes.QuadPart);
+    if (afpBitmap & kFPVolExtBytesTotal) afpReply.push_int64(i64NumBytesInDisk.QuadPart);
 
     if (afpBitmap & kFPVolBlockSize)
     {
@@ -644,15 +644,15 @@ AFPERROR AFPGetVolumeParameters(
             dwAllocationSize = 4096;
         }
 
-        afpReply.AddInt32(dwAllocationSize);
+        afpReply.push_int32(dwAllocationSize);
 
         DBGWRITE(dbg_level_all, L"[VOL]Allocation block size = %d\n", dwAllocationSize);
     }
 
     if (afpBitmap & kFPVolNameBit)
     {
-        *volNameOffset = htons(static_cast<uint16>(afpReply.GetDataLength()) - sizeof(int16));
-        afpReply.AddUniStringAsPascal(afpVolume->szShareName);
+        *volNameOffset = htons(static_cast<uint16>(afpReply.get_data_length()) - sizeof(int16));
+        afpReply.push_pascal_string(afpVolume->szShareName);
     }
 
     return AFP_OK;

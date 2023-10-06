@@ -65,12 +65,12 @@ AFPERROR FPGetSrvrParms(
     //
     //Stuff in the AFP server time value.
     //
-    afpReply.AddInt32(afpTime);
+    afpReply.push_int32(afpTime);
     
     //
     //Stuff in the number of volumes our server has shared.
     //
-    afpReply.AddInt8(afpNumVolumesActive);
+    afpReply.push_int8(afpNumVolumesActive);
     
     //
     //Stuff in all the volume names and their flags.
@@ -93,8 +93,8 @@ AFPERROR FPGetSrvrParms(
 
         DBGWRITE(dbg_level_all, L"[AFP]Stuffing volume: %s\n", afpVolumeInfo->szShareName);
             
-        afpReply.AddInt8(afpVolumeInfo->bAFPFlags);
-        afpReply.AddUniStringAsPascal(afpVolumeInfo->szShareName);
+        afpReply.push_int8(afpVolumeInfo->bAFPFlags);
+        afpReply.push_pascal_string(afpVolumeInfo->szShareName);
     }
         
     return AFP_OK;
@@ -136,48 +136,48 @@ AFPERROR FPGetSrvrInfo(
     afpFlags |= kSupportsSrvrMsgs;
     afpFlags |= kSupportsReconnect;
 
-    afpReply.Advance(sizeof(int16));	//Machine type offset
-    afpReply.Advance(sizeof(int16));	//Afp version count offset
-    afpReply.Advance(sizeof(int16));	//UAM count offset
+    afpReply.advance_pos_ptr(sizeof(int16));	//Machine type offset
+    afpReply.advance_pos_ptr(sizeof(int16));	//Afp version count offset
+    afpReply.advance_pos_ptr(sizeof(int16));	//UAM count offset
 
-    afpReply.AddInt16(0);				//Volume icon and mask offset
-    afpReply.AddInt16(afpFlags);		//Server flags
+    afpReply.push_int16(0);				//Volume icon and mask offset
+    afpReply.push_int16(afpFlags);		//Server flags
 
     //
     //Paste in the name of the computer as the server name.
     //
-    afpReply.AddUniStringAsPascal(szComputerName);
+    afpReply.push_pascal_string(szComputerName);
     
     //
     //Add an extra padding byte if the AFP buffer is not on
     //an even boundary.
     //
-    afpReply.AdvanceIfOdd();
+    afpReply.advance_if_odd();
     
     //
     //Network address count offset, save it to set later.
     //
-    pAddressCountOffset = (int16*)afpReply.GetCurrentPosPtr();
-    afpReply.Advance(sizeof(int16));
+    pAddressCountOffset = (int16*)afpReply.get_current_pos_ptr();
+    afpReply.advance_pos_ptr(sizeof(int16));
     
     //
     //Set the machine type string and offset
     //
-    afpReply.AddParameterOffset(SRVRINFO_OFFSET_MACHTYPE, (int16)afpReply.GetDataLength());
-    afpReply.AddUniStringAsPascal(AFP_MACHINE_TYPE);
+    afpReply.add_parameter_offset(SRVRINFO_OFFSET_MACHTYPE, (int16)afpReply.get_data_length());
+    afpReply.push_pascal_string(AFP_MACHINE_TYPE);
         
     //AFP versions
-    afpReply.AddParameterOffset(SRVRINFO_OFFSET_AFPVERSCOUNT, (int16)afpReply.GetDataLength());
-    afpReply.AddInt8(AFP_VERSION_COUNT);
-    afpReply.AddUniStringAsPascal(AFP_22_VERSION_STR);
+    afpReply.add_parameter_offset(SRVRINFO_OFFSET_AFPVERSCOUNT, (int16)afpReply.get_data_length());
+    afpReply.push_int8(AFP_VERSION_COUNT);
+    afpReply.push_pascal_string(AFP_22_VERSION_STR);
 #ifdef AFP_VERSION_30
-    afpReply.AddUniStringAsPascal(AFP_30_VERSION_STR);
-    afpReply.AddUniStringAsPascal(AFP_31_VERSION_STR);
-    afpReply.AddUniStringAsPascal(AFP_32_VERSION_STR);
+    afpReply.push_pascal_string(AFP_30_VERSION_STR);
+    afpReply.push_pascal_string(AFP_31_VERSION_STR);
+    afpReply.push_pascal_string(AFP_32_VERSION_STR);
 #endif
 
     //UAMs supported
-    afpReply.AddParameterOffset(SRVRINFO_OFFSET_UAMCOUNT, (int16)afpReply.GetDataLength());
+    afpReply.add_parameter_offset(SRVRINFO_OFFSET_UAMCOUNT, (int16)afpReply.get_data_length());
     
     //
     //If we only allow encrypted logons (e.g. no clear text), then we
@@ -194,29 +194,29 @@ AFPERROR FPGetSrvrInfo(
         --afpUAMCount;
     }
     
-    afpReply.AddInt8(afpUAMCount);
+    afpReply.push_int8(afpUAMCount);
     
     if (gAllowGuests) {
-        afpReply.AddUniStringAsPascal(UAM_NONE_STR);
+        afpReply.push_pascal_string(UAM_NONE_STR);
     }
     
     if (!gForceEncryptedLogon) {
-        afpReply.AddUniStringAsPascal(UAM_CLEAR_TEXT);
+        afpReply.push_pascal_string(UAM_CLEAR_TEXT);
     }
     
     //
     //The DHCAST128 UAM is Apple's SSL encrypted password scheme, it
     //is always passed as supported, no matter what.
     //
-    afpReply.AddUniStringAsPascal(UAM_DHCAST128);
+    afpReply.push_pascal_string(UAM_DHCAST128);
     
     //Network Address: Note, there is no reason for us to pass
     //back address since we only support connections over TCP/IP.
     //This feature is only for connection where the initial connection
     //is done over AppleTalk.
 
-    *pAddressCountOffset = (int16)afpReply.GetDataLength();
-    afpReply.AddInt8(0);
+    *pAddressCountOffset = (int16)afpReply.get_data_length();
+    afpReply.push_int8(0);
         
     return(NO_ERROR);
 }
@@ -244,7 +244,7 @@ AFPERROR FPZzzz(
 
     DBGWRITE(dbg_level_info, L"[AFP:FpZzzz]Enter...\n");
     
-    afpRequest.Advance(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(int16));
 
     //
     //Nab the flag parameter, this is a reserved field by
