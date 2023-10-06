@@ -175,9 +175,9 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">/I afp-source\headers /I resources %(AdditionalOptions)</AdditionalOptions>
       <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">MultiThreaded</RuntimeLibrary>
     </ClCompile>
-    <ClCompile Include="afp-source\fp-classes\AFPSession.cpp" />
+    <ClCompile Include="afp-source\fp-classes\afp_session.cpp" />
     <ClCompile Include="afp-source\fp-classes\afp_file_index.cpp" />
-    <ClCompile Include="afp-source\fp-classes\AFPOpenFile.cpp">
+    <ClCompile Include="afp-source\fp-classes\afp_open_file.cpp">
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Full</Optimization>
       <FavorSizeOrSpeed Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Speed</FavorSizeOrSpeed>
     </ClCompile>
@@ -198,9 +198,9 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
     <ClInclude Include="afp-source\fp-classes\AfpBuffer.h" />
     <ClInclude Include="afp-source\fp-classes\auto_lock.h" />
     <ClInclude Include="afp-source\fp-classes\desktop_database.h" />
-    <ClInclude Include="afp-source\fp-classes\AFPSession.h" />
+    <ClInclude Include="afp-source\fp-classes\afp_session.h" />
     <ClInclude Include="afp-source\fp-classes\afp_critical_section.h" />
-    <ClInclude Include="afp-source\fp-classes\AFPOpenFile.h" />
+    <ClInclude Include="afp-source\fp-classes\afp_open_file.h" />
     <ClInclude Include="afp-source\fp-classes\users_and_groups_array.h" />
     <ClInclude Include="afp-source\fp-classes\volume_array.h" />
     <ClInclude Include="afp-source\fp-classes\afp_array.h" />

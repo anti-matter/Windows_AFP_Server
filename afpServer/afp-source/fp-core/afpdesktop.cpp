@@ -11,7 +11,7 @@
 #include "afp.h"
 #include "afpdesktop.h"
 #include "afpdirectory.h"
-#include "AFPSession.h"
+#include "afp_session.h"
 
 
 /*
@@ -39,7 +39,7 @@ AFPERROR FPOpenDT(
     afpRequest.Advance(sizeof(int16));
 
     afpVolumeID = afpRequest.GetInt16();
-    afpError = static_cast<AFPSession*>(afpSession->afpSessionObject)->SessionOpenDesk(afpVolumeID, &afpDTRefNum);
+    afpError = static_cast<afp_session*>(afpSession->afpSessionObject)->open_desk(afpVolumeID, &afpDTRefNum);
 
     if (AFP_SUCCESS(afpError))
     {
@@ -73,7 +73,7 @@ AFPERROR FPCloseDT(
     afpRequest.Advance(sizeof(int16));
 
     afpDTRefNum = afpRequest.GetInt16();
-    afpError = static_cast<AFPSession*>(afpSession->afpSessionObject)->SessionCloseDesk(afpDTRefNum);
+    afpError = static_cast<afp_session*>(afpSession->afpSessionObject)->close_desk(afpDTRefNum);
 
     return afpError;
 }
@@ -158,7 +158,7 @@ AFPERROR FPAddIcon(
     //
     //Now call the desktop routine to do the rest of the work.
     //
-    OPEN_DESKTOP* pDesktop = static_cast<AFPSession*>(afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
+    OPEN_DESKTOP* pDesktop = static_cast<afp_session*>(afpSession->afpSessionObject)->find_desk_file(afpDTRefNum);
 
     if (pDesktop != nullptr)
     {
@@ -200,7 +200,7 @@ AFPERROR FPGetIcon(
     uint16 afpLength = afpRequest.GetInt16();
     searchEntry.entryType = ENTRY_TYPE_ICON;
 
-    auto desktop = static_cast<AFPSession*>(afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
+    auto desktop = static_cast<afp_session*>(afpSession->afpSessionObject)->find_desk_file(afpDTRefNum);
 
     if (desktop == nullptr)
     {
@@ -253,7 +253,7 @@ AFPERROR FPGetIconInfo(
     uint16 afpIconIndex = afpRequest.GetInt16();
     searchEntry.entryType = ENTRY_TYPE_ICON;
 
-    auto desktop = static_cast<AFPSession*>(afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
+    auto desktop = static_cast<afp_session*>(afpSession->afpSessionObject)->find_desk_file(afpDTRefNum);
 
     if (desktop == nullptr)
     {
@@ -316,7 +316,7 @@ AFPERROR FPAddComment(
     newEntry.entryType = ENTRY_TYPE_CMNT;
     newEntry.dataSize = strlen(newEntry.data);
 
-    auto desktop = static_cast<AFPSession*>(afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
+    auto desktop = static_cast<afp_session*>(afpSession->afpSessionObject)->find_desk_file(afpDTRefNum);
 
     if (desktop == nullptr)
     {
@@ -390,7 +390,7 @@ AFPERROR FPGetComment(
     //Make sure the object that we're getting the comment for
     //exists.
     //
-    auto desktop = static_cast<AFPSession*>(afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
+    auto desktop = static_cast<afp_session*>(afpSession->afpSessionObject)->find_desk_file(afpDTRefNum);
 
     if (desktop == nullptr)
     {
@@ -459,7 +459,7 @@ AFPERROR FPRemoveComment(
         return afpParmErr;
     }
 
-    auto pDesktop = static_cast<AFPSession*>(afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
+    auto pDesktop = static_cast<afp_session*>(afpSession->afpSessionObject)->find_desk_file(afpDTRefNum);
 
     if (pDesktop == nullptr)
     {
@@ -502,7 +502,7 @@ AFPERROR FPGetAPPL(
 
     searchEntry.entryType = ENTRY_TYPE_APPL;
 
-    auto desktop = static_cast<AFPSession*>(afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
+    auto desktop = static_cast<afp_session*>(afpSession->afpSessionObject)->find_desk_file(afpDTRefNum);
     if (desktop == nullptr)
     {
         return afpParmErr;
@@ -589,7 +589,7 @@ AFPERROR FPAddAPPL(
         return afpParmErr;
     }
 
-    auto desktop = static_cast<AFPSession*>(afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
+    auto desktop = static_cast<afp_session*>(afpSession->afpSessionObject)->find_desk_file(afpDTRefNum);
     if (desktop == nullptr)
     {
         return afpParmErr;
@@ -641,7 +641,7 @@ AFPERROR FPRemoveAPPL(
     //AFTER it deletes or moves it.
     //
 
-    auto desktop = static_cast<AFPSession*>(afpSession->afpSessionObject)->SessionFindDeskFile(afpDTRefNum);
+    auto desktop = static_cast<afp_session*>(afpSession->afpSessionObject)->find_desk_file(afpDTRefNum);
     if (desktop == nullptr)
     {
         return afpParmErr;

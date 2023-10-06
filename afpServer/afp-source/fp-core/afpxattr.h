@@ -8,7 +8,7 @@
 #pragma once
 
 #include "afp.h"
-#include "AFPSession.h"
+#include "afp_session.h"
 #include <afpfileio.h>
 
 #define BAD_LENGTH_64	0xFFFFFFFFFFFFFFFF
@@ -52,5 +52,5 @@ uint64 GetStreamLen(
 
 AFPERROR GetStreams(
     IN WCHAR* pathname,
-       IN std::vector<AFP_ATTR_INFO>& streams
+       IN std::vector<afp_attr_info>& streams
 );

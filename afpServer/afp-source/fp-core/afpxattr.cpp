@@ -12,7 +12,7 @@
 #include "afpxattr.h"
 #include "volumes.h"
 #include "fpinfo.h"
-#include "AFPSession.h"
+#include "afp_session.h"
 
 #include "AltStreams.h"
 
@@ -65,7 +65,7 @@ AFPERROR FPGetExtAttribute(
     //See if the user has the volume open and get a pointer to
     //the volume object.
     //	
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolID))
+    if (!((afp_session*)afpSession->afpSessionObject)->session_has_volume_open(afpVolID))
     {
         DBGWRITE(dbg_level_warning, L"[FPGetExtAttribute]User does not have volume open!\n");
         return( afpParmErr );
@@ -311,7 +311,7 @@ AFPERROR FPSetExtAttribute(
     //See if the user has the volume open and get a pointer to
     //the volume object.
     //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolID))
+    if (!((afp_session*)afpSession->afpSessionObject)->session_has_volume_open(afpVolID))
     {
         DBGWRITE(dbg_level_info, L"[afp:FPSetExtAttribute]User does not have volume open!\n");
         return( afpParmErr );
@@ -448,7 +448,7 @@ AFPERROR FPListExtAttribute(
     //See if the user has the volume open and get a pointer to
     //the volume object.
     //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolID))
+    if (!((afp_session*)afpSession->afpSessionObject)->session_has_volume_open(afpVolID))
     {
         DBGWRITE(dbg_level_info, L"[FPListExtAttribute]User does not have volume open!\n");
         return( afpParmErr );
@@ -477,7 +477,7 @@ AFPERROR FPListExtAttribute(
                     
     if (AFP_SUCCESS(afpError))
     {
-        std::vector<AFP_ATTR_INFO> streamArray;
+        std::vector<afp_attr_info> streamArray;
         char			ansi_string[MAX_AFP_NAME];
         
         DBGWRITE(
@@ -515,7 +515,7 @@ AFPERROR FPListExtAttribute(
            
             for (auto afpAttrInfo : streamArray)
             {
-                int16 cbStreamName = static_cast<int16>(lstrlen(afpAttrInfo.wszStreamName));
+                int16 cbStreamName = static_cast<int16>(lstrlen(afpAttrInfo.stream_name));
                 
                 //
                 //We're only interested in streams with names (i.e not the main stream)
@@ -527,8 +527,8 @@ AFPERROR FPListExtAttribute(
                     //don't want to send streams the server owns back to the client (e.g.
                     //the resource or info streams).
                     //
-                    if ((!lstrcmp(afpAttrInfo.wszStreamName, AFP_INFO_STREAM_NAME))			||
-                        (!lstrcmp(afpAttrInfo.wszStreamName, AFP_RESOURCE_FORK_NAME_PLAIN))	)
+                    if ((!lstrcmp(afpAttrInfo.stream_name, AFP_INFO_STREAM_NAME))			||
+                        (!lstrcmp(afpAttrInfo.stream_name, AFP_RESOURCE_FORK_NAME_PLAIN))	)
                     {
                         continue;
                     }
@@ -542,10 +542,10 @@ AFPERROR FPListExtAttribute(
                             DBGWRITE(
                                 dbg_level_info,
                                 (L"[FPListExtAttribute]New attr name added: %s\n",
-                                afpAttrInfo.wszStreamName)
+                                afpAttrInfo.stream_name)
                                 );
                             
-                            if (afp_windows_to_mac_path(afpAttrInfo.wszStreamName, sizeof(ansi_string), NULL, ansi_string) != NULL)
+                            if (afp_windows_to_mac_path(afpAttrInfo.stream_name, sizeof(ansi_string), NULL, ansi_string) != NULL)
                             {
                                 afpReply.AddRawData(ansi_string, strlen(ansi_string)+sizeof(char));
                             }
@@ -633,7 +633,7 @@ AFPERROR FPRemoveExtAttribute(
     //See if the user has the volume open and get a pointer to
     //the volume object.
     //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolID))
+    if (!((afp_session*)afpSession->afpSessionObject)->session_has_volume_open(afpVolID))
     {
         DBGWRITE(dbg_level_info, L"[FPRemoveExtAttribute]User does not have volume open!\n");
         return( afpParmErr );
@@ -743,15 +743,15 @@ uint64 GetStreamLen(
     IN PWCHAR streamName
     )
 {
-    std::vector<AFP_ATTR_INFO> streams;
+    std::vector<afp_attr_info> streams;
         
     if (AFP_SUCCESS(GetStreams(pathname, streams)))
     {
         for (auto it = streams.begin(); it < streams.end(); ++it)
         {
-            if (!lstrcmp(it->wszStreamName, streamName))
+            if (!lstrcmp(it->stream_name, streamName))
             {
-                return it->streamSize.QuadPart;
+                return it->stream_size.QuadPart;
             }
         }
             
@@ -777,10 +777,10 @@ uint64 GetStreamLen(
 
 AFPERROR GetStreams(
     IN WCHAR* pathname,
-    IN std::vector<AFP_ATTR_INFO>& streams
+    IN std::vector<afp_attr_info>& streams
 )
 {
-    AFP_ATTR_INFO				afpAttrInfo;
+    afp_attr_info				afpAttrInfo;
     WCHAR						path[MAX_PATH];
     HANDLE						hFile					= INVALID_HANDLE_VALUE;	
     PFILE_STREAM_INFORMATION 	pStreamInfo 			= NULL;
@@ -861,7 +861,7 @@ AFPERROR GetStreams(
         LARGE_INTEGER	streamSize;
         DWORD			i = 0;
         
-        memset(&afpAttrInfo, 0, sizeof(AFP_ATTR_INFO));
+        memset(&afpAttrInfo, 0, sizeof(afp_attr_info));
         
         //
         //If this is a directory, it may have no streams, so we just exit.
@@ -880,14 +880,14 @@ AFPERROR GetStreams(
             //
             while(pStreamInfo->StreamName[i+1] != ':')
             {
-                afpAttrInfo.wszStreamName[i] = pStreamInfo->StreamName[i+1];
+                afpAttrInfo.stream_name[i] = pStreamInfo->StreamName[i+1];
                 i++;
             }
                                 
             //
             //Create the full path including the stream name
             //
-            StringCbPrintf(path, sizeof(path), L"%s:%s", pathname, afpAttrInfo.wszStreamName);
+            StringCbPrintf(path, sizeof(path), L"%s:%s", pathname, afpAttrInfo.stream_name);
             
             //
             //Get the stream size.
@@ -911,7 +911,7 @@ AFPERROR GetStreams(
             
                 CloseHandle(hFile);
                 
-                afpAttrInfo.streamSize = streamSize;
+                afpAttrInfo.stream_size = streamSize;
             }
             
             //

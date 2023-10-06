@@ -12,7 +12,7 @@
 #include "volumes.h"
 #include "afpworker.h"
 #include "auto_lock.h"
-#include "AFPSession.h"
+#include "afp_session.h"
 #include "afp_critical_section.h"
 #include "counters.h"
 #include "afpEvents.h"
@@ -1939,7 +1939,7 @@ void DSICleanupSession(
 
 		if (pSession->afpSessionObject)
 		{
-			delete static_cast<AFPSession*>(pSession->afpSessionObject);
+			delete static_cast<afp_session*>(pSession->afpSessionObject);
 		}
 
 		LeaveCriticalSection(&pSession->cs);

@@ -7,7 +7,8 @@
 
 enum dbg_level
 {
-	dbg_level_warning = 1,
+	dbg_level_error = 1,
+	dbg_level_warning,
 	dbg_level_info,
 	dbg_level_all
 };

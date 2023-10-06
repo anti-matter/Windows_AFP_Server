@@ -13,8 +13,8 @@
 #include "fdparms.h"
 #include "afpnotify.h"
 #include "AfpBuffer.h"
-#include "AFPSession.h"
-#include "AFPOpenFile.h"
+#include "afp_session.h"
+#include "afp_open_file.h"
 
 
 AFPERROR FPFlushFork(

@@ -31,7 +31,7 @@ struct AFP_VOLUME_INFO
     WCHAR szShareName[MAX_VOLNAME_LEN + 1];
     WCHAR szPath[MAX_PATH];
     BOOL fDirty;
-    WORD wVolID;
+    uint16 wVolID;
     BYTE bAFPFlags; //Has password, has config info
     DWORD dwRefCount;
     DWORD wVolumeFlags;

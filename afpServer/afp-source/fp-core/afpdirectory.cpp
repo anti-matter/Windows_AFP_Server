@@ -38,7 +38,7 @@ AFPERROR FPResolveID(
     //
     //Get a pointer to the volume info structure for this volume.
     //
-    afpVolumeInfo = ((AFPSession*)afpSession->afpSessionObject)->SessionFindOpenVolumeBlock(afpVolumeID);
+    afpVolumeInfo = ((afp_session*)afpSession->afpSessionObject)->find_open_volume_block(afpVolumeID);
 
     afpError = AFPIndexFindEntry(afpVolumeInfo, afpFileID, &afpEntry);
 
@@ -134,7 +134,7 @@ AFPERROR FPGetFileDirParms(
     //
     //The client must have previously opened the volume we are operating on.
     //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolumeID))
+    if (!((afp_session*)afpSession->afpSessionObject)->session_has_volume_open(afpVolumeID))
     {
         //
         //The volume has not been opened, we need to return error.
@@ -312,7 +312,7 @@ AFPERROR FPEnumerate(
     //
     //The client must have previously opened the volume we are enumerating
     //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolID))
+    if (!((afp_session*)afpSession->afpSessionObject)->session_has_volume_open(afpVolID))
     {
         //
         //The volume has not been opened, we need to return error.
@@ -359,7 +359,7 @@ AFPERROR FPEnumerate(
     //
     //Get a pointer to the volume info structure for this volume.
     //
-    afpVolumeInfo = ((AFPSession*)afpSession->afpSessionObject)->SessionFindOpenVolumeBlock(afpVolID);
+    afpVolumeInfo = ((afp_session*)afpSession->afpSessionObject)->find_open_volume_block(afpVolID);
     
     //
     //Retrieve the index entry of the directory pointed to by the AFP path.
@@ -660,7 +660,7 @@ AFPERROR FPSetFileDirParms(
     //
     //The client must have previously opened the volume we are operating on.
     //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolID))
+    if (!((afp_session*)afpSession->afpSessionObject)->session_has_volume_open(afpVolID))
     {
         //
         //The volume has not been opened, we need to return error.
@@ -817,7 +817,7 @@ AFPERROR FPCreateDir(
     //
     //Find the volume info block that we need to access the index.
     //
-    afpVolume = ((AFPSession*)afpSession->afpSessionObject)->SessionFindOpenVolumeBlock(afpVolumeID);
+    afpVolume = ((afp_session*)afpSession->afpSessionObject)->find_open_volume_block(afpVolumeID);
     if (afpVolume == NULL)
     {
         DBGWRITE(dbg_level_info, L"[afp:FPCreateDir]Bad volume ID in FPCreateDir!\n");
@@ -828,7 +828,7 @@ AFPERROR FPCreateDir(
     //The client must have previously opened the volume we are creating
     //the directory on.
     //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolumeID))
+    if (!((afp_session*)afpSession->afpSessionObject)->session_has_volume_open(afpVolumeID))
     {
         //
         //The volume has not been opened, we need to return error.
@@ -1001,7 +1001,7 @@ AFPERROR FPDelete(
     //
     //The client must have previously opened the volume we are operating on.
     //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolumeID))
+    if (!((afp_session*)afpSession->afpSessionObject)->session_has_volume_open(afpVolumeID))
     {
         //
         //The volume has not been opened, we need to return error.
@@ -1038,7 +1038,7 @@ AFPERROR FPDelete(
         return( afpParmErr );
     }
 
-    afpVolumeInfo = ((AFPSession*)afpSession->afpSessionObject)->SessionFindOpenVolumeBlock(afpVolumeID);
+    afpVolumeInfo = ((afp_session*)afpSession->afpSessionObject)->find_open_volume_block(afpVolumeID);
 
     if (afpVolumeInfo == NULL)
     {
@@ -1217,8 +1217,8 @@ AFPERROR FPCopyFile(
     //Make sure the client has opened the volumes that the file copy
     //is happening on.
     //
-    if (	(!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpSrcVolID))	||
-            (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpDstVolID))	)
+    if (	(!((afp_session*)afpSession->afpSessionObject)->session_has_volume_open(afpSrcVolID))	||
+            (!((afp_session*)afpSession->afpSessionObject)->session_has_volume_open(afpDstVolID))	)
     {
         //
         //The user has not opened one or both of the volumes for access.
@@ -1409,7 +1409,7 @@ AFPERROR FPMoveAndRename(
     //The client must have previously opened the volume we are creating
     //the directory on.
     //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolumeID))
+    if (!((afp_session*)afpSession->afpSessionObject)->session_has_volume_open(afpVolumeID))
     {
         //
         //The volume has not been opened, we need to return error.
@@ -1631,7 +1631,7 @@ AFPERROR FPRename(
     //The client must have previously opened the volume we are creating
     //the directory on.
     //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolumeID))
+    if (!((afp_session*)afpSession->afpSessionObject)->session_has_volume_open(afpVolumeID))
     {
         //
         //The volume has not been opened, we need to return error.

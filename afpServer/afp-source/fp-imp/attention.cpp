@@ -6,7 +6,7 @@
 #include "afpdebug.h"
 #include "volumes.h"
 #include "attention.h"
-#include "AFPSession.h"
+#include "afp_session.h"
 #include "volume_array.h"
 
 extern CRITICAL_SECTION g_cs_session_list;
@@ -72,7 +72,7 @@ DWORD WINAPI AFPAttentionThread(
 
                         LeaveCriticalSection(&pSession->cs);
 
-                        if (static_cast<AFPSession*>(pSession->afpSessionObject)->SessionHasVolumeOpen(pVolInfo->wVolID))
+                        if (static_cast<afp_session*>(pSession->afpSessionObject)->session_has_volume_open(pVolInfo->wVolID))
                         {
                             DSISendAttention(pSession, ATTN_SERVER_NOTIFY);
                         }

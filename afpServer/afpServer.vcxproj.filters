@@ -113,16 +113,16 @@
     <ClCompile Include="afp-source\fp-classes\auto_lock.cpp">
       <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
-    <ClCompile Include="afp-source\fp-classes\AFPSession.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="afp-source\fp-classes\afp_file_index.cpp">
+      <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
-    <ClCompile Include="afp-source\fp-classes\AFPOpenFile.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="afp-source\fp-classes\afp_session.cpp">
+      <Filter>Source Files\fp-classes</Filter>
+    </ClCompile>
+    <ClCompile Include="afp-source\fp-classes\afp_open_file.cpp">
+      <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
     <ClCompile Include="afp-source\fp-classes\AFPRegistry.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="afp-source\fp-classes\afp_file_index.cpp">
       <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
   </ItemGroup>
@@ -184,10 +184,10 @@
     <ClInclude Include="afp-source\fp-classes\afp_file_index.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\fp-classes\AFPOpenFile.h">
+    <ClInclude Include="afp-source\fp-classes\afp_open_file.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\fp-classes\AFPSession.h">
+    <ClInclude Include="afp-source\fp-classes\afp_session.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
   </ItemGroup>

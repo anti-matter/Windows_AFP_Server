@@ -91,13 +91,13 @@ AFPERROR FPGetSessionToken(
     IN	LPSESSION	afpSession
     )
 {
-    AFPSession*	afpSessObject	= (AFPSession*)afpSession->afpSessionObject;
-    AFPSession*	afpOldSession	= NULL;
+    afp_session*	afpSessObject	= (afp_session*)afpSession->afpSessionObject;
+    afp_session*	afpOldSession	= NULL;
     int16			afpType			= 0;
     int32			afpIDSize		= 0;
     int8*			afpID			= NULL;
     uint32			afpTimeStamp	= 0;
-    int32			afpToken		= afpSessObject->GetToken();
+    int32			afpToken		= afpSessObject->get_token();
     bool			fSavedID		= false;
     
     DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]Enter...\n");
@@ -154,16 +154,16 @@ AFPERROR FPGetSessionToken(
         case kLoginWithID:
             DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]kLoginWithID...\n");
 
-            afpOldSession = AFPSession::FindSessionWithID(afpID, afpIDSize);
+            afpOldSession = afp_session::find_session_with_id(afpID, afpIDSize);
 
             if (afpOldSession != NULL)
             {
                 DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]Found old session!!!\n");
-                DSICleanupSession(afpOldSession->GetDSISession());
+                DSICleanupSession(afpOldSession->get_dsi_session());
                 break;
             }
 
-            afpSessObject->SetAFPID(afpID, afpIDSize);
+            afpSessObject->set_session_id(afpID, afpIDSize);
             fSavedID = true;
             break;
 
@@ -179,24 +179,24 @@ AFPERROR FPGetSessionToken(
         case kLoginWithTimeAndID:
             DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]kLoginWithTimeAndID...\n");
 
-            afpOldSession = AFPSession::FindSessionWithID(afpID, afpIDSize);
+            afpOldSession = afp_session::find_session_with_id(afpID, afpIDSize);
 
             if (afpOldSession != NULL)
             {
                 DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]Found old session!!!\n");
 
-                if (afpOldSession->GetAFPTimeStamp() != afpTimeStamp)
+                if (afpOldSession->get_afp_time_stamp() != afpTimeStamp)
                 {
                     //
                     //Time stamps do not match, discard the old session.
                     //
-                    DSICleanupSession(afpOldSession->GetDSISession());
+                    DSICleanupSession(afpOldSession->get_dsi_session());
                     break;
                 }
             }
 
-            afpSessObject->SetAFPTimeStamp(afpTimeStamp);
-            afpSessObject->SetAFPID(afpID, afpIDSize);
+            afpSessObject->set_afp_time_stamp(afpTimeStamp);
+            afpSessObject->set_session_id(afpID, afpIDSize);
 
             fSavedID = true;
             break;
@@ -209,8 +209,8 @@ AFPERROR FPGetSessionToken(
         case kReconnWithTimeAndID:
             DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]kReconnWithTimeAndID...\n");
 
-            afpSessObject->SetAFPTimeStamp(afpTimeStamp);
-            afpSessObject->SetAFPID(afpID, afpIDSize);
+            afpSessObject->set_afp_time_stamp(afpTimeStamp);
+            afpSessObject->set_session_id(afpID, afpIDSize);
 
             fSavedID = true;
             break;
@@ -266,7 +266,7 @@ AFPERROR FPDisconnectOldSession(
     UNREFERENCED_PARAMETER(afpReply);
     UNREFERENCED_PARAMETER(afpSession);
 
-    AFPSession*	afpLostSession	= NULL;
+    afp_session*	afpLostSession	= NULL;
     int8			afpType			= 0;
     int32			afpTokenLength	= 0;
     int32			afpToken		= 0;
@@ -285,12 +285,12 @@ AFPERROR FPDisconnectOldSession(
     }
     
     afpToken 		= afpRequest.GetInt32();
-    afpLostSession 	= AFPSession::FindSessionByToken(afpToken);
+    afpLostSession 	= afp_session::find_session_by_token(afpToken);
     
     if (afpLostSession != NULL)
     {
         DBGWRITE(dbg_level_info, L"[afp:FPDisconnectOldSession]Found diconnected session!\n");
-        DSICleanupSession(afpLostSession->GetDSISession());
+        DSICleanupSession(afpLostSession->get_dsi_session());
     }
     
     return( AFP_OK );
@@ -867,7 +867,7 @@ AFPERROR FPLogout(
 
         if (afpSession->afpSessionObject)
         {
-            delete (AFPSession*)afpSession->afpSessionObject;
+            delete (afp_session*)afpSession->afpSessionObject;
             afpSession->afpSessionObject = NULL;
         }
         

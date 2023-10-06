@@ -45,7 +45,7 @@ AFPERROR FPFlush(
     //
     //The client must have previously opened the volume we are operating on.
     //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolumeID))
+    if (!((afp_session*)afpSession->afpSessionObject)->session_has_volume_open(afpVolumeID))
     {
         //
         //The volume has not been opened, we need to return error.
@@ -73,7 +73,7 @@ AFPERROR FPOpenVol(
     )
 {
     unichar			afpVolumeName[MAX_VOLNAME_LEN+1];
-    AFPSession*	afpAFPSession	= (AFPSession*)afpSession->afpSessionObject;
+    afp_session*	afpAFPSession	= (afp_session*)afpSession->afpSessionObject;
     int16			afpBitmap		= 0;
     uint16			afpVolumeID		= 0;
     AFPERROR		afpError		= AFP_OK;
@@ -144,7 +144,7 @@ AFPERROR FPOpenVol(
         //Note, we don't error check here since we wouldn't get here with
         //bad data (see above).
         //
-        afpError = afpAFPSession->SessionOpenVolume(afpVolumeID);
+        afpError = afpAFPSession->open_volume(afpVolumeID);
     }
     else
     {
@@ -173,7 +173,7 @@ AFPERROR FPCloseVol(
 {
     UNREFERENCED_PARAMETER(afpReply);
 
-    AFPSession*	afpAFPSession	= (AFPSession*)afpSession->afpSessionObject;
+    afp_session*	afpAFPSession	= (afp_session*)afpSession->afpSessionObject;
     uint16			afpVolumeID		= 0;
     AFPERROR		afpError		= AFP_OK;
     
@@ -190,7 +190,7 @@ AFPERROR FPCloseVol(
     //
     //Call on the volume routine to do the dirty work.
     //
-    afpError = afpAFPSession->SessionCloseVolume(afpVolumeID);
+    afpError = afpAFPSession->close_volume(afpVolumeID);
     
     return( afpError );
 }
@@ -230,7 +230,7 @@ AFPERROR FPGetVolParms(
     //
     //The client must have previously opened the volume we are operating on.
     //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolumeID))
+    if (!((afp_session*)afpSession->afpSessionObject)->session_has_volume_open(afpVolumeID))
     {
         //
         //The volume has not been opened, we need to return error.

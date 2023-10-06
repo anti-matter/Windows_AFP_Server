@@ -41,11 +41,6 @@ void afp_debug_write(_In_ const dbg_level debug_level, _In_ const std::string& f
 	va_end(args);
 }
 
-//----------------------------------------------------------------------------
-// dump_bitmap()
-//----------------------------------------------------------------------------
-// Dump a bitmap to the debugger window in readable form.
-
 void dump_bitmap(const DWORD bitmap)
 {
 	DWORD bit = 0x01;
@@ -91,11 +86,6 @@ void dump_bitmap(const DWORD bitmap)
 	// ReSharper restore CppFunctionResultShouldBeUsed
 }
 
-
-//----------------------------------------------------------------------------
-// hex_dump_buffer()
-//----------------------------------------------------------------------------
-// Dumps a buffer in hex and chars to the output text window.
 
 void hex_dump_buffer(const CHAR* p_buffer, const DWORD length)
 {
@@ -168,11 +158,6 @@ void hex_dump_buffer(const CHAR* p_buffer, const DWORD length)
 }
 
 
-//---------------------------------------------------------------------
-// dbg_output_buffer_to_debugger()
-//---------------------------------------------------------------------
-// Outputs the entire contents of a buffer to the debug buffer.
-
 void dbg_output_buffer_to_debugger(
 	IN const PBYTE p_buffer,
 	IN const DWORD size
@@ -195,11 +180,6 @@ void dbg_output_buffer_to_debugger(
 }
 
 
-//---------------------------------------------------------------------
-// dbg_free()
-//---------------------------------------------------------------------
-// Internal use memory release routine.
-
 void dbg_free(
 	IN const PBYTE ptr
 )
@@ -215,11 +195,6 @@ void dbg_free(
 	HeapFree(GetProcessHeap(), 0, ptr);
 }
 
-
-//---------------------------------------------------------------------
-// dbg_alloc()
-//---------------------------------------------------------------------
-// Internal use memory allocation routine.
 
 PVOID dbg_alloc(
 	IN const DWORD size,
@@ -258,11 +233,6 @@ PVOID dbg_alloc(
 }
 #endif
 
-
-//----------------------------------------------------------------------------
-//		ReportError()
-//----------------------------------------------------------------------------
-// Put up a message box to report an error.
 
 void report_error(CHAR* sz_error, const DWORD dw_error)
 {

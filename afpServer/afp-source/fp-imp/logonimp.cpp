@@ -9,7 +9,7 @@
 
 #include "StdAfx.h"
 #include "afp.h"
-#include "AFPSession.h"
+#include "afp_session.h"
 #include "logonimp.h"
 #include "afpEvents.h"
 
@@ -84,9 +84,9 @@ AFPERROR afpImpUserLogon(
         //
         //Create the AFPSession object that will track the *AFP* session.
         //
-        AFPSession* afpAFPSession = NULL;
+        afp_session* afpAFPSession = NULL;
 
-        afpAFPSession = new AFPSession(afpSession);
+        afpAFPSession = new afp_session(afpSession);
 
         if (afpAFPSession == NULL)
         {
