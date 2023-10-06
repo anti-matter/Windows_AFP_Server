@@ -482,12 +482,12 @@ DWORD WINAPI DSIWorkerThread(
 		{
 			auto_lock lock(&pSession->cs);
 
-			if ((dwBytesXferd == 0) &&
-				((perIOData->operationType == RECV_POSTED) ||
-					(perIOData->operationType == SEND_POSTED)))
+			if (dwBytesXferd == 0 &&
+				(perIOData->operationType == RECV_POSTED ||
+					perIOData->operationType == SEND_POSTED))
 			{
 				//
-				//Zero byts transferred indicates socket has been closed
+				//Zero bytes transferred indicates socket has been closed
 				//by the client. We free our handles and close the socket.
 				//
 				DBGWRITE(dbg_level_info, L"[DSI]Closing connection by client request (%d)\n", pSession->refCount);
@@ -861,9 +861,9 @@ bool DSICheckIfSessionTimedOut(
 
 	EnterCriticalSection(&pSession->cs);
 
-	if ((dwTicks - pSession->dwLastTickleRecvd) > AFP_CLIENT_LOST)
+	if (dwTicks - pSession->dwLastTickleRecvd > AFP_CLIENT_LOST)
 	{
-		if ((pSession->bAFPVersion >= afpVersion30) && ((pSession->dwState & sessClientSleeping) != 0))
+		if (pSession->bAFPVersion >= afpVersion30 && (pSession->dwState & sessClientSleeping) != 0)
 		{
 			//
 			//We don't close sessions where the client has just gone to sleep
@@ -871,7 +871,7 @@ bool DSICheckIfSessionTimedOut(
 			//extended timeout has not expired.
 			//
 
-			if ((dwTicks - pSession->dwLastTickleRecvd) < AFP_CLIENT_LOST_SLEEPING)
+			if (dwTicks - pSession->dwLastTickleRecvd < AFP_CLIENT_LOST_SLEEPING)
 			{
 				fCloseSession = false;
 			}
@@ -881,7 +881,7 @@ bool DSICheckIfSessionTimedOut(
 		{
 			DBGWRITE(
 				dbg_level_info,
-				(L"[DSI]Session timed out and is being terminated\n")
+				L"[DSI]Session timed out and is being terminated\n"
 			);
 
 			LeaveCriticalSection(&pSession->cs);
