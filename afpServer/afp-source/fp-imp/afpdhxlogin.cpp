@@ -212,7 +212,7 @@ AFPERROR DHXLoginContinue(
     //and make sure the session ID mataches what we sent over. Note that
     //we save the session ID in the afpSession login blob storage.
     //
-    sessionID = afpRequest.GetInt16();
+    sessionID = afpRequest.pull_num<INT16>();
     
     if (sessionID != dhxInfo->sessionID)
     {
@@ -316,7 +316,7 @@ AFPERROR DHXChangePassword(
     //and make sure the session ID mataches what we sent over. Note that
     //we save the session ID in the afpSession login blob storage.
     //
-    sessionID = afpRequest.GetInt16();
+    sessionID = afpRequest.pull_num<INT16>();
     
     //
     //If there is no ID in the buffer, then this is the first time through

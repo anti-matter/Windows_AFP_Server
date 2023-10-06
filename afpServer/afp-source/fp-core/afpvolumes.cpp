@@ -40,7 +40,7 @@ AFPERROR FPFlush(
     //
     //Extract the volume identifier that we're working with.
     //
-    afpVolumeID = afpRequest.GetInt16();
+    afpVolumeID = afpRequest.pull_num<UINT16>();
 
     //
     //The client must have previously opened the volume we are operating on.
@@ -74,7 +74,7 @@ AFPERROR FPOpenVol(
 {
     unichar			afpVolumeName[MAX_VOLNAME_LEN+1];
     afp_session*	afpAFPSession	= (afp_session*)afpSession->afpSessionObject;
-    int16			afpBitmap		= 0;
+    uint16			afpBitmap		= 0;
     uint16			afpVolumeID		= 0;
     AFPERROR		afpError		= AFP_OK;
     
@@ -86,7 +86,7 @@ AFPERROR FPOpenVol(
     //
     //Extract the bitmap that requests vol data from the buffer.
     //
-    afpBitmap = afpRequest.GetInt16();
+    afpBitmap = afpRequest.pull_num<UINT16>();
     
     //
     //Extract the volume name from the buffer.
@@ -185,7 +185,7 @@ AFPERROR FPCloseVol(
     //
     //Extract the volume identifier that we're working with.
     //
-    afpVolumeID = afpRequest.GetInt16();
+    afpVolumeID = afpRequest.pull_num<UINT16>();
         
     //
     //Call on the volume routine to do the dirty work.
@@ -211,7 +211,7 @@ AFPERROR FPGetVolParms(
     IN	LPSESSION	afpSession
     )
 {
-    int16		afpBitmap	= 0;
+    uint16		afpBitmap	= 0;
     uint16		afpVolumeID	= 0;
     AFPERROR	afpError	= AFP_OK;
     
@@ -225,7 +225,7 @@ AFPERROR FPGetVolParms(
     //
     //Extract the volume identifier that we're working with.
     //
-    afpVolumeID = afpRequest.GetInt16();
+    afpVolumeID = afpRequest.pull_num<UINT16>();
     
     //
     //The client must have previously opened the volume we are operating on.
@@ -242,7 +242,7 @@ AFPERROR FPGetVolParms(
     //
     //Extract the bitmap that requests vol data from the buffer.
     //
-    afpBitmap = afpRequest.GetInt16();
+    afpBitmap = afpRequest.pull_num<UINT16>();
     
     //
     //Get the volume parameters requested in the open call via the bitmap.

@@ -113,7 +113,7 @@ AFPERROR fp_unimplemented(
 	UNREFERENCED_PARAMETER(afp_reply);
 	UNREFERENCED_PARAMETER(dsi_session);
 
-	DBGWRITE(dbg_level_error, L"Call not implemented (%d)\n", afp_request.GetInt8());
+	DBGWRITE(dbg_level_error, L"Call not implemented (%d)\n", afp_request.pull_num<INT8>());
 	return (afpCallNotSupported);
 }
 

@@ -250,7 +250,7 @@ AFPERROR FPZzzz(
     //Nab the flag parameter, this is a reserved field by
     //Apple and is ignored now.
     //
-    afpFlag = afpRequest.GetInt32();
+    afpFlag = afpRequest.pull_num<UINT32>();
 
     //
     //Set the client sleeping flag so we don't kill it when we

@@ -38,7 +38,7 @@ AFPERROR FPOpenDT(
     //
     afpRequest.Advance(sizeof(int16));
 
-    afpVolumeID = afpRequest.GetInt16();
+    afpVolumeID = afpRequest.pull_num<UINT16>();
     afpError = static_cast<afp_session*>(afpSession->afpSessionObject)->open_desk(afpVolumeID, &afpDTRefNum);
 
     if (AFP_SUCCESS(afpError))
@@ -72,7 +72,7 @@ AFPERROR FPCloseDT(
 
     afpRequest.Advance(sizeof(int16));
 
-    afpDTRefNum = afpRequest.GetInt16();
+    afpDTRefNum = afpRequest.pull_num<UINT16>();
     afpError = static_cast<afp_session*>(afpSession->afpSessionObject)->close_desk(afpDTRefNum);
 
     return afpError;
@@ -107,21 +107,21 @@ AFPERROR FPAddIcon(
     //
     //Get the refnum to our OPEN desktop database.
     //
-    uint16 afpDTRefNum = afpRequest.GetInt16();
+    uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
 
     //
     //Grab the file type and creator that will be associated with
     //this icon. Note that in MacOS X, they appear to be going away
     //from creators and types.
     //
-    iconEntry.fileCreator = afpRequest.GetInt32();
-    iconEntry.fileType = afpRequest.GetInt32();
+    iconEntry.fileCreator = afpRequest.pull_num<UINT32>();
+    iconEntry.fileType = afpRequest.pull_num<UINT32>();
 
     //
     //Next bytes containes the icon type we'll be storing. We don't
     //care what it is, its for the client to know.
     //
-    iconEntry.iconType = afpRequest.GetInt8();
+    iconEntry.iconType = afpRequest.pull_num<INT8>();
 
     //
     //A padding byte, skip it.
@@ -132,10 +132,10 @@ AFPERROR FPAddIcon(
     //Get the next 2 parameters; We don't know or care what the tag is and
     //we get the size of the data we'll be storing.
     //
-    iconEntry.entryTag = afpRequest.GetInt32();
-    iconEntry.dataSize = afpRequest.GetInt16();
+    iconEntry.entryTag = afpRequest.pull_num<UINT32>();
+    iconEntry.dataSize = afpRequest.pull_num<UINT16>();
     iconEntry.entryType = ENTRY_TYPE_ICON;
-
+     
     //
     //Advance in the buffer to the offset where the icon data is
     //being stored.
@@ -189,15 +189,15 @@ AFPERROR FPGetIcon(
 
     afpRequest.Advance(sizeof(int16));
 
-    uint16 afpDTRefNum = afpRequest.GetInt16();
+    uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
 
-    searchEntry.fileCreator = afpRequest.GetInt32();
-    searchEntry.fileType = afpRequest.GetInt32();
-    searchEntry.iconType = afpRequest.GetInt8();
+    searchEntry.fileCreator = afpRequest.pull_num<UINT32>();
+    searchEntry.fileType = afpRequest.pull_num<UINT32>();
+    searchEntry.iconType = afpRequest.pull_num<INT8>();
 
     afpRequest.Advance(sizeof(int8));
 
-    uint16 afpLength = afpRequest.GetInt16();
+    uint16 afpLength = afpRequest.pull_num<UINT16>();
     searchEntry.entryType = ENTRY_TYPE_ICON;
 
     auto desktop = static_cast<afp_session*>(afpSession->afpSessionObject)->find_desk_file(afpDTRefNum);
@@ -247,10 +247,10 @@ AFPERROR FPGetIconInfo(
     DESKTOP_ENTRY foundEntry;
 
     afpRequest.Advance(sizeof(int16));
-    uint16 afpDTRefNum = afpRequest.GetInt16();
+    uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
 
-    searchEntry.fileCreator = afpRequest.GetInt32();
-    uint16 afpIconIndex = afpRequest.GetInt16();
+    searchEntry.fileCreator = afpRequest.pull_num<UINT32>();
+    uint16 afpIconIndex = afpRequest.pull_num<UINT16>();
     searchEntry.entryType = ENTRY_TYPE_ICON;
 
     auto desktop = static_cast<afp_session*>(afpSession->afpSessionObject)->find_desk_file(afpDTRefNum);
@@ -299,9 +299,9 @@ AFPERROR FPAddComment(
 
     afpRequest.Advance(sizeof(int16));
 
-    uint16 afpDTRefNum = afpRequest.GetInt16();
-    newEntry.dirID = afpRequest.GetInt32();
-    newEntry.pathType = afpRequest.GetInt8();
+    uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
+    newEntry.dirID = afpRequest.pull_num<UINT32>();
+    newEntry.pathType = afpRequest.pull_num<INT8>();
 
     auto afpError = afpRequest.get_pascal_string(newEntry.pathname, sizeof(newEntry.pathname), true, newEntry.pathType, nullptr);
 
@@ -374,9 +374,9 @@ AFPERROR FPGetComment(
 
     afpRequest.Advance(sizeof(int16));
 
-    uint16 afpDTRefNum = afpRequest.GetInt16();
-    searchEntry.dirID = afpRequest.GetInt32();
-    searchEntry.pathType = afpRequest.GetInt8();
+    uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
+    searchEntry.dirID = afpRequest.pull_num<UINT32>();
+    searchEntry.pathType = afpRequest.pull_num<INT8>();
     searchEntry.entryType = ENTRY_TYPE_CMNT;
 
     auto afpError = afpRequest.get_pascal_string(searchEntry.pathname, sizeof(searchEntry.pathname), true, searchEntry.pathType, nullptr);
@@ -447,9 +447,9 @@ AFPERROR FPRemoveComment(
 
     afpRequest.Advance(sizeof(int16));
 
-    uint16 afpDTRefNum = afpRequest.GetInt16();
-    searchEntry.dirID = afpRequest.GetInt32();
-    searchEntry.pathType = afpRequest.GetInt8();
+    uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
+    searchEntry.dirID = afpRequest.pull_num<UINT32>();
+    searchEntry.pathType = afpRequest.pull_num<INT8>();
     searchEntry.entryType = ENTRY_TYPE_CMNT;
 
     auto afpError = afpRequest.get_pascal_string(searchEntry.pathname, sizeof(searchEntry.pathname), true, searchEntry.pathType, nullptr);
@@ -493,12 +493,12 @@ AFPERROR FPGetAPPL(
     uint16 afpVolumeID = 0;
 
     afpRequest.Advance(sizeof(int16));
-    uint16 afpDTRefNum = afpRequest.GetInt16();
+    uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
 
     afpRequest.GetRawData(&searchEntry.fileCreator, sizeof(FILECREATOR));
 
-    uint16 afpIndex = afpRequest.GetInt16();
-    uint16 afpBitmap = afpRequest.GetInt16();
+    uint16 afpIndex = afpRequest.pull_num<UINT16>();
+    uint16 afpBitmap = afpRequest.pull_num<UINT16>();
 
     searchEntry.entryType = ENTRY_TYPE_APPL;
 
@@ -574,12 +574,12 @@ AFPERROR FPAddAPPL(
 
     afpRequest.Advance(sizeof(int16));
 
-    uint16 afpDTRefNum = afpRequest.GetInt16();
+    uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
 
-    newEntry.dirID = afpRequest.GetInt32();
-    newEntry.fileCreator = afpRequest.GetInt32();
-    newEntry.entryTag = afpRequest.GetInt32();
-    newEntry.pathType = afpRequest.GetInt8();
+    newEntry.dirID = afpRequest.pull_num<UINT32>();
+    newEntry.fileCreator = afpRequest.pull_num<UINT32>();
+    newEntry.entryTag = afpRequest.pull_num<UINT32>();
+    newEntry.pathType = afpRequest.pull_num<INT8>();
     newEntry.entryType = ENTRY_TYPE_APPL;
     newEntry.dataSize = 0;
 
@@ -622,10 +622,10 @@ AFPERROR FPRemoveAPPL(
 
     afpRequest.Advance(sizeof(int16));
 
-    uint16 afpDTRefNum = afpRequest.GetInt16();
-    searchEntry.dirID = afpRequest.GetInt32();
-    searchEntry.fileCreator = afpRequest.GetInt32();
-    searchEntry.pathType = afpRequest.GetInt8();
+    uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
+    searchEntry.dirID = afpRequest.pull_num<UINT32>();
+    searchEntry.fileCreator = afpRequest.pull_num<UINT32>();
+    searchEntry.pathType = afpRequest.pull_num<INT8>();
     searchEntry.entryType = ENTRY_TYPE_APPL;
 
     auto afpError = afpRequest.get_pascal_string(searchEntry.pathname, sizeof(searchEntry.pathname), true, searchEntry.pathType, nullptr);
@@ -635,7 +635,7 @@ AFPERROR FPRemoveAPPL(
     }
 
     //
-    //Althoug the spec says to, we don't check to make sure that
+    //Although the spec says to, we don't check to make sure that
     //the actual application really exists on the volume. Why? Because
     //when you move or delete a file, the client always calls this
     //AFTER it deletes or moves it.

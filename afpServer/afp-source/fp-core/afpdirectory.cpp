@@ -17,9 +17,9 @@ AFPERROR FPResolveID(
     IN	LPSESSION	afpSession
     )
 {
-    int16				afpVolumeID		= 0;
-    int32				afpFileID		= 0;
-    int16				afpBitmap		= 0;
+    uint16				afpVolumeID		= 0;
+    uint32				afpFileID		= 0;
+    uint16				afpBitmap		= 0;
     p_afp_index			afpEntry		= NULL;
     AFP_VOLUME_INFO*	afpVolumeInfo	= NULL;
     AFPERROR			afpError		= AFP_OK;
@@ -31,9 +31,9 @@ AFPERROR FPResolveID(
     //
     afpRequest.Advance(sizeof(int16));
 
-    afpVolumeID	= afpRequest.GetInt16();
-    afpFileID	= afpRequest.GetInt32();
-    afpBitmap	= afpRequest.GetInt16();
+    afpVolumeID	= afpRequest.pull_num<UINT16>();
+    afpFileID	= afpRequest.pull_num<UINT32>();
+    afpBitmap	= afpRequest.pull_num<UINT16>();
 
     //
     //Get a pointer to the volume info structure for this volume.
@@ -125,11 +125,11 @@ AFPERROR FPGetFileDirParms(
     //
     //Extract the volume and directory ID's, the bitmaps and the pathtype.
     //
-    afpVolumeID		= afpRequest.GetInt16();
-    afpDirID		= afpRequest.GetInt32();
-    afpFileBitmap	= afpRequest.GetInt16();
-    afpDirBitmap	= afpRequest.GetInt16();
-    afpPathtype		= afpRequest.GetInt8();
+    afpVolumeID		= afpRequest.pull_num<UINT16>();
+    afpDirID		= afpRequest.pull_num<UINT32>();
+    afpFileBitmap	= afpRequest.pull_num<UINT16>();
+    afpDirBitmap	= afpRequest.pull_num<UINT16>();
+    afpPathtype		= afpRequest.pull_num<INT8>();
 
     //
     //The client must have previously opened the volume we are operating on.
@@ -274,17 +274,17 @@ AFPERROR FPEnumerate(
     //
     //The first word contains the afp command and padding byte.
     //
-    afpCommand = afpRequest.GetInt8();
+    afpCommand = afpRequest.pull_num<INT8>();
     afpRequest.Advance(sizeof(int8));
 
     //
     //Extract the enumerate parameters for the API.
     //
-    afpVolID		= afpRequest.GetInt16();
-    afpDirID		= afpRequest.GetInt32();
-    afpFileBitmap	= afpRequest.GetInt16();
-    afpDirBitmap	= afpRequest.GetInt16();
-    afpReqCount		= afpRequest.GetInt16();
+    afpVolID		= afpRequest.pull_num<UINT16>();
+    afpDirID		= afpRequest.pull_num<UINT32>();
+    afpFileBitmap	= afpRequest.pull_num<UINT16>();
+    afpDirBitmap	= afpRequest.pull_num<UINT16>();
+    afpReqCount		= afpRequest.pull_num<INT16>();
 
     //
     //In AFP3.1 we may get the new Ext2 call which allows for a
@@ -294,20 +294,20 @@ AFPERROR FPEnumerate(
     {
         case afpEnumerate:
         case afpEnumerateExt:
-            afpStartIndex	= afpRequest.GetInt16();
-            afpMaxReplySize	= afpRequest.GetInt16();
+            afpStartIndex	= afpRequest.pull_num<INT16>();
+            afpMaxReplySize	= afpRequest.pull_num<INT16>();
             break;
         
         case afpEnumerateExt2:
-            afpStartIndex	= afpRequest.GetInt32();
-            afpMaxReplySize	= afpRequest.GetInt32();
+            afpStartIndex	= afpRequest.pull_num<INT32>();
+            afpMaxReplySize	= afpRequest.pull_num<INT32>();
             break;
         
         default:
             return( afpParmErr );
     }
     
-    afpPathType	= afpRequest.GetInt8();
+    afpPathType	= afpRequest.pull_num<INT8>();
 
     //
     //The client must have previously opened the volume we are enumerating
@@ -631,7 +631,7 @@ AFPERROR FPSetFileDirParms(
     unichar		afpPathname[MAX_AFP_PATH];
     uint16		afpVolID	= 0;
     uint16		afpBitmap	= 0;
-    int32		afpDirID	= 0;
+    uint32		afpDirID	= 0;
     int8		afpPathType	= 0;
     int8		afpCommand	= 0;
     AFPERROR	afpError	= AFP_OK;
@@ -644,17 +644,17 @@ AFPERROR FPSetFileDirParms(
     //
     //The first word is afp command and padding byte.
     //
-    afpCommand = afpRequest.GetInt8();
+    afpCommand = afpRequest.pull_num<INT8>();
     afpRequest.Advance(sizeof(int8));
     
     //
     //Extract the volume and dir ID's as well as the bitmap that
     //tells what we're setting.
     //
-    afpVolID	= afpRequest.GetInt16();
-    afpDirID	= afpRequest.GetInt32();
-    afpBitmap	= afpRequest.GetInt16();
-    afpPathType	= afpRequest.GetInt8();
+    afpVolID	= afpRequest.pull_num<UINT16>();
+    afpDirID	= afpRequest.pull_num<UINT32>();
+    afpBitmap	= afpRequest.pull_num<UINT16>();
+    afpPathType	= afpRequest.pull_num<INT8>();
 
     //
     //The client must have previously opened the volume we are operating on.
@@ -792,7 +792,7 @@ AFPERROR FPCreateDir(
     AFPCHARMAPARRAY		charMap;
     WCHAR				afpPathname[MAX_AFP_PATH];
     WCHAR				winPath[MAX_PATH];
-    int16				afpVolumeID	= 0;
+    uint16				afpVolumeID	= 0;
     uint32				afpDirID	= 0;
     int8				afpPathType	= 0;
     AFPERROR			afpError	= AFP_OK;
@@ -809,9 +809,9 @@ AFPERROR FPCreateDir(
     //
     //Extract the volID, dirID and pathtype parameters for the call.
     //
-    afpVolumeID		= afpRequest.GetInt16();
-    afpDirID		= afpRequest.GetInt32();
-    afpPathType		= afpRequest.GetInt8();
+    afpVolumeID		= afpRequest.pull_num<UINT16>();
+    afpDirID		= afpRequest.pull_num<UINT32>();
+    afpPathType		= afpRequest.pull_num<INT8>();
 
     //
     //Find the volume info block that we need to access the index.
@@ -981,8 +981,8 @@ AFPERROR FPDelete(
     unichar				afpPathname[MAX_AFP_PATH];
     p_afp_index			afpEntry		= NULL;
     AFP_VOLUME_INFO*	afpVolumeInfo	= NULL;
-    int16				afpVolumeID		= 0;
-    int32				afpDirID		= 0;
+    uint16				afpVolumeID		= 0;
+    uint32				afpDirID		= 0;
     int8				afpPathType		= 0;
     AFPERROR			afpError		= AFP_OK;
 
@@ -993,9 +993,9 @@ AFPERROR FPDelete(
     //
     afpRequest.Advance(sizeof(int16));
     
-    afpVolumeID	= afpRequest.GetInt16();
-    afpDirID	= afpRequest.GetInt32();
-    afpPathType	= afpRequest.GetInt8();
+    afpVolumeID	= afpRequest.pull_num<UINT16>();
+    afpDirID	= afpRequest.pull_num<UINT32>();
+    afpPathType	= afpRequest.pull_num<INT8>();
     
     //
     //The client must have previously opened the volume we are operating on.
@@ -1143,10 +1143,10 @@ AFPERROR FPCopyFile(
     AFPCHARMAPARRAY		newCharMap;
     p_afp_index			afpSrcEntry		= NULL;
     p_afp_index			afpDstEntry		= NULL;
-    int16				afpSrcVolID		= 0;
-    int32				afpSrcDirID		= 0;
-    int16				afpDstVolID		= 0;
-    int32				afpDstDirID		= 0;
+    uint16				afpSrcVolID		= 0;
+    uint32				afpSrcDirID		= 0;
+    uint16				afpDstVolID		= 0;
+    uint32				afpDstDirID		= 0;
     int8				afpPathType		= 0;
     AFPERROR			afpError		= AFP_OK;
     
@@ -1157,15 +1157,15 @@ AFPERROR FPCopyFile(
     //
     afpRequest.Advance(sizeof(int16));
 
-    afpSrcVolID		= afpRequest.GetInt16();
-    afpSrcDirID		= afpRequest.GetInt32();
-    afpDstVolID		= afpRequest.GetInt16();
-    afpDstDirID		= afpRequest.GetInt32();
+    afpSrcVolID		= afpRequest.pull_num<UINT16>();
+    afpSrcDirID		= afpRequest.pull_num<UINT32>();
+    afpDstVolID		= afpRequest.pull_num<UINT16>();
+    afpDstDirID		= afpRequest.pull_num<UINT32>();
     
     //
     //Get the pathname of the object we're copying.
     //
-    afpPathType	= afpRequest.GetInt8();
+    afpPathType	= afpRequest.pull_num<INT8>();
     afpError 	= afpRequest.get_pascal_string(
                                 afpSrcPathname, 
                                 sizeof(afpSrcPathname), 
@@ -1181,7 +1181,7 @@ AFPERROR FPCopyFile(
     //
     //Get the destination pathname we're copying to
     //
-    afpPathType		= afpRequest.GetInt8();
+    afpPathType		= afpRequest.pull_num<INT8>();
     afpError 		= afpRequest.get_pascal_string(
                                 afpDstPathname, 
                                 sizeof(afpDstPathname), 
@@ -1198,7 +1198,7 @@ AFPERROR FPCopyFile(
     //
     //And now the [optional] new name for the file
     //
-    afpPathType		= afpRequest.GetInt8();
+    afpPathType		= afpRequest.pull_num<INT8>();
     afpError 		= afpRequest.get_pascal_string(
                                 afpNewName, 
                                 sizeof(afpNewName), 
@@ -1383,9 +1383,9 @@ AFPERROR FPMoveAndRename(
     AFPCHARMAP		newCharMap[MAX_DIR_NAME];
     p_afp_index		afpSrcEntry;
     p_afp_index		afpDstEntry;
-    int16			afpVolumeID		= 0;
-    int32			afpSrcDirID		= 0;
-    int32			afpDstDirID		= 0;
+    uint16			afpVolumeID		= 0;
+    uint32			afpSrcDirID		= 0;
+    uint32			afpDstDirID		= 0;
     int8			afpPathType		= 0;
     int16			afpAttributes	= 0;
     AFPERROR		afpError		= AFP_OK;
@@ -1399,10 +1399,10 @@ AFPERROR FPMoveAndRename(
     //
     afpRequest.Advance(sizeof(int16));
     
-    afpVolumeID		= afpRequest.GetInt16();
-    afpSrcDirID		= afpRequest.GetInt32();
-    afpDstDirID		= afpRequest.GetInt32();
-    afpPathType		= afpRequest.GetInt8();
+    afpVolumeID		= afpRequest.pull_num<UINT16>();
+    afpSrcDirID		= afpRequest.pull_num<UINT32>();
+    afpDstDirID		= afpRequest.pull_num<UINT32>();
+    afpPathType		= afpRequest.pull_num<INT8>();
 
     //
     //The client must have previously opened the volume we are creating
@@ -1472,7 +1472,7 @@ AFPERROR FPMoveAndRename(
     //Now get the destination directory we're moving to
     //*****************
     
-    afpPathType = afpRequest.GetInt8();
+    afpPathType = afpRequest.pull_num<INT8>();
     
     //
     //Get the pathname of the object we're working on.
@@ -1498,7 +1498,7 @@ AFPERROR FPMoveAndRename(
     //
     //Get the (optionally) supplied new name after the move.
     //
-    afpPathType = afpRequest.GetInt8();
+    afpPathType = afpRequest.pull_num<INT8>();
     
     afpError = afpRequest.get_pascal_string(afpNewPathname, sizeof(afpNewPathname), true, afpPathType, newCharMap);
     
@@ -1607,8 +1607,8 @@ AFPERROR FPRename(
     unichar			winPath[MAX_PATH];
     AFPCHARMAP		newCharMap[MAX_DIR_NAME];
     p_afp_index		afpEntry		= NULL;
-    int16			afpVolumeID		= 0;
-    int32			afpDirID		= 0;
+    uint16			afpVolumeID		= 0;
+    uint32			afpDirID		= 0;
     int8			afpPathType		= 0;
     int16			afpAttributes	= 0;
     AFPERROR		afpError		= AFP_OK;
@@ -1622,9 +1622,9 @@ AFPERROR FPRename(
     //
     afpRequest.Advance(sizeof(int16));
     
-    afpVolumeID	= afpRequest.GetInt16();
-    afpDirID	= afpRequest.GetInt32();
-    afpPathType	= afpRequest.GetInt8();
+    afpVolumeID	= afpRequest.pull_num<UINT16>();
+    afpDirID	= afpRequest.pull_num<UINT32>();
+    afpPathType	= afpRequest.pull_num<INT8>();
 
     //
     //The client must have previously opened the volume we are creating
@@ -1692,7 +1692,7 @@ AFPERROR FPRename(
     //
     //Get the pathtype for the new name.
     //
-    afpPathType = afpRequest.GetInt8();
+    afpPathType = afpRequest.pull_num<INT8>();
     
     //
     //Get the new name of the object (required).

@@ -53,7 +53,7 @@ AFPERROR afp_net_buffer::get_pascal_string(
 		break;
 
 	default:
-		DBGWRITE(dbg_level_info, L"[afp:GetString]Bad string type! (%d)\n", path_type);
+		DBGWRITE(dbg_level_info, L"Bad string type! (%d)\n", path_type);
 		afp_error = afpParmErr;
 		break;
 	}
@@ -106,7 +106,7 @@ AFPERROR afp_net_buffer::get_pascal_string(
  */
 AFPERROR afp_net_buffer::get_pascal_string(char* string, const UINT16 cb_string, INT16* s_len)
 {
-	const UINT8 string_len = GetInt8();
+	const UINT8 string_len = pull_num<INT8>();
 
 	memset(string, 0, cb_string);
 
@@ -116,7 +116,7 @@ AFPERROR afp_net_buffer::get_pascal_string(char* string, const UINT16 cb_string,
 	//
 	if (string_len + sizeof(char) > cb_string)
 	{
-		DBGWRITE(dbg_level_info, L"[afp_net_buffer:GetPascalString]String buffer too small! (%d)\n", string_len);
+		DBGWRITE(dbg_level_info, L"String buffer too small! (%d)\n", string_len);
 		return afpParmErr;
 	}
 
@@ -234,7 +234,7 @@ AFPERROR afp_net_buffer::get_unicode_string(
 	{
 		DBGWRITE(
 			dbg_level_info,
-			L"[afp_net_buffer:get_unicode_string]String buffer too small! (%d vs %d)\n", cb_string, string_len
+			L"String buffer too small! (%d vs %d)\n", cb_string, string_len
 		);
 
 		return afpParmErr;
@@ -249,57 +249,6 @@ AFPERROR afp_net_buffer::get_unicode_string(
 	}
 
 	return AFP_OK;
-}
-
-/*
- * GetInt8()
- *
- * Description:
- *		Extracts an INT8 from the buffer and advances
- *		the buffer pointer.
- *
- * Returns: INT8
- */
-INT8 afp_net_buffer::GetInt8()
-{
-
-	return *mCurrentPos++;
-}
-
-/*
- * GetInt16()
- *
- * Description:
- *		Extracts an INT16 from the buffer and advances the
- *		buffer pointer. This function is byte-order aware
- *
- * Returns: INT16
- */
-INT16 afp_net_buffer::GetInt16()
-{
-	INT16 result = ntohs(*reinterpret_cast<INT16*>(mCurrentPos));
-
-	mCurrentPos += sizeof(INT16);
-
-	return result;
-}
-
-/*
- * GetInt32()
- *
- * Description:
- *		Extracts an INT32 from the buffer and advances the
- *		buffer pointer. This function is byte-order aware
- *
- * Returns: INT32
- */
-INT32 afp_net_buffer::GetInt32()
-{
-	INT32 result = ntohl(*reinterpret_cast<INT32*>(mCurrentPos));
-
-	mCurrentPos += sizeof(INT32);
-
-	return result;
 }
 
 /*
@@ -382,7 +331,7 @@ AFPERROR afp_net_buffer::AddUniStringAsPascal(unichar* string, AFPCHARMAPARRAY c
 		return AddCStringAsPascal(ansi_string);
 	}
 
-	DBGWRITE(dbg_level_info, L"[afp_net_buffer:AddUniStringAsPascal]Failed to convert characters!\n");
+	DBGWRITE(dbg_level_error, L"Failed to convert characters!\n");
 
 	return afpParmErr;
 }

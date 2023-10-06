@@ -33,8 +33,8 @@ AFPERROR FPGetExtAttribute(
 {
     WCHAR				afpPathname[MAX_AFP_PATH];
     WCHAR				afpAttrName[MAX_AFP_NAME];
-    int16				afpVolID		= 0;
-    int32				afpDirID		= 0;
+    uint16				afpVolID		= 0;
+    uint32				afpDirID		= 0;
     uint16				afpBitmap		= 0;
     int64				afpOffset		= 0;
     int64				afpReqCount		= 0;
@@ -53,13 +53,13 @@ AFPERROR FPGetExtAttribute(
     //
     afpRequest.Advance(sizeof(int16));
     
-    afpVolID		= afpRequest.GetInt16();
-    afpDirID		= afpRequest.GetInt32();
-    afpBitmap		= afpRequest.GetInt16();
-    afpOffset		= afpRequest.GetInt64();
-    afpReqCount		= afpRequest.GetInt64();
-    afpMaxReplySize	= afpRequest.GetInt32();
-    afpPathtype		= afpRequest.GetInt8();
+    afpVolID		= afpRequest.pull_num<UINT16>();
+    afpDirID		= afpRequest.pull_num<UINT32>();
+    afpBitmap		= afpRequest.pull_num<UINT16>();
+    afpOffset		= afpRequest.pull_num<INT64>();
+    afpReqCount		= afpRequest.pull_num<INT64>();
+    afpMaxReplySize	= afpRequest.pull_num<INT32>();
+    afpPathtype		= afpRequest.pull_num<INT8>();
     
     //
     //See if the user has the volume open and get a pointer to
@@ -90,7 +90,7 @@ AFPERROR FPGetExtAttribute(
     //
     //Get the size of the attribute name string.
     //
-    afpNameLen = afpRequest.GetInt16();
+    afpNameLen = afpRequest.pull_num<UINT16>();
     
     //
     //Now get the string. Note that on return afpNameLen now contains the actual
@@ -246,8 +246,8 @@ AFPERROR FPSetExtAttribute(
     WCHAR			afpPathname[MAX_AFP_PATH];
     WCHAR			afpAttrName[MAX_AFP_NAME];
     p_afp_index		afpEntry		= NULL;
-    int16			afpVolID		= 0;
-    int32			afpDirID		= 0;
+    uint16			afpVolID		= 0;
+    uint32			afpDirID		= 0;
     int64			afpOffset		= 0;
     int8			afpPathtype		= 0;
     uint16			afpBitmap		= 0;
@@ -264,11 +264,11 @@ AFPERROR FPSetExtAttribute(
     //
     afpRequest.Advance(sizeof(int16));
     
-    afpVolID		= afpRequest.GetInt16();
-    afpDirID		= afpRequest.GetInt32();
-    afpBitmap		= afpRequest.GetInt16();
-    afpOffset		= afpRequest.GetInt64();
-    afpPathtype		= afpRequest.GetInt8();
+    afpVolID		= afpRequest.pull_num<UINT16>();
+    afpDirID		= afpRequest.pull_num<UINT32>();
+    afpBitmap		= afpRequest.pull_num<UINT16>();
+    afpOffset		= afpRequest.pull_num<INT64>();
+    afpPathtype		= afpRequest.pull_num<INT8>();
     
     //
     //Get the pathname of the object we're working on.
@@ -291,7 +291,7 @@ AFPERROR FPSetExtAttribute(
     //Now get the string. Note that on return afpNameLen now contains the actual
     //length of the converted string.
     //
-    afpNameLen 	= afpRequest.GetInt16();
+    afpNameLen 	= afpRequest.pull_num<UINT16>();
     afpError 	= afpRequest.get_unicode_string(afpAttrName, sizeof(afpAttrName), &afpNameLen);
     
     if (!AFP_SUCCESS(afpError))
@@ -305,7 +305,7 @@ AFPERROR FPSetExtAttribute(
     //
     //The attribute data length we're going to write.
     //
-    afpAttrDataLen = afpRequest.GetInt32();
+    afpAttrDataLen = afpRequest.pull_num<UINT32>();
     
     //
     //See if the user has the volume open and get a pointer to
@@ -418,8 +418,8 @@ AFPERROR FPListExtAttribute(
 {
     WCHAR			afpPathname[MAX_AFP_PATH];
     p_afp_index		afpEntry		= NULL;
-    int16			afpVolID		= 0;
-    int32			afpDirID		= 0;
+    uint16			afpVolID		= 0;
+    uint32			afpDirID		= 0;
     uint16			afpBitmap		= 0;
     int16			afpReqCount		= 0;
     int32			afpStartIndex	= 0;
@@ -436,13 +436,13 @@ AFPERROR FPListExtAttribute(
     //
     afpRequest.Advance(sizeof(int16));
     
-    afpVolID		= afpRequest.GetInt16();
-    afpDirID		= afpRequest.GetInt32();
-    afpBitmap		= afpRequest.GetInt16();
-    afpReqCount		= afpRequest.GetInt16();
-    afpStartIndex	= afpRequest.GetInt32();
-    afpMaxReplySize	= afpRequest.GetInt32();
-    afpPathtype		= afpRequest.GetInt8();
+    afpVolID		= afpRequest.pull_num<UINT16>();
+    afpDirID		= afpRequest.pull_num<UINT32>();
+    afpBitmap		= afpRequest.pull_num<UINT16>();
+    afpReqCount		= afpRequest.pull_num<INT16>();
+    afpStartIndex	= afpRequest.pull_num<INT32>();
+    afpMaxReplySize	= afpRequest.pull_num<INT32>();
+    afpPathtype		= afpRequest.pull_num<INT8>();
     
     //
     //See if the user has the volume open and get a pointer to
@@ -610,8 +610,8 @@ AFPERROR FPRemoveExtAttribute(
     WCHAR			afpPathname[MAX_AFP_PATH];
     WCHAR			afpAttrName[MAX_PATH];
     p_afp_index		afpEntry		= NULL;
-    int16			afpVolID		= 0;
-    int32			afpDirID		= 0;
+    uint16			afpVolID		= 0;
+    uint32			afpDirID		= 0;
     uint16			afpBitmap		= 0;
     int8			afpPathtype		= 0;
     uint16			afpNameLen		= 0;
@@ -624,10 +624,10 @@ AFPERROR FPRemoveExtAttribute(
     //
     afpRequest.Advance(sizeof(int16));
     
-    afpVolID		= afpRequest.GetInt16();
-    afpDirID		= afpRequest.GetInt32();
-    afpBitmap		= afpRequest.GetInt16();
-    afpPathtype		= afpRequest.GetInt8();
+    afpVolID		= afpRequest.pull_num<UINT16>();
+    afpDirID		= afpRequest.pull_num<UINT32>();
+    afpBitmap		= afpRequest.pull_num<UINT16>();
+    afpPathtype		= afpRequest.pull_num<INT8>();
     
     //
     //See if the user has the volume open and get a pointer to
@@ -686,7 +686,7 @@ AFPERROR FPRemoveExtAttribute(
     //Now get the string. Note that on return afpNameLen now contains the actual
     //length of the converted string.
     //
-    afpNameLen 	= afpRequest.GetInt16();
+    afpNameLen 	= afpRequest.pull_num<UINT16>();
     afpError 	= afpRequest.get_unicode_string(afpAttrName, sizeof(afpAttrName), &afpNameLen);
     
     if (!AFP_SUCCESS(afpError))

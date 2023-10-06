@@ -7,7 +7,7 @@
 class afp_net_buffer // NOLINT(cppcoreguidelines-special-member-functions)
 {
 public:
-	afp_net_buffer(UINT8* afp_net_buffer, size_t cb_buffer);
+	afp_net_buffer(_In_ UINT8* afp_net_buffer, _In_ size_t cb_buffer);
 
 	AFPERROR get_pascal_string(unichar* string, UINT16 cb_string, bool is_path = false, INT8 path_type = kLongNames,
 	                   AFPCHARMAPARRAY char_map = nullptr);
@@ -15,9 +15,6 @@ public:
 	AFPERROR get_unicode_string(WCHAR* string, UINT16 cb_string, UINT16* s_len);
 	AFPERROR get_unicode_string(char* string, UINT16 cb_string, INT16* s_len, bool is_path, bool is_afp_name = true);
 
-	INT8 GetInt8();
-	INT16 GetInt16();
-	INT32 GetInt32();
 	int64 GetInt64();
 
 	void GetRawData(void* buffer, size_t amount);
@@ -80,6 +77,9 @@ private:
 	//
 	UINT32 mDSIDataOffset;
 };
+
+__pragma(warning(push))
+__pragma(warning(disable:4127))
 
 /*
  * push_num()
@@ -155,6 +155,8 @@ T afp_net_buffer::get_num() const
 
 	return *reinterpret_cast<T*>(mCurrentPos);
 }
+
+__pragma(warning(pop))
 
 inline INT32 afp_net_buffer::GetDataLength() const
 {

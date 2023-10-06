@@ -106,11 +106,11 @@ AFPERROR FPGetSessionToken(
     //First byte is afp command and padding.
     //
     afpRequest.Advance(sizeof(int16));
-    afpType	= afpRequest.GetInt16();
+    afpType	= afpRequest.pull_num<INT16>();
 
     if (afpType != kLoginWithoutID)
     {
-        afpIDSize = afpRequest.GetInt32();
+        afpIDSize = afpRequest.pull_num<INT32>();
 
         DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]ID size from client = %d\n", afpIDSize);
 
@@ -119,7 +119,7 @@ AFPERROR FPGetSessionToken(
         //
         if ((afpType == kLoginWithTimeAndID) || (afpType == kReconnWithTimeAndID)) {
 
-            afpTimeStamp = afpRequest.GetInt32();
+            afpTimeStamp = afpRequest.pull_num<UINT32>();
         }
 
         //
@@ -275,8 +275,8 @@ AFPERROR FPDisconnectOldSession(
     
     afpRequest.Advance(sizeof(int16));
     
-    afpType			= afpRequest.GetInt8();
-    afpTokenLength	= afpRequest.GetInt32();
+    afpType			= afpRequest.pull_num<INT8>();
+    afpTokenLength	= afpRequest.pull_num<INT32>();
     
     if (afpTokenLength != AFP_SESSION_TOKEN_SIZE)
     {
@@ -284,7 +284,7 @@ AFPERROR FPDisconnectOldSession(
         return( afpMiscErr );
     }
     
-    afpToken 		= afpRequest.GetInt32();
+    afpToken 		= afpRequest.pull_num<INT32>();
     afpLostSession 	= afp_session::find_session_by_token(afpToken);
     
     if (afpLostSession != NULL)
@@ -347,12 +347,12 @@ AFPERROR FPLogin(
     //
     //The first byte in the buffer is the afp command byte.
     //
-    afpCommand = afpRequest.GetInt8();
+    afpCommand = afpRequest.pull_num<INT8>();
     
     if (afpCommand == afpLoginExt)
     {
         afpRequest.Advance(sizeof(int8));
-        afpFlags = afpRequest.GetInt16();
+        afpFlags = afpRequest.pull_num<INT16>();
     }
 
     if (!AFP_SUCCESS(afpRequest.get_pascal_string(afpVersion, sizeof(afpVersion)))) return( afpParmErr );
@@ -392,14 +392,14 @@ AFPERROR FPLogin(
     {
         if (afpCommand == afpLoginExt)
         {
-            afpPathType	= afpRequest.GetInt8();			
+            afpPathType	= afpRequest.pull_num<INT8>();			
             if (!AFP_SUCCESS(afpRequest.get_pascal_string(szUserName, sizeof(szUserName), false, afpPathType)))
             {
                 DBGWRITE(dbg_level_warning, L"[afp:FPLogin]Failed to retrieve user name, terminating login\n");
                 return( afpParmErr );
             }
             
-            afpPathType = afpRequest.GetInt8();
+            afpPathType = afpRequest.pull_num<INT8>();
             afpRequest.get_pascal_string(szPathname, sizeof(szPathname), false, afpPathType);
         }
         else
@@ -913,12 +913,12 @@ AFPERROR FPMapID(
     //
     //What are we doing, user or group?
     //
-    afpSubFunc = afpRequest.GetInt8();
+    afpSubFunc = afpRequest.pull_num<INT8>();
     
     //
     //Retrieve the id of the user or group to obtain.
     //
-    afpUserID = afpRequest.GetInt32();
+    afpUserID = afpRequest.pull_num<UINT32>();
 
     DBGWRITE(dbg_level_info, L"[afp:FPMapID]Looking for ID %d\n", afpUserID);
         
@@ -997,8 +997,8 @@ AFPERROR FPGetSrvrMsg(
     
     afpRequest.Advance(sizeof(int16));
 
-    afpMessageType		= afpRequest.GetInt16();
-    afpMessageBitmap	= afpRequest.GetInt16();
+    afpMessageType		= afpRequest.pull_num<UINT16>();
+    afpMessageBitmap	= afpRequest.pull_num<UINT16>();
 
     switch (afpMessageType)
     {

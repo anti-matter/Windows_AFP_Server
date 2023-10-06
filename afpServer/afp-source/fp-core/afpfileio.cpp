@@ -65,7 +65,7 @@ AFPERROR FPCloseFork(
     //
     //Extract the parameter and make the call.
     //
-    afpRefNum	= afpRequest.GetInt16();
+    afpRefNum	= afpRequest.pull_num<UINT16>();
     afpError	= afpAFPSession->close_file(afpRefNum);
     
     return( afpError );
@@ -92,10 +92,10 @@ AFPERROR FPOpenFork(
     afp_open_file*			afpAFPOpenFile		= NULL;
     AFP_VOLUME_INFO*	afpVolInfo		= NULL;
     int8				afpFork			= 0;
-    int16				afpVolumeID		= 0;
-    int32				afpDirID		= 0;
+    uint16				afpVolumeID		= 0;
+    uint32				afpDirID		= 0;
     int8				afpPathType		= 0;
-    int16				afpBitmap		= 0;
+    uint16				afpBitmap		= 0;
     int16				afpMode			= 0;
     uint16				afpNewRefNum	= 0;
     AFPERROR			afpError		= AFP_OK;
@@ -113,12 +113,12 @@ AFPERROR FPOpenFork(
     //
     //Get the parameters for the file we're opening.
     //
-    afpFork		= (afpRequest.GetInt8() & kResourceForkBit) ? kRsrcFork : kDataFork;
-    afpVolumeID	= afpRequest.GetInt16();
-    afpDirID	= afpRequest.GetInt32();
-    afpBitmap	= afpRequest.GetInt16();
-    afpMode		= afpRequest.GetInt16();
-    afpPathType	= afpRequest.GetInt8();
+    afpFork		= (afpRequest.pull_num<INT8>() & kResourceForkBit) ? kRsrcFork : kDataFork;
+    afpVolumeID	= afpRequest.pull_num<UINT16>();
+    afpDirID	= afpRequest.pull_num<UINT32>();
+    afpBitmap	= afpRequest.pull_num<UINT16>();
+    afpMode		= afpRequest.pull_num<INT16>();
+    afpPathType	= afpRequest.pull_num<INT8>();
 
     //
     //The client must have previously opened the volume we are operating on.
@@ -287,8 +287,8 @@ AFPERROR FPSetForkParms(
 
     afp_session*	afpAFPSession	= (afp_session*)afpSession->afpSessionObject;
     afp_open_file*		afpAFPOpenFile		= NULL;
-    int16			afpForkRef		= 0;
-    int16			afpBitmap		= 0;
+    uint16			afpForkRef		= 0;
+    uint16			afpBitmap		= 0;
     uint32			afpForkLen		= 0;
     AFPERROR		afpError		= AFP_OK;
     
@@ -299,9 +299,9 @@ AFPERROR FPSetForkParms(
     //
     afpRequest.Advance(sizeof(int16));
     
-    afpForkRef 	= afpRequest.GetInt16();
-    afpBitmap	= afpRequest.GetInt16();
-    afpForkLen	= afpRequest.GetInt32();
+    afpForkRef 	= afpRequest.pull_num<UINT16>();
+    afpBitmap	= afpRequest.pull_num<UINT16>();
+    afpForkLen	= afpRequest.pull_num<UINT32>();
     
     afpAFPOpenFile = afpAFPSession->find_open_file(afpForkRef);
     afpError	= (afpAFPOpenFile == NULL) ? afpParmErr : AFP_OK;
@@ -362,8 +362,8 @@ AFPERROR FPGetForkParms(
 {
     afp_session*	afpAFPSession	= (afp_session*)afpSession->afpSessionObject;
     afp_open_file*		afpAFPOpenFile		= NULL;
-    int16			afpForkRef		= 0;
-    int16			afpBitmap		= 0;
+    uint16			afpForkRef		= 0;
+    uint16			afpBitmap		= 0;
     AFPERROR		afpError		= AFP_OK;
 
     WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
@@ -378,8 +378,8 @@ AFPERROR FPGetForkParms(
     //
     //Get the parameters for the file we're opening.
     //
-    afpForkRef	= afpRequest.GetInt16();
-    afpBitmap	= afpRequest.GetInt16();
+    afpForkRef	= afpRequest.pull_num<UINT16>();
+    afpBitmap	= afpRequest.pull_num<UINT16>();
     
     afpAFPOpenFile = afpAFPSession->find_open_file(afpForkRef);
     afpError	= (afpAFPOpenFile == NULL) ? afpParmErr : AFP_OK;
@@ -459,8 +459,8 @@ AFPERROR FPCreateFile(
     p_afp_index			afpEntry		= NULL;
     AFP_VOLUME_INFO*	afpVolumeInfo	= NULL;
     int8				createFlag		= 0;
-    int16				afpVolumeID		= 0;
-    int32				afpDirID		= 0;
+    uint16				afpVolumeID		= 0;
+    uint32				afpDirID		= 0;
     int8				afpPathType		= 0;
     AFPERROR			afpError		= AFP_OK;
     HANDLE				hFile			= INVALID_HANDLE_VALUE;
@@ -472,10 +472,10 @@ AFPERROR FPCreateFile(
     //
     afpRequest.Advance(sizeof(int8));
     
-    createFlag	= afpRequest.GetInt8();
-    afpVolumeID	= afpRequest.GetInt16();
-    afpDirID	= afpRequest.GetInt32();
-    afpPathType	= afpRequest.GetInt8();
+    createFlag	= afpRequest.pull_num<INT8>();
+    afpVolumeID	= afpRequest.pull_num<UINT16>();
+    afpDirID	= afpRequest.pull_num<UINT32>();
+    afpPathType	= afpRequest.pull_num<INT8>();
 
     //
     //The client must have previously opened the volume we are creating
@@ -662,8 +662,8 @@ AFPERROR FPByteRangeLock(
     afp_session*	afpAFPSession	= (afp_session*)afpSession->afpSessionObject;
     afp_open_file*		afpAFPOpenFile		= NULL;
     int8			afpCommand		= 0;
-    int8			afpBRLFlags		= 0;
-    int16			afpForkRef		= 0;
+    uint8			afpBRLFlags		= 0;
+    uint16			afpForkRef		= 0;
     int64			afpOffset		= 0;
     int64			afpLength		= 0;
     uint32			afpFileSize		= 0;
@@ -673,15 +673,15 @@ AFPERROR FPByteRangeLock(
     //
     //Skip the first byte which is afp command.
     //
-    afpCommand	= afpRequest.GetInt8();
-    afpBRLFlags	= afpRequest.GetInt8();
-    afpForkRef	= afpRequest.GetInt16();
+    afpCommand	= afpRequest.pull_num<INT8>();
+    afpBRLFlags	= afpRequest.pull_num<UINT8>();
+    afpForkRef	= afpRequest.pull_num<UINT16>();
 
     switch (afpCommand)
     {
         case afpByteRangeLock:
-            afpOffset	= afpRequest.GetInt32();
-            afpLength	= afpRequest.GetInt32();
+            afpOffset	= afpRequest.pull_num<UINT32>();
+            afpLength	= afpRequest.pull_num<UINT32>();
             break;
         
         case afpByteRangeLockExt:
@@ -848,7 +848,7 @@ AFPERROR FPRead(
     afp_session*	afpAFPSession	= (afp_session*)afpSession->afpSessionObject;
     afp_open_file*		afpAFPOpenFile		= NULL;
     int8			afpCommand		= 0;
-    int16			afpForkRef		= 0;
+    uint16			afpForkRef		= 0;
     int64			afpOffset		= 0;
     int64			afpReqCount		= 0;
     uint32			afpActCount		= 0;
@@ -859,21 +859,21 @@ AFPERROR FPRead(
     //
     //The first byte contains the afp command.
     //
-    afpCommand = afpRequest.GetInt8();
+    afpCommand = afpRequest.pull_num<INT8>();
     afpRequest.Advance(sizeof(int8));
     
-    afpForkRef = afpRequest.GetInt16();
+    afpForkRef = afpRequest.pull_num<UINT16>();
     
     switch(afpCommand)
     {
         case afpRead:
-            afpOffset	= afpRequest.GetInt32();
-            afpReqCount	= afpRequest.GetInt32();
+            afpOffset	= afpRequest.pull_num<UINT32>();
+            afpReqCount	= afpRequest.pull_num<UINT32>();
             break;
         
         case afpReadExt:
-            afpOffset	= afpRequest.GetInt64();
-            afpReqCount	= afpRequest.GetInt64();
+            afpOffset	= afpRequest.pull_num<INT64>();
+            afpReqCount	= afpRequest.pull_num<INT64>();
             break;
         
         default:
@@ -939,7 +939,7 @@ AFPERROR FPWrite(
     afp_session*	afpAFPSession	= (afp_session*)afpSession->afpSessionObject;
     afp_open_file*		afpAFPOpenFile		= NULL;
     int8			afpCommand		= 0;
-    int16			afpForkRef		= 0;
+    uint16			afpForkRef		= 0;
     int64			afpOffset		= 0;
     int64			afpReqCount		= 0;
     int64			afpActCount		= 0;
@@ -951,20 +951,20 @@ AFPERROR FPWrite(
     //
     //The first byte contains the afp command.
     //
-    afpCommand	= afpRequest.GetInt8();
-    afpFlag		= afpRequest.GetInt8();
-    afpForkRef	= afpRequest.GetInt16();
+    afpCommand	= afpRequest.pull_num<INT8>();
+    afpFlag		= afpRequest.pull_num<INT8>();
+    afpForkRef	= afpRequest.pull_num<UINT16>();
     
     switch(afpCommand)
     {
         case afpWrite:
-            afpOffset	= afpRequest.GetInt32();
-            afpReqCount	= afpRequest.GetInt32();
+            afpOffset	= afpRequest.pull_num<UINT32>();
+            afpReqCount	= afpRequest.pull_num<UINT32>();
             break;
         
         case afpWriteExt:
-            afpOffset	= afpRequest.GetInt64();
-            afpReqCount	= afpRequest.GetInt64();
+            afpOffset	= afpRequest.pull_num<INT64>();
+            afpReqCount	= afpRequest.pull_num<INT64>();
             break;
             
         default:
