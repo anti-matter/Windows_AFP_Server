@@ -25,7 +25,7 @@ constexpr dbg_level current_debug_level = dbg_level_all;
 #define ASSERT(exp) assert(exp)
 
 
-void afp_debug_write(_In_ dbg_level debug_level, _In_ const std::string& function, _In_ const WCHAR* format, ...);
+void afp_debug_write(_In_ const dbg_level debug_level, _In_ const std::string& function, _In_ const WCHAR* format, ...);
 
 void dump_bitmap(
 	IN DWORD bitmap

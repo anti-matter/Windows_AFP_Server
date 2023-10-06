@@ -1,55 +1,18 @@
-/*
- *	AfpBuffer.cpp
- *
- *	Copyright © Michael J. Conrad. All Rights Reserved.
- */
-
 #include "StdAfx.h"
+#include <cstring>
+#include "afp_net_buffer.h"
 
-#include <string.h>
-#include <stdlib.h>
-#include "AfpBuffer.h"
-
-/*
- * AfpBuffer()
- *
- * Description:
- *		Initializer for afp buffer class.
- *
- * Returns: None
- */
-AfpBuffer::AfpBuffer(_In_ UINT8* afpBuffer)
-	: mBuffer(afpBuffer)
-	  , mCurrentPos(afpBuffer)
-	  , mBufferSize(0x7FFFFFFF)
-	  , mDSIReturnValue(0)
-	  , mDSIDataOffset(0)
-{
-}
-
-AfpBuffer::AfpBuffer(_In_ UINT8* afpBuffer, _In_ const size_t cbbuffer)
-	: mBuffer(afpBuffer)
-	  , mCurrentPos(afpBuffer)
-	  , mBufferSize(cbbuffer)
+afp_net_buffer::afp_net_buffer(_In_ UINT8* afp_net_buffer, _In_ const size_t cb_buffer)
+	: mBuffer(afp_net_buffer)
+	  , mCurrentPos(afp_net_buffer)
+	  , mBufferSize(cb_buffer)
 	  , mDSIReturnValue(0)
 	  , mDSIDataOffset(0)
 {
 }
 
 /*
- * ~AfpBuffer()
- *
- * Description:
- *		Destructor for afp buffer class.
- *
- * Returns: None
- */
-AfpBuffer::~AfpBuffer()
-{
-}
-
-/*
- * GetString()
+ * get_pascal_string()
  *
  * Description:
  *		Extracts a pascal style or unicode string from the afp buffer and
@@ -59,130 +22,165 @@ AfpBuffer::~AfpBuffer()
  *
  * Returns: None
  */
-AFPERROR AfpBuffer::GetString(
+AFPERROR afp_net_buffer::get_pascal_string(
 	unichar* string,
-	UINT16 cbstring,
-	bool isPath,
-	INT8 pathType,
-	AFPCHARMAPARRAY charMap
+	const UINT16 cb_string,
+	const bool is_path,
+	const INT8 path_type,
+	AFPCHARMAPARRAY char_map
 )
 {
 	char ansi_string[MAX_AFP_PATH * 2];
-	AFPERROR afpError;
-	INT16 stringLen = 0;
+	AFPERROR afp_error;
+	INT16 string_len = 0;
 
-	//
-	//Initialize the string buffer so the caller will get a clean
-	//result even if no string is returned.
-	//
-	memset(string, 0, cbstring);
+	// Initialize the string buffer so the caller will get a clean
+	// result even if no string is returned.
+	memset(string, 0, cb_string);
 
-	switch (pathType)
+	switch (path_type)
 	{
 	case kShortNames:
-		afpError = afpCallNotSupported;
+		afp_error = afpCallNotSupported;
 		break;
 
 	case kLongNames:
-		afpError = GetPascalString(ansi_string, sizeof(ansi_string), &stringLen);
+		afp_error = get_pascal_string(ansi_string, sizeof(ansi_string), &string_len);
 		break;
 
 	case kUnicodeNames:
-		afpError = GetUnicodeString(ansi_string, sizeof(ansi_string), &stringLen, isPath);
+		afp_error = get_unicode_string(ansi_string, sizeof(ansi_string), &string_len, is_path);
 		break;
 
 	default:
-		DBGWRITE(dbg_level_info, L"[afp:GetString]Bad string type! (%d)\n", pathType);
-		afpError = afpParmErr;
+		DBGWRITE(dbg_level_info, L"[afp:GetString]Bad string type! (%d)\n", path_type);
+		afp_error = afpParmErr;
 		break;
 	}
 
-	if ((AFP_SUCCESS(afpError)) && (stringLen > 0))
+	if (AFP_SUCCESS(afp_error) && string_len > 0)
 	{
-		//
-		//Make sure the buffer passed is large enough to hold the unicode
-		//pathname we'll get back.
-		//
-		if ((stringLen * sizeof(unichar)) < cbstring)
+		// Make sure the buffer passed is large enough to hold the unicode
+		// pathname we'll get back.
+		if (string_len * sizeof(unichar) < cb_string)
 		{
-			//
-			//If we're dealing with an AFP pathname, then we need to convert
-			//the path separators to Be style ones.
-			//
-			if (isPath)
+			// If we're dealing with an AFP pathname, then we need to convert
+			// the path separators to Be style ones.
+			if (is_path)
 			{
-				if (afp_mac_to_windows_path(ansi_string, string, charMap) == nullptr)
+				if (afp_mac_to_windows_path(ansi_string, string, char_map) == nullptr)
 				{
-					DBGWRITE(dbg_level_info, L"[afp:GetString]Failed converting path to unicode!\n");
-					afpError = afpParmErr;
+					DBGWRITE(dbg_level_info, L"Failed converting path to unicode!\n");
+					afp_error = afpParmErr;
 				}
 			}
 			else
 			{
-				if (afp_mac_to_windows_string(ansi_string, cbstring, string) == nullptr)
+				if (afp_mac_to_windows_string(ansi_string, cb_string, string) == nullptr)
 				{
-					DBGWRITE(dbg_level_info, L"[afp:GetString]Failed converting string to unicode!\n");
-					afpError = afpParmErr;
+					DBGWRITE(dbg_level_info, L"Failed converting string to unicode!\n");
+					afp_error = afpParmErr;
 				}
 			}
 		}
 		else
 		{
-			DBGWRITE(dbg_level_info, L"[afp:GetString]Buffer too small for new string!\n");
+			DBGWRITE(dbg_level_info, L"Buffer too small for new string!\n");
 			ASSERT(0);
 
-			afpError = afpParmErr;
+			afp_error = afpParmErr;
 		}
 	}
 
-	return afpError;
+	return afp_error;
 }
 
 /*
- * GetUniString()
+ * get_pascal_string()
+ *
+ * Description:
+ *		Retrieve a pascal string from the request buffer and return
+ *		it as a c-style string.
+ *
+ * Returns: None
+ */
+AFPERROR afp_net_buffer::get_pascal_string(char* string, const UINT16 cb_string, INT16* s_len)
+{
+	const UINT8 string_len = GetInt8();
+
+	memset(string, 0, cb_string);
+
+	//
+	//Check to make sure we were given a big enough buffer
+	//to copy the string into.
+	//
+	if (string_len + sizeof(char) > cb_string)
+	{
+		DBGWRITE(dbg_level_info, L"[afp_net_buffer:GetPascalString]String buffer too small! (%d)\n", string_len);
+		return afpParmErr;
+	}
+
+	if (string_len > 0)
+	{
+		//
+		//Now copy the string into the supplied buffer.
+		//
+		GetRawData(string, string_len);
+
+		//
+		//Add a null terminator on the end of the new string.
+		//
+		string[string_len] = '\0';
+	}
+
+	if (s_len != nullptr)
+	{
+		*s_len = string_len;
+	}
+
+	return AFP_OK;
+}
+
+/*
+ * get_unicode_string()
  *
  * Description:
  *		Retrieve a normal unicode string (not AFPName) from the request buffer.
  *
  * Returns: None
  */
-AFPERROR AfpBuffer::GetUniString(WCHAR* string, UINT16 cbstring, UINT16* sLen)
+AFPERROR afp_net_buffer::get_unicode_string(WCHAR* string, const UINT16 cb_string, UINT16* s_len)
 {
 	char ansi_string[MAX_PATH];
-	INT32 stringLen = *sLen;
-	AFPERROR afpError = AFP_OK;
+	const INT32 string_len = *s_len;
 
 	RtlZeroMemory(ansi_string, sizeof(ansi_string));
-	RtlZeroMemory(string, cbstring);
+	RtlZeroMemory(string, cb_string);
 
-	//
-	//Check to make sure we were given a big enough buffer
-	//to copy the string into.
-	//
-	if ((stringLen + sizeof(char)) > cbstring)
+	if (string_len + sizeof(char) > cb_string)
 	{
-		DBGWRITE(dbg_level_info, L"[AfpBuffer:GetUniString]String buffer too small! (%d vs %d)\n", cbstring, stringLen);
+		DBGWRITE(dbg_level_info, L"String buffer too small! (%d vs %d)\n", cb_string, string_len);
 		return afpParmErr;
 	}
 
-	if (stringLen > 0)
+	if (string_len > 0)
 	{
-		RtlCopyMemory(ansi_string, GetCurrentPosPtr(), stringLen);
+		RtlCopyMemory(ansi_string, GetCurrentPosPtr(), string_len);
 
-		if (afp_mac_to_windows_string(ansi_string, cbstring, string) == nullptr)
+		if (afp_mac_to_windows_string(ansi_string, cb_string, string) == nullptr)
 		{
 			return afpParmErr;
 		}
 
-		Advance(stringLen);
-		*sLen = static_cast<INT16>(lstrlen(string));
+		Advance(string_len);
+		*s_len = static_cast<INT16>(lstrlen(string));
 	}
 
-	return afpError;
+	return AFP_OK;
 }
 
 /*
- * GetUnicodeString()
+ * get_unicode_string()
  *
  * Description:
  *		Retrieve a unicode string from the request buffer and return
@@ -195,111 +193,59 @@ AFPERROR AfpBuffer::GetUniString(WCHAR* string, UINT16 cbstring, UINT16* sLen)
  *
  * Returns: None
  */
-AFPERROR AfpBuffer::GetUnicodeString(char* string, UINT16 cbstring, INT16* sLen, bool isPath, bool isAFPName)
+AFPERROR afp_net_buffer::get_unicode_string(
+	char* string,
+	const UINT16 cb_string,
+	INT16* s_len,
+	const bool is_path,
+	const bool is_afp_name)
 {
-	INT16 stringLen;
+	INT16 string_len;
 
-	memset(string, 0, cbstring);
+	memset(string, 0, cb_string);
 
-	//
-	//If it is an AFPName in the buffer then we look for the "hint" and
-	//string length params. Otherwise, we get the length as passed in sLen.
-	//
-	if (isAFPName)
+	// If it is an AFPName in the buffer then we look for the "hint" and
+	// string length params. Otherwise, we get the length as passed in sLen.
+	if (is_afp_name)
 	{
-		if (isPath)
+		if (is_path)
 		{
-			GetInt32(); //hint not used.
+			pull_num<INT32>(); //hint not used.
 		}
 
-		stringLen = GetInt16();
+		string_len = pull_num<INT16>();
 	}
 	else
 	{
-		stringLen = *sLen;
+		string_len = *s_len;
 	}
 
-	//
-	//Perform some basic checks to make sure we didn't get a bogus string
-	//length passed to us. Note that we allow zero length strings!!
-	//
-	if ((stringLen < 0) || (stringLen >= MAX_AFP_PATH))
+	if (string_len < 0 || string_len >= MAX_AFP_PATH)
 	{
 		DBGWRITE(
 			dbg_level_info,
-			L"[AfpBuffer:GetUnicodeString]Bogus string length passed (%d)\n", stringLen
+			L"Bogus string length passed (%d)\n", string_len
 		);
 
 		return afpParmErr;
 	}
 
-	//
-	//Check to make sure we were given a big enough buffer
-	//to copy the string into.
-	//
-	if ((stringLen + sizeof(char)) > cbstring)
+	if ((string_len + sizeof(char)) > cb_string)
 	{
 		DBGWRITE(
 			dbg_level_info,
-			L"[AfpBuffer:GetUnicodeString]String buffer too small! (%d vs %d)\n", cbstring, stringLen
+			L"[afp_net_buffer:get_unicode_string]String buffer too small! (%d vs %d)\n", cb_string, string_len
 		);
 
 		return afpParmErr;
 	}
 
-	if (stringLen > 0)
+	if (string_len > 0)
 	{
-		RtlCopyMemory(string, GetCurrentPosPtr(), stringLen);
+		RtlCopyMemory(string, GetCurrentPosPtr(), string_len);
 
-		Advance(stringLen);
-		*sLen = stringLen;
-	}
-
-	return AFP_OK;
-}
-
-/*
- * GetPascalString()
- *
- * Description:
- *		Retrieve a pascal string from the request buffer and return
- *		it as a c-style string. This is a worker routine for
- *		GetString() and shouldn't be called directly.
- *
- * Returns: None
- */
-AFPERROR AfpBuffer::GetPascalString(char* string, UINT16 cbstring, INT16* sLen)
-{
-	UINT8 stringLen = GetInt8();
-
-	memset(string, 0, cbstring);
-
-	//
-	//Check to make sure we were given a big enough buffer
-	//to copy the string into.
-	//
-	if (stringLen + sizeof(char) > cbstring)
-	{
-		DBGWRITE(dbg_level_info, L"[AfpBuffer:GetPascalString]String buffer too small! (%d)\n", stringLen);
-		return afpParmErr;
-	}
-
-	if (stringLen > 0)
-	{
-		//
-		//Now copy the string into the supplied buffer.
-		//
-		GetRawData(string, stringLen);
-
-		//
-		//Add a null terminator on the end of the new string.
-		//
-		string[stringLen] = '\0';
-	}
-
-	if (sLen != nullptr)
-	{
-		*sLen = stringLen;
+		Advance(string_len);
+		*s_len = string_len;
 	}
 
 	return AFP_OK;
@@ -314,8 +260,9 @@ AFPERROR AfpBuffer::GetPascalString(char* string, UINT16 cbstring, INT16* sLen)
  *
  * Returns: INT8
  */
-INT8 AfpBuffer::GetInt8()
+INT8 afp_net_buffer::GetInt8()
 {
+
 	return *mCurrentPos++;
 }
 
@@ -328,7 +275,7 @@ INT8 AfpBuffer::GetInt8()
  *
  * Returns: INT16
  */
-INT16 AfpBuffer::GetInt16()
+INT16 afp_net_buffer::GetInt16()
 {
 	INT16 result = ntohs(*reinterpret_cast<INT16*>(mCurrentPos));
 
@@ -346,7 +293,7 @@ INT16 AfpBuffer::GetInt16()
  *
  * Returns: INT32
  */
-INT32 AfpBuffer::GetInt32()
+INT32 afp_net_buffer::GetInt32()
 {
 	INT32 result = ntohl(*reinterpret_cast<INT32*>(mCurrentPos));
 
@@ -364,7 +311,7 @@ INT32 AfpBuffer::GetInt32()
  *
  * Returns: INT64
  */
-INT64 AfpBuffer::GetInt64()
+INT64 afp_net_buffer::GetInt64()
 {
 	INT64 result = _byteswap_uint64(*reinterpret_cast<INT64*>(mCurrentPos));
 
@@ -382,7 +329,7 @@ INT64 AfpBuffer::GetInt64()
  *
  * Returns: void
  */
-void AfpBuffer::GetRawData(void* buffer, size_t amount)
+void afp_net_buffer::GetRawData(void* buffer, size_t amount)
 {
 	memcpy(buffer, mCurrentPos, amount);
 	mCurrentPos += amount;
@@ -397,7 +344,7 @@ void AfpBuffer::GetRawData(void* buffer, size_t amount)
  *
  * Returns: AFPERROR
  */
-AFPERROR AfpBuffer::AddCStringAsPascal(char* string)
+AFPERROR afp_net_buffer::AddCStringAsPascal(char* string)
 {
 	if (string != nullptr)
 	{
@@ -426,7 +373,7 @@ AFPERROR AfpBuffer::AddCStringAsPascal(char* string)
  *
  * Returns: AFPERROR
  */
-AFPERROR AfpBuffer::AddUniStringAsPascal(unichar* string, AFPCHARMAPARRAY charMap)
+AFPERROR afp_net_buffer::AddUniStringAsPascal(unichar* string, AFPCHARMAPARRAY charMap)
 {
 	char ansi_string[MAX_AFP_PATH];
 
@@ -435,7 +382,7 @@ AFPERROR AfpBuffer::AddUniStringAsPascal(unichar* string, AFPCHARMAPARRAY charMa
 		return AddCStringAsPascal(ansi_string);
 	}
 
-	DBGWRITE(dbg_level_info, L"[AfpBuffer:AddUniStringAsPascal]Failed to convert characters!\n");
+	DBGWRITE(dbg_level_info, L"[afp_net_buffer:AddUniStringAsPascal]Failed to convert characters!\n");
 
 	return afpParmErr;
 }
@@ -448,7 +395,7 @@ AFPERROR AfpBuffer::AddUniStringAsPascal(unichar* string, AFPCHARMAPARRAY charMa
  *
  * Returns: None
  */
-AFPERROR AfpBuffer::AddUniString(unichar* string, AFPCHARMAPARRAY charMap)
+AFPERROR afp_net_buffer::AddUniString(unichar* string, AFPCHARMAPARRAY charMap)
 {
 	char ansi_string[MAX_AFP_PATH];
 	size_t cbstring = lstrlen(string);
@@ -480,14 +427,11 @@ AFPERROR AfpBuffer::AddUniString(unichar* string, AFPCHARMAPARRAY charMap)
 
 				return AFP_OK;
 			}
-			else
-			{
-				//
-				//If conversion failed, we want to write a 0 to the buffer
-				//to show that there is 0 sized string.
-				//
-				AddInt16(0);
-			}
+			//
+			//If conversion failed, we want to write a 0 to the buffer
+			//to show that there is 0 sized string.
+			//
+			AddInt16(0);
 		}
 	}
 
@@ -503,7 +447,7 @@ AFPERROR AfpBuffer::AddUniString(unichar* string, AFPCHARMAPARRAY charMap)
  *
  * Returns: AFPERROR
  */
-AFPERROR AfpBuffer::AddInt8(INT8 value)
+AFPERROR afp_net_buffer::AddInt8(INT8 value)
 {
 	if (((mCurrentPos - mBuffer) + sizeof(value)) <= mBufferSize)
 	{
@@ -524,7 +468,7 @@ AFPERROR AfpBuffer::AddInt8(INT8 value)
  *
  * Returns: AFPERROR
  */
-AFPERROR AfpBuffer::AddInt16(INT16 value)
+AFPERROR afp_net_buffer::AddInt16(INT16 value)
 {
 	if (((mCurrentPos - mBuffer) + sizeof(value)) <= mBufferSize)
 	{
@@ -546,7 +490,7 @@ AFPERROR AfpBuffer::AddInt16(INT16 value)
  *
  * Returns: AFPERROR
  */
-AFPERROR AfpBuffer::AddInt32(INT32 value)
+AFPERROR afp_net_buffer::AddInt32(INT32 value)
 {
 	if (((mCurrentPos - mBuffer) + sizeof(value)) <= mBufferSize)
 	{
@@ -568,7 +512,7 @@ AFPERROR AfpBuffer::AddInt32(INT32 value)
  *
  * Returns: AFPERROR
  */
-AFPERROR AfpBuffer::AddInt64(INT64 value)
+AFPERROR afp_net_buffer::AddInt64(INT64 value)
 {
 	if (((mCurrentPos - mBuffer) + sizeof(value)) <= mBufferSize)
 	{
@@ -590,7 +534,7 @@ AFPERROR AfpBuffer::AddInt64(INT64 value)
  *
  * Returns: AFPERROR
  */
-AFPERROR AfpBuffer::AddRawData(void* data, size_t size)
+AFPERROR afp_net_buffer::AddRawData(void* data, size_t size)
 {
 	if (((mCurrentPos - mBuffer) + size) <= mBufferSize)
 	{
@@ -611,7 +555,7 @@ AFPERROR AfpBuffer::AddRawData(void* data, size_t size)
  *
  * Returns: TRUE if there is enough space left in the buffer.
  */
-bool AfpBuffer::CheckSpaceNeeded(size_t spaceNeeded) const
+bool afp_net_buffer::CheckSpaceNeeded(size_t spaceNeeded) const
 {
 	if (((GetCurrentPosPtr() - GetBuffer()) + spaceNeeded) > mBufferSize)
 	{

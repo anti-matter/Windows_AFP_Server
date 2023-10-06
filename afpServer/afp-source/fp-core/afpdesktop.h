@@ -8,71 +8,71 @@
 #pragma once
 
 #include "dsi.h"
-#include "AfpBuffer.h"
+#include "afp_net_buffer.h"
 
 
 AFPERROR FPOpenDT(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPCloseDT(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPAddIcon(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPGetIcon(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPGetIconInfo(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPAddComment(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPGetComment(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPRemoveComment(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPGetAPPL(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPAddAPPL(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPRemoveAPPL(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);

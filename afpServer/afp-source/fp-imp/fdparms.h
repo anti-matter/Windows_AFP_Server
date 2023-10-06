@@ -1,6 +1,7 @@
 #pragma once
 
 #include "volumes.h"
+#include "afp_net_buffer.h"
 
 size_t AFPGetParmsBufferSizeRequired(
 	IN	PFILEDIRPARMS	pFdp
@@ -19,7 +20,7 @@ void AFPCheckForAndCreateFinderRsrcStream(
 );
 
 AFPERROR AFPGetObjectParms(
-	IN	AfpBuffer&					afpReply,
+	IN	afp_net_buffer&				afpReply,
 	IN	uint16						afpBitmap,
 	IN	uint16						afpVolumeID,
 	IN	int32						afpDirID,

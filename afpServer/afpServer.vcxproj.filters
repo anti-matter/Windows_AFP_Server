@@ -29,9 +29,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="afp-source\fp-core\afp.cpp">
-      <Filter>Source Files\fp-core</Filter>
-    </ClCompile>
     <ClCompile Include="afp-source\fp-core\afpdesktop.cpp">
       <Filter>Source Files\fp-core</Filter>
     </ClCompile>
@@ -107,7 +104,7 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="afp-source\fp-classes\AfpBuffer.cpp">
+    <ClCompile Include="afp-source\fp-classes\afp_net_buffer.cpp">
       <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
     <ClCompile Include="afp-source\fp-classes\auto_lock.cpp">
@@ -124,6 +121,9 @@
     </ClCompile>
     <ClCompile Include="afp-source\fp-classes\AFPRegistry.cpp">
       <Filter>Source Files\fp-classes</Filter>
+    </ClCompile>
+    <ClCompile Include="afpdispatch.cpp">
+      <Filter>Source Files\fp-core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -154,10 +154,10 @@
     <ClInclude Include="afp-source\helpers\afphelp.h">
       <Filter>Source Files\helpers</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\fp-classes\AfpBuffer.h">
+    <ClInclude Include="afp-source\fp-classes\afp_net_buffer.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\helpers\ByteSwap.h">
+    <ClInclude Include="afp-source\helpers\byte_swap.h">
       <Filter>Source Files\helpers</Filter>
     </ClInclude>
     <ClInclude Include="afp-source\fp-classes\auto_lock.h">
@@ -189,6 +189,12 @@
     </ClInclude>
     <ClInclude Include="afp-source\fp-classes\afp_session.h">
       <Filter>Source Files\fp-classes</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\fp-classes\AFPRegistry.h">
+      <Filter>Source Files\fp-classes</Filter>
+    </ClInclude>
+    <ClInclude Include="afpdispatch.h">
+      <Filter>Source Files\fp-core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

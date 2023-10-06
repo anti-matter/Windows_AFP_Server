@@ -86,8 +86,8 @@ int8 afpGetIntUAMType(WCHAR* uamString)
  */
 
 AFPERROR FPGetSessionToken(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -258,8 +258,8 @@ AFPERROR FPGetSessionToken(
  */
 
 AFPERROR FPDisconnectOldSession(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -307,8 +307,8 @@ AFPERROR FPDisconnectOldSession(
  */
 
 AFPERROR FPLogin(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -355,8 +355,8 @@ AFPERROR FPLogin(
         afpFlags = afpRequest.GetInt16();
     }
 
-    if (!AFP_SUCCESS(afpRequest.GetString(afpVersion, sizeof(afpVersion)))) return( afpParmErr );
-    if (!AFP_SUCCESS(afpRequest.GetString(afpUAM, sizeof(afpUAM))))			return( afpParmErr );
+    if (!AFP_SUCCESS(afpRequest.get_pascal_string(afpVersion, sizeof(afpVersion)))) return( afpParmErr );
+    if (!AFP_SUCCESS(afpRequest.get_pascal_string(afpUAM, sizeof(afpUAM))))			return( afpParmErr );
 
     DBGWRITE(dbg_level_info, L"[afp:FPLogin]AFP Version = %s\n", afpVersion);
     DBGWRITE(dbg_level_info, L"[afp:FPLogin]UAM type    = %s\n", afpUAM);
@@ -393,18 +393,18 @@ AFPERROR FPLogin(
         if (afpCommand == afpLoginExt)
         {
             afpPathType	= afpRequest.GetInt8();			
-            if (!AFP_SUCCESS(afpRequest.GetString(szUserName, sizeof(szUserName), false, afpPathType)))
+            if (!AFP_SUCCESS(afpRequest.get_pascal_string(szUserName, sizeof(szUserName), false, afpPathType)))
             {
                 DBGWRITE(dbg_level_warning, L"[afp:FPLogin]Failed to retrieve user name, terminating login\n");
                 return( afpParmErr );
             }
             
             afpPathType = afpRequest.GetInt8();
-            afpRequest.GetString(szPathname, sizeof(szPathname), false, afpPathType);
+            afpRequest.get_pascal_string(szPathname, sizeof(szPathname), false, afpPathType);
         }
         else
         {
-            afpRequest.GetString(szUserName, sizeof(szUserName));
+            afpRequest.get_pascal_string(szUserName, sizeof(szUserName));
         }
         
         //
@@ -561,8 +561,8 @@ AFPERROR FPLogin(
  */
 
 AFPERROR FPContLogin(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {	
@@ -656,8 +656,8 @@ AFPERROR FPContLogin(
  */
 
 AFPERROR FPChangePassword(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	dsiSession
 )
 {
@@ -670,7 +670,7 @@ AFPERROR FPChangePassword(
     
     afpRequest.Advance(sizeof(int16));
     
-    afpRequest.GetString(szUAMVersion, sizeof(szUAMVersion));
+    afpRequest.get_pascal_string(szUAMVersion, sizeof(szUAMVersion));
     uamType = afpGetIntUAMType(szUAMVersion);
     
     afpRequest.AdvanceIfOdd();
@@ -685,7 +685,7 @@ AFPERROR FPChangePassword(
     }
     else
     {		
-        afpRequest.GetString(szUserName, sizeof(szUserName));
+        afpRequest.get_pascal_string(szUserName, sizeof(szUserName));
         afpRequest.AdvanceIfOdd();
     }
 
@@ -847,8 +847,8 @@ AFPERROR FPChangePassword(
  */
 
 AFPERROR FPLogout(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {	
@@ -896,8 +896,8 @@ AFPERROR FPLogout(
  */
 
 AFPERROR FPMapID(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -983,8 +983,8 @@ AFPERROR FPMapID(
  */
 
 AFPERROR FPGetSrvrMsg(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {

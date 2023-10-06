@@ -216,7 +216,7 @@ AFPERROR afp_open_file::close_file_fork()
  */
 
 AFPERROR afp_open_file::read_fork(
-	AfpBuffer& afp_reply,
+	afp_net_buffer& afp_reply,
 	const int64 afp_offset,
 	int64 afp_req_count,
 	uint32* afp_actual_read
@@ -296,7 +296,7 @@ AFPERROR afp_open_file::read_fork(
  */
 
 AFPERROR afp_open_file::write_fork(
-	AfpBuffer& afp_request,
+	afp_net_buffer& afp_request,
 	const int64 afp_offset,
 	const int64 afp_req_count,
 	const BOOL afp_from_start,

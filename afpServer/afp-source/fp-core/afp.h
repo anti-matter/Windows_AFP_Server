@@ -1,7 +1,3 @@
-//===================================================================
-// afp.h
-//===================================================================
-
 #pragma once
 
 #include "dsi.h"
@@ -675,18 +671,4 @@ enum {
     kRecon1Refresh			= 7,
     kGetKerberosSessionKey	= 8
 };
-
-
-class AfpBuffer;
-
-AFPERROR FPUnimplemented(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    );
-
-AFPERROR FPDispatchCommand(
-    IN  LPPER_IO_DATA 	pRecvIOData,
-    IN	LPSEND_QUEUE	pReplyQueue	
-    );
 

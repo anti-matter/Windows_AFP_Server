@@ -8,31 +8,31 @@
 #ifndef __afpvolumes__
 #define __afpvolumes__
 
-#include "AfpBuffer.h"
+#include "afp_net_buffer.h"
 #include "afp_session.h"
 
 
 AFPERROR FPOpenVol(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPCloseVol(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPFlush(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPGetVolParms(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 

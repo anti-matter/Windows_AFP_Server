@@ -2,6 +2,7 @@
 
 #include "volumes.h"
 #include "afphelp.h"
+#include "afp_net_buffer.h"
 
 // Struct to keep info about a particular stream. All we care
 // about from the afp perspective it the size and the name.
@@ -28,13 +29,13 @@ public:
 	AFPERROR afp_open_file_fork(PWCHAR stream_name = nullptr, DWORD afp_creation_disposition = OPEN_EXISTING);
 	AFPERROR close_file_fork();
 	AFPERROR read_fork(
-		AfpBuffer& afp_reply,
+		afp_net_buffer& afp_reply,
 		int64 afp_offset,
 		int64 afp_req_count,
 		uint32* afp_actual_read
 	);
 	AFPERROR write_fork(
-		AfpBuffer& afp_request,
+		afp_net_buffer& afp_request,
 		int64 afp_offset,
 		int64 afp_req_count,
 		BOOL afp_from_start,

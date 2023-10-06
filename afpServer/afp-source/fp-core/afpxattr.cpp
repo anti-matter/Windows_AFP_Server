@@ -26,8 +26,8 @@
  */
 
 AFPERROR FPGetExtAttribute(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -74,7 +74,7 @@ AFPERROR FPGetExtAttribute(
     //
     //Get the pathname of the object we're working on.
     //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathtype);
+    afpError = afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathtype);
     
     if (!AFP_SUCCESS(afpError))
     {
@@ -96,7 +96,7 @@ AFPERROR FPGetExtAttribute(
     //Now get the string. Note that on return afpNameLen now contains the actual
     //length of the converted string.
     //
-    afpError = afpRequest.GetUniString(afpAttrName, sizeof(afpAttrName), &afpNameLen);
+    afpError = afpRequest.get_unicode_string(afpAttrName, sizeof(afpAttrName), &afpNameLen);
     
     if (!AFP_SUCCESS(afpError))
     {
@@ -236,8 +236,8 @@ AFPERROR FPGetExtAttribute(
  */
 
 AFPERROR FPSetExtAttribute(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -273,7 +273,7 @@ AFPERROR FPSetExtAttribute(
     //
     //Get the pathname of the object we're working on.
     //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathtype);
+    afpError = afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathtype);
     
     if (!AFP_SUCCESS(afpError))
     {
@@ -292,7 +292,7 @@ AFPERROR FPSetExtAttribute(
     //length of the converted string.
     //
     afpNameLen 	= afpRequest.GetInt16();
-    afpError 	= afpRequest.GetUniString(afpAttrName, sizeof(afpAttrName), &afpNameLen);
+    afpError 	= afpRequest.get_unicode_string(afpAttrName, sizeof(afpAttrName), &afpNameLen);
     
     if (!AFP_SUCCESS(afpError))
     {
@@ -411,8 +411,8 @@ AFPERROR FPSetExtAttribute(
  */
 
 AFPERROR FPListExtAttribute(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -457,7 +457,7 @@ AFPERROR FPListExtAttribute(
     //
     //Get the pathname of the object we're working on.
     //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathtype);
+    afpError = afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathtype);
     
     if (!AFP_SUCCESS(afpError))
     {
@@ -600,8 +600,8 @@ AFPERROR FPListExtAttribute(
  */
 
 AFPERROR FPRemoveExtAttribute(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -652,7 +652,7 @@ AFPERROR FPRemoveExtAttribute(
     //
     //Get the pathname of the object we're working on.
     //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathtype);
+    afpError = afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathtype);
     
     if (!AFP_SUCCESS(afpError))
     {
@@ -687,7 +687,7 @@ AFPERROR FPRemoveExtAttribute(
     //length of the converted string.
     //
     afpNameLen 	= afpRequest.GetInt16();
-    afpError 	= afpRequest.GetUniString(afpAttrName, sizeof(afpAttrName), &afpNameLen);
+    afpError 	= afpRequest.get_unicode_string(afpAttrName, sizeof(afpAttrName), &afpNameLen);
     
     if (!AFP_SUCCESS(afpError))
     {

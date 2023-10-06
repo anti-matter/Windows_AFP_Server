@@ -2,6 +2,7 @@
 
 #include "afp.h"
 #include "afp_file_index.h"
+#include "afp_net_buffer.h"
 #include "desktop_database.h"
 
 #define MAX_LEVELS_DEEP				128
@@ -109,7 +110,7 @@ AFPNumVolumesActive();
 AFPERROR AFPGetVolumeParameters(
     IN WORD afpVolumeID,
        IN WORD afpBitmap,
-       IN AfpBuffer& afpReply
+       IN afp_net_buffer& afpReply
 );
 
 void

@@ -7,7 +7,7 @@
 #ifndef __logonimp__
 #define __logonimp__
 
-#include "AfpBuffer.h"
+#include "afp_net_buffer.h"
 
 //
 //BLOODSHED: This is not in the ming headers for some stupid reason
@@ -17,7 +17,7 @@
 
 AFPERROR afpImpUserLogon(
 	LPSESSION	afpSession,
-	AfpBuffer&	afpReply,
+	afp_net_buffer&	afpReply,
 	WCHAR*		afpPasswordW,
 	WORD		cbAfpPasswordW
 );

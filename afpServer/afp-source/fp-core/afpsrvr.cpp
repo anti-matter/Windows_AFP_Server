@@ -27,8 +27,8 @@ extern BOOL	gForceEncryptedLogon;
  */
 
 AFPERROR FPGetSrvrParms(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -111,8 +111,8 @@ AFPERROR FPGetSrvrParms(
  */
 
 AFPERROR FPGetSrvrInfo( 
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {	
@@ -233,8 +233,8 @@ AFPERROR FPGetSrvrInfo(
  */
 
 AFPERROR FPZzzz(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {

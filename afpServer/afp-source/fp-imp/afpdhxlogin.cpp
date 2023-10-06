@@ -15,7 +15,7 @@
 #include "strsafe.h"
 
 #include "afpdhxlogin.h"
-#include "AfpBuffer.h"
+#include "afp_net_buffer.h"
 #include "afp_session.h"
 
 
@@ -29,8 +29,8 @@
  */
 
 AFPERROR DHXLogin(
-    IN	AfpBuffer&		afpRequest,
-    IN	AfpBuffer&		afpReply,
+    IN	afp_net_buffer&		afpRequest,
+    IN	afp_net_buffer&		afpReply,
     IN	LPSESSION		dsiSession,
     IN	DHXInfo*		dhxInfo
 )
@@ -186,8 +186,8 @@ exit:
  */
 
 AFPERROR DHXLoginContinue(
-    IN	AfpBuffer&		afpRequest,
-    IN	AfpBuffer&		afpReply,
+    IN	afp_net_buffer&		afpRequest,
+    IN	afp_net_buffer&		afpReply,
     IN	LPSESSION		dsiSession,
     IN	char*			afpPassword,
     IN	int16			afpPasswordLen,
@@ -290,8 +290,8 @@ exit:
  */
 
 AFPERROR DHXChangePassword(
-    IN	AfpBuffer&		afpRequest,
-    IN	AfpBuffer&		afpReply,
+    IN	afp_net_buffer&		afpRequest,
+    IN	afp_net_buffer&		afpReply,
     IN	LPSESSION		dsiSession,
     IN	char*			oldPassword,
     IN	int16			cbOldPassword,

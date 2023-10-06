@@ -12,8 +12,8 @@
  */
 
 AFPERROR FPResolveID(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -99,8 +99,8 @@ AFPERROR FPResolveID(
  */
 
 AFPERROR FPGetFileDirParms(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -145,7 +145,7 @@ AFPERROR FPGetFileDirParms(
     //
     //Extract the pathname to the file or directory.
     //
-    if (!AFP_SUCCESS(afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathtype))) {
+    if (!AFP_SUCCESS(afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathtype))) {
 
             return( afpParmErr );
     }
@@ -243,8 +243,8 @@ AFPERROR FPGetFileDirParms(
  */
 
 AFPERROR FPEnumerate(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -324,7 +324,7 @@ AFPERROR FPEnumerate(
     //
     //Get the pathname of the object we're working on.
     //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathType);
+    afpError = afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathType);
     
     if (!AFP_SUCCESS(afpError))
     {
@@ -419,9 +419,8 @@ AFPERROR FPEnumerate(
         
         if (GetFileAttributesEx(afpEntry->sz_path, GetFileExInfoStandard, &winAttributes))
         {
-            bool		afpIsDirectory;
-            uint8		tempBuffer[1024];
-            AfpBuffer	afpParmsBuffer(tempBuffer);
+	        uint8		temp_buffer[1024] = {};
+            afp_net_buffer	parameter_buffer(temp_buffer, sizeof(temp_buffer));
 
             //
             //This is how many total objects we found during our search.
@@ -436,15 +435,15 @@ AFPERROR FPEnumerate(
             }
             
             DBGWRITE(dbg_level_all, L"[afp:FPEnumerate]Enumerating %s\n", afpEntry->sz_object_name);
-            
-            afpIsDirectory = (afpEntry->flags & flag_index_is_dir);
+
+	        const bool afp_is_directory = (afpEntry->flags & flag_index_is_dir);
 
             //
             //Check to make sure we don't include items not to be included
             //in the return enumeration.
             //
-            if (	((afpDirBitmap == kFPDirNone) && (afpIsDirectory))		||
-                    ((afpFileBitmap == kFPFileNone) && (!afpIsDirectory))	)
+            if (	((afpDirBitmap == kFPDirNone) && (afp_is_directory))		||
+                    ((afpFileBitmap == kFPFileNone) && (!afp_is_directory))	)
             {
                 continue;
             }
@@ -452,12 +451,12 @@ AFPERROR FPEnumerate(
             //
             //Call the appropriate GetXXXParms calls.
             //
-            afpParmsBuffer.Rewind();
+            parameter_buffer.Rewind();
             afpAttributes = 0;
 
             afpError = AFPGetObjectParms(
-                            afpParmsBuffer,
-                            (afpIsDirectory) ? afpDirBitmap : afpFileBitmap,
+                            parameter_buffer,
+                            (afp_is_directory) ? afpDirBitmap : afpFileBitmap,
                             afpVolID,
                             afpDirID,
                             afpSession,
@@ -465,7 +464,7 @@ AFPERROR FPEnumerate(
                             winAttributes
                             );
             
-            if (afpIsDirectory)
+            if (afp_is_directory)
             {
                 //
                 //Set the afp flag that marks this as a directory.
@@ -484,7 +483,7 @@ AFPERROR FPEnumerate(
                 //Check to make sure there is enough room in the buffer to add the
                 //file/dir information.
                 //
-                sizeRequired = afpParmsBuffer.GetDataLength() + afpReply.GetDataLength();
+                sizeRequired = parameter_buffer.GetDataLength() + afpReply.GetDataLength();
                 
                 //
                 //There are items after the file dirs parms that are added to the buffer,
@@ -551,13 +550,13 @@ AFPERROR FPEnumerate(
                 //
                 //Insert the FDP parameters into the reply buffer.
                 //
-                afpReply.AddRawData(afpParmsBuffer.GetBuffer(), (int16)afpParmsBuffer.GetDataLength());
+                afpReply.AddRawData(parameter_buffer.GetBuffer(), (int16)parameter_buffer.GetDataLength());
                 
                 //
                 //Set the structure length byte in the buffer. The extra bytes are
                 //for the first parms in the structure (structLen, attributes and padding).
                 //
-                len = (int16)afpParmsBuffer.GetDataLength() + ((afpCommand > afpEnumerate) ? 4 : 2);
+                len = (int16)parameter_buffer.GetDataLength() + ((afpCommand > afpEnumerate) ? 4 : 2);
                 
                 //
                 //This entry must end on an even boundary.
@@ -622,8 +621,8 @@ AFPERROR FPEnumerate(
  */
 
 AFPERROR FPSetFileDirParms(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -681,7 +680,7 @@ AFPERROR FPSetFileDirParms(
     //
     //Get the pathname of the object we're working on.
     //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathType);
+    afpError = afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathType);
     
     if (!AFP_SUCCESS(afpError))
     {
@@ -785,8 +784,8 @@ AFPERROR FPSetFileDirParms(
  */
 
 AFPERROR FPCreateDir(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -849,7 +848,7 @@ AFPERROR FPCreateDir(
     //
     //Extract the AFP pathname to the new directory to create.
     //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathType, charMap);
+    afpError = afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathType, charMap);
 
     if (!AFP_SUCCESS(afpError))
     {
@@ -972,8 +971,8 @@ AFPERROR FPCreateDir(
  */
 
 AFPERROR FPDelete(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -1022,7 +1021,7 @@ AFPERROR FPDelete(
     //
     //Get the pathname of the object we're working on.
     //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathType);
+    afpError = afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathType);
     
     if (!AFP_SUCCESS(afpError))
     {
@@ -1129,8 +1128,8 @@ AFPERROR FPDelete(
  */
 
 AFPERROR FPCopyFile(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -1167,7 +1166,7 @@ AFPERROR FPCopyFile(
     //Get the pathname of the object we're copying.
     //
     afpPathType	= afpRequest.GetInt8();
-    afpError 	= afpRequest.GetString(
+    afpError 	= afpRequest.get_pascal_string(
                                 afpSrcPathname, 
                                 sizeof(afpSrcPathname), 
                                 true, 
@@ -1183,7 +1182,7 @@ AFPERROR FPCopyFile(
     //Get the destination pathname we're copying to
     //
     afpPathType		= afpRequest.GetInt8();
-    afpError 		= afpRequest.GetString(
+    afpError 		= afpRequest.get_pascal_string(
                                 afpDstPathname, 
                                 sizeof(afpDstPathname), 
                                 true, 
@@ -1200,7 +1199,7 @@ AFPERROR FPCopyFile(
     //And now the [optional] new name for the file
     //
     afpPathType		= afpRequest.GetInt8();
-    afpError 		= afpRequest.GetString(
+    afpError 		= afpRequest.get_pascal_string(
                                 afpNewName, 
                                 sizeof(afpNewName), 
                                 true, 
@@ -1370,8 +1369,8 @@ AFPERROR FPCopyFile(
  */
 
 AFPERROR FPMoveAndRename(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -1434,7 +1433,7 @@ AFPERROR FPMoveAndRename(
     //
     //Get the pathname of the object we're working on.
     //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathType);
+    afpError = afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathType);
     
     if (!AFP_SUCCESS(afpError))
     {
@@ -1478,7 +1477,7 @@ AFPERROR FPMoveAndRename(
     //
     //Get the pathname of the object we're working on.
     //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathType, destCharMap);
+    afpError = afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathType, destCharMap);
     
     if (!AFP_SUCCESS(afpError))
     {
@@ -1501,7 +1500,7 @@ AFPERROR FPMoveAndRename(
     //
     afpPathType = afpRequest.GetInt8();
     
-    afpError = afpRequest.GetString(afpNewPathname, sizeof(afpNewPathname), true, afpPathType, newCharMap);
+    afpError = afpRequest.get_pascal_string(afpNewPathname, sizeof(afpNewPathname), true, afpPathType, newCharMap);
     
     if (!AFP_SUCCESS(afpError))
     {
@@ -1597,8 +1596,8 @@ AFPERROR FPMoveAndRename(
  */
 
 AFPERROR FPRename(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -1652,7 +1651,7 @@ AFPERROR FPRename(
     //
     //Get the pathname of the object we're working on.
     //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathType);
+    afpError = afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathType);
     
     if (!AFP_SUCCESS(afpError))
     {
@@ -1698,7 +1697,7 @@ AFPERROR FPRename(
     //
     //Get the new name of the object (required).
     //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathType, newCharMap);
+    afpError = afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathType, newCharMap);
     
     if ((!AFP_SUCCESS(afpError)) || (lstrlen(afpPathname) == 0))
     {

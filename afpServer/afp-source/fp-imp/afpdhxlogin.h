@@ -13,6 +13,7 @@
 #include "afp.h"
 #include "afpDebug.h"
 #include "afphelp.h"
+#include "afp_net_buffer.h"
 
 #include "openssl/bn.h"
 #include "openssl/dh.h"
@@ -44,15 +45,15 @@ typedef struct
 }DHXInfo;
 
 AFPERROR DHXLogin(
-	IN	AfpBuffer&		afpRequest,
-	IN	AfpBuffer&		afpReply,
+	IN	afp_net_buffer&		afpRequest,
+	IN	afp_net_buffer&		afpReply,
 	IN	LPSESSION		dsiSession,
 	IN	DHXInfo*		dhxInfo
 );
 
 AFPERROR DHXLoginContinue(
-	IN	AfpBuffer&		afpRequest,
-	IN	AfpBuffer&		afpReply,
+	IN	afp_net_buffer&		afpRequest,
+	IN	afp_net_buffer&		afpReply,
 	IN	LPSESSION		dsiSession,
 	IN	char*			afpPassword,
 	IN	int16			afpPasswordLen,
@@ -60,8 +61,8 @@ AFPERROR DHXLoginContinue(
 );
 
 AFPERROR DHXChangePassword(
-	IN	AfpBuffer&		afpRequest,
-	IN	AfpBuffer&		afpReply,
+	IN	afp_net_buffer&		afpRequest,
+	IN	afp_net_buffer&		afpReply,
 	IN	LPSESSION		dsiSession,
 	IN	char*			oldPassword,
 	IN	int16			cbOldPassword,

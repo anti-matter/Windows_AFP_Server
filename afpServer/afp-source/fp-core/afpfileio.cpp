@@ -21,8 +21,8 @@
  */
 
 AFPERROR FPFlushFork(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -44,8 +44,8 @@ AFPERROR FPFlushFork(
  */
 
 AFPERROR FPCloseFork(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -82,8 +82,8 @@ AFPERROR FPCloseFork(
  */
 
 AFPERROR FPOpenFork(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -136,7 +136,7 @@ AFPERROR FPOpenFork(
     //
     //Get the pathname of the object we're working on.
     //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathType);
+    afpError = afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathType);
     
     if (!AFP_SUCCESS(afpError))
     {
@@ -278,8 +278,8 @@ AFPERROR FPOpenFork(
  */
 
 AFPERROR FPSetForkParms(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -355,8 +355,8 @@ AFPERROR FPSetForkParms(
  */
 
 AFPERROR FPGetForkParms(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -446,8 +446,8 @@ AFPERROR FPGetForkParms(
  */
 
 AFPERROR FPCreateFile(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -504,7 +504,7 @@ AFPERROR FPCreateFile(
     //
     memset(charMap, 0, sizeof(AFPCHARMAPARRAY));
     
-    afpError = afpRequest.GetString(
+    afpError = afpRequest.get_pascal_string(
                                 afpPathname,
                                 sizeof(afpPathname),
                                 true,
@@ -654,8 +654,8 @@ AFPERROR FPCreateFile(
  */
 
 AFPERROR FPByteRangeLock(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -840,8 +840,8 @@ AFPERROR FPByteRangeLock(
  */
 
 AFPERROR FPRead(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -931,8 +931,8 @@ AFPERROR FPRead(
  */
 
 AFPERROR FPWrite(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {

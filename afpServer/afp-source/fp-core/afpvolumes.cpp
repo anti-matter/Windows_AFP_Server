@@ -23,8 +23,8 @@
  */
 
 AFPERROR FPFlush(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -67,8 +67,8 @@ AFPERROR FPFlush(
  */
 
 AFPERROR FPOpenVol(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -91,7 +91,7 @@ AFPERROR FPOpenVol(
     //
     //Extract the volume name from the buffer.
     //
-    if (!AFP_SUCCESS(afpRequest.GetString(afpVolumeName, sizeof(afpVolumeName)))) {
+    if (!AFP_SUCCESS(afpRequest.get_pascal_string(afpVolumeName, sizeof(afpVolumeName)))) {
 
         return( afpParmErr );
     }
@@ -166,8 +166,8 @@ AFPERROR FPOpenVol(
  */
 
 AFPERROR FPCloseVol(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {
@@ -206,8 +206,8 @@ AFPERROR FPCloseVol(
  */
 
 AFPERROR FPGetVolParms(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
+    IN	afp_net_buffer&	afpRequest,
+    IN	afp_net_buffer&	afpReply,
     IN	LPSESSION	afpSession
     )
 {

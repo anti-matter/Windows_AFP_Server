@@ -7,6 +7,7 @@
 
 #include "dsi.h"
 #include "afp.h"
+#include "afpdispatch.h"
 #include "afphelp.h"
 #include "attention.h"
 #include "volumes.h"
@@ -1670,7 +1671,7 @@ void DSIProcessRequest(
 			//Call on the AFP handler to dispatch to the correct
 			//AFP API call.
 			//
-			lError = FPDispatchCommand(recvIOData, sendQueue);
+			lError = fp_dispatch_command(recvIOData, sendQueue);
 
 		//
 		//Format our DSI reply packet and send prepare to send it.
@@ -1685,7 +1686,7 @@ void DSIProcessRequest(
 		//Call the AFP function that packs the server data.
 		//
 			recvIOData->buffer[DSI_OFFSET_DATASTART] = afpGetSInfo;
-			lError = FPDispatchCommand(recvIOData, sendQueue);
+			lError = fp_dispatch_command(recvIOData, sendQueue);
 
 		//
 		//Per the spec, we immediately tear down the connection
@@ -1714,10 +1715,10 @@ void DSIProcessRequest(
 			{
 			case afpWrite:
 			case afpWriteExt:
-				lError = FPDispatchCommand(recvIOData, sendQueue);
+				lError = fp_dispatch_command(recvIOData, sendQueue);
 				break;
 			case afpAddIcon:
-				lError = FPDispatchCommand(recvIOData, sendQueue);
+				lError = fp_dispatch_command(recvIOData, sendQueue);
 				break;
 
 			default:

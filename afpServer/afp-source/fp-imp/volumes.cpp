@@ -10,7 +10,7 @@
 #include "fdparms.h"
 #include "afpnotify.h"
 #include "afpworker.h"
-#include "AfpBuffer.h"
+#include "afp_net_buffer.h"
 #include "AFPRegistry.h"
 #include "volume_array.h"
 
@@ -461,7 +461,7 @@ BYTE AFPNumVolumesShared()
 AFPERROR AFPGetVolumeParameters(
     IN WORD afpVolumeID,
        IN WORD afpBitmap,
-       IN AfpBuffer& afpReply
+       IN afp_net_buffer& afpReply
 )
 {
     DWORD dwError;

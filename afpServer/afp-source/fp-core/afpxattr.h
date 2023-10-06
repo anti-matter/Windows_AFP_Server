@@ -22,26 +22,26 @@ enum
 };
 
 AFPERROR FPGetExtAttribute(
-    IN AfpBuffer& afpRequest,
-       IN AfpBuffer& afpReply,
+    IN afp_net_buffer& afpRequest,
+       IN afp_net_buffer& afpReply,
        IN LPSESSION afpSession
 );
 
 AFPERROR FPSetExtAttribute(
-    IN AfpBuffer& afpRequest,
-       IN AfpBuffer& afpReply,
+    IN afp_net_buffer& afpRequest,
+       IN afp_net_buffer& afpReply,
        IN LPSESSION afpSession
 );
 
 AFPERROR FPListExtAttribute(
-    IN AfpBuffer& afpRequest,
-       IN AfpBuffer& afpReply,
+    IN afp_net_buffer& afpRequest,
+       IN afp_net_buffer& afpReply,
        IN LPSESSION afpSession
 );
 
 AFPERROR FPRemoveExtAttribute(
-    IN AfpBuffer& afpRequest,
-       IN AfpBuffer& afpReply,
+    IN afp_net_buffer& afpRequest,
+       IN afp_net_buffer& afpReply,
        IN LPSESSION afpSession
 );
 

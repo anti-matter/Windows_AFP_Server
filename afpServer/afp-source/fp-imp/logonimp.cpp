@@ -27,7 +27,7 @@
 
 AFPERROR afpImpUserLogon(
     LPSESSION	afpSession,
-    AfpBuffer&	afpReply,
+    afp_net_buffer&	afpReply,
     WCHAR*		afpPasswordW,
     WORD		cbAfpPasswordW
 )

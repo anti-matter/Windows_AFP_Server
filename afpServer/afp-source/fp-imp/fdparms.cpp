@@ -187,7 +187,7 @@ void AFPCheckForAndCreateFinderRsrcStream(
 // Fill in the parms of a file or dir for a file/dir parms call.
 //
 AFPERROR AFPGetObjectParms(
-    IN	AfpBuffer&					afpReply,
+    IN	afp_net_buffer&					afpReply,
     IN	uint16						afpBitmap,
     IN	uint16						afpVolumeID,
     IN	int32						afpDirID,
@@ -224,13 +224,13 @@ AFPERROR AFPGetObjectParms(
             }
         }
 
-		afpReply.AddInteger<UINT16>(afpAttributes);
+		afpReply.push_num<UINT16>(afpAttributes);
     }
 
-    if (afpBitmap & kFPParentID)	afpReply.AddInteger<UINT32>(afpEntry->par_id);
-    if (afpBitmap & kFPCreateDate)	afpReply.AddInteger<UINT32>(afp_windows_to_mac_time(&winAttributes.ftCreationTime));
-    if (afpBitmap & kFPModDate)		afpReply.AddInteger<UINT32>(afp_windows_to_mac_time(&winAttributes.ftLastWriteTime));
-    if (afpBitmap & kFPBackupDate)	afpReply.AddInteger<UINT32>(0x80000000);
+    if (afpBitmap & kFPParentID)	afpReply.push_num<UINT32>(afpEntry->par_id);
+    if (afpBitmap & kFPCreateDate)	afpReply.push_num<UINT32>(afp_windows_to_mac_time(&winAttributes.ftCreationTime));
+    if (afpBitmap & kFPModDate)		afpReply.push_num<UINT32>(afp_windows_to_mac_time(&winAttributes.ftLastWriteTime));
+    if (afpBitmap & kFPBackupDate)	afpReply.push_num<UINT32>(0x80000000);
     
     if (afpBitmap & kFPFinderInfo)
     {
@@ -260,7 +260,7 @@ AFPERROR AFPGetObjectParms(
         afpReply.Advance(sizeof(int16));
     }
 
-    if (afpBitmap & kFPFileNum)	afpReply.AddInteger<UINT32>(afpEntry->object_id);
+    if (afpBitmap & kFPFileNum)	afpReply.push_num<UINT32>(afpEntry->object_id);
     
     //
     //The maps are a little different here for file and directories.
@@ -268,7 +268,7 @@ AFPERROR AFPGetObjectParms(
     if (winAttributes.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
     {
         if (afpBitmap & kFPDirOffCount) {
-            afpReply.AddInteger<UINT16>(AFPGetDirOffspringCount(afpVolumeID, afpEntry));
+            afpReply.push_num<UINT16>(AFPGetDirOffspringCount(afpVolumeID, afpEntry));
         }
 
         if (afpBitmap & (kFPDirOwnerID | kFPDirGroupID))
@@ -279,11 +279,11 @@ AFPERROR AFPGetObjectParms(
             //AFPGetDirectoryOwnerAndGroupID(afpEntry->szPath, &dwOwnerID, &dwGroupID);
 
             if (afpBitmap & kFPDirOwnerID) {
-                afpReply.AddInteger<UINT32>(dwOwnerID);
+                afpReply.push_num<UINT32>(dwOwnerID);
             }
             
             if (afpBitmap & kFPDirGroupID) {
-                afpReply.AddInteger<UINT32>(dwGroupID);
+                afpReply.push_num<UINT32>(dwGroupID);
             }
         }
         
@@ -301,7 +301,7 @@ AFPERROR AFPGetObjectParms(
 
             if (AFP_SUCCESS(afpError)) {
 
-                afpReply.AddInteger<UINT32>(afpRights);
+                afpReply.push_num<UINT32>(afpRights);
             }
         }
 
@@ -328,7 +328,7 @@ AFPERROR AFPGetObjectParms(
 
             if (afpBitmap & kFPDFLen) {
 
-                afpReply.AddInteger<UINT32>(dataSize64.LowPart);
+                afpReply.push_num<UINT32>(dataSize64.LowPart);
             }
         }
 
@@ -353,12 +353,12 @@ AFPERROR AFPGetObjectParms(
 
         if (afpBitmap & kFPRFLen) {
             
-            afpReply.AddInteger<UINT32>(rsrcSize64.LowPart);
+            afpReply.push_num<UINT32>(rsrcSize64.LowPart);
         }
 
         if (afpBitmap & kFPExtDataForkLen) {
 
-            afpReply.AddInteger<UINT64>(dataSize64.QuadPart);
+            afpReply.push_num<UINT64>(dataSize64.QuadPart);
         }
 
         if (afpBitmap & kFPUnicodeName)
@@ -375,9 +375,9 @@ AFPERROR AFPGetObjectParms(
             //correctly. Is it possible it's looking for the launch limit? The
             //spec isn't clear.
             //
-            afpReply.AddInteger<UINT32>(0);
+            afpReply.push_num<UINT32>(0);
 
-            afpReply.AddInteger<UINT64>(rsrcSize64.QuadPart);
+            afpReply.push_num<UINT64>(rsrcSize64.QuadPart);
         }
     }
     

@@ -9,56 +9,56 @@
 #define __afpuser__
 
 #include "logonimp.h"
-#include "AfpBuffer.h"
+#include "afp_net_buffer.h"
 #include "afp_session.h"
 #include "AFPRegistry.h"
 
 
 AFPERROR FPGetSessionToken(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPDisconnectOldSession(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPLogin(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPContLogin(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPChangePassword(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	dsiSession
 	);
 
 AFPERROR FPLogout(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPMapID(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPGetSrvrMsg(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 

@@ -24,8 +24,8 @@
  */
 
 AFPERROR FPOpenDT(
-    IN AfpBuffer& afpRequest,
-       IN AfpBuffer& afpReply,
+    IN afp_net_buffer& afpRequest,
+       IN afp_net_buffer& afpReply,
        IN LPSESSION afpSession
 )
 {
@@ -60,8 +60,8 @@ AFPERROR FPOpenDT(
  */
 
 AFPERROR FPCloseDT(
-    IN AfpBuffer& afpRequest,
-       IN AfpBuffer& afpReply,
+    IN afp_net_buffer& afpRequest,
+       IN afp_net_buffer& afpReply,
        IN LPSESSION afpSession
 )
 {
@@ -89,8 +89,8 @@ AFPERROR FPCloseDT(
  */
 
 AFPERROR FPAddIcon(
-    IN AfpBuffer& afpRequest,
-       IN AfpBuffer& afpReply,
+    IN afp_net_buffer& afpRequest,
+       IN afp_net_buffer& afpReply,
        IN LPSESSION afpSession
 )
 {
@@ -179,8 +179,8 @@ AFPERROR FPAddIcon(
  */
 
 AFPERROR FPGetIcon(
-    IN AfpBuffer& afpRequest,
-       IN AfpBuffer& afpReply,
+    IN afp_net_buffer& afpRequest,
+       IN afp_net_buffer& afpReply,
        IN LPSESSION afpSession
 )
 {
@@ -238,8 +238,8 @@ AFPERROR FPGetIcon(
  */
 
 AFPERROR FPGetIconInfo(
-    IN AfpBuffer& afpRequest,
-       IN AfpBuffer& afpReply,
+    IN afp_net_buffer& afpRequest,
+       IN afp_net_buffer& afpReply,
        IN LPSESSION afpSession
 )
 {
@@ -285,8 +285,8 @@ AFPERROR FPGetIconInfo(
  */
 
 AFPERROR FPAddComment(
-    IN AfpBuffer& afpRequest,
-       IN AfpBuffer& afpReply,
+    IN afp_net_buffer& afpRequest,
+       IN afp_net_buffer& afpReply,
        IN LPSESSION afpSession
 )
 {
@@ -303,7 +303,7 @@ AFPERROR FPAddComment(
     newEntry.dirID = afpRequest.GetInt32();
     newEntry.pathType = afpRequest.GetInt8();
 
-    auto afpError = afpRequest.GetString(newEntry.pathname, sizeof(newEntry.pathname), true, newEntry.pathType, nullptr);
+    auto afpError = afpRequest.get_pascal_string(newEntry.pathname, sizeof(newEntry.pathname), true, newEntry.pathType, nullptr);
 
     if (!AFP_SUCCESS(afpError))
     {
@@ -311,7 +311,7 @@ AFPERROR FPAddComment(
     }
 
     afpRequest.AdvanceIfOdd();
-    afpRequest.GetPascalString(newEntry.data, sizeof(newEntry.data));
+    afpRequest.get_pascal_string(newEntry.data, sizeof(newEntry.data));
 
     newEntry.entryType = ENTRY_TYPE_CMNT;
     newEntry.dataSize = strlen(newEntry.data);
@@ -361,8 +361,8 @@ AFPERROR FPAddComment(
  */
 
 AFPERROR FPGetComment(
-    IN AfpBuffer& afpRequest,
-       IN AfpBuffer& afpReply,
+    IN afp_net_buffer& afpRequest,
+       IN afp_net_buffer& afpReply,
        IN LPSESSION afpSession
 )
 {
@@ -379,7 +379,7 @@ AFPERROR FPGetComment(
     searchEntry.pathType = afpRequest.GetInt8();
     searchEntry.entryType = ENTRY_TYPE_CMNT;
 
-    auto afpError = afpRequest.GetString(searchEntry.pathname, sizeof(searchEntry.pathname), true, searchEntry.pathType, nullptr);
+    auto afpError = afpRequest.get_pascal_string(searchEntry.pathname, sizeof(searchEntry.pathname), true, searchEntry.pathType, nullptr);
 
     if (!AFP_SUCCESS(afpError))
     {
@@ -436,8 +436,8 @@ AFPERROR FPGetComment(
  */
 
 AFPERROR FPRemoveComment(
-    IN AfpBuffer& afpRequest,
-       IN AfpBuffer& afpReply,
+    IN afp_net_buffer& afpRequest,
+       IN afp_net_buffer& afpReply,
        IN LPSESSION afpSession
 )
 {
@@ -452,7 +452,7 @@ AFPERROR FPRemoveComment(
     searchEntry.pathType = afpRequest.GetInt8();
     searchEntry.entryType = ENTRY_TYPE_CMNT;
 
-    auto afpError = afpRequest.GetString(searchEntry.pathname, sizeof(searchEntry.pathname), true, searchEntry.pathType, nullptr);
+    auto afpError = afpRequest.get_pascal_string(searchEntry.pathname, sizeof(searchEntry.pathname), true, searchEntry.pathType, nullptr);
 
     if (!AFP_SUCCESS(afpError))
     {
@@ -482,8 +482,8 @@ AFPERROR FPRemoveComment(
  */
 
 AFPERROR FPGetAPPL(
-    IN AfpBuffer& afpRequest,
-       IN AfpBuffer& afpReply,
+    IN afp_net_buffer& afpRequest,
+       IN afp_net_buffer& afpReply,
        IN LPSESSION afpSession
 )
 {
@@ -563,8 +563,8 @@ AFPERROR FPGetAPPL(
  */
 
 AFPERROR FPAddAPPL(
-    IN AfpBuffer& afpRequest,
-       IN AfpBuffer& afpReply,
+    IN afp_net_buffer& afpRequest,
+       IN afp_net_buffer& afpReply,
        IN LPSESSION afpSession
 )
 {
@@ -583,7 +583,7 @@ AFPERROR FPAddAPPL(
     newEntry.entryType = ENTRY_TYPE_APPL;
     newEntry.dataSize = 0;
 
-    auto afpError = afpRequest.GetString(newEntry.pathname, sizeof(newEntry.pathname), true, newEntry.pathType, nullptr);
+    auto afpError = afpRequest.get_pascal_string(newEntry.pathname, sizeof(newEntry.pathname), true, newEntry.pathType, nullptr);
     if (!AFP_SUCCESS(afpError))
     {
         return afpParmErr;
@@ -611,8 +611,8 @@ AFPERROR FPAddAPPL(
  */
 
 AFPERROR FPRemoveAPPL(
-    IN AfpBuffer& afpRequest,
-       IN AfpBuffer& afpReply,
+    IN afp_net_buffer& afpRequest,
+       IN afp_net_buffer& afpReply,
        IN LPSESSION afpSession
 )
 {
@@ -628,7 +628,7 @@ AFPERROR FPRemoveAPPL(
     searchEntry.pathType = afpRequest.GetInt8();
     searchEntry.entryType = ENTRY_TYPE_APPL;
 
-    auto afpError = afpRequest.GetString(searchEntry.pathname, sizeof(searchEntry.pathname), true, searchEntry.pathType, nullptr);
+    auto afpError = afpRequest.get_pascal_string(searchEntry.pathname, sizeof(searchEntry.pathname), true, searchEntry.pathType, nullptr);
     if (!AFP_SUCCESS(afpError))
     {
         return afpParmErr;

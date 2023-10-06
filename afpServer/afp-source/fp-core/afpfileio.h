@@ -12,62 +12,62 @@
 #include "fpinfo.h"
 #include "fdparms.h"
 #include "afpnotify.h"
-#include "AfpBuffer.h"
+#include "afp_net_buffer.h"
 #include "afp_session.h"
 #include "afp_open_file.h"
 
 
 AFPERROR FPFlushFork(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPCloseFork(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPOpenFork(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPSetForkParms(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPGetForkParms(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPCreateFile(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPByteRangeLock(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPRead(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
 AFPERROR FPWrite(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
+	IN	afp_net_buffer&	afpRequest,
+	IN	afp_net_buffer&	afpReply,
 	IN	LPSESSION	afpSession
 	);
 
