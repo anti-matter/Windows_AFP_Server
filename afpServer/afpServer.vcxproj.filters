@@ -119,7 +119,7 @@
     <ClCompile Include="afp-source\fp-classes\afp_open_file.cpp">
       <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
-    <ClCompile Include="afp-source\fp-classes\AFPRegistry.cpp">
+    <ClCompile Include="afp-source\fp-classes\afp_registry.cpp">
       <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
     <ClCompile Include="afpdispatch.cpp">
@@ -190,7 +190,7 @@
     <ClInclude Include="afp-source\fp-classes\afp_session.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\fp-classes\AFPRegistry.h">
+    <ClInclude Include="afp-source\fp-classes\afp_registry.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
     <ClInclude Include="afpdispatch.h">

@@ -484,8 +484,7 @@ DWORD WINAPI DSIWorkerThread(
 			auto_lock lock(&pSession->cs);
 
 			if (dwBytesXferd == 0 &&
-				(perIOData->operationType == RECV_POSTED ||
-					perIOData->operationType == SEND_POSTED))
+				(perIOData->operationType == RECV_POSTED || perIOData->operationType == SEND_POSTED))
 			{
 				//
 				//Zero bytes transferred indicates socket has been closed
@@ -1487,6 +1486,8 @@ BOOL DSIProcessRecvBytes(
 	//
 	if (dwCurrentBytes < dwBytesExpected)
 	{
+		DBGWRITE(dbg_level_info, L"Bytes received less than expected.\n");
+
 		//
 		//We didn't get the entire request, save our place
 		//and go get the rest of it.
@@ -1497,6 +1498,8 @@ BOOL DSIProcessRecvBytes(
 
 	if (dwCurrentBytes > dwBytesExpected)
 	{
+		DBGWRITE(dbg_level_info, L"Bytes received greater than expected.\n");
+
 		//
 		//We've read more bytes in than expected, this means we've
 		//possibly read a partial request for the next request. Save
@@ -1521,12 +1524,17 @@ BOOL DSIProcessRecvBytes(
 
 	if (dwCurrentBytes >= dwBytesExpected)
 	{
+		DBGWRITE(dbg_level_info, L"Processing request, bytes expected: %d\n", dwBytesExpected);
+
 		//
 		//We're done receiving this request, reset all tracking
 		//info for the next recv.
 		//
 		pSession->dwState &= ~sessHasDSIHeader;
 		perIOData->offset = 0;
+
+		// Set ioSize to correct, updated value.
+		perIOData->ioSize = dwCurrentBytes;
 
 		//
 		//Now we can process the actual DSI request and

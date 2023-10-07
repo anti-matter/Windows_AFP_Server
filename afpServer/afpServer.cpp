@@ -14,7 +14,7 @@
 #include "addshare.h"
 #include "aboutdlg.h"
 
-#include "AFPRegistry.h"
+#include "afp_registry.h"
 #include "Resource.h"
 
 #include <windows.h>
@@ -112,14 +112,14 @@ void FillLogonMessageBox(
 )
 {
     TCHAR		szMessage[AFP_MSG_MAXLEN+sizeof(TCHAR)];
-    AFPRegistry	theRegistry;
+    afp_registry	theRegistry;
 
     //
     //Tell the edit box to only allow AFP_MSG_MAXLEN characters
     //
     SendDlgItemMessage(hDlg, IDC_LOGIN_MSG, EM_LIMITTEXT, AFP_MSG_MAXLEN, 0);
 
-    if (theRegistry.GetLogonMessage(szMessage) == NO_ERROR)
+    if (theRegistry.get_logon_message(szMessage) == NO_ERROR)
     {
         //
         //Set our current logon message in the edit field.
@@ -153,7 +153,7 @@ void UpdateVolCaption(HWND hParent)
         WCHAR		szTempName[33];
         WCHAR		szTempPath[MAX_PATH];
         WCHAR		szPassword[16];
-        AFPRegistry	theRegistry;
+        afp_registry	theRegistry;
         DWORD		volFlags = 0;
 
         //Send a message to the volume list box and ask for the
@@ -163,14 +163,15 @@ void UpdateVolCaption(HWND hParent)
 
         if (dwResult != LB_ERR)
         {
-            if (theRegistry.OpenVolumeListRegKey())
+            if (theRegistry.open_volume_list_reg_key())
             {
-                while(theRegistry.NextVolume(
+                while(theRegistry.next_volume(
                                     szTempName,
                                     sizeof(szTempName),
                                     szTempPath,
                                     sizeof(szTempPath),
                                     (PCHAR)szPassword,
+									sizeof(szPassword),
                                     &volFlags)			)
                 {
                     if (!lstrcmp(szTempName, szShareName))
@@ -305,7 +306,7 @@ void SaveLogonMessage(
 )
 {
     TCHAR		szMessage[AFP_MSG_MAXLEN+sizeof(TCHAR)];
-    AFPRegistry	theRegistry;
+    afp_registry	theRegistry;
 
     //
     //Set our current logon message in the edit field.
@@ -313,7 +314,7 @@ void SaveLogonMessage(
     SendDlgItemMessage(hDlg, IDC_LOGIN_MSG, WM_GETTEXT,
                                 (WPARAM)AFP_MSG_MAXLEN, (LPARAM)szMessage);
 
-    theRegistry.SaveLogonMessage(szMessage);
+    theRegistry.save_logon_message(szMessage);
 }
 
 
@@ -334,7 +335,7 @@ void FillVolumeListBox(
     WCHAR				firstPassword[16] = { 0 };
     DWORD				volFlags = 0;
     DWORD				firstFlags = 0;
-    AFPRegistry			theRegistry;
+    afp_registry			theRegistry;
     AFP_VOLUME_INFO*	afpVolumeInfo = NULL;
     WORD				count = 0;
 
@@ -342,21 +343,22 @@ void FillVolumeListBox(
     
     memset(firstPassword, 0, sizeof(firstPassword));
 
-    if (theRegistry.OpenVolumeListRegKey())
+    if (theRegistry.open_volume_list_reg_key())
     {
-        while(theRegistry.NextVolume(
+        while(theRegistry.next_volume(
                                     szShareName,
                                     sizeof(szShareName),
                                     szSharePath,
                                     sizeof(szSharePath),
-                                    (PCHAR)szPassword,
+                                    reinterpret_cast<PCHAR>(szPassword),
+									sizeof(szPassword),
                                     &volFlags)			)
         {
             if (count == 0)
             {
-                AFPRegistry	vReg;
+                afp_registry	vReg;
 
-                vReg.GetVolumePassword(szShareName, sizeof(firstPassword), firstPassword);
+                vReg.get_volume_password(szShareName, sizeof(firstPassword), firstPassword);
                 firstFlags = volFlags;
             }
             
@@ -415,9 +417,9 @@ void SetMiscDialogItems(
     BOOL		fAllowGuest		= true;
     BOOL		fEncrypt		= false;
     DWORD		dwMaxSessions	= 0;
-    AFPRegistry	theRegistry;
+    afp_registry	theRegistry;
 
-    if (theRegistry.GetAllowGuestsSetting(&fAllowGuest) == NO_ERROR)
+    if (theRegistry.get_allow_guests_setting(&fAllowGuest) == NO_ERROR)
     {
         if (fAllowGuest)
         {
@@ -425,7 +427,7 @@ void SetMiscDialogItems(
         }
     }
     
-    if (theRegistry.GetForceEncryptedLogon(&fEncrypt) == NO_ERROR)
+    if (theRegistry.get_force_encrypted_logon(&fEncrypt) == NO_ERROR)
     {
         if (fEncrypt)
         {
@@ -433,7 +435,7 @@ void SetMiscDialogItems(
         }
     }
     
-    theRegistry.GetMaxSessions(&dwMaxSessions);
+    theRegistry.get_max_sessions(&dwMaxSessions);
     SetDlgItemInt(hDlg, IDC_MAX_CONNECTIONS, dwMaxSessions, false);
 
     gAllowGuests = fAllowGuest;
@@ -451,34 +453,34 @@ void SaveMiscSettings(
     IN	HWND	hDlg
 )
 {
-    AFPRegistry	theRegistry;
+    afp_registry	theRegistry;
     DWORD		dwMaxSessions;
     BOOL		fTranslated;
 
     if (IsDlgButtonChecked(hDlg, IDC_ALLOW_GUESTS))
     {
-        theRegistry.SetAllowGuestsSetting(true);
+        theRegistry.set_allow_guests_setting(true);
         gAllowGuests = true;
     }
     else
     {
-        theRegistry.SetAllowGuestsSetting(false);
+        theRegistry.set_allow_guests_setting(false);
         gAllowGuests = false;
     }
     
     if (IsDlgButtonChecked(hDlg, IDC_REQ_ENCRYPTION))
     {
-        theRegistry.SetForceEncryptedLogon(true);
+        theRegistry.set_force_encrypted_logon(true);
         gForceEncryptedLogon = true;
     }
     else
     {
-        theRegistry.SetForceEncryptedLogon(false);
+        theRegistry.set_force_encrypted_logon(false);
         gForceEncryptedLogon = false;
     }
 
     dwMaxSessions = GetDlgItemInt(hDlg, IDC_MAX_CONNECTIONS, &fTranslated, false);
-    theRegistry.SetMaxSessions(dwMaxSessions);
+    theRegistry.set_max_sessions(dwMaxSessions);
 
     gMaxSessions = dwMaxSessions;
 }
@@ -549,7 +551,7 @@ void HandleROCheckbox(
     IN	HWND	hDlg
 )
 {
-    AFPRegistry			theRegistry;
+    afp_registry			theRegistry;
     WCHAR				szShareName[64];
     AFP_VOLUME_INFO*	afpVolume	= NULL;
     LRESULT				dwResult	= 0;
@@ -571,7 +573,7 @@ void HandleROCheckbox(
 
         if (dwResult != LB_ERR)
         {
-            if ((theRegistry.GetVolumeFlags(szShareName, &volFlags) == ERROR_SUCCESS)	&&
+            if ((theRegistry.get_volume_flags(szShareName, &volFlags) == ERROR_SUCCESS)	&&
                 (AFPGetVolumeInfoBlock(szShareName, 0, &afpVolume))						)
             {
                 //
@@ -594,7 +596,7 @@ void HandleROCheckbox(
                     afpVolume->wVolumeFlags &= ~FLAG_VOLUME_READONLY;
                 }
 
-                theRegistry.SetVolumeFlags(szShareName, volFlags);
+                theRegistry.set_volume_flags(szShareName, volFlags);
             }
         }
     }

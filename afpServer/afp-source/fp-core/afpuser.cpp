@@ -991,7 +991,7 @@ AFPERROR FPGetSrvrMsg(
     UNREFERENCED_PARAMETER(afpSession);
 
     unichar			message[AFP_MSG_MAXLEN+1];
-    AFPRegistry		theRegistry;
+    afp_registry		theRegistry;
     uint16			afpMessageType		= 0;
     uint16			afpMessageBitmap	= 0;
     
@@ -1005,7 +1005,7 @@ AFPERROR FPGetSrvrMsg(
         case AFP_MSG_LOGINTYPE:
             DBGWRITE(dbg_level_info, L"[AFP]Message type = Logon\n");
 
-            theRegistry.GetLogonMessage(message);
+            theRegistry.get_logon_message(message);
             break;
 
         case AFP_MSG_SERVERTYPE:

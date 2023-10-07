@@ -11,7 +11,7 @@
 #include "afpnotify.h"
 #include "afpworker.h"
 #include "afp_net_buffer.h"
-#include "AFPRegistry.h"
+#include "afp_registry.h"
 #include "volume_array.h"
 
 volume_array gVolumeArray;
@@ -35,16 +35,17 @@ DWORD WINAPI InitializeVolumesThread(
     WCHAR szSharePath[MAX_PATH];
     PassWord szPassword;
     DWORD volFlags;
-    AFPRegistry theRegistry;
+    afp_registry theRegistry;
 
-    if (theRegistry.OpenVolumeListRegKey())
+    if (theRegistry.open_volume_list_reg_key())
     {
-        while (theRegistry.NextVolume(
+        while (theRegistry.next_volume(
             szShareName,
             sizeof(szShareName),
             szSharePath,
             sizeof(szSharePath),
             reinterpret_cast<PCHAR>(szPassword),
+            sizeof(PassWord),
             &volFlags))
         {
             //
@@ -71,10 +72,10 @@ DWORD AFPAddNewVolumeFromUI(
        IN WCHAR* szPassword
 )
 {
-    AFPRegistry theRegistry;
+    afp_registry theRegistry;
     DWORD dwError;
 
-    dwError = theRegistry.AddVolume(szSharename, szPath, szPassword);
+    dwError = theRegistry.add_volume(szSharename, szPath, szPassword);
 
     if (SUCCEEDED(dwError))
     {
@@ -96,7 +97,7 @@ DWORD AFPRemoveVolumeFromUI(
     IN WCHAR* szShareName
 )
 {
-    AFPRegistry registry;
+    afp_registry registry;
     DWORD error = 2;
 
     auto volume = gVolumeArray.find_by_name(szShareName);
@@ -110,7 +111,7 @@ DWORD AFPRemoveVolumeFromUI(
         //
         //Lastly, remove the volume from the registry.
         //
-        error = registry.RemoveVolume(szShareName);
+        error = registry.remove_volume(szShareName);
     }
 
     return error;
@@ -1257,13 +1258,13 @@ AFPCheckVolumePassword(
        IN PassWord* inPass
 )
 {
-    AFPRegistry theRegistry;
+    afp_registry theRegistry;
     PassWord passWord;
     AFP_VOLUME_INFO* afpVolume = nullptr;
 
     if (AFPGetVolumeInfoBlock(nullptr, wVolID, &afpVolume))
     {
-        if (theRegistry.GetVolumePassword(afpVolume->szShareName, sizeof(PassWord), &passWord) == NO_ERROR)
+        if (theRegistry.get_volume_password(afpVolume->szShareName, sizeof(PassWord), &passWord) == NO_ERROR)
         {
             if (memcmp(inPass, passWord, sizeof(PassWord)))
             {

@@ -181,7 +181,7 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
       <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Full</Optimization>
       <FavorSizeOrSpeed Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Speed</FavorSizeOrSpeed>
     </ClCompile>
-    <ClCompile Include="afp-source\fp-classes\AFPRegistry.cpp" />
+    <ClCompile Include="afp-source\fp-classes\afp_registry.cpp" />
     <ClCompile Include="afp-source\server-core\afpnotify.cpp" />
     <ClCompile Include="afp-source\server-core\afpworker.cpp" />
     <ClCompile Include="afp-source\server-core\counters.cpp" />
@@ -195,7 +195,7 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
   <ItemGroup>
     <ClInclude Include="afp-source\afpServer.h" />
     <ClInclude Include="afp-source\AltStreams.h" />
-    <ClInclude Include="afp-source\fp-classes\AFPRegistry.h" />
+    <ClInclude Include="afp-source\fp-classes\afp_registry.h" />
     <ClInclude Include="afp-source\fp-classes\afp_net_buffer.h" />
     <ClInclude Include="afp-source\fp-classes\auto_lock.h" />
     <ClInclude Include="afp-source\fp-classes\desktop_database.h" />
