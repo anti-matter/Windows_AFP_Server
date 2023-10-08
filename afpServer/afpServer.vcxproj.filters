@@ -27,6 +27,9 @@
     <Filter Include="Source Files\ui">
       <UniqueIdentifier>{b97a557d-6102-47fd-8333-4e8f1e8a5925}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\dsi">
+      <UniqueIdentifier>{86b61527-9dab-4bb9-bb7f-1cb7aa24e507}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="afp-source\fp-core\afpdesktop.cpp">
@@ -125,6 +128,15 @@
     <ClCompile Include="afpdispatch.cpp">
       <Filter>Source Files\fp-core</Filter>
     </ClCompile>
+    <ClCompile Include="afp-source\dsi\dsi_init.cpp">
+      <Filter>Source Files\dsi</Filter>
+    </ClCompile>
+    <ClCompile Include="afp-source\dsi\dsi_connections.cpp">
+      <Filter>Source Files\dsi</Filter>
+    </ClCompile>
+    <ClCompile Include="afp-source\dsi\dsi_connection.cpp">
+      <Filter>Source Files\dsi</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="afp-source\headers\afpworker.h">
@@ -195,6 +207,18 @@
     </ClInclude>
     <ClInclude Include="afpdispatch.h">
       <Filter>Source Files\fp-core</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\dsi\dsi_init.h">
+      <Filter>Source Files\dsi</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\fp-core\afp.h">
+      <Filter>Source Files\server-core</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\dsi\dsi_connections.h">
+      <Filter>Source Files\dsi</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\dsi\dsi_connection.h">
+      <Filter>Source Files\dsi</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

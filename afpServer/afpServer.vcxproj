@@ -150,6 +150,9 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="afp-source\dsi\dsi_connection.cpp" />
+    <ClCompile Include="afp-source\dsi\dsi_connections.cpp" />
+    <ClCompile Include="afp-source\dsi\dsi_init.cpp" />
     <ClCompile Include="afp-source\fp-classes\auto_lock.cpp" />
     <ClCompile Include="afpdispatch.cpp" />
     <ClCompile Include="afpServer.cpp" />
@@ -195,6 +198,9 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
   <ItemGroup>
     <ClInclude Include="afp-source\afpServer.h" />
     <ClInclude Include="afp-source\AltStreams.h" />
+    <ClInclude Include="afp-source\dsi\dsi_connection.h" />
+    <ClInclude Include="afp-source\dsi\dsi_connections.h" />
+    <ClInclude Include="afp-source\dsi\dsi_init.h" />
     <ClInclude Include="afp-source\fp-classes\afp_registry.h" />
     <ClInclude Include="afp-source\fp-classes\afp_net_buffer.h" />
     <ClInclude Include="afp-source\fp-classes\auto_lock.h" />
@@ -206,6 +212,7 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
     <ClInclude Include="afp-source\fp-classes\volume_array.h" />
     <ClInclude Include="afp-source\fp-classes\afp_array.h" />
     <ClInclude Include="afp-source\fp-classes\afp_file_index.h" />
+    <ClInclude Include="afp-source\fp-core\afp.h" />
     <ClInclude Include="afp-source\headers\afpworker.h" />
     <ClInclude Include="afp-source\headers\counters.h" />
     <ClInclude Include="afp-source\helpers\afpdebug.h" />

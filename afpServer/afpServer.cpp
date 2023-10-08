@@ -23,6 +23,7 @@
 #include <strsafe.h>
 
 #include "afpEvents.h"
+#include "dsi/dsi_init.h"
 
 #undef	AFP_HASVOL_PASSWORD_SUPPORT
 
@@ -679,7 +680,7 @@ BOOL CALLBACK MainDialogProc(
             AFPInitializeVolumes();
             AFPInitDesktop();
 
-            dsi_init();
+            dsi::dsi_init();
     
             FillLogonMessageBox(hDlg);
             SetMiscDialogItems(hDlg);

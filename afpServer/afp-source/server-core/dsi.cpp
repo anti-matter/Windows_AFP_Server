@@ -221,7 +221,7 @@ DWORD WINAPI dsi_accept_thread(
 	//
 	GetSystemInfo(&system_info);
 
-	g_num_worker_threads = static_cast<WORD>(system_info.dwNumberOfProcessors * 2);
+	g_num_worker_threads = 5; // static_cast<WORD>(system_info.dwNumberOfProcessors * 2);
 
 	for (WORD i = 0; i < g_num_worker_threads; i++)
 	{
@@ -430,7 +430,7 @@ DWORD WINAPI DSIWorkerThread(
 	IN LPVOID pParam
 )
 {
-	auto compPort = pParam;
+	const auto comp_port = pParam;
 	LPSESSION pSession = nullptr;
 	LPPER_IO_DATA perIOData = nullptr;
 	DWORD dwBytesXferd = 0;
@@ -440,10 +440,10 @@ DWORD WINAPI DSIWorkerThread(
 
 	g_worker_thread_ref_count++;
 
-	//
-	//Adjust the privilege of this thread so we can accept
-	//logons over the network.
-	//
+	// ReSharper disable CppStringLiteralToCharPointerConversion
+
+	// Adjust the privilege of this thread so we can accept
+	// logon over the network.
 	if (!afp_adjust_privilege(SE_TCB_NAME, TRUE))
 	{
 		DBGWRITE(dbg_level_info, L"[DSI]AdjustPrivilege() in worker failed enabling SE_TCB_NAME!\n");
@@ -454,32 +454,27 @@ DWORD WINAPI DSIWorkerThread(
 		DBGWRITE(dbg_level_info, L"[DSI]AdjustPrivilege() in worker failed enabling SE_SECURITY_NAME!\n");
 	}
 
+	// ReSharper restore CppStringLiteralToCharPointerConversion
+
 	while (g_running)
 	{
 		GetQueuedCompletionStatus(
-			compPort,
+			comp_port,
 			&dwBytesXferd,
-			(LPDWORD)&pSession,
-			(LPOVERLAPPED*)&perIOData,
+			reinterpret_cast<LPDWORD>(&pSession),
+			reinterpret_cast<LPOVERLAPPED*>(&perIOData),
 			INFINITE
 		);
 
-		if ((perIOData == nullptr) || (g_running == FALSE))
+		if (perIOData == nullptr || (g_running == FALSE))
 		{
-			DBGWRITE(dbg_level_info, L"[DSI]Shutting down worker thread...\n");
+			DBGWRITE(dbg_level_info, L"Shutting down worker thread...\n");
 			ASSERT(g_running == FALSE);
 
-			//
-			//The reason we call continue below is because gRunning
-			//should now be false.
-			//
 			continue;
 		}
 
-		//
-		//We need to make sure we're not disposing of the session
-		//memory before we go on.
-		//
+		// Make sure we're not disposing of the session memory before we go on.
 		{
 			auto_lock lock(&pSession->cs);
 
@@ -500,142 +495,110 @@ DWORD WINAPI DSIWorkerThread(
 				//
 				//Get rid of the initial ref count increment.
 				//
-				InterlockedDecrement(&pSession->refCount);
+				pSession->refCount--;
 				continue;
 			}
 		}
 
-		//
-		//Service the I/O request completed.
-		//
 		switch (perIOData->operationType)
 		{
 		case RECV_POSTED:
-			perIOData->ioSize = dwBytesXferd;
-
-			if (DSIProcessRecvBytes(pSession, dwBytesXferd, perIOData) == FALSE)
 			{
 				auto_lock lock(&pSession->cs);
 
-				//DBGWRITE(DbgLevelAll, L"[DSI]Request processed for session 0x%x\n", pSession));
-
-				//
-				//We're done processing the request, the reply should already
-				//be on it's way to the client. Now check for any data in
-				//the overflow buffer.
-				//
-				if (perIOData->overflowSize > 0)
+				if (DSIProcessRecvBytes(pSession, dwBytesXferd, perIOData) == FALSE)
 				{
-					BOOL succeeded = FALSE;
-
-					//
-					//We have overflow data from the last request,
-					//we must process it.
-					//
-					ASSERT(perIOData->overflowSize <= perIOData->bufferSize);
-
-					RtlCopyMemory(
-						perIOData->buffer,
-						perIOData->overflow,
-						perIOData->overflowSize);
-
-					dwBytesXferd = perIOData->overflowSize;
-
-					DBG_FREE(perIOData->overflow);
-
-					perIOData->overflow = nullptr;
-					perIOData->overflowSize = 0;
-					perIOData->offset = 0;
-					perIOData->operationType = RECV_POSTED;
-
-					ZeroMemory(&perIOData->overLapped, sizeof(OVERLAPPED));
-
-					InterlockedIncrement(&pSession->refCount);
-
-					//
-					//Now process the new data just like above.
-					//
-					succeeded = PostQueuedCompletionStatus(
-						g_completion_port,
-						dwBytesXferd,
-						(ULONG_PTR)pSession,
-						(LPOVERLAPPED)perIOData
-					);
-
-					if (!succeeded)
+					// We're done processing the request, the reply should already
+					// be on it's way to the client. Now check for any data in
+					// the overflow buffer.
+					if (perIOData->overflowSize > 0)
 					{
-						DBGWRITE(dbg_level_info, L"[DSI]PostQueuedCompletionStatus() failed! (%d)\n", GetLastError());
-						ASSERT(0);
-					}
+						// We have overflow data from the last request, we must process it.
 
-					wNextAction = NO_ACTION;
+						ASSERT(perIOData->overflowSize <= perIOData->bufferSize);
+
+						RtlCopyMemory(
+							perIOData->buffer,
+							perIOData->overflow,
+							perIOData->overflowSize);
+
+						const auto overflow_size = perIOData->overflowSize;
+
+						DBG_FREE(perIOData->overflow);
+
+						perIOData->overflow = nullptr;
+						perIOData->overflowSize = 0;
+						perIOData->offset = 0;
+						perIOData->operationType = RECV_POSTED;
+
+						ZeroMemory(&perIOData->overLapped, sizeof(OVERLAPPED));
+
+						pSession->refCount++;
+
+						const BOOL succeeded = PostQueuedCompletionStatus(
+							g_completion_port,
+							overflow_size,
+							reinterpret_cast<ULONG_PTR>(pSession),
+							reinterpret_cast<LPOVERLAPPED>(perIOData)
+						);
+
+						if (!succeeded)
+						{
+							DBGWRITE(dbg_level_info, L"[DSI]PostQueuedCompletionStatus() failed! (%d)\n", GetLastError());
+							ASSERT(0);
+						}
+
+						wNextAction = NO_ACTION;
+					}
+					else
+					{
+						// Post a recv for the next request from the client.
+						wNextAction = POST_RECV;
+
+						// Need to do this so we look in the right spot in our buffer.
+						perIOData->offset = 0;
+					}
 				}
 				else
 				{
-					//
-					//Post a recv for the next request from the client.
-					//
+					// There is more data for this request, go get it.
 					wNextAction = POST_RECV;
-
-					//
-					//Need to do this so we look in the right spot in our buffer.
-					//
-					perIOData->offset = 0;
 				}
-			}
-			else
-			{
-				//
-				//There is more data for this request, go get it.
-				//
-				wNextAction = POST_RECV;
-			}
 
-			InterlockedDecrement(&pSession->refCount);
+				pSession->refCount--;
+			}
 			break;
 
 		case SEND_POSTED:
-			//
-			//We are being notified that a send operation has completed. dwBytesXferd
-			//contains the number of bytes that were sent to the receiving client.
-			//
-
-			//
-			//Update the number of bytes sent for the performance counters.
-			//
-			AFPUpdateBytesPerSecond(nullptr, &dwBytesXferd);
-
-		//
-		//Set our write offset to account for the data already sent so
-		//we can calculate if we need to continue to send more data.
-		//
-			perIOData->offset += dwBytesXferd;
-
-		//
-		//If we didn't send all the data AND we are not killing the session due
-		//to logon failure or getcmdstatus call, continue to send.
-		//
-			if ((perIOData->offset < perIOData->ioSize) && ((pSession->dwState & sessKillSession) == 0))
 			{
-				//
-				//We didn't send all the data in the last go around. Note that since
-				//we're using overlapped I/O we should never get here.
-				//
-				wNextAction = POST_SEND;
-			}
-			else
-			{
-				//
-				//The send operation is complete. We don't need this
-				//per I/O buffer anymore.
-				//
-				DBG_FREE(perIOData->buffer);
-				DBG_FREE(perIOData);
+				auto_lock lock(&pSession->cs);
 
-				wNextAction = NO_ACTION;
-			}
+				// We are being notified that a send operation has completed. dwBytesXferd
+				// contains the number of bytes that were sent to the receiving client.
 
-			InterlockedDecrement(&pSession->refCount);
+				AFPUpdateBytesPerSecond(nullptr, &dwBytesXferd);
+
+				perIOData->offset += dwBytesXferd;
+
+				// If we didn't send all the data AND we are not killing the session due
+				// to logon failure or getcmdstatus call, continue to send.
+				if (perIOData->offset < perIOData->ioSize && (pSession->dwState & sessKillSession) == 0)
+				{
+					// We didn't send all the data in the last go around. Note that since
+					// we're using overlapped I/O we should never get here.
+					wNextAction = POST_SEND;
+				}
+				else
+				{
+					// The send operation is complete.
+					DBG_FREE(perIOData->buffer);
+					DBG_FREE(perIOData);
+
+					wNextAction = NO_ACTION;
+				}
+
+				pSession->refCount--;
+			}
 			break;
 
 		case NO_ACTION:
@@ -647,33 +610,28 @@ DWORD WINAPI DSIWorkerThread(
 			break;
 		}
 
-		//
-		//The server was told to shutdown while we were in the middle of a
-		//network operation. Close down gracefully.
-		//
+		// The server was told to shutdown while we were in the middle of a
+		// network operation. Close down gracefully.
 		if (!g_running)
 		{
-			//
-			//Zero byts transferred indicates socket has been closed
-			//by the client. We free our handles and close the socket.
-			//
+			auto_lock lock(&pSession->cs);
+
+			// Zero bytes transferred indicates socket has been closed
+			// by the client. We free our handles and close the socket.
 			DBGWRITE(dbg_level_info, L"[DSI]Closing connection due to shutdown (%d)\n", pSession->refCount);
 
-			//
-			//Signal to all other threads that this session is going away adn
-			//get rid of the initial ref count increment.
-			//
+			// Signal to all other threads that this session is going away and
+			// get rid of the initial ref count increment.
 
 			pSession->dwState |= sessClosing;
-			InterlockedDecrement(&pSession->refCount);
+			pSession->refCount--;
 
+			// Exit the thread.
 			break;
 		}
 
-		//
-		//Now, based on the new operation type as set above, post the next
-		//I/O operation on the socket.
-		//
+		// Now, based on the new operation type as set above, post the next
+		// I/O operation on the socket.
 		switch (wNextAction)
 		{
 		case POST_SEND:
@@ -681,50 +639,47 @@ DWORD WINAPI DSIWorkerThread(
 			break;
 
 		case POST_RECV:
-			//
-			//Setup the next overlapped call.
-			//
-			ZeroMemory(&perIOData->overLapped, sizeof(OVERLAPPED));
-
-			perIOData->dataBuffer.len = perIOData->bufferSize - perIOData->offset;
-			perIOData->dataBuffer.buf = &perIOData->buffer[perIOData->offset];
-			perIOData->operationType = RECV_POSTED;
-
-		//
-		//Reset flags as they may have been set on last output
-		//
-			dwFlags = 0;
-
-			dwError = WSARecv(
-				pSession->sock,
-				&perIOData->dataBuffer,
-				1,
-				nullptr,
-				&dwFlags,
-				&perIOData->overLapped,
-				nullptr
-			);
-
-			if (dwError == SOCKET_ERROR)
 			{
-				//
-				//Make sure we are in a I/O pending state.
-				//
-				dwError = WSAGetLastError();
+				auto_lock lock(&pSession->cs);
 
-				if (dwError != WSA_IO_PENDING)
+				ZeroMemory(&perIOData->overLapped, sizeof(OVERLAPPED));
+
+				perIOData->dataBuffer.len = perIOData->bufferSize - perIOData->offset;
+				perIOData->dataBuffer.buf = &perIOData->buffer[perIOData->offset];
+				perIOData->operationType = RECV_POSTED;
+
+				dwFlags = 0;
+
+				dwError = WSARecv(
+					pSession->sock,
+					&perIOData->dataBuffer,
+					1,
+					nullptr,
+					&dwFlags,
+					&perIOData->overLapped,
+					nullptr
+				);
+
+				if (dwError == static_cast<DWORD>(SOCKET_ERROR))
 				{
-					DBGWRITE(dbg_level_info, L"[DSI]WSARecv() returned %d instead of WSA_IO_PENDING\n", dwError);
+					// Make sure we are in a I/O pending state.
+
+					dwError = WSAGetLastError();
+
+					if (dwError != WSA_IO_PENDING)
+					{
+						DBGWRITE(dbg_level_info, L"[DSI]WSARecv() returned %d instead of WSA_IO_PENDING\n", dwError);
+					}
+					else
+					{
+						pSession->refCount++;
+					}
 				}
 				else
-				{
-					InterlockedIncrement(&pSession->refCount);
-				}
-			}
-			else
-				InterlockedIncrement(&pSession->refCount);
+					pSession->refCount++;
 
-			DBGWRITE(dbg_level_all, L"[DSI]Receive posted for session 0x%x\n", pSession);
+				DBGWRITE(dbg_level_all, L"[DSI]Receive posted for session 0x%x\n", pSession);
+			}
 			break;
 
 		case NO_ACTION:
@@ -738,7 +693,7 @@ DWORD WINAPI DSIWorkerThread(
 
 	g_worker_thread_ref_count--;
 
-	return (0);
+	return 0;
 }
 
 
@@ -1391,7 +1346,7 @@ BOOL DSIPostToSendQueue(
 //---------------------------------------------------------------------
 // DSIProcessRecvBytes()
 //---------------------------------------------------------------------
-// Process the recieved bytes after the I/O completion.
+// Process the received bytes after the I/O completion.
 //
 // Returns: TRUE if we are expecting more bytes for this AFP request.
 
@@ -1602,7 +1557,7 @@ void DSIProcessRequest(
 			DBGWRITE(dbg_level_info, L"[DSI]Request ID mismatch! (expected: %d, got: %d)\n",
 			         pSession->wClientRequestID, wPassedReqID);
 
-			DSICleanupSession(pSession);
+			pSession->dwState &= ~sessClosing;
 			return;
 		}
 
@@ -1745,7 +1700,6 @@ void DSIProcessRequest(
 			ASSERT(0);
 
 			DBG_FREE(sendQueue);
-			DSICleanupSession(pSession);
 			break;
 		}
 
@@ -1768,8 +1722,6 @@ void DSIProcessRequest(
 		//the request is neither a reply or a request.
 		//
 		ASSERT(0);
-
-		DSICleanupSession(pSession);
 	}
 }
 
