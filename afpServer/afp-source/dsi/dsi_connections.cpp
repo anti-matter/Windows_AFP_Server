@@ -19,7 +19,7 @@ namespace dsi
 
 		connections_initialized = true;
 
-		std::thread periodic(&periodic_thread, this);
+		std::thread periodic(&dsi_connections::periodic_thread, this);
 		periodic.detach();
 	}
 
@@ -34,7 +34,7 @@ namespace dsi
 		connections_.push_back(connection);
 	}
 
-	void dsi_connections::stop_tracking(dsi_connection* connection)
+	void dsi_connections::stop_tracking(const dsi_connection* connection)
 	{
 		if (connection == nullptr)
 		{
@@ -42,19 +42,12 @@ namespace dsi
 		}
 
 		std::lock_guard<std::mutex> guard(connections_mutex_);
+		const auto itr = std::remove_if(
+			connections_.begin(), 
+			connections_.end(), 
+			[&](const dsi_connection* c) {return c == connection; });
 
-		const auto it = std::find(
-			connections_.begin(),
-			connections_.end(),
-			[connection](const dsi_connection* test)
-			{
-				return test && test == connection;
-			});
-
-		if (it != connections_.end())
-		{
-			connections_.erase(it);
-		}
+		connections_.erase(itr, connections_.end());
 	}
 
 	void dsi_connections::periodic_thread()

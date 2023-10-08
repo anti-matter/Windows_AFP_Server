@@ -113,10 +113,9 @@ AFPERROR FPGetSrvrParms(
 AFPERROR FPGetSrvrInfo( 
     IN	afp_net_buffer&	afpRequest,
     IN	afp_net_buffer&	afpReply,
-    IN	LPSESSION	afpSession
+    IN	LPSESSION	/*afpSession*/
     )
 {	
-    UNREFERENCED_PARAMETER(afpSession);
     UNREFERENCED_PARAMETER(afpRequest);
 
     unichar	szComputerName[MAX_COMPUTERNAME_LENGTH+1];

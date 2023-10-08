@@ -7,8 +7,15 @@
 // from the client. It does not include the DSI header size.
 #define SRVR_REQUEST_QUANTUM_SIZE	(MAXSHORT-dsi_header_size)
 
+// DSIOpen option fields
+enum dsi_option_fields
+{
+	server_request_quantum = 0x00,
+	attention_quantum = 0x01
+};
+
 // Offsets for the DSI header fields
-enum
+enum dsi_header_offsets
 {
 	dsi_offset_flags = 0,
 	dsi_offset_command = 1,
@@ -23,8 +30,28 @@ enum
 	overflow_buffer_size = 4096
 };
 
-#define RECV_BUFFER_SIZE		(MAXWORD) 
-#define SEND_BUFFER_SIZE		(MAXWORD)
+enum dsi_net_flags
+{
+	dsi_request_flag = 0x00,
+	dsi_reply_flag = 0x01
+};
+
+enum dsi_commands
+{
+	dsi_cmd_close_session = 1,
+	dsi_cmd_command,
+	dsi_cmd_get_status,
+	dsi_cmd_open_session,
+	dsi_cmd_tickle,
+	dsi_cmd_write,
+	dsi_cmd_attention = 8
+};
+
+constexpr UINT16 dsi_max_request_id = 65535;
+constexpr UINT32 dsi_server_request_quantum_size = MAXSHORT - dsi_header_size;
+
+#define RECV_BUFFER_SIZE		(MAXSHORT) 
+#define SEND_BUFFER_SIZE		(MAXSHORT)
 
 namespace dsi
 {
@@ -39,9 +66,15 @@ namespace dsi
 
 		void connection_thread();
 		void receive();
-		UINT16 expected_request_id(UINT16 id_from_client);
+		void process_dsi_packet();
 
-		void send_reply(char* reply_buffer, UINT8 dsi_command, INT32 afp_error, INT32 data_size);
+		void dsi_send_status(std::unique_ptr<char[]> reply_buffer);
+		void dsi_open_session(std::unique_ptr<char[]> reply_buffer);
+		void dsi_close_session(std::unique_ptr<char[]> reply_buffer);
+
+		UINT16 adjust_client_request_id(UINT16 id_from_client);
+
+		void send_reply(std::unique_ptr<char[]> reply_buffer, UINT8 dsi_command, INT32 afp_error, INT32 data_size);
 		void send_tickle();
 
 		bool client_lost() const;
@@ -54,8 +87,10 @@ namespace dsi
 	private:
 		SOCKET socket_;
 		UINT32 connection_id_;
-		std::unique_ptr<INT8[]> receive_buffer_;
+		UINT32 attention_quantum_size_;
+		std::unique_ptr<char[]> receive_buffer_;
 		bool continue_receive_;
+		bool dsi_session_open_;
 
 		afp_session* afp_session_;
 

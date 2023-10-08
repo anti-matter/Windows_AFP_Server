@@ -27,7 +27,7 @@ namespace dsi
 		dsi_connections();
 
 		void track_connection(dsi_connection* connection);
-		void stop_tracking(dsi_connection* connection);
+		void stop_tracking(const dsi_connection* connection);
 
 		void periodic_thread();
 
