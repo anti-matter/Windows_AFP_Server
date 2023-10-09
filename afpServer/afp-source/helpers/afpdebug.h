@@ -24,6 +24,8 @@ constexpr dbg_level current_debug_level = dbg_level_all;
 #define DBGWRITE(level, message, ...) afp_debug_write(level, __func__, message, __VA_ARGS__)
 #define ASSERT(exp) assert(exp)
 
+#define DBG_DUMP_BUFFER(buffer, cb_buffer) hex_dump_buffer(buffer, cb_buffer)
+
 
 void afp_debug_write(_In_ const dbg_level debug_level, _In_ const std::string& function, _In_ const WCHAR* format, ...);
 
@@ -63,12 +65,9 @@ void dbg_free(
             
 #define CHECK_DEALLOCATIONS()
 
-#define DEST
 #define DBGWRITE(level, message, ...)
-#define DBGWRITE_IF_ERR(e, x)
 #define ASSERT(exp)
-#define CHECK_ASSERT_IF(IF, exp)
-#define DBGOUTPUT(b,s)
+#define DBG_DUMP_BUFFER(buffer, cb_buffer)
 
 #endif
 

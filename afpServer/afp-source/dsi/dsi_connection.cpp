@@ -1,9 +1,7 @@
 #include "stdafx.h"
-#include "afpdebug.h"
-#include "dsi_connection.h"
-
+#include <afpdebug.h>
 #include <afpsrvr.h>
-
+#include "dsi_connection.h"
 #include "dsi_connections.h"
 
 namespace dsi
@@ -91,6 +89,12 @@ namespace dsi
 				// We have the entire DSI header and AFP payload.
 				process_dsi_packet();
 
+				// Check for error.
+				if (!continue_receive_)
+				{
+					break;
+				}
+
 				// Process any overflow bits in the receive buffer.
 				if (bytes_in_buffer > dsi_header_size + afp_data_length)
 				{
@@ -121,9 +125,9 @@ namespace dsi
 		// Extract the DSI header parameters.
 		const auto dsi_flags = *reinterpret_cast<INT8*>(&receive_buffer_[dsi_offset_flags]);
 		const auto dsi_command = *reinterpret_cast<INT8*>(&receive_buffer_[dsi_offset_command]);
-		const auto dsi_request_id = *reinterpret_cast<UINT16*>(&receive_buffer_[dsi_offset_request_id]);
-		const auto dsi_data_offset = *reinterpret_cast<UINT32*>(&receive_buffer_[dsi_offset_data_offset]);
-		const auto dsi_data_length = *reinterpret_cast<UINT32*>(&receive_buffer_[dsi_offset_data_len]);
+		const auto dsi_request_id = ntohs(*reinterpret_cast<UINT16*>(&receive_buffer_[dsi_offset_request_id]));
+		const auto dsi_data_offset = ntohl(*reinterpret_cast<UINT32*>(&receive_buffer_[dsi_offset_data_offset]));
+		const auto dsi_data_length = ntohl(*reinterpret_cast<UINT32*>(&receive_buffer_[dsi_offset_data_len]));
 
 		last_tickle_ = GetTickCount64();
 
@@ -157,7 +161,7 @@ namespace dsi
 					}
 				}
 
-				// Make sure that DSIOpenSession has been called before processing any other AFP commands.
+				// Make sure that dsi_open_session() has been called before processing any other AFP commands.
 				if (!dsi_session_open_ &&
 					(dsi_command != dsi_cmd_open_session && dsi_command != dsi_cmd_get_status))
 				{
@@ -186,7 +190,7 @@ namespace dsi
 					break;
 
 				case dsi_cmd_get_status:
-					dsi_send_status(std::move(reply_buffer));
+					dsi_send_server_status(std::move(reply_buffer));
 					break;
 
 				case dsi_cmd_write:
@@ -212,7 +216,7 @@ namespace dsi
 		}
 	}
 
-	void dsi_connection::dsi_send_status(std::unique_ptr<char[]> reply_buffer)
+	void dsi_connection::dsi_send_server_status(std::unique_ptr<char[]> reply_buffer)
 	{
 		DBGWRITE(dbg_level_info, L"DSI get status command received.\n");
 
@@ -226,9 +230,9 @@ namespace dsi
 		const auto afp_error = FPGetSrvrInfo(req_buffer, rep_buffer, nullptr);
 
 		send_reply(
-			std::move(reply_buffer), 
-			dsi_cmd_get_status, 
-			afp_error, 
+			std::move(reply_buffer),
+			dsi_cmd_get_status,
+			afp_error,
 			rep_buffer.get_data_length());
 
 		// Per the AFP spec, we close the connection immediately following
@@ -324,6 +328,8 @@ namespace dsi
 
 		last_tickle_ = GetTickCount64();
 
+		DBG_DUMP_BUFFER(reply_buffer.get(), data_size + dsi_header_size);
+
 		do
 		{
 			bytes_sent = send(socket_, reply_buffer.get(), bytes_size, 0);
@@ -381,9 +387,22 @@ namespace dsi
 			return;
 		}
 
+		DBGWRITE(dbg_level_info, L"Killing connection (%d)\n", connection_id_);
+
 		continue_receive_ = false;
 
-		shutdown(socket_, SD_BOTH);
+		shutdown(socket_, SD_SEND);
+
+		// Call recv() to ensure socket is shutdown before closing.
+		int bytes_received;
+
+		do
+		{
+			bytes_received = recv(socket_, receive_buffer_.get(), RECV_BUFFER_SIZE, 0);
+		} while (bytes_received > 0);
+
+		DBGWRITE(dbg_level_info, L"Closing socket...\n");
+
 		closesocket(socket_);
 	}
 }

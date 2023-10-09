@@ -68,7 +68,7 @@ namespace dsi
 		void receive();
 		void process_dsi_packet();
 
-		void dsi_send_status(std::unique_ptr<char[]> reply_buffer);
+		void dsi_send_server_status(std::unique_ptr<char[]> reply_buffer);
 		void dsi_open_session(std::unique_ptr<char[]> reply_buffer);
 		void dsi_close_session(std::unique_ptr<char[]> reply_buffer);
 
