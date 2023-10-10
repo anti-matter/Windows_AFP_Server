@@ -29,6 +29,8 @@ namespace dsi
 	{
 		active_connections.stop_tracking(this);
 		kill_connection();
+
+		closesocket(socket_);
 	}
 
 	void dsi_connection::connection_thread()
@@ -68,7 +70,7 @@ namespace dsi
 				continue;
 			}
 
-			bytes_in_buffer += bytes_received;
+			bytes_in_buffer += static_cast<UINT16>(bytes_received);
 
 			if (bytes_in_buffer < dsi_header_size)
 			{
@@ -100,7 +102,7 @@ namespace dsi
 				{
 					// Move the bits to the top of the receive buffer.
 
-					bytes_in_buffer -= (dsi_header_size + afp_data_length);
+					bytes_in_buffer -= static_cast<UINT16>(dsi_header_size + afp_data_length);
 
 					DBGWRITE(dbg_level_info, L"Processing overflow bytes!!! (%d)\n", bytes_in_buffer);
 
@@ -143,11 +145,12 @@ namespace dsi
 						L"DSI request id does not match expected value: %d expected, %d recevied.\n",
 						expected_request_id,
 						dsi_request_id);
-					ASSERT(0);
+					//ASSERT(0);
 
-					kill_connection();
-					return;
+					//kill_connection();
+					//return;
 				}
+				client_request_id_ = dsi_request_id;
 
 				std::unique_ptr<char[]> reply_buffer;
 
@@ -324,11 +327,11 @@ namespace dsi
 
 		UINT32 offset = 0;
 		INT32 bytes_sent;
-		INT32 bytes_size = data_size;
+		INT32 bytes_size = data_size + dsi_header_size;
 
 		last_tickle_ = GetTickCount64();
 
-		DBG_DUMP_BUFFER(reply_buffer.get(), data_size + dsi_header_size);
+		DBG_DUMP_BUFFER(reply_buffer.get(), bytes_size);
 
 		do
 		{
