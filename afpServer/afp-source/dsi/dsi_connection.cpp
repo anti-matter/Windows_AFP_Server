@@ -37,11 +37,14 @@ namespace dsi
 
 	void dsi_connection::connection_thread()
 	{
+		// Loop thread to handle received packets.
 		receive();
+
+		// We remove from tracking here, which will delete this instance, so
+		// that the thread has an opportunity to terminate gracefully.
 		active_connections.stop_tracking(connection_id_);
 
-		DBGWRITE(dbg_level_info, L"Connection thread terminated (%x)\n", socket_);
-
+		DBGWRITE(dbg_level_info, L"Connection thread terminated (%d)\n", connection_id_);
 	}
 
 	void dsi_connection::receive()
@@ -59,15 +62,16 @@ namespace dsi
 			UINT16 bytes_in_buffer = 0;
 
 			const auto bytes_received = recv(
-				socket_, 
-				receive_buffer_.get(), 
-				RECV_BUFFER_SIZE - bytes_in_buffer, 
+				socket_,
+				receive_buffer_.get(),
+				RECV_BUFFER_SIZE - bytes_in_buffer,
 				0);
 
 			if (bytes_received == 0)
 			{
 				// Connection is closing
 				kill_connection();
+				break;
 			}
 			else if (bytes_received <= 0)
 			{
@@ -96,7 +100,7 @@ namespace dsi
 				// We have the entire DSI header and AFP payload.
 				process_dsi_packet();
 
-				// Check for error.
+				// Check for connection closure.
 				if (!continue_receive_)
 				{
 					break;
