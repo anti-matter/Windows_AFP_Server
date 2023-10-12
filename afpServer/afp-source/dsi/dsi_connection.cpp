@@ -2,6 +2,8 @@
 #include <afpdebug.h>
 #include <afpsrvr.h>
 #include "dsi_connection.h"
+
+#include <afpfileio.h>
 #include "dsi_connections.h"
 
 namespace dsi
@@ -10,33 +12,36 @@ namespace dsi
 
 	dsi_connection::dsi_connection(const SOCKET socket, const UINT32 connection_id)
 		: socket_(socket)
-		, connection_id_(connection_id)
-		, attention_quantum_size_(0)
-		, continue_receive_(true)
-		, dsi_session_open_(false)
-		, client_request_id_(0)
-		, server_request_id_(0)
+		  , connection_id_(connection_id)
+		  , attention_quantum_size_(0)
+		  , continue_receive_(true)
+		  , dsi_session_open_(false)
+		  , client_request_id_(0)
+		  , server_request_id_(0)
+		  , last_tickle_(0)
+		  , client_sleeping_(false)
 	{
 		DBGWRITE(dbg_level_info, L"Connection (%d) accepted\n", connection_id_);
 
 		receive_buffer_ = std::make_unique<char[]>(RECV_BUFFER_SIZE);
 		afp_session_ = new afp_session(nullptr);
-
-		active_connections.track_connection(this);
 	}
 
 	dsi_connection::~dsi_connection()
 	{
-		active_connections.stop_tracking(this);
 		kill_connection();
-
 		closesocket(socket_);
+
+		DBGWRITE(dbg_level_info, L"dsi_connection closed.\n");
 	}
 
 	void dsi_connection::connection_thread()
 	{
 		receive();
+		active_connections.stop_tracking(connection_id_);
+
 		DBGWRITE(dbg_level_info, L"Connection thread terminated (%x)\n", socket_);
+
 	}
 
 	void dsi_connection::receive()
@@ -289,6 +294,48 @@ namespace dsi
 		kill_connection();
 	}
 
+	void dsi_connection::dsi_process_command(std::unique_ptr<char[]> reply_buffer, UINT8 afp_cmd)
+	{
+		AFPERROR afp_error;
+
+		//switch (afp_cmd)
+		//{
+		//	// For performance reasons, we handle read calls from here
+		//	// in the DSI layer. This saves the overhead of the FPDispatch()
+		//	// routine for this high performance function.
+
+		//case afpRead:
+		//case afpReadExt:
+		//	afp_error = FPRead(
+		//		nullptr,
+		//		&mReceiveBuffer[DSI_OFFSET_DATASTART],
+		//		&afpReplyBuffer[DSI_OFFSET_DATASTART],
+		//		&afpDataSize
+		//	);
+
+		//	FormatAndSendReply(afpReplyBuffer, dsiCommand, afp_error, afpDataSize);
+		//	break;
+
+		//default:
+		//	afp_error = FPDispatchCommand(
+		//		mSession,
+		//		&mReceiveBuffer[DSI_OFFSET_DATASTART],
+		//		&afpReplyBuffer[DSI_OFFSET_DATASTART],
+		//		&afpDataSize
+		//	);
+
+		//	FormatAndSendReply(afpReplyBuffer, dsiCommand, afp_error, afpDataSize);
+
+		//	if ((!mSession->IsAuthenticated()) && (afp_error != afpAuthContinue))
+		//	{
+		//		DPRINT(("[BAFPConnection]Authentication gone, killing session\n"));
+		//		KillSession();
+		//	}
+		//	break;
+		//}
+
+	}
+
 	UINT16 dsi_connection::adjust_client_request_id(const UINT16 id_from_client)
 	{
 		if (client_request_id_ == dsi_max_request_id) {
@@ -403,8 +450,6 @@ namespace dsi
 		{
 			bytes_received = recv(socket_, receive_buffer_.get(), RECV_BUFFER_SIZE, 0);
 		} while (bytes_received > 0);
-
-		DBGWRITE(dbg_level_info, L"Closing socket...\n");
 
 		closesocket(socket_);
 	}

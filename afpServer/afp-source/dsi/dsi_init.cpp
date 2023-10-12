@@ -12,6 +12,8 @@ SOCKET listen_socket;
 
 namespace dsi
 {
+	extern dsi_connections active_connections;
+
 	void dsi_init()
 	{
 		WSADATA wsa_data;
@@ -92,12 +94,17 @@ namespace dsi
 					continue;
 				}
 
+				DBGWRITE(dbg_level_info, L"Connection id (%d) accepted.\n", connection_id);
+
 				// Create the connection object that will service the socket
 				// and kick it off on its own thread.
-				const auto connection = new dsi_connection(new_sock, connection_id++);
+				auto connection = std::make_unique<dsi_connection>(new_sock, connection_id++);
 
-				std::thread connection_thread(&dsi_connection::connection_thread, connection);
+				std::thread connection_thread(&dsi_connection::connection_thread, connection.get());
 				connection_thread.detach();
+
+				// Henceforth the connection manager owns the pointer.
+				active_connections.track_connection(connection);
 			}
 
 			closesocket(listen_socket);

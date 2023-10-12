@@ -250,7 +250,7 @@ AFPERROR FPGetSessionToken(
  * FPDisconnectOldSession()
  *
  * Description:
- *		AFP clients call this when they are inadvertantly cutoff from
+ *		AFP clients call this when they are inadvertently cutoff from
  *		the file server. The client calls this to transfer all resources
  *		from the old session to this new one.
  *

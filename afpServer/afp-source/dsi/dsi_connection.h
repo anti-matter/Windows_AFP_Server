@@ -58,7 +58,7 @@ namespace dsi
 	// This class manages the network connection and data flow between
 	// the server and client. Here we process the incoming requests
 	// and hand off the afp packet to the afp engine for action.
-	class dsi_connection
+	class dsi_connection  // NOLINT(cppcoreguidelines-special-member-functions)
 	{
 	public:
 		dsi_connection(SOCKET socket, UINT32 connection_id);
@@ -71,6 +71,7 @@ namespace dsi
 		void dsi_send_server_status(std::unique_ptr<char[]> reply_buffer);
 		void dsi_open_session(std::unique_ptr<char[]> reply_buffer);
 		void dsi_close_session(std::unique_ptr<char[]> reply_buffer);
+		void dsi_process_command(std::unique_ptr<char[]> reply_buffer, UINT8 afp_cmd);
 
 		UINT16 adjust_client_request_id(UINT16 id_from_client);
 
@@ -83,6 +84,7 @@ namespace dsi
 		// Accessors
 		bool tickle_required() const { return GetTickCount64() - last_tickle_ > AFP_TICKLE_TIME; }
 		void set_sleep_state(const bool sleeping) { client_sleeping_ = sleeping;  }
+		UINT32 get_connection_id() const { return connection_id_; }
 
 	private:
 		SOCKET socket_;

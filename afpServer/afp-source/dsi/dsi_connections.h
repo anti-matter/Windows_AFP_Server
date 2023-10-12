@@ -26,13 +26,13 @@ namespace dsi
 	public:
 		dsi_connections();
 
-		void track_connection(dsi_connection* connection);
-		void stop_tracking(const dsi_connection* connection);
+		void track_connection(std::unique_ptr<dsi_connection>& connection);
+		void stop_tracking(UINT32 connection_id);
 
 		void periodic_thread();
 
 	private:
-		std::vector<dsi_connection*> connections_;
+		std::vector<std::unique_ptr<dsi_connection>> connections_;
 		std::mutex connections_mutex_;
 	};
 }
