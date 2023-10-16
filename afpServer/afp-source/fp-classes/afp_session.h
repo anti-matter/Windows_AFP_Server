@@ -3,13 +3,14 @@
 #include "volumes.h"
 #include "afphelp.h"
 #include "desktop.h"
+#include "dsi/dsi_connection.h"
 
 class afp_open_file;
 
 class afp_session  // NOLINT(cppcoreguidelines-special-member-functions)
 {
 public:
-    explicit afp_session(LPSESSION dsi_session);
+    explicit afp_session(dsi::dsi_connection* dsi_session);
 	~afp_session();
 
 	void associate_open_file(afp_open_file* open_file);
@@ -41,16 +42,13 @@ public:
 	int16 get_num_volumes_open() const { return static_cast<int16>(m_open_volumes_.size()); }
 	int16 get_num_desks_open() const { return static_cast<int16>(m_open_desks_.size()); }
 
-	void set_session_id(int8* id, uint32 id_size);
-	int8* get_afp_id() const { return afp_id_; }
+	void set_session_id(std::unique_ptr<char[]>& id, uint32 id_size);
+	char* get_afp_id() const { return afp_id_.get(); }
 	uint32 get_afp_id_size() const { return afp_id_size_; }
 	void set_afp_time_stamp(uint32 inTime) { m_afp_time_stamp_ = inTime; }
 	uint32 get_afp_time_stamp() const { return m_afp_time_stamp_; }
 
-	LPSESSION get_dsi_session() const { return m_dsi_session_; }
-
-	static afp_session* find_session_with_id(const int8* afp_id, uint32 id_size);
-	static afp_session* find_session_by_token(int32 token);
+	dsi::dsi_connection* get_dsi_session() const { return m_dsi_session_; }
 
 private:
 
@@ -60,10 +58,13 @@ private:
 	std::vector<AFP_VOLUME_INFO*> m_open_volumes_;
 	std::vector<std::unique_ptr<OPEN_DESKTOP>> m_open_desks_;
 
-	uint32 m_token_;
-	int8* afp_id_;
+	// These are used so the AFP client can reference this session in
+	// the event of a client crash or disconnection.
+	std::unique_ptr<char[]> afp_id_;
 	uint32 afp_id_size_;
+
+	uint32 m_token_;
 	uint32 m_afp_time_stamp_;
 
-	LPSESSION m_dsi_session_;
+	dsi::dsi_connection* m_dsi_session_;
 };

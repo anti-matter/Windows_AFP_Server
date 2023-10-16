@@ -1,6 +1,7 @@
 #pragma once
 #include <winsock2.h>
 
+#include "afpdhxlogin.h"
 #include "afp_session.h"
 
 // This is the largest request that the server can receive
@@ -71,11 +72,11 @@ namespace dsi
 		void dsi_send_server_status(std::unique_ptr<char[]> reply_buffer);
 		void dsi_open_session(std::unique_ptr<char[]> reply_buffer);
 		void dsi_close_session(std::unique_ptr<char[]> reply_buffer);
-		void dsi_process_command(std::unique_ptr<char[]> reply_buffer, UINT8 afp_cmd);
+		void dsi_process_command(std::unique_ptr<char[]> reply_buffer, UINT8 dsi_cmd, UINT8 afp_cmd);
 
 		UINT16 adjust_client_request_id(UINT16 id_from_client);
 
-		void send_reply(std::unique_ptr<char[]> reply_buffer, UINT8 dsi_command, INT32 afp_error, INT32 data_size);
+		void send_reply(std::unique_ptr<char[]> reply_buffer, UINT8 dsi_command, INT32 afp_error, UINT32 data_size);
 		void send_tickle();
 
 		bool client_lost() const;
@@ -84,7 +85,33 @@ namespace dsi
 		// Accessors
 		bool tickle_required() const { return GetTickCount64() - last_tickle_ > AFP_TICKLE_TIME; }
 		void set_sleep_state(const bool sleeping) { client_sleeping_ = sleeping;  }
+		bool get_is_client_sleeping() const { return client_sleeping_; }
+
 		UINT32 get_connection_id() const { return connection_id_; }
+
+		HANDLE get_user_token() const { return user_token_; }
+		void set_user_token(const HANDLE token) { user_token_ = token; }
+		void set_session_authenticated(const bool authenticated) { session_authenticated_ = authenticated; }
+		bool get_is_session_authenticated() const { return session_authenticated_; }
+
+		void set_afp_version(const UINT8 version) { afp_version_ = version; }
+		UINT8 get_afp_version() const { return afp_version_; }
+
+		// Logon data accessors.
+		void set_uam_type(const INT8 version) { uam_type_ = version; }
+		INT8 get_uam_type() const { return uam_type_; }
+		void set_user_name(const std::wstring& user_name) { user_name_ = user_name; }
+		std::wstring get_user_name() const { return user_name_; }
+		void set_domain_name(const std::wstring& domain_name) { domain_name_ = domain_name; }
+		std::wstring get_domain_name() const { return domain_name_; }
+
+		void set_extended_logon_info(std::unique_ptr<DHXInfo>& data) { extended_logon_info_ = std::move(data); }
+		DHXInfo* get_extended_logon_info() const { return extended_logon_info_.get(); }
+		void free_extended_logon_info() { extended_logon_info_ = nullptr; }
+
+		afp_session* get_afp_session() const { return afp_session_.get(); }
+		void make_afp_session() { afp_session_ = std::make_unique<afp_session>(this); }
+		void free_afp_session() { afp_session_ = nullptr; }
 
 	private:
 		SOCKET socket_;
@@ -94,12 +121,26 @@ namespace dsi
 		bool continue_receive_;
 		bool dsi_session_open_;
 
-		afp_session* afp_session_;
+		std::unique_ptr<afp_session> afp_session_;
 
 		UINT16 client_request_id_;
 		UINT16 server_request_id_;
 
 		ULONGLONG last_tickle_;
+
+		// This is for the new FPZzzz command which tells the server
+		// when the client is going to sleep.
 		bool client_sleeping_;
+
+		HANDLE user_token_;
+		bool session_authenticated_;
+
+		UINT8 afp_version_;
+
+		INT8 uam_type_;
+		std::unique_ptr<DHXInfo> extended_logon_info_;
+
+		std::wstring user_name_;
+		std::wstring domain_name_;
 	};
 }

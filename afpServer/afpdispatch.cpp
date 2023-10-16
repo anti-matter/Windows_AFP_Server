@@ -8,7 +8,7 @@
 #include <afpxattr.h>
 
 
-using afp_func = AFPERROR(*)(afp_net_buffer& afp_request, afp_net_buffer& afp_reply, LPSESSION dsi_session);
+using afp_func = AFPERROR(*)(afp_net_buffer& afp_request, afp_net_buffer& afp_reply, dsi::dsi_connection* connection);
 using afp_function_table = struct
 {
 	afp_func func;
@@ -129,42 +129,32 @@ AFPERROR fp_unimplemented(
  */
 
 AFPERROR fp_dispatch_command(
-	IN const LPPER_IO_DATA received_data,
-	IN const LPSEND_QUEUE reply_queue
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
 )
 {
-	afp_net_buffer afp_request(reinterpret_cast<uint8*>(&received_data->buffer[DSI_OFFSET_DATASTART]), received_data->ioSize);
-	afp_net_buffer afp_reply(reinterpret_cast<uint8*>(&reply_queue->sendIOData.buffer[DSI_OFFSET_DATASTART]),
-	                        reply_queue->sendIOData.bufferSize);
-
-	const BYTE afp_command = received_data->buffer[DSI_OFFSET_DATASTART];
+	const auto afp_command = afp_request.get_num<INT8>();
 	AFPERROR afp_error = afpCallNotSupported;
 
-	//
-	//Save this value as some AFP functions need it (such as FPWrite).
-	//
-	afp_request.set_dsi_data_offset(ntohl(*reinterpret_cast<DWORD*>(&received_data->buffer[DSI_OFFSET_DATAOFFSET])));
-
-	//
-	//Whether we're authenticated or not is how we determine
-	//what afp commands we allow the client to execute.
-	//
-	if (reply_queue->pSession->hUserToken != nullptr && reply_queue->pSession->dwState & sessAuthenticated)
+	// Whether we're authenticated or not is how we determine
+	// what afp commands we allow the client to execute.
+	if (connection->get_user_token() != nullptr && connection->get_is_session_authenticated())
 	{
 		if (afp_command <= afpListExtAttr)
 		{
-			afp_error = afp_table[afp_command].func(afp_request, afp_reply, reply_queue->pSession);
+			afp_error = afp_table[afp_command].func(afp_request, afp_reply, connection);
 		}
 		else
 		{
 			switch (afp_command)
 			{
 			case afpAddIcon:
-				afp_error = FPAddIcon(afp_request, afp_reply, reply_queue->pSession);
+				afp_error = FPAddIcon(afp_request, afp_reply, connection);
 				break;
 
 			case afpZzzz:
-				afp_error = FPZzzz(afp_request, afp_reply, reply_queue->pSession);
+				afp_error = FPZzzz(afp_request, afp_reply, connection);
 				break;
 
 			default:
@@ -177,43 +167,24 @@ AFPERROR fp_dispatch_command(
 		switch (afp_command)
 		{
 		case afpGetSInfo:
-			afp_error = FPGetSrvrInfo(afp_request, afp_reply, reply_queue->pSession);
+			afp_error = FPGetSrvrInfo(afp_request, afp_reply, connection);
 			break;
 
 		case afpLoginExt:
 		case afpLogin:
-			afp_error = FPLogin(afp_request, afp_reply, reply_queue->pSession);
+			afp_error = FPLogin(afp_request, afp_reply, connection);
 			break;
 
 		case afpContLogin:
-			afp_error = FPContLogin(afp_request, afp_reply, reply_queue->pSession);
+			afp_error = FPContLogin(afp_request, afp_reply, connection);
 			break;
 
 		default:
-			DBGWRITE(dbg_level_info, L"[afp:FPDispatchCommand]Call not implemented (%d)\n", afp_command);
+			DBGWRITE(dbg_level_info, L"Call not implemented (%d)\n", afp_command);
 			afp_error = afpAccessDenied;
 			break;
 		}
 	}
 
-	if (AFP_SUCCESS(afp_error) || (afp_error == afpAuthContinue))
-	{
-		switch (afp_command)
-		{
-		//
-		//Some AFP calls return their results in the DSI Header's size field.
-		//So, we have to make special checks here.
-		//
-		case afpRead:
-		case afpReadExt:
-			reply_queue->sendIOData.ioSize = afp_reply.get_dsi_return_value();
-			break;
-
-		default:
-			reply_queue->sendIOData.ioSize = afp_reply.get_data_length();
-			break;
-		}
-	}
-
-	return (afp_error);
+	return afp_error;
 }

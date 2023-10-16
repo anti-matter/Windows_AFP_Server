@@ -11,7 +11,7 @@
 
 extern HINSTANCE	ghInstance;
 extern BOOL			gMainWindowVisible;
-extern WCHAR		gServerMessage[AFP_MSG_MAXLEN+1];
+extern WCHAR		g_server_message[AFP_MSG_MAXLEN+1];
 
 
 

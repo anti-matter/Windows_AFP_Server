@@ -31,15 +31,15 @@ typedef struct
 
 typedef struct
 {
-	BYTE		entryType;
+	UINT8		entryType;
 	
 	FILETYPE	fileType;
 	FILECREATOR	fileCreator;
 	DWORD		entryTag;
 	DWORD		dirID;
-	BYTE		iconType;
-	size_t		dataSize;
-	BYTE		pathType;
+	UINT8		iconType;
+	UINT16		dataSize;
+	INT8		pathType;
 	
 	WCHAR		pathname[MAX_AFP_NAME];
 	CHAR		data[MAX_DESKTOP_DATA_SIZE];

@@ -4,8 +4,7 @@
 #include "afp_open_file.h"
 #include <algorithm>
 
-extern LPSESSION g_sessions_list;
-extern CRITICAL_SECTION g_cs_session_list;
+#include "dsi/dsi_connections.h"
 
 
 /*
@@ -17,10 +16,10 @@ extern CRITICAL_SECTION g_cs_session_list;
  * Returns: None
  */
 
-afp_session::afp_session(const LPSESSION dsi_session)
-    : m_token_(GetTickCount())
-      , afp_id_(nullptr)
+afp_session::afp_session(dsi::dsi_connection* dsi_session)
+    : afp_id_(nullptr)
       , afp_id_size_(0)
+      , m_token_(GetTickCount())
       , m_afp_time_stamp_(0)
       , m_dsi_session_(dsi_session)
 {
@@ -57,8 +56,6 @@ afp_session::~afp_session()
     });
 
     LeaveCriticalSection(&m_mutex_);
-
-    delete [] afp_id_;
     DeleteCriticalSection(&m_mutex_);
 }
 
@@ -380,82 +377,13 @@ OPEN_DESKTOP* afp_session::find_desk_file(const uint16 desk_ref_num)
  * Returns: none
  */
 
-void afp_session::set_session_id(int8* id, const uint32 id_size)
+void afp_session::set_session_id(std::unique_ptr<char[]>& id, const uint32 id_size)
 {
-	delete afp_id_;
+    if (afp_id_ != nullptr)
+    {
+        afp_id_ = nullptr;
+    }
 
-	afp_id_ = id;
+    afp_id_ = std::move(id);
     afp_id_size_ = id_size;
-}
-
-
-/*
- * find_session_with_id()
- *
- * Description:
- *		Finds a session with the specified afp ID as set by the client.
- *
- * Returns: none
- */
-
-afp_session* afp_session::find_session_with_id(const int8* afp_id, const uint32 id_size)
-{
-    auto session = g_sessions_list;
-
-    auto_lock lock(&g_cs_session_list);
-
-    while (session)
-    {
-	    const auto afp_object = static_cast<afp_session*>(session->afpSessionObject);
-
-        if (afp_object != nullptr)
-        {
-	        const auto afp_object_id = afp_object->get_afp_id();
-
-            if (afp_object_id != nullptr &&
-                id_size == afp_object->get_afp_id_size() &&
-                !memcmp(afp_id, afp_object_id, id_size))
-            {
-                return afp_object;
-            }
-        }
-
-        session = static_cast<LPSESSION>(session->next);
-    }
-
-    return nullptr;
-}
-
-
-/*
- * find_session_by_token()
- *
- * Description:
- *		Finds a session with the specified afp token.
- *
- * Returns: none
- */
-
-afp_session* afp_session::find_session_by_token(const int32 token)
-{
-    auto session = g_sessions_list;
-
-    auto_lock lock(&g_cs_session_list);
-
-    while (session)
-    {
-	    const auto session_object = static_cast<afp_session*>(session->afpSessionObject);
-
-        if (session_object != nullptr)
-        {
-            if (session_object->get_token() == static_cast<uint32>(token))
-            {
-                return session_object;
-            }
-        }
-
-        session = static_cast<LPSESSION>(session->next);
-    }
-
-    return nullptr;
 }

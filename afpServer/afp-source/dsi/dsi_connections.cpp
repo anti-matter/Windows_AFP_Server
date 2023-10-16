@@ -62,4 +62,44 @@ namespace dsi
 		//	}
 		//}
 	}
+
+	afp_session* dsi_connections::find_afp_session_with_id(const char* afp_id, const UINT32 id_size)
+	{
+		std::lock_guard<std::mutex> guard(connections_mutex_);
+
+		for (const auto connection : connections_)
+		{
+			const auto afp_object = connection->get_afp_session();
+			if (afp_object != nullptr)
+			{
+				const auto afp_object_id = afp_object->get_afp_id();
+				if (afp_id != nullptr && id_size == afp_object->get_afp_id_size() &&
+					!memcmp(afp_id, afp_object_id, id_size))
+				{
+					return afp_object;
+				}
+			}
+		}
+
+		return nullptr;
+	}
+
+	afp_session* dsi_connections::find_afp_session_with_token(const UINT32 token)
+	{
+		std::lock_guard<std::mutex> guard(connections_mutex_);
+
+		for (const auto connection : connections_)
+		{
+			const auto afp_object = connection->get_afp_session();
+			if (afp_object != nullptr)
+			{
+				if (afp_object->get_token() == token)
+				{
+					return afp_object;
+				}
+			}
+		}
+
+		return nullptr;
+	}
 }

@@ -213,6 +213,15 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
     <ClInclude Include="afp-source\fp-classes\afp_array.h" />
     <ClInclude Include="afp-source\fp-classes\afp_file_index.h" />
     <ClInclude Include="afp-source\fp-core\afp.h" />
+    <ClInclude Include="afp-source\fp-core\afpdesktop.h" />
+    <ClInclude Include="afp-source\fp-core\afpdirectory.h" />
+    <ClInclude Include="afp-source\fp-core\afpfileio.h" />
+    <ClInclude Include="afp-source\fp-core\afpsrvr.h" />
+    <ClInclude Include="afp-source\fp-core\afpuser.h" />
+    <ClInclude Include="afp-source\fp-core\afpvolumes.h" />
+    <ClInclude Include="afp-source\fp-core\afpxattr.h" />
+    <ClInclude Include="afp-source\fp-imp\afpdhxlogin.h" />
+    <ClInclude Include="afp-source\fp-imp\logonimp.h" />
     <ClInclude Include="afp-source\headers\afpworker.h" />
     <ClInclude Include="afp-source\headers\counters.h" />
     <ClInclude Include="afp-source\helpers\afpdebug.h" />

@@ -1,77 +1,60 @@
-/*
- *	afpuser.cpp
- *	Created 3/5/2005
- *
- *	Copyright © 2005, Michael J. Conrad. All Rights Reserved.
- *
- *	Core FP user routines (login, session, messages).
- */
-
 #include "StdAfx.h"
 #include "afpuser.h"
+
+#include <logonimp.h>
+
 #include "afpEvents.h"
 #include "afpdhxlogin.h"
+#include "afp_registry.h"
+#include "afp_session.h"
+#include "dsi/dsi_connections.h"
 
 
-WCHAR	gServerMessage[AFP_MSG_MAXLEN+1];
-BOOL	gAllowGuests			= TRUE;
-DWORD	gMaxSessions			= 0;
-BOOL	gForceEncryptedLogon	= FALSE;
+WCHAR g_server_message[AFP_MSG_MAXLEN + 1];
+BOOL g_allow_guests = TRUE;
+DWORD g_max_sessions = 0;
+BOOL g_force_encrypted_logon = FALSE;
+
+extern dsi::dsi_connections active_connections;
 
 
-/*
- * afpGetIntAFPVersion()
- *
- * Description:
- *		Returns the integer-based AFP version.
- *
- * Returns: AFPERROR
- */
-
-int8 afpGetIntAFPVersion(WCHAR* afpVersion)
+UINT8 get_afp_version_as_int(const WCHAR* version)
 {
-    int8	result = -1;
+	int8 result = 0;
 
-    if (!lstrcmp(afpVersion, AFP_22_VERSION_STR))
-        result = afpVersion22;
-    else if (!lstrcmp(afpVersion, AFP_30_VERSION_STR))
-        result = afpVersion30;
-    else if (!lstrcmp(afpVersion, AFP_31_VERSION_STR))
-        result = afpVersion31;
-    else if (!lstrcmp(afpVersion, AFP_32_VERSION_STR))
-        result = afpVersion32;
-    else {
-        ASSERT(0);
-    }
+	if (!lstrcmp(version, AFP_22_VERSION_STR))
+		result = afpVersion22;
+	else if (!lstrcmp(version, AFP_30_VERSION_STR))
+		result = afpVersion30;
+	else if (!lstrcmp(version, AFP_31_VERSION_STR))
+		result = afpVersion31;
+	else if (!lstrcmp(version, AFP_32_VERSION_STR))
+		result = afpVersion32;
+	else
+	{
+		ASSERT(0);
+	}
 
-    return( result );
+	return result;
 }
 
 
-/*
- * afpGetIntUAMType()
- *
- * Description:
- *		Returns the integer-based UAM type.
- *
- * Returns: AFPERROR
- */
-
-int8 afpGetIntUAMType(WCHAR* uamString)
+INT8 get_uam_type_as_int(const WCHAR* uam_string)
 {
-    int8	result = -1;
+	int8 result = -1;
 
-    if (!lstrcmp(uamString, UAM_NONE_STR))
-        result = afpUAMNone;
-    else if (!lstrcmp(uamString, UAM_CLEAR_TEXT))
-        result = afpUAMCleartext;
-    else if (!lstrcmp(uamString, UAM_DHCAST128))
-        result = afpUAMDHCAST128;
-    else {
-        ASSERT(0);
-    }
+	if (!lstrcmp(uam_string, UAM_NONE_STR))
+		result = afpUAMNone;
+	else if (!lstrcmp(uam_string, UAM_CLEAR_TEXT))
+		result = afpUAMCleartext;
+	else if (!lstrcmp(uam_string, UAM_DHCAST128))
+		result = afpUAMDHCAST128;
+	else
+	{
+		ASSERT(0);
+	}
 
-    return( result );
+	return (result);
 }
 
 
@@ -85,164 +68,134 @@ int8 afpGetIntUAMType(WCHAR* uamString)
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPGetSessionToken(
-    IN	afp_net_buffer&	afpRequest,
-    IN	afp_net_buffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	const dsi::dsi_connection* connection
+)
 {
-    afp_session*	afpSessObject	= (afp_session*)afpSession->afpSessionObject;
-    afp_session*	afpOldSession	= NULL;
-    int16			afpType			= 0;
-    int32			afpIDSize		= 0;
-    int8*			afpID			= NULL;
-    uint32			afpTimeStamp	= 0;
-    int32			afpToken		= afpSessObject->get_token();
-    bool			fSavedID		= false;
-    
-    DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]Enter...\n");
-    
-    //
-    //First byte is afp command and padding.
-    //
-    afpRequest.advance_pos_ptr(sizeof(int16));
-    afpType	= afpRequest.pull_num<INT16>();
+	auto* session = connection->get_afp_session();
+	const afp_session* afp_old_session;
+	int32 afp_id_size = 0;
+	std::unique_ptr<char[]> afp_id;
+	uint32 afp_time_stamp = 0;
+	const UINT32 afp_token = session->get_token();
+	bool f_saved_id = false;
 
-    if (afpType != kLoginWithoutID)
-    {
-        afpIDSize = afpRequest.pull_num<INT32>();
+	DBGWRITE(dbg_level_info, L"Enter...\n");
 
-        DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]ID size from client = %d\n", afpIDSize);
+	afp_request.advance_pos_ptr(sizeof(int16));
+	const auto afp_type = afp_request.pull_num<INT16>();
 
-        //
-        //For types 3 & 4, a time stamp is included for additional comparison.
-        //
-        if ((afpType == kLoginWithTimeAndID) || (afpType == kReconnWithTimeAndID)) {
+	if (afp_type != kLoginWithoutID)
+	{
+		afp_id_size = afp_request.pull_num<INT32>();
 
-            afpTimeStamp = afpRequest.pull_num<UINT32>();
-        }
+		DBGWRITE(dbg_level_info, L"ID size from client = %d\n", afp_id_size);
 
-        //
-        //Save the AFP id in the AFPSession object for later comparison.
-        //
-        afpID = new int8[afpIDSize];
+		// For types 3 & 4, a time stamp is included for additional comparison.
+		if (afp_type == kLoginWithTimeAndID || afp_type == kReconnWithTimeAndID)
+		{
+			afp_time_stamp = afp_request.pull_num<UINT32>();
+		}
 
-        if (afpID != NULL) {
+		// Save the AFP id in the AFPSession object for later comparison.
+		afp_id = std::make_unique<char[]>(afp_id_size);
 
-            afpRequest.pull_raw_data(afpID, (int16)afpIDSize);
-        }
-    }
+		if (afp_id != nullptr)
+		{
+			afp_request.pull_raw_data(afp_id.get(), static_cast<INT16>(afp_id_size));
+		}
+	}
 
-    switch(afpType)
-    {
-        case kLoginWithoutID:
-            //
-            //Now we find the session corresponding to the token and kill it.
-            //
-            break;
+	switch (afp_type)
+	{
+	case kLoginWithoutID:
+		// Now we find the session corresponding to the token and kill it.
+		break;
 
-        //
-        //The AFP client can set the Type parameter to kLoginWithID, set the ID 
-        //parameter to a unique client-defined value, and send this command. The server 
-        //will associate the value of ID with the session. Later, if the local system crashes 
-        //and the AFP client logs in again, the AFP client can set the Type parameter to 
-        //kLoginWithID, set the ID parameter to the ID that it previously sent to the remote 
-        //server, and send this command again. The remote server will look for a session that 
-        //matches the value of ID. If a match is found, it will close any files associated with 
-        //the session that are open, free any locked resources, and disconnect the matching session
-        //
-        case kLoginWithID:
-            DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]kLoginWithID...\n");
+	// The AFP client can set the Type parameter to kLoginWithID, set the ID 
+	// parameter to a unique client-defined value, and send this command. The server 
+	// will associate the value of ID with the session. Later, if the local system crashes 
+	// and the AFP client logs in again, the AFP client can set the Type parameter to 
+	// kLoginWithID, set the ID parameter to the ID that it previously sent to the remote 
+	// server, and send this command again. The remote server will look for a session that 
+	// matches the value of ID. If a match is found, it will close any files associated with 
+	// the session that are open, free any locked resources, and disconnect the matching session
+	case kLoginWithID:
+		DBGWRITE(dbg_level_info, L"kLoginWithID...\n");
 
-            afpOldSession = afp_session::find_session_with_id(afpID, afpIDSize);
+		afp_old_session = active_connections.find_afp_session_with_id(afp_id.get(), afp_id_size);
 
-            if (afpOldSession != NULL)
-            {
-                DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]Found old session!!!\n");
-                DSICleanupSession(afpOldSession->get_dsi_session());
-                break;
-            }
+		if (afp_old_session != nullptr)
+		{
+			DBGWRITE(dbg_level_info, L"Found old session!!!\n");
+			DSICleanupSession(afp_old_session->get_dsi_session());
+			break;
+		}
 
-            afpSessObject->set_session_id(afpID, afpIDSize);
-            fSavedID = true;
-            break;
+		session->set_session_id(afp_id, afp_id_size);
+		break;
 
-        case kReconnWithID:
-            
-            break;
+	case kReconnWithID:
 
-        //
-        //The client wants his old session to be discarded. The client is sending
-        //an IDLength, an ID, and a Timestamp. We only discard the old session if
-        //the timestamps DO NOT match.
-        //
-        case kLoginWithTimeAndID:
-            DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]kLoginWithTimeAndID...\n");
+		break;
 
-            afpOldSession = afp_session::find_session_with_id(afpID, afpIDSize);
+	// The client wants his old session to be discarded. The client is sending
+	// an IDLength, an ID, and a Timestamp. We only discard the old session if
+	// the timestamps DO NOT match.
+	case kLoginWithTimeAndID:
+		DBGWRITE(dbg_level_info, L"kLoginWithTimeAndID...\n");
 
-            if (afpOldSession != NULL)
-            {
-                DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]Found old session!!!\n");
+		afp_old_session = active_connections.find_afp_session_with_id(afp_id.get(), afp_id_size);
 
-                if (afpOldSession->get_afp_time_stamp() != afpTimeStamp)
-                {
-                    //
-                    //Time stamps do not match, discard the old session.
-                    //
-                    DSICleanupSession(afpOldSession->get_dsi_session());
-                    break;
-                }
-            }
+		if (afp_old_session != nullptr)
+		{
+			DBGWRITE(dbg_level_info, L"Found old session!!!\n");
 
-            afpSessObject->set_afp_time_stamp(afpTimeStamp);
-            afpSessObject->set_session_id(afpID, afpIDSize);
+			if (afp_old_session->get_afp_time_stamp() != afp_time_stamp)
+			{
+				//
+				//Time stamps do not match, discard the old session.
+				//
+				DSICleanupSession(afp_old_session->get_dsi_session());
+				break;
+			}
+		}
 
-            fSavedID = true;
-            break;
+		session->set_afp_time_stamp(afp_time_stamp);
+		session->set_session_id(afp_id, afp_id_size);
+		break;
 
-        //
-        //The client has just finished a successful reconnect, is sending an IDLength,
-        //an ID, and a Timestamp parameter, and wants the session to be updated
-        //with the ID parameter.
-        //
-        case kReconnWithTimeAndID:
-            DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]kReconnWithTimeAndID...\n");
+	// The client has just finished a successful reconnect, is sending an IDLength,
+	// an ID, and a Timestamp parameter, and wants the session to be updated
+	// with the ID parameter.
+	case kReconnWithTimeAndID:
+		DBGWRITE(dbg_level_info, L"kReconnWithTimeAndID...\n");
 
-            afpSessObject->set_afp_time_stamp(afpTimeStamp);
-            afpSessObject->set_session_id(afpID, afpIDSize);
+		session->set_afp_time_stamp(afp_time_stamp);
+		session->set_session_id(afp_id, afp_id_size);
+		break;
 
-            fSavedID = true;
-            break;
+	// All these id's are unsupported by this AFP Server.
+	case kRecon1Login:
+	case kRecon1ReconnectLogin:
+	case kRecon1Refresh:
+	case kGetKerberosSessionKey:
+		break;
 
-        //
-        //All these id's are unsupported by this AFP Server.
-        //
-        case kRecon1Login:
-        case kRecon1ReconnectLogin:
-        case kRecon1Refresh:
-        case kGetKerberosSessionKey:
-            break;
-        
-        default:
-            DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]Bad type! (%d)\n", afpType);
-            return( afpParmErr );
-    }
+	default:
+		DBGWRITE(dbg_level_info, L"Bad type! (%d)\n", afp_type);
+		return (afpParmErr);
+	}
 
-    afpReply.push_int32(AFP_SESSION_TOKEN_SIZE);
-    afpReply.push_int32(afpToken);
-    
-    DBGWRITE(dbg_level_info, L"[afp:FPGetSessionToken]Token = %x\n", afpToken);
+	afp_reply.push_num<UINT32>(AFP_SESSION_TOKEN_SIZE);
+	afp_reply.push_num(afp_token);
 
-    if (!fSavedID) {
+	DBGWRITE(dbg_level_info, L"Token = %x\n", afp_token);
 
-        //
-        //Since we didn't save off the afpID passed, we need to dispose of it.
-        //
-        delete [] afpID;
-    }
-        
-    return( AFP_OK );
+	return AFP_OK;
 }
 
 
@@ -257,43 +210,40 @@ AFPERROR FPGetSessionToken(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPDisconnectOldSession(
-    IN	afp_net_buffer&	afpRequest,
-    IN	afp_net_buffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+	IN afp_net_buffer& afp_request,
+	IN const afp_net_buffer& afp_reply,
+	const dsi::dsi_connection* connection
+)
 {
-    UNREFERENCED_PARAMETER(afpReply);
-    UNREFERENCED_PARAMETER(afpSession);
+	UNREFERENCED_PARAMETER(afp_reply);
+	UNREFERENCED_PARAMETER(connection);
 
-    afp_session*	afpLostSession	= NULL;
-    int8			afpType			= 0;
-    int32			afpTokenLength	= 0;
-    int32			afpToken		= 0;
+	DBGWRITE(dbg_level_info, L"Enter...\n");
 
-    DBGWRITE(dbg_level_info, L"[afp:FPDisconnectOldSession]Enter...\n");
-    
-    afpRequest.advance_pos_ptr(sizeof(int16));
-    
-    afpType			= afpRequest.pull_num<INT8>();
-    afpTokenLength	= afpRequest.pull_num<INT32>();
-    
-    if (afpTokenLength != AFP_SESSION_TOKEN_SIZE)
-    {
-        DBGWRITE(dbg_level_info, L"[afp:FPDisconnectOldSession]Bad token length\n");
-        return( afpMiscErr );
-    }
-    
-    afpToken 		= afpRequest.pull_num<INT32>();
-    afpLostSession 	= afp_session::find_session_by_token(afpToken);
-    
-    if (afpLostSession != NULL)
-    {
-        DBGWRITE(dbg_level_info, L"[afp:FPDisconnectOldSession]Found diconnected session!\n");
-        DSICleanupSession(afpLostSession->get_dsi_session());
-    }
-    
-    return( AFP_OK );
+	afp_request.advance_pos_ptr(sizeof(int16));
+
+	// ReSharper disable once CppDeclaratorNeverUsed
+	int8 afp_type = afp_request.pull_num<INT8>();
+	const int32 afp_token_length = afp_request.pull_num<INT32>();
+
+	if (afp_token_length != AFP_SESSION_TOKEN_SIZE)
+	{
+		DBGWRITE(dbg_level_info, L"Bad token length\n");
+		return afpMiscErr;
+	}
+
+	const auto afp_token = afp_request.pull_num<UINT32>();
+	const afp_session* afp_lost_session = active_connections.find_afp_session_with_token(afp_token);
+
+	if (afp_lost_session != nullptr)
+	{
+		DBGWRITE(dbg_level_info, L"Found diconnected session!\n");
+		afp_lost_session->get_dsi_session()->kill_connection();
+	}
+
+	return AFP_OK;
 }
 
 
@@ -306,248 +256,210 @@ AFPERROR FPDisconnectOldSession(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPLogin(
-    IN	afp_net_buffer&	afpRequest,
-    IN	afp_net_buffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	dsi::dsi_connection* connection
+)
 {
-    unichar				afpVersion[MAX_AFP_VERSION_LEN+1];
-    unichar				afpUAM[MAX_UAM_STRING_LEN+1];
-    char				afpPassword[UAM_CLRTXTPWDLEN+1];
-    unichar				afpPasswordW[UAM_CLRTXTPWDLEN+1];
-    unichar				szUserName[UAM_USERNAMELEN+1];
-    unichar				szDomainName[MAX_DOMAIN_NAME_LEN+1];
-    unichar				szPathname[MAX_AFP_PATH];
-    int8				afpPathType		= 0;
-    int16				afpFlags		= 0;
-    int8				afpCommand		= 0;
-    AFPERROR			afpError		= afpUserNotAuth;
-        
-    //
-    //Check for maximum logon sessions limit being reached. If it is, we
-    //just return afpAccessDenied.
-    //
-    if (gMaxSessions != 0)
-    {
-        //
-        //Note that we only count authenticated sessions on the server. There could be
-        //some "utility" sessions still looming around that we don't want to count.
-        //
-        if (DSICountSessions(TRUE) >= gMaxSessions)
-        {
-            //
-            //Too many sessions open on the server. The spec doesn't say what error
-            //code to return in this case.
-            //
-            return( afpAccessDenied );
-        }
-    }
+	unichar afp_version[MAX_AFP_VERSION_LEN + 1];
+	unichar afp_uam[MAX_UAM_STRING_LEN + 1];
+	char afp_password[UAM_CLRTXTPWDLEN + 1];
+	unichar afp_password_w[UAM_CLRTXTPWDLEN + 1];
+	unichar sz_user_name[UAM_USERNAMELEN + 1];
 
-    //
-    //The first byte in the buffer is the afp command byte.
-    //
-    afpCommand = afpRequest.pull_num<INT8>();
-    
-    if (afpCommand == afpLoginExt)
-    {
-        afpRequest.advance_pos_ptr(sizeof(int8));
-        afpFlags = afpRequest.pull_num<INT16>();
-    }
+	//
+	//Check for maximum logon sessions limit being reached. If it is, we
+	//just return afpAccessDenied.
+	//
+	if (g_max_sessions != 0)
+	{
+		//
+		//Note that we only count authenticated sessions on the server. There could be
+		//some "utility" sessions still looming around that we don't want to count.
+		//
+		if (DSICountSessions(TRUE) >= g_max_sessions)
+		{
+			//
+			//Too many sessions open on the server. The spec doesn't say what error
+			//code to return in this case.
+			//
+			return (afpAccessDenied);
+		}
+	}
 
-    if (!AFP_SUCCESS(afpRequest.get_pascal_string(afpVersion, sizeof(afpVersion)))) return( afpParmErr );
-    if (!AFP_SUCCESS(afpRequest.get_pascal_string(afpUAM, sizeof(afpUAM))))			return( afpParmErr );
+	//
+	//The first byte in the buffer is the afp command byte.
+	//
+	const int8 afp_command = afp_request.pull_num<INT8>();
 
-    DBGWRITE(dbg_level_info, L"[afp:FPLogin]AFP Version = %s\n", afpVersion);
-    DBGWRITE(dbg_level_info, L"[afp:FPLogin]UAM type    = %s\n", afpUAM);
+	if (afp_command == afpLoginExt)
+	{
+		afp_request.advance_pos_ptr(sizeof(int8));
+		// ReSharper disable once CppDeclaratorNeverUsed
+		auto afp_flags = afp_request.pull_num<INT16>();
+	}
 
-    //
-    //Get the AFP version passed by the client into a more usable type
-    //
-    afpSession->bAFPVersion = afpGetIntAFPVersion(afpVersion);
+	if (AFP_FAILED(afp_request.get_pascal_string(afp_version, sizeof(afp_version))))
+	{
+		return (afpParmErr);
+	}
+	if (AFP_FAILED(afp_request.get_pascal_string(afp_uam, sizeof(afp_uam))))
+	{
+		return (afpParmErr);
+	}
 
-    if (afpSession->bAFPVersion == -1)
-    {
-        DBGWRITE(dbg_level_warning, L"[afp:FPLogin]Bad AFP version, terminating login\n");
-        return( afpBadUAM );
-    }
+	DBGWRITE(dbg_level_info, L"AFP Version = %s\n", afp_version);
+	DBGWRITE(dbg_level_info, L"UAM type    = %s\n", afp_uam);
 
-    //
-    //Get the UAM version passed by the client into a more usable type
-    //
-    afpSession->uamType = afpGetIntUAMType(afpUAM);
+	//
+	//Get the AFP version passed by the client into a more usable type
+	//
+	const auto afp_version_int = get_afp_version_as_int(afp_version);
+	if (afp_version_int == 0)
+	{
+		DBGWRITE(dbg_level_error, L"Bad AFP version, terminating login\n");
+		return afpBadUAM;
+	}
 
-    if (afpSession->uamType == -1)
-    {
-        DBGWRITE(dbg_level_warning, L"[afp:FPLogin]Bad UAM type, terminating login\n");
-        return( afpBadUAM );
-    }
-        
-    RtlZeroMemory(afpPassword, sizeof(afpPassword));
-    
-    //
-    //Every UAM other then guest requires the user name, so retrieve it now.
-    //
-    if (afpSession->uamType != afpUAMNone)
-    {
-        if (afpCommand == afpLoginExt)
-        {
-            afpPathType	= afpRequest.pull_num<INT8>();			
-            if (!AFP_SUCCESS(afpRequest.get_pascal_string(szUserName, sizeof(szUserName), false, afpPathType)))
-            {
-                DBGWRITE(dbg_level_warning, L"[afp:FPLogin]Failed to retrieve user name, terminating login\n");
-                return( afpParmErr );
-            }
-            
-            afpPathType = afpRequest.pull_num<INT8>();
-            afpRequest.get_pascal_string(szPathname, sizeof(szPathname), false, afpPathType);
-        }
-        else
-        {
-            afpRequest.get_pascal_string(szUserName, sizeof(szUserName));
-        }
-        
-        //
-        //Extract the domain name (if there is one) from the username buffer.
-        //
-        afp_extract_domain_and_user_name(
-            szUserName, 
-            sizeof(szUserName), 
-            szDomainName, 
-            sizeof(szDomainName)
-            );
+	//
+	//Get the UAM version passed by the client into a more usable type
+	//
+	 
+	const auto afp_uam_type = get_uam_type_as_int(afp_uam);
+	if (afp_uam_type == -1)
+	{
+		DBGWRITE(dbg_level_error, L"Bad UAM type, terminating login\n");
+		return (afpBadUAM);
+	}
 
-        DBGWRITE(dbg_level_info, L"[afp:FPLogin]Username    = %s\n", szUserName);
-        DBGWRITE(dbg_level_info, L"[afp:FPLogin]Domain name = %s\n", szDomainName);
+	connection->set_afp_version(afp_version_int);
+	connection->set_uam_type(afp_uam_type);
 
-        //
-        //We need the name and domain for later to get the user SID.
-        //
-        lstrcpyn(afpSession->userName, szUserName, lstrlen(szUserName)+1);
-        lstrcpyn(afpSession->domainName, szDomainName, lstrlen(szDomainName)+1);
+	RtlZeroMemory(afp_password, sizeof(afp_password));
 
-        afpRequest.advance_if_odd();	//Padding byte
-    }
+	// Every UAM other then guest requires the user name, so retrieve it now.
+	if (afp_uam_type != afpUAMNone)
+	{
+		unichar sz_domain_name[MAX_DOMAIN_NAME_LEN + 1];
+		if (afp_command == afpLoginExt)
+		{
+			unichar sz_pathname[MAX_AFP_PATH];
+			auto afp_path_type = afp_request.pull_num<INT8>();
+			if (AFP_FAILED(afp_request.get_pascal_string(sz_user_name, sizeof(sz_user_name), false, afp_path_type)))
+			{
+				DBGWRITE(dbg_level_error, L"Failed to retrieve user name, terminating login\n");
+				return afpParmErr;
+			}
 
-    //
-    //Now, let's check to see which UAM the client is using to log
-    //into our server.
-    //
+			afp_path_type = afp_request.pull_num<INT8>();
+			afp_request.get_pascal_string(sz_pathname, sizeof(sz_pathname), false, afp_path_type);
+		}
+		else
+		{
+			afp_request.get_pascal_string(sz_user_name, sizeof(sz_user_name));
+		}
 
-    switch(afpSession->uamType)
-    {
-        case afpUAMNone:
-        {
-            //
-            //Check to see if guests are allowed. If not, we break and exit.
-            //
-            if ((!gAllowGuests) || (gForceEncryptedLogon))
-            {
-                return( afpBadUAM );
-            }
+		// Extract the domain name (if there is one) from the username buffer.
+		afp_extract_domain_and_user_name(
+			sz_user_name,
+			sizeof(sz_user_name),
+			sz_domain_name,
+			sizeof(sz_domain_name)
+		);
 
-            //
-            //BUGBUG: This will break on international systems! Fix it!
-            //
-            RtlZeroMemory(szUserName, sizeof(szUserName));
-            StringCbCopy(szUserName, sizeof(szUserName), TEXT("Guest"));
-            break;
-        }
+		DBGWRITE(dbg_level_info, L"Username    = %s\n", sz_user_name);
+		DBGWRITE(dbg_level_info, L"Domain name = %s\n", sz_domain_name);
 
-        case afpUAMCleartext:
-        {
-            //
-            //This is a cleartext logon. Make sure we're not supposed to force
-            //unencrypted logons. This may be done programatically to work around
-            //the mac client!
-            //
-            if (gForceEncryptedLogon) 
-            {
-                DBGWRITE(dbg_level_warning, L"[afp:FPLogin]Attempted cleartext login when encryption is required\n");
-                return( afpBadUAM );
-            }
+		// We need the name and domain for later to get the user SID.
+		connection->set_user_name(sz_user_name);
+		connection->set_domain_name(sz_domain_name);
 
-            //
-            //The password is sent to us as an 8 byte array. This array is not length
-            //byte preceeded or null terminated.
-            //
-            afpRequest.pull_raw_data(afpPassword, UAM_CLRTXTPWDLEN);
-            afp_mac_to_windows_string(afpPassword, sizeof(afpPasswordW), afpPasswordW);
+		afp_request.advance_if_odd(); //Padding byte
+	}
 
-            DBGWRITE(dbg_level_info, L"[afp:FPLogin]Cleartext password = %s\n", afpPasswordW);
-            break;
-        }//afpUAMCleartext
+	switch (afp_uam_type)
+	{
+	case afpUAMNone:
+		{
+			if (!g_allow_guests || g_force_encrypted_logon)
+			{
+				return afpBadUAM;
+			}
 
-        case afpUAMDHCAST128:
-        {
-            //
-            //This login UAM uses SSL to encrypt the password buffer using
-            //public and private keys.
-            //
-            
-            DHXInfo*	dhxInfo = NULL;
-            
-            //
-            //This is where we store all the information we'll need for the login continue.
-            //
-            dhxInfo = (DHXInfo*)LocalAlloc(LMEM_ZEROINIT, sizeof(DHXInfo));
-            
-            if (dhxInfo == NULL)
-            {
-                //
-                //We failed to allocated the necessary block of data to store information
-                //between login api calls. No choice but to bail out.
-                //
-                
-                DBGWRITE(dbg_level_warning, L"[afp:FPLogin]Failed to allocate DHXInfo structure, exiting.\n");
-                return( afpMiscErr );
-            }
-                                    
-            afpError = DHXLogin(
-                            afpRequest,
-                            afpReply,
-                            afpSession,
-                            dhxInfo
-                            );
+			RtlZeroMemory(sz_user_name, sizeof(sz_user_name));
+			// ReSharper disable once CppFunctionResultShouldBeUsed
+			StringCbCopy(sz_user_name, sizeof(sz_user_name), TEXT("Guest"));
+			break;
+		}
 
-            if (afpError != afpAuthContinue)
-            {
-                //
-                //Free the memory we allocated, otherwise we'll leak it.
-                //
-                LocalFree(dhxInfo);
-            }
-            else
-            {
-                //
-                //There should never be two logins for the same session happening
-                //simultaneously. If we find we already have an info buffer,
-                //it's bad news.
-                //
+	case afpUAMCleartext:
+		{
+			// Make sure we're not supposed to force unencrypted logon. This may
+			// be done programatically to work around the mac client!
+			if (g_force_encrypted_logon)
+			{
+				DBGWRITE(dbg_level_warning, L"Attempted cleartext login when encryption is required\n");
+				return afpBadUAM;
+			}
 
-                if (afpSession->extLoginInfo != NULL)
-                {
-                    DBGWRITE(dbg_level_warning, L"[afp:FPLogin]WARNING: Alread have extended login info!\n");
-                    ASSERT(0);
+			// The password is sent to us as an 8 byte array. This array is not length
+			// byte preceded or null terminated.
+			afp_request.pull_raw_data(afp_password, UAM_CLRTXTPWDLEN);
+			afp_mac_to_windows_string(afp_password, sizeof(afp_password_w), afp_password_w);
 
-                    LocalFree(afpSession->extLoginInfo);
-                }
+			DBGWRITE(dbg_level_info, L"Cleartext password = %s\n", afp_password_w);
+			break;
+		}
 
-                afpSession->extLoginInfo = dhxInfo;
-            }
+	case afpUAMDHCAST128:
+		{
+			// This login UAM uses SSL to encrypt the password buffer using
+			// public and private keys.
 
-            return( afpError );
-        }
+			// This is where we store all the information we'll need for the login continue.
+			auto dhx_info = std::make_unique<DHXInfo>();
+			if (dhx_info == nullptr)
+			{
+				DBGWRITE(dbg_level_error, L"Failed to allocate DHXInfo structure, exiting.\n");
+				return afpMiscErr;
+			}
 
-        default:
-            return( afpBadUAM );
+			RtlZeroMemory(dhx_info.get(), sizeof(DHXInfo));
 
-    }//switch
+			const AFPERROR afp_error = DHXLogin(
+				afp_request,
+				afp_reply,
+				connection,
+				dhx_info
+			);
 
-    //
-    //Now do the actual logon, the implementation routine "does the right thing".
-    //
-    return( afpImpUserLogon(afpSession, afpReply, afpPasswordW, sizeof(afpPasswordW)) );
+			if (afp_error == afpAuthContinue)
+			{
+				// There should never be two logins for the same session happening
+				// simultaneously. If we find we already have an info buffer,
+				// it's bad news.
+				if (connection->get_extended_logon_info() != nullptr)
+				{
+					DBGWRITE(dbg_level_warning, L"WARNING: Alread have extended login info!\n");
+					ASSERT(0);
+
+					connection->free_extended_logon_info();
+				}
+
+				connection->set_extended_logon_info(dhx_info);
+			}
+
+			return afp_error;
+		}
+
+	default:
+		return afpBadUAM;
+	}
+
+	// Now do the actual logon, the implementation routine "does the right thing".
+	return afp_imp_user_logon(connection, afp_reply, afp_password_w, sizeof(afp_password_w));
 }
 
 
@@ -560,89 +472,78 @@ AFPERROR FPLogin(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPContLogin(
-    IN	afp_net_buffer&	afpRequest,
-    IN	afp_net_buffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
-{	
-    AFPERROR	afpError = afpUserNotAuth;
-    
-    afpRequest.advance_pos_ptr(sizeof(int16)); //command and padding
-    
-    DBGWRITE(dbg_level_info, L"[afp:FPContLogin]Enter\n");
-    DBGWRITE(dbg_level_info, L"[afp:FPContLogin]LogonUAM = %d\n", afpSession->uamType);
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	dsi::dsi_connection* connection
+)
+{
+	AFPERROR afp_error;
+	const INT8 uam_type = connection->get_uam_type();
 
-    switch(afpSession->uamType)
-    {
-        case afpUAMDHCAST128:
-        {
-            char 		szPassword[DHX_PASSWDLEN+1];
-            WCHAR		szPasswordW[DHX_PASSWDLEN+1];
-            DHXInfo*	dhxInfo = (DHXInfo*)afpSession->extLoginInfo;
-            
-            //
-            //The DHXInfo structure should have been allocated and filled in already
-            //from the FPLogin() sequence.
-            //
-            if (dhxInfo == NULL)
-            {
-                DBGWRITE(dbg_level_info, L"[afp:FPContLogin]DHXInfo is invalid\n");
-                return( afpMiscErr );
-            }
-            
-            memset(szPassword, 0, sizeof(szPassword));
-            
-            //
-            //The heavy lifting of all the encryption/decryption goop is done by the
-            //routines in afpdhxlogin.cpp.
-            //
-            afpError = DHXLoginContinue(
-                            afpRequest,
-                            afpReply,
-                            afpSession,
-                            szPassword,
-                            sizeof(szPassword),
-                            dhxInfo
-                            );
-            
-            if (AFP_SUCCESS(afpError))
-            {
-                //
-                //We've had a successful key exchange and decryption of passwords. Now
-                //convert the password to a unicode string and authenticate this user
-                //using the Windows Logon API.
-                //
+	afp_request.advance_pos_ptr(sizeof(UINT16)); //command and padding
 
-                if (!afp_mac_to_windows_string(szPassword, sizeof(szPasswordW), szPasswordW))
-                {
-                    DBGWRITE(dbg_level_warning, L"[afp:FPContLogin]Error converting password to unicode\n");
-                    return( afpMiscErr );
-                }
+	DBGWRITE(dbg_level_info, L"Enter\n");
+	DBGWRITE(dbg_level_info, L"LogonUAM = %d\n", uam_type);
 
-                afpError = afpImpUserLogon(afpSession, afpReply, szPasswordW, sizeof(szPasswordW));
-            }
-            
-            SecureZeroMemory(szPassword, sizeof(szPassword));
-            SecureZeroMemory(szPasswordW, sizeof(szPasswordW));
+	if (uam_type == afpUAMDHCAST128)
+	{
+		char sz_password[DHX_PASSWDLEN + 1];
+		WCHAR sz_password_w[DHX_PASSWDLEN + 1];
+		const auto dhx_info = connection->get_extended_logon_info();
 
-            //
-            //We don't require the extended login info anymore. Free it and
-            //be sure the clear the pointer for the next go-around.
-            //
-            LocalFree(afpSession->extLoginInfo);
-            afpSession->extLoginInfo = NULL;
+		// The DHXInfo structure should have been allocated and filled in already
+		// from the FPLogin() sequence.
+		if (dhx_info == nullptr)
+		{
+			DBGWRITE(dbg_level_error, L"DHXInfo is invalid\n");
+			return afpMiscErr;
+		}
 
-            break;
-        }
-        
-        default:
-            return( afpParmErr );
-    }
-    
-    DBGWRITE(dbg_level_info, L"[afp:FPContLogin]Returning: %d\n", afpError);
-    
-    return( afpError );
+		memset(sz_password, 0, sizeof(sz_password));
+
+		// The heavy lifting of all the encryption/decryption goop is done by the
+		// encryption routines.
+		afp_error = DHXLoginContinue(
+			afp_request,
+			afp_reply,
+			connection,
+			sz_password,
+			sizeof(sz_password),
+			dhx_info
+		);
+
+		if (AFP_SUCCESS(afp_error))
+		{
+			// We've had a successful key exchange and decryption of passwords. Now
+			// convert the password to a unicode string and authenticate this user
+			// using the Windows Logon API.
+
+			if (!afp_mac_to_windows_string(sz_password, sizeof(sz_password_w), sz_password_w))
+			{
+				DBGWRITE(dbg_level_warning, L"Error converting password to unicode\n");
+				return afpMiscErr;
+			}
+
+			afp_error = afp_imp_user_logon(connection, afp_reply, sz_password_w, sizeof(sz_password_w));
+		}
+
+		SecureZeroMemory(sz_password, sizeof(sz_password));
+		SecureZeroMemory(sz_password_w, sizeof(sz_password_w));
+
+		// We don't require the extended login info anymore. Free it and
+		// be sure the clear the pointer for the next go-around.
+		connection->free_extended_logon_info();
+	}
+	else
+	{
+		return afpParmErr;
+	}
+
+	DBGWRITE(dbg_level_info, L"Returning: %d\n", afp_error);
+
+	return afp_error;
 }
 
 
@@ -655,184 +556,165 @@ AFPERROR FPContLogin(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPChangePassword(
-    IN	afp_net_buffer&	afpRequest,
-    IN	afp_net_buffer&	afpReply,
-    IN	LPSESSION	dsiSession
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	dsi::dsi_connection* connection
 )
 {
-    WCHAR			szUAMVersion[MAX_UAM_STRING_LEN+1];
-    WCHAR			szUserName[UAM_USERNAMELEN+1];
-    int8			uamType		= 0;
-    AFPERROR		afpError 	= afpParmErr;
-    
-    DBGWRITE(dbg_level_info, L"[afpuser:FPChangePswd]Enter...\n");
-    
-    afpRequest.advance_pos_ptr(sizeof(int16));
-    
-    afpRequest.get_pascal_string(szUAMVersion, sizeof(szUAMVersion));
-    uamType = afpGetIntUAMType(szUAMVersion);
-    
-    afpRequest.advance_if_odd();
-        
-    //
-    //Starting with AFP3.0, the username is just 2 bytes of zeros.
-    //
-    if (dsiSession->bAFPVersion > afpVersion22)
-    {
-        afpRequest.advance_pos_ptr(sizeof(int16));
-        StringCbCopy(szUserName, sizeof(szUserName), dsiSession->userName);
-    }
-    else
-    {		
-        afpRequest.get_pascal_string(szUserName, sizeof(szUserName));
-        afpRequest.advance_if_odd();
-    }
+	WCHAR sz_uam_version[MAX_UAM_STRING_LEN + 1];
+	WCHAR sz_user_name[UAM_USERNAMELEN + 1];
+	AFPERROR afp_error = afpParmErr;
 
-    DBGWRITE(dbg_level_info, L"[afpuser:FPChangePswd]UAM Str:  %s\n", szUAMVersion);
-    DBGWRITE(dbg_level_info, L"[afpuser:FPChangePswd]Username: %s\n", szUserName);
-    
-    switch(uamType)
-    {
-        case afpUAMNone:
-            return( afpBadUAM );
-        
-        case afpUAMCleartext:
-        {
-            char	szOldPassword[UAM_CLRTXTPWDLEN+1];
-            char	szNewPassword[UAM_CLRTXTPWDLEN+1];
+	DBGWRITE(dbg_level_info, L"Enter...\n");
 
-            //
-            //Grab the old and new cleartext passwords from the buffer.
-            //
-            afpRequest.pull_raw_data(szOldPassword, UAM_CLRTXTPWDLEN);
-            szOldPassword[UAM_CLRTXTPWDLEN+1] = 0;
-            afpRequest.pull_raw_data(szNewPassword, UAM_CLRTXTPWDLEN);
-            szNewPassword[UAM_CLRTXTPWDLEN+1] = 0;
+	afp_request.advance_pos_ptr(sizeof(int16));
 
-            //**** TO BE IMPLEMENTED ****
-            //afpError = afpImpChangePswd(
-            //				szUserName,
-            //				szOldPassword,
-            //				szNewPassword
-            //				);
+	afp_request.get_pascal_string(sz_uam_version, sizeof(sz_uam_version));
+	const auto uam_type = get_uam_type_as_int(sz_uam_version);
 
-            SecureZeroMemory(szOldPassword, sizeof(szOldPassword));
-            SecureZeroMemory(szNewPassword, sizeof(szNewPassword));
+	afp_request.advance_if_odd();
 
-            afpError = AFP_OK;
-            break;
-        }
-        
-        case afpUAMDHCAST128:
-        {
-            char 		szOldPassword[DHX_PASSWDLEN+1];
-            char		szNewPassword[DHX_PASSWDLEN+1];
-            WCHAR		szNewPasswordW[DHX_PASSWDLEN+1];
-            DHXInfo*	dhxInfo = NULL;
-            
-            //
-            //This may be our second time through in which case dxhInfo is already
-            //created and filled with information.
-            //
-            dhxInfo = (DHXInfo*)dsiSession->extLoginInfo;
-            
-            if (dhxInfo == NULL)
-            {
-                //
-                //Must be our first time through, so no blob info saved yet.
-                //
-                dhxInfo = (DHXInfo*)LocalAlloc(LMEM_ZEROINIT, sizeof(DHXInfo));
-                
-                if (dhxInfo == NULL)
-                {
-                    //
-                    //We failed to allocated the necessary block of data to store information
-                    //between login api calls. No choice but to bail out.
-                    //
-                    
-                    DBGWRITE(dbg_level_warning, L"[afp:FPChangePswd]Failed to allocate DHXInfo structure, exiting.\n");
-                    return( afpMiscErr );
-                }
-            }
-            
-            memset(szOldPassword, 0, sizeof(szOldPassword));
-            memset(szNewPassword, 0, sizeof(szNewPassword));
-            
-            //
-            //This routine does 2 things:
-            //	1) re-logs into the server via DH key exchanges for auth
-            //	2) decrypts received old and new passwords based on DH key exchange
-            //
-            afpError = DHXChangePassword(
-                            afpRequest,
-                            afpReply,
-                            dsiSession,
-                            szOldPassword,
-                            sizeof(szOldPassword),
-                            szNewPassword,
-                            sizeof(szNewPassword),
-                            dhxInfo
-                            );
-            
-            if (afpError == afpAuthContinue)
-            {
-                //
-                //We've only complete the first step in the key exchange/encryption
-                //process. Returning afpAuthContinue and we'll be called again with
-                //the new/old password encrypted payload.
-                //
+	// Starting with AFP3.0, the username is just 2 bytes of zeros.
+	if (connection->get_afp_version() > afpVersion22)
+	{
+		afp_request.advance_pos_ptr(sizeof(int16));
+		// ReSharper disable once CppFunctionResultShouldBeUsed
+		StringCbCopy(sz_user_name, sizeof(sz_user_name), connection->get_user_name().c_str());
+	}
+	else
+	{
+		afp_request.get_pascal_string(sz_user_name, sizeof(sz_user_name));
+		afp_request.advance_if_odd();
+	}
 
-                dsiSession->extLoginInfo = dhxInfo;
+	DBGWRITE(dbg_level_info, L"UAM Str:  %s\n", sz_uam_version);
+	DBGWRITE(dbg_level_info, L"Username: %s\n", sz_user_name);
 
-                return( afpError );
-            }
-            
-            //
-            //We're done with the DHXInfo so free it. Also be sure to clear
-            //the blob field in the DSI session, or we'll be in trouble
-            //next time we change password.
-            //
-            LocalFree(dhxInfo);
-            dsiSession->extLoginInfo = NULL;
-            
-            //
-            //We successfully re-logged onto the server and successfully decrypted
-            //the old and new passwords. Now convert to unicode strings and
-            //call the change password implementation routine.
-            //
-            
-            if (AFP_SUCCESS(afpError))
-            {
-                if (!afp_mac_to_windows_string(szNewPassword, sizeof(szNewPasswordW), szNewPasswordW))
-                {
-                    DBGWRITE(dbg_level_warning, L"[afp:FPChangePswd]Error converting new password to unicode\n");
-                    afpError = afpMiscErr;
-                }
-                else
-                {
-                    //**** TO BE IMPLEMENTED ****
-                    //afpError = afpImpChangePswd(
-                    //				szUserName,
-                    //				szOldPassword,
-                    //				szNewPassword
-                    //				);
-                }
-            }
+	switch (uam_type)
+	{
+	case afpUAMNone:
+		return afpBadUAM;
 
-            SecureZeroMemory(szOldPassword, sizeof(szOldPassword));
-            SecureZeroMemory(szNewPassword, sizeof(szNewPassword));
-            SecureZeroMemory(szNewPasswordW, sizeof(szNewPasswordW));
-            break;
-        }
-        
-        default:
-            break;
-    }
+	case afpUAMCleartext:
+		{
+			char sz_old_password[UAM_CLRTXTPWDLEN + 1];
+			char sz_new_password[UAM_CLRTXTPWDLEN + 1];
 
-    DBGWRITE(dbg_level_info, L"[afpuser:FPChangePswd]Returning: %d\n", afpError);
-    
-    return( afpError );
+			//
+			//Grab the old and new cleartext passwords from the buffer.
+			//
+			afp_request.pull_raw_data(sz_old_password, UAM_CLRTXTPWDLEN);
+			sz_old_password[UAM_CLRTXTPWDLEN] = 0;
+			afp_request.pull_raw_data(sz_new_password, UAM_CLRTXTPWDLEN);
+			sz_new_password[UAM_CLRTXTPWDLEN] = 0;
+
+			//**** TO BE IMPLEMENTED ****
+			//afpError = afpImpChangePswd(
+			//				szUserName,
+			//				szOldPassword,
+			//				szNewPassword
+			//				);
+
+			SecureZeroMemory(sz_old_password, sizeof(sz_old_password));
+			SecureZeroMemory(sz_new_password, sizeof(sz_new_password));
+
+			afp_error = AFP_OK;
+			break;
+		}
+
+	case afpUAMDHCAST128:
+		{
+			char sz_old_password[DHX_PASSWDLEN + 1];
+			char sz_new_password[DHX_PASSWDLEN + 1];
+			WCHAR sz_new_password_w[DHX_PASSWDLEN + 1];
+
+			// This may be our second time through in which case dxhInfo is already
+			// created and filled with information.
+			if (connection->get_extended_logon_info() == nullptr)
+			{
+				// Must be our first time through, so no blob info saved yet.
+				auto dhx_info = std::make_unique<DHXInfo>();
+				if (dhx_info == nullptr)
+				{
+					// We failed to allocated the necessary block of data to store information
+					// between login api calls. No choice but to bail out.
+
+					DBGWRITE(dbg_level_warning, L"Failed to allocate DHXInfo structure, exiting.\n");
+					return (afpMiscErr);
+				}
+
+				RtlZeroMemory(dhx_info.get(), sizeof(DHXInfo));
+				connection->set_extended_logon_info(dhx_info);
+			}
+
+			memset(sz_old_password, 0, sizeof(sz_old_password));
+			memset(sz_new_password, 0, sizeof(sz_new_password));
+
+			// This routine does 2 things:
+			//	1) re-logs into the server via DH key exchanges for auth
+			//	2) decrypts received old and new passwords based on DH key exchange
+			afp_error = DHXChangePassword(
+				afp_request,
+				afp_reply,
+				connection,
+				sz_old_password,
+				sizeof(sz_old_password),
+				sz_new_password,
+				sizeof(sz_new_password),
+				connection->get_extended_logon_info()
+			);
+
+			if (afp_error == afpAuthContinue)
+			{
+				// We've only complete the first step in the key exchange/encryption
+				// process. Returning afpAuthContinue and we'll be called again with
+				// the new/old password encrypted payload.
+
+				return afp_error;
+			}
+
+			// We're done with the DHXInfo so free it. Also be sure to clear
+			// the blob field in the DSI session, or we'll be in trouble
+			// next time we change password.
+			connection->free_extended_logon_info();
+
+			// We successfully re-logged onto the server and successfully decrypted
+			// the old and new passwords. Now convert to unicode strings and
+			// call the change password implementation routine.
+
+			if (AFP_SUCCESS(afp_error))
+			{
+				if (!afp_mac_to_windows_string(sz_new_password, sizeof(sz_new_password_w), sz_new_password_w))
+				{
+					DBGWRITE(dbg_level_warning, L"Error converting new password to unicode\n");
+					afp_error = afpMiscErr;
+				}
+				else
+				{
+					//**** TO BE IMPLEMENTED ****
+					//afpError = afpImpChangePswd(
+					//				szUserName,
+					//				szOldPassword,
+					//				szNewPassword
+					//				);
+				}
+			}
+
+			SecureZeroMemory(sz_old_password, sizeof(sz_old_password));
+			SecureZeroMemory(sz_new_password, sizeof(sz_new_password));
+			SecureZeroMemory(sz_new_password_w, sizeof(sz_new_password_w));
+			break;
+		}
+
+	default:
+		break;
+	}
+
+	DBGWRITE(dbg_level_info, L"Returning: %d\n", afp_error);
+
+	return afp_error;
 }
 
 
@@ -846,43 +728,37 @@ AFPERROR FPChangePassword(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPLogout(
-    IN	afp_net_buffer&	afpRequest,
-    IN	afp_net_buffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
-{	
-    UNREFERENCED_PARAMETER(afpReply);
-    UNREFERENCED_PARAMETER(afpRequest);
-    //
-    //Close the handle to the token we're using for impersenation.
-    //
-    if (	(afpSession->hUserToken != NULL)			&&
-            (afpSession->dwState & sessAuthenticated)	)
-    {
-        CloseHandle(afpSession->hUserToken);
+	IN const afp_net_buffer& afp_request,
+	IN const afp_net_buffer& afp_reply,
+	dsi::dsi_connection* connection
+)
+{
+	UNREFERENCED_PARAMETER(afp_reply);
+	UNREFERENCED_PARAMETER(afp_request);
 
-        afpSession->hUserToken	= NULL;
-        afpSession->dwState		&= ~sessAuthenticated;
+	// Close the handle to the token we're using for impersonation.
 
-        if (afpSession->afpSessionObject)
-        {
-            delete (afp_session*)afpSession->afpSessionObject;
-            afpSession->afpSessionObject = NULL;
-        }
-        
-        //
-        //Notify the administrator of the client logoff the system.
-        //
+	const HANDLE user_token = connection->get_user_token();
 
-        EventWriteAFPServerEvt_ClientLogoff(afpSession->userName);
-    }
-    else
-    {
-        return( afpParmErr );
-    }
+	if (user_token != nullptr && connection->get_is_session_authenticated())
+	{
+		CloseHandle(user_token);
 
-    return( AFP_OK );
+		connection->set_user_token(nullptr);
+		connection->set_session_authenticated(false);
+		connection->free_afp_session();
+
+		// Notify the administrator of the client logoff the system.
+		EventWriteAFPServerEvt_ClientLogoff(connection->get_user_name().c_str());
+	}
+	else
+	{
+		return afpParmErr;
+	}
+
+	return AFP_OK;
 }
 
 
@@ -895,73 +771,69 @@ AFPERROR FPLogout(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPMapID(
-    IN	afp_net_buffer&	afpRequest,
-    IN	afp_net_buffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	const dsi::dsi_connection* connection
+)
 {
-    UNREFERENCED_PARAMETER(afpSession);
+	UNREFERENCED_PARAMETER(connection);
 
-    AFPERROR	afpError	= AFP_OK;
-    uint8		afpSubFunc	= 0;
-    uint32		afpUserID	= 0;
-    WCHAR		szName[64];
+	AFPERROR afp_error;
+	WCHAR sz_name[64];
 
-    afpRequest.advance_pos_ptr(sizeof(int8));
-    
-    //
-    //What are we doing, user or group?
-    //
-    afpSubFunc = afpRequest.pull_num<INT8>();
-    
-    //
-    //Retrieve the id of the user or group to obtain.
-    //
-    afpUserID = afpRequest.pull_num<UINT32>();
+	afp_request.advance_pos_ptr(sizeof(INT8));
 
-    DBGWRITE(dbg_level_info, L"[afp:FPMapID]Looking for ID %d\n", afpUserID);
-        
-    switch(afpSubFunc)
-    {
-        //Looking for user name
-        case 1:
-            afpError = afp_get_user_name_by_id(afpUserID, szName);
+	// What are we doing, user or group?
+	const auto afp_sub_func = afp_request.pull_num<INT8>();
 
-            if (AFP_SUCCESS(afpError))
-            {
-                DBGWRITE(dbg_level_info, L"[afp:FPMapID]Mapped id to name %s\n", szName);
-                afpReply.push_pascal_string(szName);
-            }
-            break;
-        
-        //Looking for group name
-        case 2:
-            afpReply.push_pascal_string("Everyone");
-            break;
+	// Retrieve the id of the user or group to obtain.
+	const auto afp_user_id = afp_request.pull_num<UINT32>();
 
-        //Unicode user name
-        case 3:
-            afpError = afp_get_user_name_by_id(afpUserID, szName);
+	DBGWRITE(dbg_level_info, L"Looking for ID %d\n", afp_user_id);
 
-            if (AFP_SUCCESS(afpError))
-            {
-                DBGWRITE(dbg_level_info, L"[afp:FPMapID]Mapped id to name %s\n", szName);
-                afpReply.push_unicode_string(szName);
-            }
-            break;
-        
-        //Unicode group name
-        case 4:
-            afpReply.push_unicode_string(TEXT("Everyone"));
-            break;
-        
-        default:
-            ASSERT(0);
-            break;
-    }
-        
-    return( AFP_OK );
+	switch (afp_sub_func)
+	{
+	//Looking for user name
+	case 1:
+		afp_error = afp_get_user_name_by_id(afp_user_id, sz_name);
+
+		if (AFP_SUCCESS(afp_error))
+		{
+			DBGWRITE(dbg_level_info, L"Mapped id to name %s\n", sz_name);
+			afp_reply.push_pascal_string(sz_name);
+		}
+		break;
+
+	//Looking for group name
+	case 2:
+		afp_reply.push_pascal_string("Everyone");
+		break;
+
+	//Unicode user name
+	case 3:
+		afp_error = afp_get_user_name_by_id(afp_user_id, sz_name);
+
+		if (AFP_SUCCESS(afp_error))
+		{
+			DBGWRITE(dbg_level_info, L"Mapped id to name %s\n", sz_name);
+			afp_reply.push_unicode_string(sz_name);
+		}
+		break;
+
+	//Unicode group name
+	case 4:
+		// ReSharper disable once CppStringLiteralToCharPointerConversion
+		afp_reply.push_unicode_string(TEXT("Everyone"));
+		break;
+
+	default:
+		ASSERT(0);
+		break;
+	}
+
+	return AFP_OK;
 }
 
 
@@ -982,71 +854,61 @@ AFPERROR FPMapID(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPGetSrvrMsg(
-    IN	afp_net_buffer&	afpRequest,
-    IN	afp_net_buffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	const dsi::dsi_connection* connection
+)
 {
-    UNREFERENCED_PARAMETER(afpSession);
+	UNREFERENCED_PARAMETER(connection);
 
-    unichar			message[AFP_MSG_MAXLEN+1];
-    afp_registry		theRegistry;
-    uint16			afpMessageType		= 0;
-    uint16			afpMessageBitmap	= 0;
-    
-    afpRequest.advance_pos_ptr(sizeof(int16));
+	unichar message[AFP_MSG_MAXLEN + 1];
+	afp_registry the_registry;
 
-    afpMessageType		= afpRequest.pull_num<UINT16>();
-    afpMessageBitmap	= afpRequest.pull_num<UINT16>();
+	afp_request.advance_pos_ptr(sizeof(int16));
 
-    switch (afpMessageType)
-    {
-        case AFP_MSG_LOGINTYPE:
-            DBGWRITE(dbg_level_info, L"[AFP]Message type = Logon\n");
+	const auto afp_message_type = afp_request.pull_num<UINT16>();
+	const auto afp_message_bitmap = afp_request.pull_num<UINT16>();
 
-            theRegistry.get_logon_message(message);
-            break;
+	switch (afp_message_type)
+	{
+	case AFP_MSG_LOGINTYPE:
+		DBGWRITE(dbg_level_info, L"Message type = Logon\n");
 
-        case AFP_MSG_SERVERTYPE:
-            DBGWRITE(dbg_level_info, L"[AFP]Message type = Server\n");
+		the_registry.get_logon_message(message);
+		break;
 
-            //
-            //Since the server message is not saved anywhere, we just grab
-            //it from our global source.
-            //
-            StringCbCopy(message, sizeof(message), gServerMessage);
-            break;
+	case AFP_MSG_SERVERTYPE:
+		DBGWRITE(dbg_level_info, L"Message type = Server\n");
 
-        default:
-            DBGWRITE(dbg_level_warning, L"[AFP]Bad message type in FPGetSrvrMsg!\n");
-            ASSERT(0);
-            break;
-    }
-    
-    DBGWRITE(dbg_level_info, L"[AFP]Message = %s\n", message);
+		// ReSharper disable once CppFunctionResultShouldBeUsed
+		StringCbCopy(message, sizeof(message), g_server_message);
+		break;
 
-    //
-    //Pack in all the parameters.
-    //
-    afpReply.push_int16(afpMessageType);
-    afpReply.push_int16(afpMessageBitmap);
-    
-    //
-    //Starting with AFP3.0, the client sets bit 1 of the message
-    //bitmap to indicate that it wants the message string in
-    //unicode format.
-    //
-    if (afpMessageBitmap & kSendMessageAsUnicode)
-    {
-        afpReply.push_unicode_string(message);
-    }
-    else
-    {
-        afpReply.push_pascal_string(message);
-    }
-    
-    return( AFP_OK );
+	default:
+		DBGWRITE(dbg_level_warning, L"Bad message type in FPGetSrvrMsg!\n");
+		ASSERT(0);
+		break;
+	}
+
+	DBGWRITE(dbg_level_info, L"Message = %s\n", message);
+
+	// Pack in all the parameters.
+	afp_reply.push_num(afp_message_type);
+	afp_reply.push_num(afp_message_bitmap);
+
+	// Starting with AFP3.0, the client sets bit 1 of the message
+	// bitmap to indicate that it wants the message string in
+	// unicode format.
+	if (afp_message_bitmap & kSendMessageAsUnicode)
+	{
+		afp_reply.push_unicode_string(message);
+	}
+	else
+	{
+		afp_reply.push_pascal_string(message);
+	}
+
+	return AFP_OK;
 }
-
-

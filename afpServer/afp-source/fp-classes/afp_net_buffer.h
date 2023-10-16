@@ -7,7 +7,7 @@
 class afp_net_buffer // NOLINT(cppcoreguidelines-special-member-functions)
 {
 public:
-	afp_net_buffer(_In_ UINT8* afp_net_buffer, _In_ size_t cb_buffer);
+	afp_net_buffer(_In_ char* afp_buffer, _In_ size_t cb_buffer);
 
 	AFPERROR get_pascal_string(unichar* string, UINT16 cb_string, bool is_path = false, INT8 path_type = kLongNames,
 	                   AFPCHARMAPARRAY char_map = nullptr);
@@ -42,14 +42,14 @@ public:
 	void add_parameter_offset(INT16 offset, INT16 value);
 
 	bool check_space_needed(size_t space_needed) const;
-	bool not_enough_space(const size_t space_needed) const;
-	bool will_overflow(const UINT32 value) const;
+	bool not_enough_space(size_t space_needed) const;
+	bool will_overflow(UINT32 value) const;
 
-	UINT8* get_current_pos_ptr() const;
-	void advance_pos_ptr(const UINT32 offset);
+	char* get_current_pos_ptr() const;
+	void advance_pos_ptr(UINT32 offset);
 	void advance_if_odd();
 	void advance_to(INT32 offset);
-	UINT8* get_buffer() const;
+	char* get_buffer() const;
 	size_t get_buffer_size() const;
 	void rewind();
 
@@ -60,8 +60,8 @@ public:
 	UINT32 get_dsi_data_offset() const;
 
 private:
-	UINT8* mBuffer;
-	UINT8* mCurrentPos;
+	char* mBuffer;
+	char* mCurrentPos;
 	size_t mBufferSize;
 
 	//
@@ -179,7 +179,7 @@ inline void afp_net_buffer::add_parameter_offset(const INT16 offset, const INT16
 	mCurrentPos = save;
 }
 
-inline UINT8* afp_net_buffer::get_current_pos_ptr() const
+inline char* afp_net_buffer::get_current_pos_ptr() const
 {
 	return mCurrentPos;
 }
@@ -215,7 +215,7 @@ inline void afp_net_buffer::advance_to(const INT32 offset)
 	mCurrentPos = mBuffer + offset;
 }
 
-inline UINT8* afp_net_buffer::get_buffer() const
+inline char* afp_net_buffer::get_buffer() const
 {
 	return mBuffer;
 }

@@ -1,18 +1,10 @@
-/*
- *	afpdesktop.cpp
- *	Created 3/5/2005
- *
- *	Copyright © 2005, Michael J. Conrad. All Rights Reserved.
- *
- *	Core FP desktop database routines.
- */
-
 #include "StdAfx.h"
 #include "afp.h"
 #include "afpdesktop.h"
 #include "afpdirectory.h"
 #include "afp_session.h"
 
+using namespace dsi;
 
 /*
  * FPOpenDT()
@@ -23,30 +15,29 @@
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPOpenDT(
-    IN afp_net_buffer& afpRequest,
-       IN afp_net_buffer& afpReply,
-       IN LPSESSION afpSession
+	afp_net_buffer& afp_request,
+	afp_net_buffer& afp_reply,
+	const dsi_connection* connection
 )
 {
-    uint16 afpVolumeID;
-    uint16 afpDTRefNum = 0;
-    AFPERROR afpError;
+	UINT16 afp_dt_ref_num = 0;
 
-    //
-    //First WORD is afp command and padding byte.
-    //
-    afpRequest.advance_pos_ptr(sizeof(int16));
+	//
+	//First WORD is afp command and padding byte.
+	//
+	afp_request.advance_pos_ptr(sizeof(int16));
 
-    afpVolumeID = afpRequest.pull_num<UINT16>();
-    afpError = static_cast<afp_session*>(afpSession->afpSessionObject)->open_desk(afpVolumeID, &afpDTRefNum);
+	const auto afp_volume_id = afp_request.pull_num<UINT16>();
+	const AFPERROR afp_error = connection->get_afp_session()->open_desk(afp_volume_id, &afp_dt_ref_num);
 
-    if (AFP_SUCCESS(afpError))
-    {
-        afpReply.push_int16(afpDTRefNum);
-    }
+	if (AFP_SUCCESS(afp_error))
+	{
+		afp_reply.push_num<UINT16>(afp_dt_ref_num);
+	}
 
-    return afpError;
+	return afp_error;
 }
 
 
@@ -59,23 +50,21 @@ AFPERROR FPOpenDT(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPCloseDT(
-    IN afp_net_buffer& afpRequest,
-       IN afp_net_buffer& afpReply,
-       IN LPSESSION afpSession
+	IN afp_net_buffer& afp_request,
+	IN const afp_net_buffer& afp_reply,
+	IN const dsi_connection* connection
 )
 {
-    UNREFERENCED_PARAMETER(afpReply);
+	UNREFERENCED_PARAMETER(afp_reply);
 
-    uint16 afpDTRefNum;
-    AFPERROR afpError;
+	afp_request.advance_pos_ptr(sizeof(int16));
 
-    afpRequest.advance_pos_ptr(sizeof(int16));
+	const auto afp_dt_ref_num = afp_request.pull_num<UINT16>();
+	const AFPERROR afp_error = connection->get_afp_session()->close_desk(afp_dt_ref_num);
 
-    afpDTRefNum = afpRequest.pull_num<UINT16>();
-    afpError = static_cast<afp_session*>(afpSession->afpSessionObject)->close_desk(afpDTRefNum);
-
-    return afpError;
+	return afp_error;
 }
 
 
@@ -88,84 +77,63 @@ AFPERROR FPCloseDT(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPAddIcon(
-    IN afp_net_buffer& afpRequest,
-       IN afp_net_buffer& afpReply,
-       IN LPSESSION afpSession
+	IN afp_net_buffer& afp_request,
+	IN const afp_net_buffer& afp_reply,
+	IN const dsi_connection* connection
 )
 {
-    UNREFERENCED_PARAMETER(afpReply);
+	UNREFERENCED_PARAMETER(afp_reply);
 
-    DESKTOP_ENTRY iconEntry;
-    AFPERROR afpError = AFP_OK;
+	DESKTOP_ENTRY icon_entry;
+	AFPERROR afp_error = AFP_OK;
 
-    //
-    //The first work contains the command and padding byte.
-    //
-    afpRequest.advance_pos_ptr(sizeof(int16));
+	// The first work contains the command and padding byte.
+	afp_request.advance_pos_ptr(sizeof(int16));
 
-    //
-    //Get the refnum to our OPEN desktop database.
-    //
-    uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
+	const auto afp_dt_ref_num = afp_request.pull_num<UINT16>();
 
-    //
-    //Grab the file type and creator that will be associated with
-    //this icon. Note that in MacOS X, they appear to be going away
-    //from creators and types.
-    //
-    iconEntry.fileCreator = afpRequest.pull_num<UINT32>();
-    iconEntry.fileType = afpRequest.pull_num<UINT32>();
+	// Grab the file type and creator that will be associated with
+	// this icon. Note that in MacOS X, they appear to be doing away
+	// from creators and types.
+	icon_entry.fileCreator = afp_request.pull_num<UINT32>();
+	icon_entry.fileType = afp_request.pull_num<UINT32>();
 
-    //
-    //Next bytes containes the icon type we'll be storing. We don't
-    //care what it is, its for the client to know.
-    //
-    iconEntry.iconType = afpRequest.pull_num<INT8>();
+	// Next bytes contains the icon type we'll be storing. We don't
+	// care what it is, its for the client to know.
+	icon_entry.iconType = afp_request.pull_num<INT8>();
 
-    //
-    //A padding byte, skip it.
-    //
-    afpRequest.advance_pos_ptr(sizeof(int8));
+	// A padding byte, skip it.
+	afp_request.advance_pos_ptr(sizeof(int8));
 
-    //
-    //Get the next 2 parameters; We don't know or care what the tag is and
-    //we get the size of the data we'll be storing.
-    //
-    iconEntry.entryTag = afpRequest.pull_num<UINT32>();
-    iconEntry.dataSize = afpRequest.pull_num<UINT16>();
-    iconEntry.entryType = ENTRY_TYPE_ICON;
-     
-    //
-    //Advance in the buffer to the offset where the icon data is
-    //being stored.
-    //
-    //afpRequest.AdvanceTo(ntohl(*(DWORD*)(afpRequest.GetBuffer())[DSI_OFFSET_DATAOFFSET]));
+	// Get the next 2 parameters; We don't know or care what the tag is and
+	// we get the size of the data we'll be storing.
+	icon_entry.entryTag = afp_request.pull_num<UINT32>();
+	icon_entry.dataSize = afp_request.pull_num<UINT16>();
+	icon_entry.entryType = ENTRY_TYPE_ICON;
 
-    if (iconEntry.dataSize > MAX_DESKTOP_DATA_SIZE)
-    {
-        //
-        //Nothing to do here but bail out!
-        //
-        return (afpParmErr);
-    }
+	// Advance in the buffer to the offset where the icon data is
+	// being stored.
 
-    //
-    //Now copy the actual icon data into our buffer to store.
-    //
-    afpRequest.pull_raw_data(iconEntry.data, iconEntry.dataSize);
+	if (icon_entry.dataSize > MAX_DESKTOP_DATA_SIZE)
+	{
+		// Nothing to do here but bail out!
+		return (afpParmErr);
+	}
 
-    //
-    //Now call the desktop routine to do the rest of the work.
-    //
-    OPEN_DESKTOP* pDesktop = static_cast<afp_session*>(afpSession->afpSessionObject)->find_desk_file(afpDTRefNum);
+	// Now copy the actual icon data into our buffer to store.
+	afp_request.pull_raw_data(icon_entry.data, icon_entry.dataSize);
 
-    if (pDesktop != nullptr)
-    {
-        afpError = AFPAddEntry(&iconEntry, pDesktop);
-    }
+	// Now call the desktop routine to do the rest of the work.
+	OPEN_DESKTOP* pDesktop = connection->get_afp_session()->find_desk_file(afp_dt_ref_num);
 
-    return afpError;
+	if (pDesktop != nullptr)
+	{
+		afp_error = AFPAddEntry(&icon_entry, pDesktop);
+	}
+
+	return afp_error;
 }
 
 
@@ -178,53 +146,50 @@ AFPERROR FPAddIcon(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPGetIcon(
-    IN afp_net_buffer& afpRequest,
-       IN afp_net_buffer& afpReply,
-       IN LPSESSION afpSession
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN const dsi_connection* connection
 )
 {
-    DESKTOP_ENTRY searchEntry;
-    DESKTOP_ENTRY iconEntry;
+	DESKTOP_ENTRY search_entry;
+	DESKTOP_ENTRY icon_entry;
 
-    afpRequest.advance_pos_ptr(sizeof(int16));
+	afp_request.advance_pos_ptr(sizeof(UINT16));
 
-    uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
+	const auto afp_dt_ref_num = afp_request.pull_num<UINT16>();
 
-    searchEntry.fileCreator = afpRequest.pull_num<UINT32>();
-    searchEntry.fileType = afpRequest.pull_num<UINT32>();
-    searchEntry.iconType = afpRequest.pull_num<INT8>();
+	search_entry.fileCreator = afp_request.pull_num<UINT32>();
+	search_entry.fileType = afp_request.pull_num<UINT32>();
+	search_entry.iconType = afp_request.pull_num<INT8>();
 
-    afpRequest.advance_pos_ptr(sizeof(int8));
+	afp_request.advance_pos_ptr(sizeof(INT8));
 
-    uint16 afpLength = afpRequest.pull_num<UINT16>();
-    searchEntry.entryType = ENTRY_TYPE_ICON;
+	const auto afp_length = afp_request.pull_num<UINT16>();
+	search_entry.entryType = ENTRY_TYPE_ICON;
 
-    auto desktop = static_cast<afp_session*>(afpSession->afpSessionObject)->find_desk_file(afpDTRefNum);
+	const auto desktop = connection->get_afp_session()->find_desk_file(afp_dt_ref_num);
 
-    if (desktop == nullptr)
-    {
-        return afpParmErr;
-    }
+	if (desktop == nullptr)
+	{
+		return afpParmErr;
+	}
 
-    auto afpError = AFPFindEntry(&searchEntry, DONT_USE_INDEX, desktop, &iconEntry);
+	const auto afp_error = AFPFindEntry(&search_entry, DONT_USE_INDEX, desktop, &icon_entry);
 
-    if (AFP_SUCCESS(afpError))
-    {
-        //
-        //We found the bitmap and the caller actually has memory
-        //reserved for the bimap.
-        //
+	if (AFP_SUCCESS(afp_error))
+	{
+		// We found the bitmap and the caller actually has memory
+		// reserved for the bitmap.
 
-        //
-        //As per the spec, even if the client didn't reserve enough
-        //space, we still copy what we can.
-        //
-        auto afpCopySize = min(afpLength, iconEntry.dataSize);
-        afpReply.push_raw_data(iconEntry.data, afpCopySize);
-    }
+		// As per the spec, even if the client didn't reserve enough
+		// space, we still copy what we can.
+		const auto afp_copy_size = min(afp_length, icon_entry.dataSize);
+		afp_reply.push_raw_data(icon_entry.data, afp_copy_size);
+	}
 
-    return afpError;
+	return afp_error;
 }
 
 
@@ -237,41 +202,42 @@ AFPERROR FPGetIcon(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPGetIconInfo(
-    IN afp_net_buffer& afpRequest,
-       IN afp_net_buffer& afpReply,
-       IN LPSESSION afpSession
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN const dsi_connection* connection
 )
 {
-    DESKTOP_ENTRY searchEntry;
-    DESKTOP_ENTRY foundEntry;
+	DESKTOP_ENTRY search_entry;
+	DESKTOP_ENTRY found_entry;
 
-    afpRequest.advance_pos_ptr(sizeof(int16));
-    uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
+	afp_request.advance_pos_ptr(sizeof(UINT16));
+	const auto afp_dt_ref_num = afp_request.pull_num<UINT16>();
 
-    searchEntry.fileCreator = afpRequest.pull_num<UINT32>();
-    uint16 afpIconIndex = afpRequest.pull_num<UINT16>();
-    searchEntry.entryType = ENTRY_TYPE_ICON;
+	search_entry.fileCreator = afp_request.pull_num<UINT32>();
+	const auto afp_icon_index = afp_request.pull_num<UINT16>();
+	search_entry.entryType = ENTRY_TYPE_ICON;
 
-    auto desktop = static_cast<afp_session*>(afpSession->afpSessionObject)->find_desk_file(afpDTRefNum);
+	const auto desktop = connection->get_afp_session()->find_desk_file(afp_dt_ref_num);
 
-    if (desktop == nullptr)
-    {
-        return afpParmErr;
-    }
+	if (desktop == nullptr)
+	{
+		return afpParmErr;
+	}
 
-    auto afpError = AFPFindEntry(&searchEntry, afpIconIndex, desktop, &foundEntry);
+	const auto afp_error = AFPFindEntry(&search_entry, afp_icon_index, desktop, &found_entry);
 
-    if (AFP_SUCCESS(afpError))
-    {
-        afpReply.push_int32(foundEntry.entryTag);
-        afpReply.push_raw_data(&foundEntry.fileType, sizeof(FILETYPE));
-        afpReply.push_int8(foundEntry.iconType);
-        afpReply.push_int8(0);
-        afpReply.push_int16(static_cast<int16>(foundEntry.dataSize));
-    }
+	if (AFP_SUCCESS(afp_error))
+	{
+		afp_reply.push_num(found_entry.entryTag);
+		afp_reply.push_raw_data(&found_entry.fileType, sizeof(FILETYPE));
+		afp_reply.push_num(found_entry.iconType);
+		afp_reply.push_num<INT8>(0);
+		afp_reply.push_num(found_entry.dataSize);
+	}
 
-    return afpError;
+	return afp_error;
 }
 
 
@@ -284,70 +250,68 @@ AFPERROR FPGetIconInfo(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPAddComment(
-    IN afp_net_buffer& afpRequest,
-       IN afp_net_buffer& afpReply,
-       IN LPSESSION afpSession
+	IN afp_net_buffer& afp_request,
+	IN const afp_net_buffer& afp_reply,
+	IN const dsi_connection* connection
 )
 {
-    UNREFERENCED_PARAMETER(afpReply);
+	UNREFERENCED_PARAMETER(afp_reply);
 
-    DESKTOP_ENTRY newEntry;
-    p_afp_index afpEntry = nullptr;
+	DESKTOP_ENTRY new_entry;
+	p_afp_index afp_entry = nullptr;
 
-    DBGWRITE(dbg_level_all, L"[afp:FPAddComment]Enter\n");
+	DBGWRITE(dbg_level_all, L"[afp:FPAddComment]Enter\n");
 
-    afpRequest.advance_pos_ptr(sizeof(int16));
+	afp_request.advance_pos_ptr(sizeof(int16));
 
-    uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
-    newEntry.dirID = afpRequest.pull_num<UINT32>();
-    newEntry.pathType = afpRequest.pull_num<INT8>();
+	const auto afp_dt_ref_num = afp_request.pull_num<UINT16>();
+	new_entry.dirID = afp_request.pull_num<UINT32>();
+	new_entry.pathType = afp_request.pull_num<INT8>();
 
-    auto afpError = afpRequest.get_pascal_string(newEntry.pathname, sizeof(newEntry.pathname), true, newEntry.pathType, nullptr);
+	auto afp_error = afp_request.get_pascal_string(
+		new_entry.pathname,
+		sizeof(new_entry.pathname), 
+		true,
+		static_cast<INT8>(new_entry.pathType),
+		nullptr);
 
-    if (!AFP_SUCCESS(afpError))
-    {
-        return (afpParmErr);
-    }
+	if (afp_error != AFP_OK)
+	{
+		return (afpParmErr);
+	}
 
-    afpRequest.advance_if_odd();
-    afpRequest.get_pascal_string(newEntry.data, sizeof(newEntry.data));
+	afp_request.advance_if_odd();
+	afp_request.get_pascal_string(new_entry.data, sizeof(new_entry.data));
 
-    newEntry.entryType = ENTRY_TYPE_CMNT;
-    newEntry.dataSize = strlen(newEntry.data);
+	new_entry.entryType = ENTRY_TYPE_CMNT;
+	new_entry.dataSize = static_cast<size_t>(strlen(new_entry.data));
 
-    auto desktop = static_cast<afp_session*>(afpSession->afpSessionObject)->find_desk_file(afpDTRefNum);
+	const auto desktop = connection->get_afp_session()->find_desk_file(afp_dt_ref_num);
 
-    if (desktop == nullptr)
-    {
-        return afpParmErr;
-    }
+	if (desktop == nullptr)
+	{
+		return afpParmErr;
+	}
 
-    //
-    //Make sure the object that we're adding the comment for
-    //exists.
-    //
-    afpError = AFPIndexFindEntryWithVolIDAndPath(
-        desktop->volID,
-        newEntry.dirID,
-        newEntry.pathname,
-        &afpEntry);
+	afp_error = AFPIndexFindEntryWithVolIDAndPath(
+		desktop->volID,
+		new_entry.dirID,
+		new_entry.pathname,
+		&afp_entry);
 
-    if ((!AFP_SUCCESS(afpError)) ||
-        (GetFileAttributes(afpEntry->sz_path) == AFP_MAX_DWORD))
-    {
-        //
-        //We couldn't find the requested object.
-        //
-        DBGWRITE(dbg_level_info, L"[afp:FPAddComment]Path not found!\n");
-        afpError = afpObjectNotFound;
-    }
-    else
-    {
-        afpError = AFPAddEntry(&newEntry, desktop);
-    }
+	if (afp_error != AFP_OK || GetFileAttributes(afp_entry->sz_path) == AFP_MAX_DWORD)
+	{
+		DBGWRITE(dbg_level_info, L"[afp:FPAddComment]Path not found!\n");
+		afp_error = afpObjectNotFound;
+	}
+	else
+	{
+		afp_error = AFPAddEntry(&new_entry, desktop);
+	}
 
-    return afpError;
+	return afp_error;
 }
 
 
@@ -360,69 +324,63 @@ AFPERROR FPAddComment(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPGetComment(
-    IN afp_net_buffer& afpRequest,
-       IN afp_net_buffer& afpReply,
-       IN LPSESSION afpSession
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi_connection* connection
 )
 {
-    DESKTOP_ENTRY searchEntry;
-    DESKTOP_ENTRY foundEntry;
-    p_afp_index afpEntry = nullptr;
+	DESKTOP_ENTRY search_entry;
+	DESKTOP_ENTRY found_entry;
+	p_afp_index afp_entry = nullptr;
 
-    DBGWRITE(dbg_level_all, L"[afp:FPGetComment]Enter\n");
+	DBGWRITE(dbg_level_all, L"[afp:FPGetComment]Enter\n");
 
-    afpRequest.advance_pos_ptr(sizeof(int16));
+	afp_request.advance_pos_ptr(sizeof(int16));
 
-    uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
-    searchEntry.dirID = afpRequest.pull_num<UINT32>();
-    searchEntry.pathType = afpRequest.pull_num<INT8>();
-    searchEntry.entryType = ENTRY_TYPE_CMNT;
+	const auto afp_dt_refnum = afp_request.pull_num<UINT16>();
+	search_entry.dirID = afp_request.pull_num<UINT32>();
+	search_entry.pathType = afp_request.pull_num<INT8>();
+	search_entry.entryType = ENTRY_TYPE_CMNT;
 
-    auto afpError = afpRequest.get_pascal_string(searchEntry.pathname, sizeof(searchEntry.pathname), true, searchEntry.pathType, nullptr);
+	auto afp_error = afp_request.get_pascal_string(search_entry.pathname, sizeof(search_entry.pathname), true,
+		search_entry.pathType, nullptr);
 
-    if (!AFP_SUCCESS(afpError))
-    {
-        return (afpParmErr);
-    }
+	if (AFP_FAILED(afp_error))
+	{
+		return (afpParmErr);
+	}
 
-    //
-    //Make sure the object that we're getting the comment for
-    //exists.
-    //
-    auto desktop = static_cast<afp_session*>(afpSession->afpSessionObject)->find_desk_file(afpDTRefNum);
+	const auto desktop = connection->get_afp_session()->find_desk_file(afp_dt_refnum);
 
-    if (desktop == nullptr)
-    {
-        return afpParmErr;
-    }
+	if (desktop == nullptr)
+	{
+		return afpParmErr;
+	}
 
-    afpError = AFPIndexFindEntryWithVolIDAndPath(
-        desktop->volID,
-        searchEntry.dirID,
-        searchEntry.pathname,
-        &afpEntry);
+	afp_error = AFPIndexFindEntryWithVolIDAndPath(
+		desktop->volID,
+		search_entry.dirID,
+		search_entry.pathname,
+		&afp_entry);
 
-    if ((!AFP_SUCCESS(afpError)) ||
-        (GetFileAttributes(afpEntry->sz_path) == AFP_MAX_DWORD))
-    {
-        //
-        //We couldn't find the requested object.
-        //
-        DBGWRITE(dbg_level_info, L"[afp:FPGetComment]Path not found!\n");
-        afpError = afpObjectNotFound;
-    }
-    else
-    {
-        afpError = AFPFindEntry(&searchEntry, DONT_USE_INDEX, desktop, &foundEntry);
+	if (AFP_FAILED(afp_error) || GetFileAttributes(afp_entry->sz_path) == AFP_MAX_DWORD)
+	{
+		DBGWRITE(dbg_level_info, L"[afp:FPGetComment]Path not found!\n");
+		afp_error = afpObjectNotFound;
+	}
+	else
+	{
+		afp_error = AFPFindEntry(&search_entry, DONT_USE_INDEX, desktop, &found_entry);
 
-        if (AFP_SUCCESS(afpError))
-        {
-            afpReply.push_pascal_string(foundEntry.data);
-        }
-    }
+		if (AFP_SUCCESS(afp_error))
+		{
+			afp_reply.push_pascal_string(found_entry.data);
+		}
+	}
 
-    return afpError;
+	return afp_error;
 }
 
 
@@ -435,40 +393,42 @@ AFPERROR FPGetComment(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPRemoveComment(
-    IN afp_net_buffer& afpRequest,
-       IN afp_net_buffer& afpReply,
-       IN LPSESSION afpSession
+	IN afp_net_buffer& afp_request,
+	IN const afp_net_buffer& afp_reply,
+	IN dsi_connection* connection
 )
 {
-    UNREFERENCED_PARAMETER(afpReply);
+	UNREFERENCED_PARAMETER(afp_reply);
 
-    DESKTOP_ENTRY searchEntry;
+	DESKTOP_ENTRY search_entry;
 
-    afpRequest.advance_pos_ptr(sizeof(int16));
+	afp_request.advance_pos_ptr(sizeof(int16));
 
-    uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
-    searchEntry.dirID = afpRequest.pull_num<UINT32>();
-    searchEntry.pathType = afpRequest.pull_num<INT8>();
-    searchEntry.entryType = ENTRY_TYPE_CMNT;
+	const auto afp_dt_refnum = afp_request.pull_num<UINT16>();
+	search_entry.dirID = afp_request.pull_num<UINT32>();
+	search_entry.pathType = afp_request.pull_num<INT8>();
+	search_entry.entryType = ENTRY_TYPE_CMNT;
 
-    auto afpError = afpRequest.get_pascal_string(searchEntry.pathname, sizeof(searchEntry.pathname), true, searchEntry.pathType, nullptr);
+	auto afp_error = afp_request.get_pascal_string(search_entry.pathname, sizeof(search_entry.pathname), true,
+		search_entry.pathType, nullptr);
 
-    if (!AFP_SUCCESS(afpError))
-    {
-        return afpParmErr;
-    }
+	if (AFP_FAILED(afp_error))
+	{
+		return afpParmErr;
+	}
 
-    auto pDesktop = static_cast<afp_session*>(afpSession->afpSessionObject)->find_desk_file(afpDTRefNum);
+	const auto desktop = connection->get_afp_session()->find_desk_file(afp_dt_refnum);
 
-    if (pDesktop == nullptr)
-    {
-        return afpParmErr;
-    }
+	if (desktop == nullptr)
+	{
+		return afpParmErr;
+	}
 
-    afpError = AFPRemoveEntry(&searchEntry, pDesktop);
+	afp_error = AFPRemoveEntry(&search_entry, desktop);
 
-    return afpError;
+	return afp_error;
 }
 
 
@@ -476,80 +436,79 @@ AFPERROR FPRemoveComment(
  * FPGetAPPL()
  *
  * Description:
- *		Get an APPL entry associated with a filetype from the database.
+ *		Get an APPL entry associated with a file type from the database.
  *
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPGetAPPL(
-    IN afp_net_buffer& afpRequest,
-       IN afp_net_buffer& afpReply,
-       IN LPSESSION afpSession
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi_connection* connection
 )
 {
-    WIN32_FILE_ATTRIBUTE_DATA winAttributes;
-    DESKTOP_ENTRY searchEntry, foundEntry;
-    p_afp_index afpEntry = nullptr;
-    uint16 afpVolumeID = 0;
+	WIN32_FILE_ATTRIBUTE_DATA winAttributes;
+	DESKTOP_ENTRY search_entry, found_entry;
+	p_afp_index afpEntry = nullptr;
 
-    afpRequest.advance_pos_ptr(sizeof(int16));
-    uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
+	afp_request.advance_pos_ptr(sizeof(int16));
+	const auto afp_dt_refnum = afp_request.pull_num<UINT16>();
 
-    afpRequest.pull_raw_data(&searchEntry.fileCreator, sizeof(FILECREATOR));
+	afp_request.pull_raw_data(&search_entry.fileCreator, sizeof(FILECREATOR));
 
-    uint16 afpIndex = afpRequest.pull_num<UINT16>();
-    uint16 afpBitmap = afpRequest.pull_num<UINT16>();
+	const auto afp_index = afp_request.pull_num<UINT16>();
+	const auto afp_bitmap = afp_request.pull_num<UINT16>();
 
-    searchEntry.entryType = ENTRY_TYPE_APPL;
+	search_entry.entryType = ENTRY_TYPE_APPL;
 
-    auto desktop = static_cast<afp_session*>(afpSession->afpSessionObject)->find_desk_file(afpDTRefNum);
-    if (desktop == nullptr)
-    {
-        return afpParmErr;
-    }
+	const auto desktop = connection->get_afp_session()->find_desk_file(afp_dt_refnum);
+	if (desktop == nullptr)
+	{
+		return afpParmErr;
+	}
 
-    auto afpError = AFPFindEntry(
-        &searchEntry,
-        afpIndex,
-        desktop,
-        &foundEntry
-    );
+	auto afp_error = AFPFindEntry(
+		&search_entry,
+		afp_index,
+		desktop,
+		&found_entry
+	);
 
-    if (AFP_SUCCESS(afpError))
-    {
-        afpError = AFPIndexFindEntryWithVolIDAndPath(
-            desktop->volID,
-            foundEntry.dirID,
-            foundEntry.pathname,
-            &afpEntry
-        );
+	if (AFP_SUCCESS(afp_error))
+	{
+		afp_error = AFPIndexFindEntryWithVolIDAndPath(
+			desktop->volID,
+			found_entry.dirID,
+			found_entry.pathname,
+			&afpEntry
+		);
 
-        if (AFP_SUCCESS(afpError))
-        {
-            //
-            //Collect attribute data on the file or folder.
-            //
-            if (!GetFileAttributesEx(afpEntry->sz_path, GetFileExInfoStandard, &winAttributes))
-            {
-                return afpObjectNotFound;
-            }
+		if (AFP_SUCCESS(afp_error))
+		{
+			const uint16 afp_volume_id = desktop->volID;
 
-            afpReply.push_int16(afpBitmap);
-            afpReply.push_int32(foundEntry.entryTag);
+			if (!GetFileAttributesEx(afpEntry->sz_path, GetFileExInfoStandard, &winAttributes))
+			{
+				return afpObjectNotFound;
+			}
 
-            afpError = AFPGetObjectParms(
-                afpReply,
-                afpBitmap,
-                afpVolumeID,
-                foundEntry.dirID,
-                afpSession,
-                afpEntry,
-                winAttributes
-            );
-        }
-    }
+			afp_reply.push_num(afp_bitmap);
+			afp_reply.push_num(found_entry.entryTag);
 
-    return afpError;
+			afp_error = AFPGetObjectParms(
+				afp_reply,
+				afp_bitmap,
+				afp_volume_id,
+				found_entry.dirID,
+				connection,
+				afpEntry,
+				winAttributes
+			);
+		}
+	}
+
+	return afp_error;
 }
 
 
@@ -557,47 +516,49 @@ AFPERROR FPGetAPPL(
  * FPAddAPPL()
  *
  * Description:
- *		Add an APPL entry associated with a filetype to the database.
+ *		Add an APPL entry associated with a file type to the database.
  *
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPAddAPPL(
-    IN afp_net_buffer& afpRequest,
-       IN afp_net_buffer& afpReply,
-       IN LPSESSION afpSession
+	IN afp_net_buffer& afp_request,
+	IN const afp_net_buffer& afp_reply,
+	IN const dsi_connection* connection
 )
 {
-    UNREFERENCED_PARAMETER(afpReply);
+	UNREFERENCED_PARAMETER(afp_reply);
 
-    DESKTOP_ENTRY newEntry;
+	DESKTOP_ENTRY newEntry;
 
-    afpRequest.advance_pos_ptr(sizeof(int16));
+	afp_request.advance_pos_ptr(sizeof(int16));
 
-    uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
+	const auto afp_dt_refnum = afp_request.pull_num<UINT16>();
 
-    newEntry.dirID = afpRequest.pull_num<UINT32>();
-    newEntry.fileCreator = afpRequest.pull_num<UINT32>();
-    newEntry.entryTag = afpRequest.pull_num<UINT32>();
-    newEntry.pathType = afpRequest.pull_num<INT8>();
-    newEntry.entryType = ENTRY_TYPE_APPL;
-    newEntry.dataSize = 0;
+	newEntry.dirID = afp_request.pull_num<UINT32>();
+	newEntry.fileCreator = afp_request.pull_num<UINT32>();
+	newEntry.entryTag = afp_request.pull_num<UINT32>();
+	newEntry.pathType = afp_request.pull_num<INT8>();
+	newEntry.entryType = ENTRY_TYPE_APPL;
+	newEntry.dataSize = 0;
 
-    auto afpError = afpRequest.get_pascal_string(newEntry.pathname, sizeof(newEntry.pathname), true, newEntry.pathType, nullptr);
-    if (!AFP_SUCCESS(afpError))
-    {
-        return afpParmErr;
-    }
+	auto afp_error = afp_request.get_pascal_string(newEntry.pathname, sizeof(newEntry.pathname), true, newEntry.pathType,
+		nullptr);
+	if (AFP_FAILED(afp_error))
+	{
+		return afpParmErr;
+	}
 
-    auto desktop = static_cast<afp_session*>(afpSession->afpSessionObject)->find_desk_file(afpDTRefNum);
-    if (desktop == nullptr)
-    {
-        return afpParmErr;
-    }
+	const auto desktop = connection->get_afp_session()->find_desk_file(afp_dt_refnum);
+	if (desktop == nullptr)
+	{
+		return afpParmErr;
+	}
 
-    afpError = AFPAddEntry(&newEntry, desktop);
+	afp_error = AFPAddEntry(&newEntry, desktop);
 
-    return afpError;
+	return afp_error;
 }
 
 
@@ -605,49 +566,49 @@ AFPERROR FPAddAPPL(
  * FPRemoveAPPL()
  *
  * Description:
- *		Remove an APPL entry associated with a filetype to the database.
+ *		Remove an APPL entry associated with a file type to the database.
  *
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPRemoveAPPL(
-    IN afp_net_buffer& afpRequest,
-       IN afp_net_buffer& afpReply,
-       IN LPSESSION afpSession
+	IN afp_net_buffer& afp_request,
+	IN const afp_net_buffer& afp_reply,
+	IN const dsi_connection* connection
 )
 {
-    UNREFERENCED_PARAMETER(afpReply);
+	UNREFERENCED_PARAMETER(afp_reply);
 
-    DESKTOP_ENTRY searchEntry;
+	DESKTOP_ENTRY search_entry;
 
-    afpRequest.advance_pos_ptr(sizeof(int16));
+	afp_request.advance_pos_ptr(sizeof(int16));
 
-    uint16 afpDTRefNum = afpRequest.pull_num<UINT16>();
-    searchEntry.dirID = afpRequest.pull_num<UINT32>();
-    searchEntry.fileCreator = afpRequest.pull_num<UINT32>();
-    searchEntry.pathType = afpRequest.pull_num<INT8>();
-    searchEntry.entryType = ENTRY_TYPE_APPL;
+	const auto afp_dt_refnum = afp_request.pull_num<UINT16>();
+	search_entry.dirID = afp_request.pull_num<UINT32>();
+	search_entry.fileCreator = afp_request.pull_num<UINT32>();
+	search_entry.pathType = afp_request.pull_num<INT8>();
+	search_entry.entryType = ENTRY_TYPE_APPL;
 
-    auto afpError = afpRequest.get_pascal_string(searchEntry.pathname, sizeof(searchEntry.pathname), true, searchEntry.pathType, nullptr);
-    if (!AFP_SUCCESS(afpError))
-    {
-        return afpParmErr;
-    }
+	auto afp_error = afp_request.get_pascal_string(search_entry.pathname, sizeof(search_entry.pathname), true,
+		search_entry.pathType, nullptr);
+	if (AFP_FAILED(afp_error))
+	{
+		return afpParmErr;
+	}
 
-    //
-    //Although the spec says to, we don't check to make sure that
-    //the actual application really exists on the volume. Why? Because
-    //when you move or delete a file, the client always calls this
-    //AFTER it deletes or moves it.
-    //
+	// Although the spec says to, we don't check to make sure that
+	// the actual application really exists on the volume. Why? Because
+	// when you move or delete a file, the client always calls this
+	// AFTER it deletes or moves it.
 
-    auto desktop = static_cast<afp_session*>(afpSession->afpSessionObject)->find_desk_file(afpDTRefNum);
-    if (desktop == nullptr)
-    {
-        return afpParmErr;
-    }
+	const auto desktop = connection->get_afp_session()->find_desk_file(afp_dt_refnum);
+	if (desktop == nullptr)
+	{
+		return afpParmErr;
+	}
 
-    afpError = AFPRemoveEntry(&searchEntry, desktop);
+	afp_error = AFPRemoveEntry(&search_entry, desktop);
 
-    return afpError;
+	return afp_error;
 }

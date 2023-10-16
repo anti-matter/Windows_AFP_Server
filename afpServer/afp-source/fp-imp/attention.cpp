@@ -12,7 +12,7 @@
 extern CRITICAL_SECTION g_cs_session_list;
 extern BOOL g_running;
 extern LPSESSION g_sessions_list;
-extern volume_array gVolumeArray;
+extern volume_array g_volume_array;
 extern SHORT g_worker_thread_ref_count;
 
 //---------------------------------------------------------------------
@@ -38,9 +38,9 @@ DWORD WINAPI AFPAttentionThread(
     while (g_running)
     {
         {
-            auto_lock lock(gVolumeArray.mutex());
+            auto_lock lock(g_volume_array.mutex());
 
-            for (auto it = gVolumeArray.begin(); it < gVolumeArray.end(); ++it)
+            for (auto it = g_volume_array.begin(); it < g_volume_array.end(); ++it)
             {
                 AFP_VOLUME_INFO* pVolInfo = it->get();
 

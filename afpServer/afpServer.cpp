@@ -35,9 +35,9 @@ BOOL		gMainWindowVisible;
 
 extern CRITICAL_SECTION	gVolumesCS;
 extern AFP_VOLUME_INFO*	gVolumes;
-extern BOOL				gAllowGuests;
-extern DWORD			gMaxSessions;
-extern BOOL				gForceEncryptedLogon;
+extern BOOL				g_allow_guests;
+extern DWORD			g_max_sessions;
+extern BOOL				g_force_encrypted_logon;
 
 void FillVolumeListBox(
     IN	HWND	hDlg
@@ -439,8 +439,8 @@ void SetMiscDialogItems(
     theRegistry.get_max_sessions(&dwMaxSessions);
     SetDlgItemInt(hDlg, IDC_MAX_CONNECTIONS, dwMaxSessions, false);
 
-    gAllowGuests = fAllowGuest;
-    gMaxSessions = dwMaxSessions;
+    g_allow_guests = fAllowGuest;
+    g_max_sessions = dwMaxSessions;
 }
 
 
@@ -461,29 +461,29 @@ void SaveMiscSettings(
     if (IsDlgButtonChecked(hDlg, IDC_ALLOW_GUESTS))
     {
         theRegistry.set_allow_guests_setting(true);
-        gAllowGuests = true;
+        g_allow_guests = true;
     }
     else
     {
         theRegistry.set_allow_guests_setting(false);
-        gAllowGuests = false;
+        g_allow_guests = false;
     }
     
     if (IsDlgButtonChecked(hDlg, IDC_REQ_ENCRYPTION))
     {
         theRegistry.set_force_encrypted_logon(true);
-        gForceEncryptedLogon = true;
+        g_force_encrypted_logon = true;
     }
     else
     {
         theRegistry.set_force_encrypted_logon(false);
-        gForceEncryptedLogon = false;
+        g_force_encrypted_logon = false;
     }
 
     dwMaxSessions = GetDlgItemInt(hDlg, IDC_MAX_CONNECTIONS, &fTranslated, false);
     theRegistry.set_max_sessions(dwMaxSessions);
 
-    gMaxSessions = dwMaxSessions;
+    g_max_sessions = dwMaxSessions;
 }
 
 

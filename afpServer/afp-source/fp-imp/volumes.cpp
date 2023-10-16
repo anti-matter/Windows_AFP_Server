@@ -14,7 +14,7 @@
 #include "afp_registry.h"
 #include "volume_array.h"
 
-volume_array gVolumeArray;
+volume_array g_volume_array;
 USHORT gNextVolumeID = 65535;
 
 
@@ -100,7 +100,7 @@ DWORD AFPRemoveVolumeFromUI(
     afp_registry registry;
     DWORD error = 2;
 
-    auto volume = gVolumeArray.find_by_name(szShareName);
+    auto volume = g_volume_array.find_by_name(szShareName);
     if (volume != nullptr)
     {
         error = AFPRemoveVolume(volume);
@@ -270,7 +270,7 @@ AFP_VOLUME_INFO* AFPAddVolume(
     //Add the new volume element to the volume list.
     //
     auto tempVolume = newVolume.get();
-    gVolumeArray.add_item(newVolume);
+    g_volume_array.add_item(newVolume);
 
     //
     //Now add the change notify thread.
@@ -339,7 +339,7 @@ AFPERROR AFPRemoveVolume(
     //First step is to remove the volume structure pointer
     //for the volume from the volume tracking array.
     //
-    gVolumeArray.remove_item(pVolInfo);
+    g_volume_array.remove_item(pVolInfo);
 
     return AFP_OK;
 }
@@ -353,12 +353,12 @@ AFPERROR AFPRemoveVolume(
 
 AFPERROR AFPRemoveAllVolumes()
 {
-    auto_lock lock(gVolumeArray.mutex());
+    auto_lock lock(g_volume_array.mutex());
 
-    auto size = gVolumeArray.num_items();
+    auto size = g_volume_array.num_items();
     for (UINT32 i = 0; i < size; ++i)
     {
-        AFPRemoveVolume(gVolumeArray.get_item(i));
+        AFPRemoveVolume(g_volume_array.get_item(i));
     }
 
     return AFP_OK;
@@ -379,8 +379,8 @@ BOOL AFPGetVolumeInfoBlock(
 )
 {
     *ppVolInfo = szVolName != nullptr
-                    ? gVolumeArray.find_by_name(szVolName)
-                    : gVolumeArray.find_by_id(wVolID);
+                    ? g_volume_array.find_by_name(szVolName)
+                    : g_volume_array.find_by_id(wVolID);
 
     return *ppVolInfo != nullptr;
 }
@@ -397,7 +397,7 @@ BOOL AFPMapVolumeNameToID(
        OUT PWORD wVolID
 )
 {
-    auto volumeInfo = gVolumeArray.find_by_name(szVolumeName);
+    auto volumeInfo = g_volume_array.find_by_name(szVolumeName);
 
     if (volumeInfo != nullptr)
     {
@@ -418,10 +418,10 @@ BOOL AFPMapVolumeNameToID(
 
 BYTE AFPNumVolumesActive()
 {
-    auto_lock lock(gVolumeArray.mutex());
+    auto_lock lock(g_volume_array.mutex());
     BYTE count = 0;
 
-    for (auto it = gVolumeArray.begin(); it < gVolumeArray.end(); ++it)
+    for (auto it = g_volume_array.begin(); it < g_volume_array.end(); ++it)
     {
         //
         //First, we check to make sure the volume has been fully indexed. If not
@@ -445,7 +445,7 @@ BYTE AFPNumVolumesActive()
 
 BYTE AFPNumVolumesShared()
 {
-    return static_cast<BYTE>(gVolumeArray.num_items());
+    return static_cast<BYTE>(g_volume_array.num_items());
 }
 
 

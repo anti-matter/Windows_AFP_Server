@@ -31,6 +31,9 @@ namespace dsi
 
 		void periodic_thread();
 
+		afp_session* find_afp_session_with_id(const char* afp_id, const UINT32 id_size);
+		afp_session* find_afp_session_with_token(const UINT32 token);
+
 	private:
 		std::vector<std::unique_ptr<dsi_connection>> connections_;
 		std::mutex connections_mutex_;

@@ -269,6 +269,7 @@ enum {
 //
 #define AFP_OK					0
 #define AFP_SUCCESS(e)			((e) == AFP_OK)
+#define AFP_FAILED(e)           ((e) != AFP_OK)
 
 //
 //How many replacement chars are saved when file names have

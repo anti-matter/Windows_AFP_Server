@@ -2,9 +2,9 @@
 #include <cstring>
 #include "afp_net_buffer.h"
 
-afp_net_buffer::afp_net_buffer(_In_ UINT8* afp_net_buffer, _In_ const size_t cb_buffer)
-	: mBuffer(afp_net_buffer)
-	  , mCurrentPos(afp_net_buffer)
+afp_net_buffer::afp_net_buffer(_In_ char* afp_buffer, _In_ const size_t cb_buffer)
+	: mBuffer(afp_buffer)
+	  , mCurrentPos(afp_buffer)
 	  , mBufferSize(cb_buffer)
 	  , mDSIReturnValue(0)
 	  , mDSIDataOffset(0)
@@ -280,7 +280,7 @@ AFPERROR afp_net_buffer::push_pascal_string(const char* string)
 
 		if (mCurrentPos - mBuffer + cb_string + 1 <= mBufferSize)
 		{
-			*mCurrentPos++ = static_cast<UINT8>(cb_string);
+			*mCurrentPos++ = static_cast<char>(cb_string);
 			memcpy(mCurrentPos, string, cb_string);
 
 			mCurrentPos += cb_string;

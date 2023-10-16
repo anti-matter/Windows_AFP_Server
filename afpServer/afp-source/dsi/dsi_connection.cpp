@@ -4,6 +4,8 @@
 #include "dsi_connection.h"
 
 #include <afpfileio.h>
+
+#include "afpdispatch.h"
 #include "dsi_connections.h"
 
 namespace dsi
@@ -20,11 +22,15 @@ namespace dsi
 		  , server_request_id_(0)
 		  , last_tickle_(0)
 		  , client_sleeping_(false)
+		  , user_token_(nullptr)
+		  , session_authenticated_(false)
+		  , afp_version_(0)
+		  , uam_type_(0)
+		  , extended_logon_info_(nullptr)
 	{
 		DBGWRITE(dbg_level_info, L"Connection (%d) accepted\n", connection_id_);
 
 		receive_buffer_ = std::make_unique<char[]>(RECV_BUFFER_SIZE);
-		afp_session_ = new afp_session(nullptr);
 	}
 
 	dsi_connection::~dsi_connection()
@@ -199,6 +205,7 @@ namespace dsi
 					break;
 
 				case dsi_cmd_command:
+					dsi_process_command(std::move(reply_buffer), dsi_cmd_command, receive_buffer_[dsi_offset_data_start]);
 					break;
 
 				case dsi_cmd_get_status:
@@ -232,12 +239,8 @@ namespace dsi
 	{
 		DBGWRITE(dbg_level_info, L"DSI get status command received.\n");
 
-		afp_net_buffer req_buffer(
-			reinterpret_cast<UINT8*>(&receive_buffer_[dsi_offset_data_start]),
-			dsi_server_request_quantum_size);
-		afp_net_buffer rep_buffer(
-			reinterpret_cast<UINT8*>(&reply_buffer[dsi_offset_data_start]),
-			dsi_server_request_quantum_size);
+		afp_net_buffer req_buffer(&receive_buffer_[dsi_offset_data_start], dsi_server_request_quantum_size);
+		afp_net_buffer rep_buffer(&reply_buffer[dsi_offset_data_start], dsi_server_request_quantum_size);
 
 		const auto afp_error = FPGetSrvrInfo(req_buffer, rep_buffer, nullptr);
 
@@ -266,9 +269,8 @@ namespace dsi
 			DBGWRITE(dbg_level_info, L"Attention quantum size: %d\n", attention_quantum_size_);
 		}
 
-		afp_net_buffer reply(
-			reinterpret_cast<UINT8*>(&receive_buffer_[dsi_offset_data_start]), 
-			dsi_server_request_quantum_size);
+		// Get a buffer wrapper for out AFP payload.
+		afp_net_buffer reply(&reply_buffer[dsi_offset_data_start], dsi_server_request_quantum_size);
 
 		reply.push_num<UINT8>(server_request_quantum);
 		reply.push_num<UINT8>(sizeof(UINT32));
@@ -298,46 +300,32 @@ namespace dsi
 		kill_connection();
 	}
 
-	void dsi_connection::dsi_process_command(std::unique_ptr<char[]> reply_buffer, UINT8 afp_cmd)
+	void dsi_connection::dsi_process_command(std::unique_ptr<char[]> reply_buffer, UINT8 dsi_cmd, UINT8 afp_cmd)
 	{
-		AFPERROR afp_error;
+		// Get a wrapper for the AFP request payload.
+		afp_net_buffer request(&receive_buffer_[dsi_offset_data_start], dsi_server_request_quantum_size);
+		request.set_dsi_data_offset(ntohl(*reinterpret_cast<UINT32*>(&receive_buffer_[DSI_OFFSET_DATAOFFSET])));
 
-		//switch (afp_cmd)
-		//{
-		//	// For performance reasons, we handle read calls from here
-		//	// in the DSI layer. This saves the overhead of the FPDispatch()
-		//	// routine for this high performance function.
+		// Get a wrapper for the AFP reply payload.
+		afp_net_buffer reply(&reply_buffer[dsi_offset_data_start], dsi_server_request_quantum_size);
 
-		//case afpRead:
-		//case afpReadExt:
-		//	afp_error = FPRead(
-		//		nullptr,
-		//		&mReceiveBuffer[DSI_OFFSET_DATASTART],
-		//		&afpReplyBuffer[DSI_OFFSET_DATASTART],
-		//		&afpDataSize
-		//	);
+		const auto afp_error = fp_dispatch_command(request, reply, this);
+		const auto data_size = afp_cmd == afpRead || afp_cmd == afpReadExt
+			? request.get_dsi_return_value()
+			: request.get_data_length();
 
-		//	FormatAndSendReply(afpReplyBuffer, dsiCommand, afp_error, afpDataSize);
-		//	break;
+		send_reply(
+			std::move(reply_buffer),
+			dsi_cmd,
+			afp_error,
+			data_size
+		);
 
-		//default:
-		//	afp_error = FPDispatchCommand(
-		//		mSession,
-		//		&mReceiveBuffer[DSI_OFFSET_DATASTART],
-		//		&afpReplyBuffer[DSI_OFFSET_DATASTART],
-		//		&afpDataSize
-		//	);
-
-		//	FormatAndSendReply(afpReplyBuffer, dsiCommand, afp_error, afpDataSize);
-
-		//	if ((!mSession->IsAuthenticated()) && (afp_error != afpAuthContinue))
-		//	{
-		//		DPRINT(("[BAFPConnection]Authentication gone, killing session\n"));
-		//		KillSession();
-		//	}
-		//	break;
-		//}
-
+		if (!session_authenticated_ && afp_error != afpAuthContinue)
+		{
+			DBGWRITE(dbg_level_info, L"Authencation gone, killing DSI session\n");
+			kill_connection();
+		}
 	}
 
 	UINT16 dsi_connection::adjust_client_request_id(const UINT16 id_from_client)
@@ -360,7 +348,7 @@ namespace dsi
 		std::unique_ptr<char[]> reply_buffer,
 		const UINT8 dsi_command,
 		const INT32 afp_error,
-		const INT32 data_size)
+		const UINT32 data_size)
 	{
 		// We're replying, set the correct flag and command we're replying to.
 		reply_buffer[dsi_offset_flags] = dsi_reply_flag;

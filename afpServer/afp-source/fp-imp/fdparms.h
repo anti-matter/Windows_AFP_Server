@@ -2,6 +2,7 @@
 
 #include "volumes.h"
 #include "afp_net_buffer.h"
+#include "dsi/dsi_connection.h"
 
 size_t AFPGetParmsBufferSizeRequired(
 	IN	PFILEDIRPARMS	pFdp
@@ -23,8 +24,8 @@ AFPERROR AFPGetObjectParms(
 	IN	afp_net_buffer&				afpReply,
 	IN	uint16						afpBitmap,
 	IN	uint16						afpVolumeID,
-	IN	int32						afpDirID,
-	IN	LPSESSION					afpSession,
+	IN	UINT32						afpDirID,
+	IN	dsi::dsi_connection*		afpSession,
 	IN	p_afp_index					afpEntry,
 	IN	WIN32_FILE_ATTRIBUTE_DATA	winAttributes
 	);

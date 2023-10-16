@@ -187,11 +187,11 @@ void AFPCheckForAndCreateFinderRsrcStream(
 // Fill in the parms of a file or dir for a file/dir parms call.
 //
 AFPERROR AFPGetObjectParms(
-    IN	afp_net_buffer&					afpReply,
+    IN	afp_net_buffer&				afpReply,
     IN	uint16						afpBitmap,
     IN	uint16						afpVolumeID,
-    IN	int32						afpDirID,
-    IN	LPSESSION					afpSession,
+    IN	UINT32						afpDirID,
+    IN	dsi::dsi_connection*        afpSession,
     IN	p_afp_index					afpEntry,
     IN	WIN32_FILE_ATTRIBUTE_DATA	winAttributes
     )
@@ -201,7 +201,7 @@ AFPERROR AFPGetObjectParms(
     LARGE_INTEGER		rsrcSize64 = { 0 };
     uint16*				longNameOffset = NULL;
     uint16*				uniNameOffset = NULL;
-    uint8*				pParmsStart = afpReply.get_current_pos_ptr();
+    char*				pParmsStart = afpReply.get_current_pos_ptr();
     AFPERROR			afpError = AFP_OK;
     
     if (afpBitmap & kFPFileAttributes)
@@ -292,10 +292,10 @@ AFPERROR AFPGetObjectParms(
             uint32	afpRights		= 0;
 
             afpError = afp_get_directory_rights(
-                            afpSession->hUserToken,
+                            afpSession->get_user_token(),
                             afpEntry->sz_path,
-                            afpSession->userName,
-                            (lstrlen(afpSession->domainName) > 0) ? afpSession->domainName : NULL,
+                            afpSession->get_user_name(),
+                            (lstrlen(afpSession->get_domain_name()) > 0) ? afpSession->get_domain_name() : nullptr,
                             &afpRights
                             );
 
@@ -307,8 +307,8 @@ AFPERROR AFPGetObjectParms(
 
         if (afpBitmap & kFPUnicodeName)
         {
-            uniNameOffset = (uint16*)afpReply.get_current_pos_ptr();
-            afpReply.advance_pos_ptr(sizeof(int16));
+            uniNameOffset = reinterpret_cast<UINT16*>(afpReply.get_current_pos_ptr());
+            afpReply.advance_pos_ptr(sizeof(UINT16));
         }
     }
     else

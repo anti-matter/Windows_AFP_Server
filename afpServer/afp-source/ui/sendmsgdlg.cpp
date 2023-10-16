@@ -9,7 +9,7 @@
 
 extern HINSTANCE	ghInstance;
 extern BOOL			gMainWindowVisible;
-extern WCHAR		gServerMessage[AFP_MSG_MAXLEN+1];
+extern WCHAR		g_server_message[AFP_MSG_MAXLEN+1];
 
 
 
@@ -37,7 +37,7 @@ LRESULT CALLBACK SendMessageDlgProc(
             {
                 case IDOK:
                     SendDlgItemMessage(hDlg, IDC_MESSAGE, WM_GETTEXT,
-                                            (WPARAM)sizeof(gServerMessage), (LPARAM)gServerMessage);
+                                            (WPARAM)sizeof(g_server_message), (LPARAM)g_server_message);
                     
                     //Let DSI do all the real work of sending the message
                     DSISendAttention(NULL, ATTN_SERVER_MESSAGE);
