@@ -530,6 +530,7 @@ AFPERROR FPCreateFile(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPByteRangeLock(
     IN afp_net_buffer& afp_request,
     IN afp_net_buffer& afp_reply,
