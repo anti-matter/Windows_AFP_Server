@@ -42,19 +42,19 @@ AFPERROR FPCreateFile(
 );
 
 AFPERROR FPByteRangeLock(
-    IN afp_net_buffer& afpRequest,
-    IN afp_net_buffer& afpReply,
-    IN dsi::dsi_connection* connection
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN const dsi::dsi_connection* connection
 );
 
 AFPERROR FPRead(
-    IN afp_net_buffer& afpRequest,
-    IN afp_net_buffer& afpReply,
-    IN dsi::dsi_connection* connection
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN const dsi::dsi_connection* connection
 );
 
 AFPERROR FPWrite(
-    IN afp_net_buffer& afpRequest,
-    IN afp_net_buffer& afpReply,
-    IN dsi::dsi_connection* connection
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN const dsi::dsi_connection* connection
 );

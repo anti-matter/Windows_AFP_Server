@@ -531,50 +531,46 @@ AFPERROR FPCreateFile(
  */
 
 AFPERROR FPByteRangeLock(
-    IN afp_net_buffer& afpRequest,
-    IN afp_net_buffer& afpReply,
-    IN dsi::dsi_connection* connection
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN const dsi::dsi_connection* connection
 )
 {
-    afp_session* afpAFPSession = static_cast<afp_session*>(afpSession->afpSessionObject);
-    int64 afpOffset = 0;
-    int64 afpLength = 0;
+    afp_session* afp_session = connection->get_afp_session();
 
-    //
-    //Skip the first byte which is afp command.
-    //
-    int8 afpCommand = afpRequest.pull_num<INT8>();
-    uint8 afpBRLFlags = afpRequest.pull_num<UINT8>();
-    uint16 afpForkRef = afpRequest.pull_num<UINT16>();
+    const INT8 afp_command = afp_request.pull_num<INT8>();
+    const auto afp_brl_flags = afp_request.pull_num<UINT8>();
+    const auto afp_fork_ref = afp_request.pull_num<INT16>();
 
-    switch (afpCommand)
+    INT64 afp_offset;
+    INT64 afp_length;
+
+    switch (afp_command)
     {
     case afpByteRangeLock:
-        afpOffset = afpRequest.pull_num<UINT32>();
-        afpLength = afpRequest.pull_num<UINT32>();
+        afp_offset = afp_request.pull_num<UINT32>();
+        afp_length = afp_request.pull_num<UINT32>();
         break;
 
     case afpByteRangeLockExt:
-        afpOffset = afpRequest.pull_num<INT64>();
-        afpLength = afpRequest.pull_num<INT64>();
+        afp_offset = afp_request.pull_num<INT64>();
+        afp_length = afp_request.pull_num<INT64>();
         break;
 
     default:
         return (afpParmErr);
     }
 
-    //
-    //Get the handle to the open file fork.
-    //
-    afp_open_file* afpAFPOpenFile = afpAFPSession->find_open_file(afpForkRef);
-    AFPERROR afpError = (afpAFPOpenFile == nullptr) ? afpParmErr : AFP_OK;
+    // Get the handle to the open file fork.
+    afp_open_file* open_file = afp_session->find_open_file(afp_fork_ref);
+    AFPERROR afp_error = (open_file == nullptr) ? afpParmErr : AFP_OK;
 
-    if (AFP_FAILED(afpError))
+    if (AFP_FAILED(afp_error))
     {
-        return (afpError);
+        return (afp_error);
     }
 
-    auto hFile = afpAFPOpenFile->get_file_handle();
+    auto hFile = open_file->get_file_handle();
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
@@ -584,111 +580,93 @@ AFPERROR FPByteRangeLock(
         return (afpParmErr);
     }
 
-    //
-    //Determine the size of the file so we can calculate the offset
-    //from the end of the file and lock the entire range if
-    //necessary.
-    //
-    uint32 afpFileSize = GetFileSize(hFile, nullptr);
-    afpError = (afpFileSize == 0xFFFFFFFF) ? afpParmErr : AFP_OK;
+    // Determine the size of the file so we can calculate the offset
+    // from the end of the file and lock the entire range if
+    // necessary.
+    uint32 afp_file_size = GetFileSize(hFile, nullptr);
+    afp_error = (afp_file_size == 0xFFFFFFFF) ? afpParmErr : AFP_OK;
 
-    if (AFP_SUCCESS(afpError))
+    if (AFP_SUCCESS(afp_error))
     {
-        if (afpBRLFlags & kUnlockFlag)
+        if (afp_brl_flags & kUnlockFlag)
         {
-            if (afpLength >= static_cast<int32>(0xFFFFFFFF))
+            if (afp_length >= static_cast<int32>(0xFFFFFFFF))
             {
-                switch (afpOffset)
+                switch (afp_offset)  // NOLINT(hicpp-multiway-paths-covered)
                 {
                 case 0:
-                    //
-                    //0 offset means we unlock the entire range of the file.
-                    //
-                    afpLength = afpFileSize;
+                    // 0 offset means we unlock the entire range of the file.
+                    afp_length = afp_file_size;
                     break;
                 default:
-                    //
-                    //The user wants to lock from offset to the end of the file.
-                    //
-                    afpLength = (afpFileSize - afpOffset);
+                    // The user wants to lock from offset to the end of the file.
+                    afp_length = (afp_file_size - afp_offset);
                     break;
                 }
             }
 
-            DBGWRITE(dbg_level_info, L"[afp:FPByteRangeLock]Unlocking...\n");
-            DBGWRITE(dbg_level_info, L"[afp:FPByteRangeLock]Offset = %d\n", afpOffset);
-            DBGWRITE(dbg_level_info, L"[afp:FPByteRangeLock]Length = %d\n", afpLength);
+            DBGWRITE(dbg_level_info, L"Unlocking...\n");
+            DBGWRITE(dbg_level_info, L"Offset = %d\n", afp_offset);
+            DBGWRITE(dbg_level_info, L"Length = %d\n", afp_length);
 
             //
             //BUGBUG: Actual unlocking code goes here.
             //
         }
-        else //Locking
+        else // Locking
         {
-            //
-            //If the user wants us to set the offset from the end of the
-            //file, then we have a lot more work to do.
-            //
-            if (afpBRLFlags & kStartEndFlag)
+            // If the user wants us to set the offset from the end of the
+            // file, then we have a lot more work to do.
+            if (afp_brl_flags & kStartEndFlag)
             {
-                afpOffset = (afpOffset < 0) ? (afpFileSize + afpOffset) : (afpFileSize - afpOffset);
+                afp_offset = (afp_offset < 0) ? (afp_file_size + afp_offset) : (afp_file_size - afp_offset);
             }
-            else //From the beginning
+            else // From the beginning
             {
-                if (afpOffset < 0)
+                if (afp_offset < 0)
                 {
-                    //
-                    //The offset can only be negative if we are working from the
-                    //end of a file.
-                    //
-                    DBGWRITE(dbg_level_info, L"[afp:FPByteRangeLock]Negative offset from start!\n");
+                    // The offset can only be negative if we are working from the
+                    // end of a file.
+                    DBGWRITE(dbg_level_info, L"Negative offset from start!\n");
                     return (afpParmErr);
                 }
 
-                //
-                //If the length is 0xFFFFFFFF, then we have special handling to do.
-                //
-                if (((afpCommand == afpByteRangeLock) && (afpLength == 0xFFFFFFFF)) ||
-                    ((afpCommand == afpByteRangeLockExt) && (afpLength == 0xFFFFFFFFFFFFFFFFLL)))
+                // If the length is 0xFFFFFFFF, then we have special handling to do.
+                if (afp_command == afpByteRangeLock && afp_length == 0xFFFFFFFF ||
+                    afp_command == afpByteRangeLockExt && afp_length == 0xFFFFFFFFFFFFFFFFLL)
                 {
-                    switch (afpOffset)
+                    switch (afp_offset)  // NOLINT(hicpp-multiway-paths-covered)
                     {
                     case 0:
-                        //
-                        //0 offset means we lock the entire range of the file.
-                        //
-                        afpLength = afpFileSize;
+                        // 0 offset means we lock the entire range of the file.
+                        afp_length = afp_file_size;
                         break;
                     default:
-                        //
-                        //The user wants to lock from offset to the end of the file.
-                        //
-                        afpLength = (afpFileSize - afpOffset);
+                        // The user wants to lock from offset to the end of the file.
+                        afp_length = (afp_file_size - afp_offset);
                         break;
                     }
                 }
-            } //from beginning
+            } // From beginning
 
-            DBGWRITE(dbg_level_info, L"[afp:FPByteRangeLock]Locking...\n");
-            DBGWRITE(dbg_level_info, L"[afp:FPByteRangeLock]Offset = %d\n", afpOffset);
-            DBGWRITE(dbg_level_info, L"[afp:FPByteRangeLock]Length = %d\n", afpLength);
+            DBGWRITE(dbg_level_info, L"Locking...\n");
+            DBGWRITE(dbg_level_info, L"Offset = %d\n", afp_offset);
+            DBGWRITE(dbg_level_info, L"Length = %d\n", afp_length);
 
             //
             //BUGBUG: Actual locking code goes here.
             //
         }
 
-        //
-        //We return the first byte of the newly locked range
-        //
-        switch (afpCommand)
+        // We return the first byte of the newly locked range
+        switch (afp_command)
         {
         case afpByteRangeLock:
-            afpReply.push_int32(static_cast<uint32>(afpOffset));
+            afp_reply.push_num<UINT32>(static_cast<UINT32>(afp_offset));
             break;
 
         case afpByteRangeLockExt:
-            afpReply.push_int64(afpOffset);
+            afp_reply.push_num(afp_offset);
             break;
 
         default:
@@ -696,7 +674,7 @@ AFPERROR FPByteRangeLock(
         }
     }
 
-    return (afpError);
+    return (afp_error);
 }
 
 
@@ -709,81 +687,75 @@ AFPERROR FPByteRangeLock(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPRead(
-    IN afp_net_buffer& afpRequest,
-    IN afp_net_buffer& afpReply,
-    IN dsi::dsi_connection* connection
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN const dsi::dsi_connection* connection
 )
 {
-    afp_session* afpAFPSession = static_cast<afp_session*>(afpSession->afpSessionObject);
-    int64 afpOffset = 0;
-    int64 afpReqCount = 0;
-    uint32 afpActCount = 0;
+    afp_session* afp_session = connection->get_afp_session();
+    INT64 afp_offset;
+    INT64 afp_req_count;
+    UINT32 afp_act_count = 0;
 
-    DBGWRITE(dbg_level_all, L"[afp:FPRead]Enter\n");
+    DBGWRITE(dbg_level_all, L"Enter\n");
 
-    //
-    //The first byte contains the afp command.
-    //
-    int8 afpCommand = afpRequest.pull_num<INT8>();
-    afpRequest.advance_pos_ptr(sizeof(int8));
+    const auto afp_command = afp_request.pull_num<INT8>();
+    afp_request.advance_pos_ptr(sizeof(char));
 
-    uint16 afpForkRef = afpRequest.pull_num<UINT16>();
+    const auto afp_fork_ref = afp_request.pull_num<INT16>();
 
-    switch (afpCommand)
+    switch (afp_command)
     {
     case afpRead:
-        afpOffset = afpRequest.pull_num<UINT32>();
-        afpReqCount = afpRequest.pull_num<UINT32>();
+        afp_offset = afp_request.pull_num<UINT32>();
+        afp_req_count = afp_request.pull_num<UINT32>();
         break;
 
     case afpReadExt:
-        afpOffset = afpRequest.pull_num<INT64>();
-        afpReqCount = afpRequest.pull_num<INT64>();
+        afp_offset = afp_request.pull_num<INT64>();
+        afp_req_count = afp_request.pull_num<INT64>();
         break;
 
     default:
         return (afpParmErr);
     }
 
-    //
-    //Here is where we would normally get the newLineMask and char, however,
-    //we are not supporting that functionality in this server (that functionality
-    //has been dropped in AFP3.x anyway).
-    //
+    // Here is where we would normally get the newLineMask and char, however,
+    // we are not supporting that functionality in this server (that functionality
+    // has been dropped in AFP3.x anyway).
 
-    afp_open_file* afpAFPOpenFile = afpAFPSession->find_open_file(afpForkRef);
-    AFPERROR afpError = (afpAFPOpenFile == nullptr) ? afpParmErr : AFP_OK;
+    afp_open_file* open_file = afp_session->find_open_file(afp_fork_ref);
+    AFPERROR afp_error = (open_file == nullptr) ? afpParmErr : AFP_OK;
 
-    if (AFP_SUCCESS(afpError))
+    if (AFP_SUCCESS(afp_error))
     {
-        if (!afp_impersonate_user(afpSession->hUserToken))
+        const auto user_token = connection->get_user_token();
+
+        if (!afp_impersonate_user(user_token))
         {
-            //
-            //Impersonation failed, don't allow any further operations.
-            //
-            return (afpAccessDenied);
+            // Impersonation failed, don't allow any further operations.
+            return afpAccessDenied;
         }
 
-        afpError = afpAFPOpenFile->read_fork(
-            afpReply,
-            afpOffset,
-            afpReqCount,
-            &afpActCount
+        afp_error = open_file->read_fork(
+            afp_reply,
+            afp_offset,
+            afp_req_count,
+            &afp_act_count
         );
 
-        afp_revert_to_self(afpSession->hUserToken);
+        afp_revert_to_self(user_token);
     }
 
-    //
-    //FPRead is a special case in that the return value is returned
-    //in the DSI Header's datasize field.
-    //
-    afpReply.set_dsi_return_value(afpActCount);
+    // FPRead is a special case in that the return value is returned
+    // in the DSI Header's data size field.
+    afp_reply.set_dsi_return_value(afp_act_count);
 
-    DBGWRITE(dbg_level_all, L"[afp:FPRead]Returning error %d and count %d\n", afpError, afpActCount);
+    DBGWRITE(dbg_level_all, L"Returning error %d and count %d\n", afp_error, afp_act_count);
 
-    return (afpError);
+    return afp_error;
 }
 
 
@@ -796,89 +768,85 @@ AFPERROR FPRead(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPWrite(
-    IN afp_net_buffer& afpRequest,
-    IN afp_net_buffer& afpReply,
-    IN dsi::dsi_connection* connection
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN const dsi::dsi_connection* connection
 )
 {
-    afp_session* afpAFPSession = static_cast<afp_session*>(afpSession->afpSessionObject);
-    int64 afpOffset = 0;
-    int64 afpReqCount = 0;
-    int64 afpActCount = 0;
+    afp_session* afp_session = connection->get_afp_session();
+    INT64 afp_offset;
+    INT64 afp_req_count;
+    INT64 afp_act_count = 0;
 
-    DBGWRITE(dbg_level_all, L"[afp:FPWrite]Enter\n");
+    DBGWRITE(dbg_level_all, L"Enter\n");
 
-    //
-    //The first byte contains the afp command.
-    //
-    int8 afpCommand = afpRequest.pull_num<INT8>();
-    int8 afpFlag = afpRequest.pull_num<INT8>();
-    uint16 afpForkRef = afpRequest.pull_num<UINT16>();
+    const auto afp_command = afp_request.pull_num<INT8>();
+    const auto afp_flag = afp_request.pull_num<INT8>();
+    const auto afp_fork_ref = afp_request.pull_num<INT16>();
 
-    switch (afpCommand)
+    switch (afp_command)
     {
     case afpWrite:
-        afpOffset = afpRequest.pull_num<UINT32>();
-        afpReqCount = afpRequest.pull_num<UINT32>();
+        afp_offset = afp_request.pull_num<UINT32>();
+        afp_req_count = afp_request.pull_num<UINT32>();
         break;
 
     case afpWriteExt:
-        afpOffset = afpRequest.pull_num<INT64>();
-        afpReqCount = afpRequest.pull_num<INT64>();
+        afp_offset = afp_request.pull_num<INT64>();
+        afp_req_count = afp_request.pull_num<INT64>();
         break;
 
     default:
         return (afpParmErr);
     }
 
-    afp_open_file* afpAFPOpenFile = afpAFPSession->find_open_file(afpForkRef);
-    AFPERROR afpError = (afpAFPOpenFile == nullptr) ? afpParmErr : AFP_OK;
+    afp_open_file* open_file = afp_session->find_open_file(afp_fork_ref);
+    AFPERROR afp_error = (open_file == nullptr) ? afpParmErr : AFP_OK;
 
-    if (AFP_SUCCESS(afpError))
+    if (AFP_SUCCESS(afp_error))
     {
-        //
-        //Make sure the volume is not marked read-only.
-        //
-        afpError = AFPVolumeWriteAccessCheck(afpAFPOpenFile->get_vol_id());
-
-        if (AFP_FAILED(afpError))
+        // Make sure the volume is not marked read-only.
+        afp_error = AFPVolumeWriteAccessCheck(open_file->get_vol_id());
+        if (AFP_FAILED(afp_error))
         {
-            return (afpError);
+            return (afp_error);
         }
 
-        if (!afp_impersonate_user(afpSession->hUserToken))
+        const HANDLE user_token = connection->get_user_token();
+        if (!afp_impersonate_user(user_token))
         {
-            //
-            //Impersonation failed, don't allow any further operations.
-            //
-            return (afpAccessDenied);
+            // Impersonation failed, don't allow any further operations.
+            return afpAccessDenied;
         }
 
-        afpError = afpAFPOpenFile->write_fork(
-            afpRequest,
-            afpOffset,
-            afpReqCount,
-            (afpFlag & kWriteStartEndFlag) ? FALSE : TRUE,
-            &afpActCount
+        afp_error = open_file->write_fork(
+            afp_request,
+            afp_offset,
+            afp_req_count,
+            (afp_flag & kWriteStartEndFlag) ? FALSE : TRUE,
+            &afp_act_count
         );
 
-        afp_revert_to_self(afpSession->hUserToken);
+        afp_revert_to_self(user_token);
 
-        if (AFP_SUCCESS(afpError))
+        if (AFP_SUCCESS(afp_error))
         {
-            switch (afpCommand)
+            switch (afp_command)  // NOLINT(hicpp-multiway-paths-covered)
             {
             case afpWrite:
-                afpReply.push_int32(static_cast<int32>(afpActCount));
+                afp_reply.push_int32(static_cast<int32>(afp_act_count));
                 break;
 
             case afpWriteExt:
-                afpReply.push_int64(afpActCount);
+                afp_reply.push_int64(afp_act_count);
                 break;
+            default:
+                ASSERT(0);
             }
         }
     }
 
-    return (afpError);
+    return afp_error;
 }
