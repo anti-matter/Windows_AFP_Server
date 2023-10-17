@@ -106,12 +106,12 @@ AFPERROR fp_unimplemented(
 	IN afp_net_buffer& afp_request,
 	// ReSharper disable once CppParameterMayBeConstPtrOrRef
 	IN afp_net_buffer& afp_reply,
-	IN const LPSESSION dsi_session
+	IN dsi::dsi_connection* connection
 )
 {
 	UNREFERENCED_PARAMETER(afp_request);
 	UNREFERENCED_PARAMETER(afp_reply);
-	UNREFERENCED_PARAMETER(dsi_session);
+	UNREFERENCED_PARAMETER(connection);
 
 	DBGWRITE(dbg_level_error, L"Call not implemented (%d)\n", afp_request.pull_num<INT8>());
 	return (afpCallNotSupported);

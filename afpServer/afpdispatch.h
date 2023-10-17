@@ -2,7 +2,6 @@
 
 #include "afp.h"
 #include "afp_net_buffer.h"
-#include "afp_session.h"
 #include "dsi/dsi_connection.h"
 
 AFPERROR fp_unimplemented(

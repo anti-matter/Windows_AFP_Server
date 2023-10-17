@@ -1,14 +1,10 @@
-/*
- *	afpfileio.cpp
- *	Created 3/5/2005
- *
- *	Copyright © 2005, Michael J. Conrad. All Rights Reserved.
- *
- *	Core FP file I/O routines.
- */
-
+// ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
 #include "StdAfx.h"
 #include "afpfileio.h"
+
+#include "afp_open_file.h"
+#include "fdparms.h"
+#include "fpinfo.h"
 
 
 /*
@@ -20,17 +16,18 @@
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPFlushFork(
-    IN	afp_net_buffer&	afpRequest,
-    IN	afp_net_buffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN const afp_net_buffer& afp_request,
+    IN const afp_net_buffer& afp_reply,
+    IN const dsi::dsi_connection* connection
+)
 {
-    UNREFERENCED_PARAMETER(afpRequest);
-    UNREFERENCED_PARAMETER(afpReply);
-    UNREFERENCED_PARAMETER(afpSession);
+    UNREFERENCED_PARAMETER(afp_request);
+    UNREFERENCED_PARAMETER(afp_reply);
+    UNREFERENCED_PARAMETER(connection);
 
-    return( AFP_OK );
+    return (AFP_OK);
 }
 
 
@@ -43,32 +40,27 @@ AFPERROR FPFlushFork(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPCloseFork(
-    IN	afp_net_buffer&	afpRequest,
-    IN	afp_net_buffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN afp_net_buffer& afp_request,
+    IN const afp_net_buffer& afp_reply,
+    IN const dsi::dsi_connection* connection
+)
 {
-    UNREFERENCED_PARAMETER(afpReply);
+    UNREFERENCED_PARAMETER(afp_reply);
 
-    afp_session*	afpAFPSession	= (afp_session*)afpSession->afpSessionObject;
-    uint16			afpRefNum		= 0;
-    AFPERROR		afpError		= AFP_OK;
-    
-    DBGWRITE(dbg_level_all, L"[afp:FPCloseFork]Enter...\n");
-            
-    //
-    //Parameters start after first word (afp cmd and 0 byte)
-    //
-    afpRequest.advance_pos_ptr(sizeof(int16));
-    
-    //
-    //Extract the parameter and make the call.
-    //
-    afpRefNum	= afpRequest.pull_num<UINT16>();
-    afpError	= afpAFPSession->close_file(afpRefNum);
-    
-    return( afpError );
+    afp_session* afp_afp_session = connection->get_afp_session();
+
+    // Parameters start after first word (afp cmd and 0 byte)
+    afp_request.advance_pos_ptr(sizeof(UINT16));
+
+    // Extract the parameter and make the call.
+    const auto afp_ref_num = afp_request.pull_num<INT16>();
+    const AFPERROR afp_error = afp_afp_session->close_file(afp_ref_num);
+
+    DBGWRITE(dbg_level_info, L"Closed fork: %d\n", afp_ref_num);
+
+    return afp_error;
 }
 
 
@@ -81,189 +73,140 @@ AFPERROR FPCloseFork(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPOpenFork(
-    IN	afp_net_buffer&	afpRequest,
-    IN	afp_net_buffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN const dsi::dsi_connection* connection
+)
 {
-    unichar				afpPathname[MAX_AFP_PATH];
-    afp_session*		afpAFPSession	= (afp_session*)afpSession->afpSessionObject;
-    afp_open_file*			afpAFPOpenFile		= NULL;
-    AFP_VOLUME_INFO*	afpVolInfo		= NULL;
-    int8				afpFork			= 0;
-    uint16				afpVolumeID		= 0;
-    uint32				afpDirID		= 0;
-    int8				afpPathType		= 0;
-    uint16				afpBitmap		= 0;
-    int16				afpMode			= 0;
-    uint16				afpNewRefNum	= 0;
-    AFPERROR			afpError		= AFP_OK;
-    p_afp_index			afpEntry		= NULL;
+    unichar afp_pathname[MAX_AFP_PATH];
+    afp_session* afp_afp_session = connection->get_afp_session();
+    p_afp_index afp_entry = nullptr;
 
-    WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
-    
-    DBGWRITE(dbg_level_all, L"[afp:FPOpenFork]Enter\n");
-    
-    //
-    //The first byte contains the afp command.
-    //
-    afpRequest.advance_pos_ptr(sizeof(int8));
-    
-    //
-    //Get the parameters for the file we're opening.
-    //
-    afpFork		= (afpRequest.pull_num<INT8>() & kResourceForkBit) ? kRsrcFork : kDataFork;
-    afpVolumeID	= afpRequest.pull_num<UINT16>();
-    afpDirID	= afpRequest.pull_num<UINT32>();
-    afpBitmap	= afpRequest.pull_num<UINT16>();
-    afpMode		= afpRequest.pull_num<INT16>();
-    afpPathType	= afpRequest.pull_num<INT8>();
+    WIN32_FILE_ATTRIBUTE_DATA win_attributes;
 
-    //
-    //The client must have previously opened the volume we are operating on.
-    //
-    afpVolInfo = afpAFPSession->find_open_volume_block(afpVolumeID);
-    
-    if (afpVolInfo == NULL)
+    // The first byte contains the afp command.
+    afp_request.advance_pos_ptr(sizeof(UINT8));
+
+    const INT8 afp_fork = (afp_request.pull_num<INT8>() & kResourceForkBit) ? kRsrcFork : kDataFork;
+    const auto afp_volume_id = afp_request.pull_num<UINT16>();
+    const auto afp_dir_id = afp_request.pull_num<UINT32>();
+    auto afp_bitmap = afp_request.pull_num<UINT16>();
+    const auto afp_mode = afp_request.pull_num<INT16>();
+    const INT8 afp_path_type = afp_request.pull_num<INT8>();
+
+    // The client must have previously opened the volume we are operating on.
+    AFP_VOLUME_INFO* afp_vol_info = afp_afp_session->find_open_volume_block(afp_volume_id);
+    if (afp_vol_info == nullptr)
     {
-        //
-        //The volume has not been opened, we need to return error.
-        //
-        return( afpParmErr );
+        // The volume has not been opened, we need to return error.
+        return afpParmErr;
     }
 
-    //
-    //Get the pathname of the object we're working on.
-    //
-    afpError = afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathType);
-    
-    if (!AFP_SUCCESS(afpError))
+    // Get the pathname of the object we're working on.
+    AFPERROR afp_error = afp_request.get_pascal_string(afp_pathname, sizeof(afp_pathname), true, afp_path_type);
+
+    if (AFP_FAILED(afp_error))
     {
-        return( afpError );
-    }
-        
-    //
-    //Pathname cannot be null since it contains the file to open.
-    //
-    if (lstrlen(afpPathname) == 0)
-    {
-        DBGWRITE(dbg_level_info, L"[afp:FPOpenFork]Null pathname!\n");
-        return( afpParmErr );
+        return afp_error;
     }
 
-    //
-    //Get the index entry pertaining to the file we're opening.
-    //
-    afpError = AFPIndexFindEntryWithPath(afpVolInfo, afpDirID, afpPathname, &afpEntry);
-    
-    if (!AFP_SUCCESS(afpError))
+    if (lstrlen(afp_pathname) == 0)
     {
-        DBGWRITE(dbg_level_info, L"[afp:FPOpenFork]Index entry not found! (%s)\n", afpPathname);
-        return( afpObjectNotFound );
+        DBGWRITE(dbg_level_info, L"Null pathname!\n");
+        return afpParmErr;
     }
 
-    //
-    //Collect attribute data on the file or folder.
-    //
-    if (!GetFileAttributesEx(afpEntry->sz_path, GetFileExInfoStandard, &winAttributes))
+    // Get the index entry pertaining to the file we're opening.
+    afp_error = AFPIndexFindEntryWithPath(afp_vol_info, afp_dir_id, afp_pathname, &afp_entry);
+    if (AFP_FAILED(afp_error))
     {
-        DBGWRITE(dbg_level_info, L"[afp:FPOpenFork]GetFileAttributesEx() failed! (%d)\n", GetLastError());
-        DBGWRITE(dbg_level_info, L"[afp:FPOpenFork]path = %s\n", afpEntry->sz_path);
-                
-        return( afpObjectNotFound );
+        DBGWRITE(dbg_level_info, L"Index entry not found! (%s)\n", afp_pathname);
+        return afpObjectNotFound;
     }
 
-    //
-    //Make sure the user doesn't have too many files open already.
-    //
-    if (afpAFPSession->get_num_files_open() > MAX_AFP_FILES_OPEN)
+    // Collect attribute data on the file or folder.
+    if (!GetFileAttributesEx(afp_entry->sz_path, GetFileExInfoStandard, &win_attributes))
     {
-        DBGWRITE(dbg_level_info, L"[afp:FPOpenFork]****Can't open file, too many open already! (%d)\n", afpAFPSession->get_num_files_open());
-        return( afpTooManyFilesOpen );
+        DBGWRITE(dbg_level_info, L"GetFileAttributesEx() failed! (%d)\n", GetLastError());
+        DBGWRITE(dbg_level_info, L"path = %s\n", afp_entry->sz_path);
+
+        return afpObjectNotFound;
     }
 
-    afpAFPOpenFile = afp_session::open_file(
-	    afpAFPSession,
-	    afpVolumeID,
-	    afpDirID,
-	    afpMode,
-	    afpFork,
-	    afpEntry,
-	    afpEntry->sz_path
+    // Make sure the user doesn't have too many files open already.
+    if (afp_afp_session->get_num_files_open() > MAX_AFP_FILES_OPEN)
+    {
+        DBGWRITE(dbg_level_info, L"****Can't open file, too many open already! (%d)\n",
+                 afp_afp_session->get_num_files_open());
+        return (afpTooManyFilesOpen);
+    }
+
+    afp_open_file* open_file = afp_session::open_file(
+        afp_afp_session,
+        afp_volume_id,
+        afp_dir_id,
+        afp_mode,
+        afp_fork,
+        afp_entry,
+        afp_entry->sz_path
     );
 
-    afpError = (afpAFPOpenFile == NULL) ? afpMiscErr : AFP_OK;
-
-    if (AFP_SUCCESS(afpError))
+    afp_error = (open_file == nullptr) ? afpMiscErr : AFP_OK;
+    if (AFP_SUCCESS(afp_error))
     {
-        //
-        //Impersonate the logged on user for security checks.
-        //
-        if (!afp_impersonate_user(afpSession->hUserToken))
+        // Impersonate the logged on user for security checks.
+        if (!afp_impersonate_user(connection->get_user_token()))
         {
-            //
-            //Impersonation failed, don't allow any further operations.
-            //
-            return( afpAccessDenied );
+            // Impersonation failed, don't allow any further operations.
+            return afpAccessDenied;
         }
 
-        //
-        //Now, actually open the file for access as desired.
-        //
-        afpError = afpAFPOpenFile->afp_open_file_fork();
+        // Now, actually open the file for access as desired.
+        afp_error = open_file->afp_open_file_fork();
 
-        afp_revert_to_self(afpSession->hUserToken);
+        afp_revert_to_self(connection->get_user_token());
 
-        //
-        //If we successfully open the file, then return whatever object parms
-        //the caller has asked for.
-        //
-        if (AFP_SUCCESS(afpError))
+        // If we successfully open the file, then return whatever object parms
+        // the caller has asked for.
+        if (AFP_SUCCESS(afp_error))
         {
-            //
-            //We need to return the file ref num to the caller.
-            //
-            afpNewRefNum = afpAFPOpenFile->get_file_ref_num();
+            // We need to return the file ref num to the caller.
+            const auto afp_new_ref_num = open_file->get_file_ref_num();
 
-            //
-            //We don't support the following bitmaps, so we clear them.
-            //
-            if (afpSession->bAFPVersion < afpVersion30)
+            // We don't support the following bitmaps, so we clear them.
+            if (connection->get_afp_version() < afpVersion30)
             {
-                if (afpBitmap & kFPProDos)		afpBitmap  &= ~kFPProDos;
-                if (afpBitmap & kFPShortName)	afpBitmap  &= ~kFPShortName;
+                if (afp_bitmap & kFPProDos) afp_bitmap &= ~kFPProDos;
+                if (afp_bitmap & kFPShortName) afp_bitmap &= ~kFPShortName;
             }
 
-            //
-            //Add in the bitmap and new refnum id.
-            //
-            afpReply.push_int16(afpBitmap);
-            afpReply.push_int16(afpNewRefNum);
+            // Add in the bitmap and new refnum id.
+            afp_reply.push_num(afp_bitmap);
+            afp_reply.push_num(afp_new_ref_num);
 
-            afpError = AFPGetObjectParms(
-                            afpReply,
-                            afpBitmap,
-                            afpVolumeID,
-                            afpDirID,
-                            afpSession,
-                            afpEntry,
-                            winAttributes
-                            );
+            afp_error = AFPGetObjectParms(
+                afp_reply,
+                afp_bitmap,
+                afp_volume_id,
+                afp_dir_id,
+                connection,
+                afp_entry,
+                win_attributes
+            );
         }
     }
 
-    //
-    //If we have an error opening the file, make sure we dispose
-    //of the file object or we'll leak memory as well as leak
-    //open file counts.
-    //
-    if (!AFP_SUCCESS(afpError))
+    // If we have an error opening the file, make sure we dispose
+    // of the file object or we'll leak memory as well as leak
+    // open file counts.
+    if (AFP_FAILED(afp_error))
     {
-        afpAFPSession->close_file(afpAFPOpenFile->get_file_ref_num());
+        afp_afp_session->close_file(open_file->get_file_ref_num());
     }
 
-    return( afpError );
+    return afp_error;
 }
 
 
@@ -277,71 +220,64 @@ AFPERROR FPOpenFork(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPSetForkParms(
-    IN	afp_net_buffer&	afpRequest,
-    IN	afp_net_buffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN afp_net_buffer& afp_request,
+    IN const afp_net_buffer& afp_reply,
+    IN const dsi::dsi_connection* connection
+)
 {
-    UNREFERENCED_PARAMETER(afpReply);
+    UNREFERENCED_PARAMETER(afp_reply);
 
-    afp_session*	afpAFPSession	= (afp_session*)afpSession->afpSessionObject;
-    afp_open_file*		afpAFPOpenFile		= NULL;
-    uint16			afpForkRef		= 0;
-    uint16			afpBitmap		= 0;
-    uint32			afpForkLen		= 0;
-    AFPERROR		afpError		= AFP_OK;
-    
-    DBGWRITE(dbg_level_all, L"[afp:FPSetForkParms]Enter\n");
-    
-    //
-    //The first byte contains the afp command.
-    //
-    afpRequest.advance_pos_ptr(sizeof(int16));
-    
-    afpForkRef 	= afpRequest.pull_num<UINT16>();
-    afpBitmap	= afpRequest.pull_num<UINT16>();
-    afpForkLen	= afpRequest.pull_num<UINT32>();
-    
-    afpAFPOpenFile = afpAFPSession->find_open_file(afpForkRef);
-    afpError	= (afpAFPOpenFile == NULL) ? afpParmErr : AFP_OK;
+    afp_session* afp_afp_session = connection->get_afp_session();
 
-    if (AFP_SUCCESS(afpError))
+    DBGWRITE(dbg_level_all, L"Enter\n");
+
+    // The first byte contains the afp command.
+    afp_request.advance_pos_ptr(sizeof(int16));
+
+    const auto afp_fork_ref = afp_request.pull_num<INT16>();
+    const auto afp_bitmap = afp_request.pull_num<UINT16>();
+
+    // Fork length bytes
+    afp_request.advance_pos_ptr(sizeof(UINT32));
+
+    afp_open_file* open_file = afp_afp_session->find_open_file(afp_fork_ref);
+    AFPERROR afp_error = (open_file == nullptr) ? afpParmErr : AFP_OK;
+
+    if (AFP_SUCCESS(afp_error))
     {
-        //
-        //Make sure the volume is not marked read-only.
-        //
-        afpError = AFPVolumeWriteAccessCheck(afpAFPOpenFile->get_vol_id());
-
-        if (!AFP_SUCCESS(afpError))
+        // Make sure the volume is not marked read-only.
+        afp_error = AFPVolumeWriteAccessCheck(open_file->get_vol_id());
+        if (AFP_FAILED(afp_error))
         {
-            return( afpError );
+            return afp_error;
         }
 
-        if ((afpBitmap & kFPDFLen) || (afpBitmap & kFPExtDataForkLen))
+        if ((afp_bitmap & kFPDFLen) || (afp_bitmap & kFPExtDataForkLen))
         {
-            if (afpAFPOpenFile->get_fork() != kDataFork)
+            if (open_file->get_fork() != kDataFork)
             {
-                DBGWRITE(dbg_level_all, L"[afp:FPSetForkParms]Data fork is not open!\n");
-                return( afpBitmapErr );
+                DBGWRITE(dbg_level_all, L"Data fork is not open!\n");
+                return afpBitmapErr;
             }
         }
-        
-        if ((afpBitmap & kFPRFLen) || (afpBitmap & kFPExtRsrcForkLen))
+
+        if (afp_bitmap & kFPRFLen || afp_bitmap & kFPExtRsrcForkLen)
         {
-            if (afpAFPOpenFile->get_fork() != kRsrcFork)
+            if (open_file->get_fork() != kRsrcFork)
             {
-                DBGWRITE(dbg_level_all, L"[afp:FPSetForkParms]Resource fork is not open! (%x)\n");
-                return( afpBitmapErr );
+                DBGWRITE(dbg_level_error, L"Resource fork is not open! (%x)\n");
+                return afpBitmapErr;
             }
         }
     }
     else
     {
-        DBGWRITE(dbg_level_all, L"[afp:FPSetForkParms]Fork item not found!\n");
+        DBGWRITE(dbg_level_all, L"Fork item not found!\n");
     }
-    
-    return( afpError );
+
+    return afp_error;
 }
 
 
@@ -354,85 +290,68 @@ AFPERROR FPSetForkParms(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPGetForkParms(
-    IN	afp_net_buffer&	afpRequest,
-    IN	afp_net_buffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN const dsi::dsi_connection* connection
+)
 {
-    afp_session*	afpAFPSession	= (afp_session*)afpSession->afpSessionObject;
-    afp_open_file*		afpAFPOpenFile		= NULL;
-    uint16			afpForkRef		= 0;
-    uint16			afpBitmap		= 0;
-    AFPERROR		afpError		= AFP_OK;
+    afp_session* afp_session = connection->get_afp_session();
 
-    WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
+    WIN32_FILE_ATTRIBUTE_DATA win_attributes;
 
-    DBGWRITE(dbg_level_all, L"[afp:FPGetForkParms]Enter\n");
-    
-    //
-    //The first byte contains the afp command.
-    //
-    afpRequest.advance_pos_ptr(sizeof(int16));
-    
-    //
-    //Get the parameters for the file we're opening.
-    //
-    afpForkRef	= afpRequest.pull_num<UINT16>();
-    afpBitmap	= afpRequest.pull_num<UINT16>();
-    
-    afpAFPOpenFile = afpAFPSession->find_open_file(afpForkRef);
-    afpError	= (afpAFPOpenFile == NULL) ? afpParmErr : AFP_OK;
-    
-    if (AFP_SUCCESS(afpError))
+    DBGWRITE(dbg_level_all, L"nter\n");
+
+    // The first byte contains the afp command.
+    afp_request.advance_pos_ptr(sizeof(int16));
+
+    // Get the parameters for the file we're opening.
+    const auto afp_fork_ref = afp_request.pull_num<INT16>();
+    auto afp_bitmap = afp_request.pull_num<UINT16>();
+
+    afp_open_file* open_file = afp_session->find_open_file(afp_fork_ref);
+    AFPERROR afp_error = (open_file == nullptr) ? afpParmErr : AFP_OK;
+
+    if (AFP_SUCCESS(afp_error))
     {
-        //
-        //We don't support the following bitmaps, so we clear them.
-        //
-        if (afpSession->bAFPVersion < afpVersion30)
+        // We don't support the following bitmaps, so we clear them.
+        if (connection->get_afp_version() < afpVersion30)
         {
-            if (afpBitmap & kFPProDos)		afpBitmap  &= ~kFPProDos;
-            if (afpBitmap & kFPShortName)	afpBitmap  &= ~kFPShortName;
+            if (afp_bitmap & kFPProDos) afp_bitmap &= ~kFPProDos;
+            if (afp_bitmap & kFPShortName) afp_bitmap &= ~kFPShortName;
         }
 
-        //
-        //Make sure the caller is asking for the length of the fork
-        //that is actually opened.
-        //
-        if (((afpBitmap & kFPDFLen) && (afpAFPOpenFile->get_fork() == kRsrcFork))	||
-            ((afpBitmap & kFPRFLen) && (afpAFPOpenFile->get_fork() == kDataFork))	)
+        // Make sure the caller is asking for the length of the fork
+        // that is actually opened.
+        if (afp_bitmap & kFPDFLen && open_file->get_fork() == kRsrcFork ||
+            afp_bitmap & kFPRFLen && open_file->get_fork() == kDataFork)
         {
-            DBGWRITE(dbg_level_info, L"[afp:FPGetForkParms]Attempt to get length of wrong fork!\n");
-            return( afpBitmapErr );
+            DBGWRITE(dbg_level_info, L"Attempt to get length of wrong fork!\n");
+            return afpBitmapErr;
         }
 
-        //
-        //Add in the bitmap
-        //
-        afpReply.push_int16(afpBitmap);
+        // Add in the bitmap
+        afp_reply.push_num(afp_bitmap);
 
-        //
-        //We need this to properly set the attributes.
-        //
-        GetFileAttributesEx(afpAFPOpenFile->get_win_path(), GetFileExInfoStandard, &winAttributes);
-        
-        //
-        //Now that we've opened the file, get the requested parameters.
-        //
-        afpError = AFPGetObjectParms(
-                        afpReply,
-                        afpBitmap,
-                        afpAFPOpenFile->get_vol_id(),
-                        afpAFPOpenFile->get_dir_id(),
-                        afpSession,
-                        afpAFPOpenFile->get_entry(),
-                        winAttributes
-                        );
+        // We need this to properly set the attributes.
+        GetFileAttributesEx(open_file->get_win_path(), GetFileExInfoStandard, &win_attributes);
+
+        // Now that we've opened the file, get the requested parameters.
+        afp_error = AFPGetObjectParms(
+            afp_reply,
+            afp_bitmap,
+            open_file->get_vol_id(),
+            open_file->get_dir_id(),
+            connection,
+            open_file->get_entry(),
+            win_attributes
+        );
     }
-    
-    DBGWRITE(dbg_level_all, L"[afp:FPGetForkParms]Returning %d\n", afpError);
 
-    return( afpError );
+    DBGWRITE(dbg_level_all, L"Returning %d\n", afp_error);
+
+    return afp_error;
 }
 
 
@@ -445,202 +364,160 @@ AFPERROR FPGetForkParms(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPCreateFile(
-    IN	afp_net_buffer&	afpRequest,
-    IN	afp_net_buffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN afp_net_buffer& afp_request,
+    IN const afp_net_buffer& afp_reply,
+    IN const dsi::dsi_connection* connection
+)
 {
-    UNREFERENCED_PARAMETER(afpReply);
+    UNREFERENCED_PARAMETER(afp_reply);
 
-    unichar				afpPathname[MAX_AFP_PATH];
-    unichar				winPath[MAX_PATH];
-    AFPCHARMAPARRAY		charMap;
-    p_afp_index			afpEntry		= NULL;
-    AFP_VOLUME_INFO*	afpVolumeInfo	= NULL;
-    int8				createFlag		= 0;
-    uint16				afpVolumeID		= 0;
-    uint32				afpDirID		= 0;
-    int8				afpPathType		= 0;
-    AFPERROR			afpError		= AFP_OK;
-    HANDLE				hFile			= INVALID_HANDLE_VALUE;
+    unichar afp_pathname[MAX_AFP_PATH];
+    unichar win_path[MAX_PATH];
+    AFPCHARMAPARRAY char_map;
+    p_afp_index afp_entry = nullptr;
 
-    DBGWRITE(dbg_level_all, L"[afp:FPCreateFile]Enter\n");
-    
-    //
-    //First byte is padding.
-    //
-    afpRequest.advance_pos_ptr(sizeof(int8));
-    
-    createFlag	= afpRequest.pull_num<INT8>();
-    afpVolumeID	= afpRequest.pull_num<UINT16>();
-    afpDirID	= afpRequest.pull_num<UINT32>();
-    afpPathType	= afpRequest.pull_num<INT8>();
+    DBGWRITE(dbg_level_all, L"Enter\n");
 
-    //
-    //The client must have previously opened the volume we are creating
-    //the file on.
-    //
-    if (!((afp_session*)afpSession->afpSessionObject)->session_has_volume_open(afpVolumeID))
+    // First byte is padding.
+    afp_request.advance_pos_ptr(sizeof(int8));
+
+    const auto create_flag = afp_request.pull_num<INT8>();
+    const auto afp_volume_id = afp_request.pull_num<UINT16>();
+    const auto afp_dir_id = afp_request.pull_num<UINT32>();
+    const auto afp_path_type = afp_request.pull_num<INT8>();
+    const auto afp_session = connection->get_afp_session();
+
+    // The client must have previously opened the volume we are creating
+    // the file on.
+    if (!afp_session->session_has_volume_open(afp_volume_id))
     {
-        //
-        //The volume has not been opened, we need to return error.
-        //
-        return( afpParmErr );
+        // The volume has not been opened, we need to return error.
+        return afpParmErr;
     }
 
-    //
-    //Make sure the volume is not marked read-only.
-    //
-    afpError = AFPVolumeWriteAccessCheck(afpVolumeID);
-
-    if (!AFP_SUCCESS(afpError))
+    // Make sure the volume is not marked read-only.
+    AFPERROR afp_error = AFPVolumeWriteAccessCheck(afp_volume_id);
+    if (AFP_FAILED(afp_error))
     {
-        return( afpError );
+        return afp_error;
     }
 
-    //
-    //Get the pathname of the object we're working on.
-    //
-    memset(charMap, 0, sizeof(AFPCHARMAPARRAY));
-    
-    afpError = afpRequest.get_pascal_string(
-                                afpPathname,
-                                sizeof(afpPathname),
-                                true,
-                                afpPathType,
-                                charMap
-                                );
-    
-    if (!AFP_SUCCESS(afpError))
-    {
-        return( afpError );
-    }
-    
-    //
-    //Pathname cannot be null since it contains the new file name.
-    //
-    if (lstrlen(afpPathname) == 0)
-    {
-        DBGWRITE(dbg_level_info, L"[afp:FPCreateFile]Null pathname!\n");
-        return( afpParmErr );
-    }
+    // Get the pathname of the object we're working on.
+    memset(char_map, 0, sizeof(AFPCHARMAPARRAY));
 
-    afpVolumeInfo = ((afp_session*)afpSession->afpSessionObject)->find_open_volume_block(afpVolumeID);
-    if (afpVolumeInfo == NULL)
-    {
-        DBGWRITE(dbg_level_info, L"[afp:FPCreateFile]Bad volume ID!\n");
-        return( afpParmErr );
-    }
-    
-    //
-    //Take the path supplied by the Mac client and convert it into a windows path.
-    //The path should start from the directory as pointed to by dirID.
-    //
-    afpError = AFPIndexFindEntryWithPath(afpVolumeInfo, afpDirID, NULL, &afpEntry);
-            
-    if (!AFP_SUCCESS(afpError))
-    {
-        //
-        //We couldn't find the requested object.
-        //
-        DBGWRITE(dbg_level_info, L"[afp:FPCreateFile]Path not found in FPCreatFile!\n");
-        return( afpError );
-    }
-
-    //
-    //Create the full path to the new file.
-    //
-    StringCbPrintf(winPath, sizeof(winPath), TEXT("%s\\%s"), afpEntry->sz_path, afpPathname);
-    
-    //
-    //Don't let the change notify mechanism do anything yet.
-    //
-    auto_lock lock(&afpVolumeInfo->csNotifyQueue);
-
-    //
-    //Impersonate the logged on user. This makes sure only those who
-    //are allowed can create files.
-    //
-    if (!afp_impersonate_user(afpSession->hUserToken))
-    {
-        //
-        //Impersonation failed, don't allow any further operations.
-        //
-        return( afpAccessDenied );
-    }
-    
-    //
-    //Call the Win32 API that creates the file for us on this filesystem.
-    //
-    hFile = CreateFile(
-                winPath,
-                GENERIC_READ | GENERIC_WRITE,
-                0,
-                NULL,
-                (createFlag & kHardCreate) ? CREATE_ALWAYS : CREATE_NEW,
-                FILE_ATTRIBUTE_NORMAL,
-                NULL
+    afp_error = afp_request.get_pascal_string(
+        afp_pathname,
+        sizeof(afp_pathname),
+        true,
+        afp_path_type,
+        char_map
     );
 
-    afp_revert_to_self(afpSession->hUserToken);
-    
-    if (hFile == INVALID_HANDLE_VALUE)
+    if (AFP_FAILED(afp_error))
     {
-        DBGWRITE(dbg_level_info, 
-                    L"[afp:FPCreateFile]CreateFile() for data fork failed! (%d) (%s)\n",
-                    GetLastError(),
-                    winPath);
-        
-        afpError = afp_map_win_error_to_afp(GetLastError(), static_cast<DWORD>(afpParmErr));
+        return afp_error;
+    }
+
+    // Pathname cannot be null since it contains the new file name.
+    if (lstrlen(afp_pathname) == 0)
+    {
+        DBGWRITE(dbg_level_error, L"Null pathname!\n");
+        return afpParmErr;
+    }
+
+    AFP_VOLUME_INFO* afp_volume_info = afp_session->find_open_volume_block(afp_volume_id);
+    if (afp_volume_info == nullptr)
+    {
+        DBGWRITE(dbg_level_error, L"Bad volume ID!\n");
+        return afpParmErr;
+    }
+
+    // Take the path supplied by the Mac client and convert it into a windows path.
+    // The path should start from the directory as pointed to by dirID.
+    afp_error = AFPIndexFindEntryWithPath(afp_volume_info, afp_dir_id, nullptr, &afp_entry);
+    if (AFP_FAILED(afp_error))
+    {
+        // We couldn't find the requested object.
+        DBGWRITE(dbg_level_error, L"Path not found in FPCreatFile!\n");
+        return afp_error;
+    }
+
+    // Create the full path to the new file.
+    // ReSharper disable once CppFunctionResultShouldBeUsed
+    StringCbPrintf(win_path, sizeof(win_path), TEXT("%s\\%s"), afp_entry->sz_path, afp_pathname);
+
+    // Don't let the change notify mechanism do anything yet.
+    auto_lock lock(&afp_volume_info->csNotifyQueue);
+
+    // Impersonate the logged on user. This makes sure only those who
+    // are allowed can create files.
+    if (!afp_impersonate_user(afp_session->hUserToken))
+    {
+        // Impersonation failed, don't allow any further operations.
+        return afpAccessDenied;
+    }
+
+    // Call the Win32 API that creates the file for us on this filesystem.
+    const auto h_file = CreateFile(
+        win_path,
+        GENERIC_READ | GENERIC_WRITE,
+        0,
+        nullptr,
+        (create_flag & kHardCreate) ? CREATE_ALWAYS : CREATE_NEW,
+        FILE_ATTRIBUTE_NORMAL,
+        nullptr
+    );
+
+    afp_revert_to_self(afp_session->hUserToken);
+
+    if (h_file == INVALID_HANDLE_VALUE)
+    {
+        DBGWRITE(dbg_level_error,
+                 L"CreateFile() for data fork failed! (%d) (%s)\n",
+                 GetLastError(),
+                 win_path);
+
+        afp_error = afp_map_win_error_to_afp(GetLastError(), afpParmErr);
     }
     else
     {
-        afpError = NO_ERROR;
+        afp_error = NO_ERROR;
 
-        //
-        //Add the new file to the afp index for tracking purposes.
-        //
-        afpEntry = AFPIndexAddEntry(
-                        afpVolumeInfo,
-                        afpVolumeID,
-                        afpDirID,
-                        afpPathname,
-                        winPath,
-                        false,
-                        NULL
-                        );
+        // Add the new file to the afp index for tracking purposes.
+        afp_entry = AFPIndexAddEntry(
+            afp_volume_info,
+            afp_volume_id,
+            afp_dir_id,
+            afp_pathname,
+            win_path,
+            false,
+            nullptr
+        );
 
-        if (afpEntry != NULL)
+        if (afp_entry != nullptr)
         {
-            //
-            //Now make sure that our NTFS streams are created so we have
-            //a FInfo and resource forks.
-            //
-            AFPCheckForAndAddFinderInfoStream(afpEntry);
-            AFPCheckForAndCreateFinderRsrcStream(afpEntry);
+            // Now make sure that our NTFS streams are created so we have
+            // a FInfo and resource forks.
+            AFPCheckForAndAddFinderInfoStream(afp_entry);
+            AFPCheckForAndCreateFinderRsrcStream(afp_entry);
 
-            //
-            //Copy the charmap that contains the Mac-Windows mapping for
-            //characters to the entries mapping table.
-            //
-            AFPAddCharMapToIndexEntry(afpEntry, charMap);
+            // Copy the charmap that contains the Mac-Windows mapping for
+            // characters to the entries mapping table.
+            AFPAddCharMapToIndexEntry(afp_entry, char_map);
         }
 
-        //
-        //This tells the afp message system to kick in and notify other
-        //Mac clients that a change happened on the volume.
-        //
-        AFPMarkVolumeDirty(afpVolumeInfo->wVolID);
+        // This tells the afp message system to kick in and notify other
+        // Mac clients that a change happened on the volume.
+        AFPMarkVolumeDirty(afp_volume_info->wVolID);
 
-        //
-        //We're done with the file and we don't need the handle
-        //to it anymore.
-        //
-        CloseHandle(hFile);
+        // We're done with the file and we don't need the handle
+        // to it anymore.
+        CloseHandle(h_file);
     }
 
-    return( afpError );
+    return afp_error;
 }
 
 
@@ -654,83 +531,76 @@ AFPERROR FPCreateFile(
  */
 
 AFPERROR FPByteRangeLock(
-    IN	afp_net_buffer&	afpRequest,
-    IN	afp_net_buffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN afp_net_buffer& afpRequest,
+    IN afp_net_buffer& afpReply,
+    IN dsi::dsi_connection* connection
+)
 {
-    afp_session*	afpAFPSession	= (afp_session*)afpSession->afpSessionObject;
-    afp_open_file*		afpAFPOpenFile		= NULL;
-    int8			afpCommand		= 0;
-    uint8			afpBRLFlags		= 0;
-    uint16			afpForkRef		= 0;
-    int64			afpOffset		= 0;
-    int64			afpLength		= 0;
-    uint32			afpFileSize		= 0;
-    AFPERROR		afpError		= AFP_OK;
-    HANDLE			hFile			= INVALID_HANDLE_VALUE;
-    
+    afp_session* afpAFPSession = static_cast<afp_session*>(afpSession->afpSessionObject);
+    int64 afpOffset = 0;
+    int64 afpLength = 0;
+
     //
     //Skip the first byte which is afp command.
     //
-    afpCommand	= afpRequest.pull_num<INT8>();
-    afpBRLFlags	= afpRequest.pull_num<UINT8>();
-    afpForkRef	= afpRequest.pull_num<UINT16>();
+    int8 afpCommand = afpRequest.pull_num<INT8>();
+    uint8 afpBRLFlags = afpRequest.pull_num<UINT8>();
+    uint16 afpForkRef = afpRequest.pull_num<UINT16>();
 
     switch (afpCommand)
     {
-        case afpByteRangeLock:
-            afpOffset	= afpRequest.pull_num<UINT32>();
-            afpLength	= afpRequest.pull_num<UINT32>();
-            break;
-        
-        case afpByteRangeLockExt:
-            afpOffset	= afpRequest.pull_num<INT64>();
-            afpLength	= afpRequest.pull_num<INT64>();
-            break;
-            
-        default:
-            return( afpParmErr );
+    case afpByteRangeLock:
+        afpOffset = afpRequest.pull_num<UINT32>();
+        afpLength = afpRequest.pull_num<UINT32>();
+        break;
+
+    case afpByteRangeLockExt:
+        afpOffset = afpRequest.pull_num<INT64>();
+        afpLength = afpRequest.pull_num<INT64>();
+        break;
+
+    default:
+        return (afpParmErr);
     }
-    
+
     //
     //Get the handle to the open file fork.
     //
-    afpAFPOpenFile = afpAFPSession->find_open_file(afpForkRef);
-    afpError	= (afpAFPOpenFile == NULL) ? afpParmErr : AFP_OK;
+    afp_open_file* afpAFPOpenFile = afpAFPSession->find_open_file(afpForkRef);
+    AFPERROR afpError = (afpAFPOpenFile == nullptr) ? afpParmErr : AFP_OK;
 
-    if (!AFP_SUCCESS(afpError))
+    if (AFP_FAILED(afpError))
     {
-        return( afpError );
+        return (afpError);
     }
 
-    hFile = afpAFPOpenFile->get_file_handle();
-    
+    auto hFile = afpAFPOpenFile->get_file_handle();
+
     if (hFile == INVALID_HANDLE_VALUE)
     {
         //
         //Bad news, the fork is apparently not open.
         //
-        return( afpParmErr );
+        return (afpParmErr);
     }
-    
+
     //
     //Determine the size of the file so we can calculate the offset
     //from the end of the file and lock the entire range if
     //necessary.
     //
-    afpFileSize = GetFileSize(hFile, NULL);
-    afpError	= (afpFileSize == 0xFFFFFFFF) ? afpParmErr : AFP_OK;
-    
+    uint32 afpFileSize = GetFileSize(hFile, nullptr);
+    afpError = (afpFileSize == 0xFFFFFFFF) ? afpParmErr : AFP_OK;
+
     if (AFP_SUCCESS(afpError))
-    {		
+    {
         if (afpBRLFlags & kUnlockFlag)
         {
-            if (afpLength >= (int32)0xFFFFFFFF)
+            if (afpLength >= static_cast<int32>(0xFFFFFFFF))
             {
-                switch(afpOffset)
+                switch (afpOffset)
                 {
-                    case 0:
+                case 0:
                     //
                     //0 offset means we unlock the entire range of the file.
                     //
@@ -744,11 +614,11 @@ AFPERROR FPByteRangeLock(
                     break;
                 }
             }
-            
+
             DBGWRITE(dbg_level_info, L"[afp:FPByteRangeLock]Unlocking...\n");
             DBGWRITE(dbg_level_info, L"[afp:FPByteRangeLock]Offset = %d\n", afpOffset);
             DBGWRITE(dbg_level_info, L"[afp:FPByteRangeLock]Length = %d\n", afpLength);
-            
+
             //
             //BUGBUG: Actual unlocking code goes here.
             //
@@ -759,8 +629,8 @@ AFPERROR FPByteRangeLock(
             //If the user wants us to set the offset from the end of the
             //file, then we have a lot more work to do.
             //
-            if (afpBRLFlags & kStartEndFlag) {
-            
+            if (afpBRLFlags & kStartEndFlag)
+            {
                 afpOffset = (afpOffset < 0) ? (afpFileSize + afpOffset) : (afpFileSize - afpOffset);
             }
             else //From the beginning
@@ -772,16 +642,16 @@ AFPERROR FPByteRangeLock(
                     //end of a file.
                     //
                     DBGWRITE(dbg_level_info, L"[afp:FPByteRangeLock]Negative offset from start!\n");
-                    return( afpParmErr );
+                    return (afpParmErr);
                 }
-                
+
                 //
                 //If the length is 0xFFFFFFFF, then we have special handling to do.
                 //
-                if (((afpCommand == afpByteRangeLock) && (afpLength == 0xFFFFFFFF))	||
+                if (((afpCommand == afpByteRangeLock) && (afpLength == 0xFFFFFFFF)) ||
                     ((afpCommand == afpByteRangeLockExt) && (afpLength == 0xFFFFFFFFFFFFFFFFLL)))
-                {	
-                    switch(afpOffset)
+                {
+                    switch (afpOffset)
                     {
                     case 0:
                         //
@@ -797,7 +667,7 @@ AFPERROR FPByteRangeLock(
                         break;
                     }
                 }
-            }//from beginning
+            } //from beginning
 
             DBGWRITE(dbg_level_info, L"[afp:FPByteRangeLock]Locking...\n");
             DBGWRITE(dbg_level_info, L"[afp:FPByteRangeLock]Offset = %d\n", afpOffset);
@@ -807,26 +677,26 @@ AFPERROR FPByteRangeLock(
             //BUGBUG: Actual locking code goes here.
             //
         }
-        
+
         //
         //We return the first byte of the newly locked range
         //
         switch (afpCommand)
         {
-            case afpByteRangeLock:
-                afpReply.push_int32((uint32)afpOffset);
-                break;
-            
-            case afpByteRangeLockExt:
-                afpReply.push_int64(afpOffset);
-                break;
-                
-            default:
-                return( afpParmErr );
+        case afpByteRangeLock:
+            afpReply.push_int32(static_cast<uint32>(afpOffset));
+            break;
+
+        case afpByteRangeLockExt:
+            afpReply.push_int64(afpOffset);
+            break;
+
+        default:
+            return (afpParmErr);
         }
     }
-    
-    return( afpError );
+
+    return (afpError);
 }
 
 
@@ -840,44 +710,40 @@ AFPERROR FPByteRangeLock(
  */
 
 AFPERROR FPRead(
-    IN	afp_net_buffer&	afpRequest,
-    IN	afp_net_buffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN afp_net_buffer& afpRequest,
+    IN afp_net_buffer& afpReply,
+    IN dsi::dsi_connection* connection
+)
 {
-    afp_session*	afpAFPSession	= (afp_session*)afpSession->afpSessionObject;
-    afp_open_file*		afpAFPOpenFile		= NULL;
-    int8			afpCommand		= 0;
-    uint16			afpForkRef		= 0;
-    int64			afpOffset		= 0;
-    int64			afpReqCount		= 0;
-    uint32			afpActCount		= 0;
-    AFPERROR		afpError		= AFP_OK;
-    
+    afp_session* afpAFPSession = static_cast<afp_session*>(afpSession->afpSessionObject);
+    int64 afpOffset = 0;
+    int64 afpReqCount = 0;
+    uint32 afpActCount = 0;
+
     DBGWRITE(dbg_level_all, L"[afp:FPRead]Enter\n");
-    
+
     //
     //The first byte contains the afp command.
     //
-    afpCommand = afpRequest.pull_num<INT8>();
+    int8 afpCommand = afpRequest.pull_num<INT8>();
     afpRequest.advance_pos_ptr(sizeof(int8));
-    
-    afpForkRef = afpRequest.pull_num<UINT16>();
-    
-    switch(afpCommand)
+
+    uint16 afpForkRef = afpRequest.pull_num<UINT16>();
+
+    switch (afpCommand)
     {
-        case afpRead:
-            afpOffset	= afpRequest.pull_num<UINT32>();
-            afpReqCount	= afpRequest.pull_num<UINT32>();
-            break;
-        
-        case afpReadExt:
-            afpOffset	= afpRequest.pull_num<INT64>();
-            afpReqCount	= afpRequest.pull_num<INT64>();
-            break;
-        
-        default:
-            return( afpParmErr );
+    case afpRead:
+        afpOffset = afpRequest.pull_num<UINT32>();
+        afpReqCount = afpRequest.pull_num<UINT32>();
+        break;
+
+    case afpReadExt:
+        afpOffset = afpRequest.pull_num<INT64>();
+        afpReqCount = afpRequest.pull_num<INT64>();
+        break;
+
+    default:
+        return (afpParmErr);
     }
 
     //
@@ -886,8 +752,8 @@ AFPERROR FPRead(
     //has been dropped in AFP3.x anyway).
     //
 
-    afpAFPOpenFile = afpAFPSession->find_open_file(afpForkRef);
-    afpError	= (afpAFPOpenFile == NULL) ? afpParmErr : AFP_OK;
+    afp_open_file* afpAFPOpenFile = afpAFPSession->find_open_file(afpForkRef);
+    AFPERROR afpError = (afpAFPOpenFile == nullptr) ? afpParmErr : AFP_OK;
 
     if (AFP_SUCCESS(afpError))
     {
@@ -896,15 +762,15 @@ AFPERROR FPRead(
             //
             //Impersonation failed, don't allow any further operations.
             //
-            return( afpAccessDenied );
+            return (afpAccessDenied);
         }
 
         afpError = afpAFPOpenFile->read_fork(
-                                    afpReply,
-                                    afpOffset,
-                                    afpReqCount,
-                                    &afpActCount
-                                    );
+            afpReply,
+            afpOffset,
+            afpReqCount,
+            &afpActCount
+        );
 
         afp_revert_to_self(afpSession->hUserToken);
     }
@@ -914,10 +780,10 @@ AFPERROR FPRead(
     //in the DSI Header's datasize field.
     //
     afpReply.set_dsi_return_value(afpActCount);
-    
+
     DBGWRITE(dbg_level_all, L"[afp:FPRead]Returning error %d and count %d\n", afpError, afpActCount);
 
-    return( afpError );
+    return (afpError);
 }
 
 
@@ -931,48 +797,43 @@ AFPERROR FPRead(
  */
 
 AFPERROR FPWrite(
-    IN	afp_net_buffer&	afpRequest,
-    IN	afp_net_buffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN afp_net_buffer& afpRequest,
+    IN afp_net_buffer& afpReply,
+    IN dsi::dsi_connection* connection
+)
 {
-    afp_session*	afpAFPSession	= (afp_session*)afpSession->afpSessionObject;
-    afp_open_file*		afpAFPOpenFile		= NULL;
-    int8			afpCommand		= 0;
-    uint16			afpForkRef		= 0;
-    int64			afpOffset		= 0;
-    int64			afpReqCount		= 0;
-    int64			afpActCount		= 0;
-    int8			afpFlag			= 0;
-    AFPERROR		afpError		= AFP_OK;
-    
+    afp_session* afpAFPSession = static_cast<afp_session*>(afpSession->afpSessionObject);
+    int64 afpOffset = 0;
+    int64 afpReqCount = 0;
+    int64 afpActCount = 0;
+
     DBGWRITE(dbg_level_all, L"[afp:FPWrite]Enter\n");
-    
+
     //
     //The first byte contains the afp command.
     //
-    afpCommand	= afpRequest.pull_num<INT8>();
-    afpFlag		= afpRequest.pull_num<INT8>();
-    afpForkRef	= afpRequest.pull_num<UINT16>();
-    
-    switch(afpCommand)
+    int8 afpCommand = afpRequest.pull_num<INT8>();
+    int8 afpFlag = afpRequest.pull_num<INT8>();
+    uint16 afpForkRef = afpRequest.pull_num<UINT16>();
+
+    switch (afpCommand)
     {
-        case afpWrite:
-            afpOffset	= afpRequest.pull_num<UINT32>();
-            afpReqCount	= afpRequest.pull_num<UINT32>();
-            break;
-        
-        case afpWriteExt:
-            afpOffset	= afpRequest.pull_num<INT64>();
-            afpReqCount	= afpRequest.pull_num<INT64>();
-            break;
-            
-        default:
-            return( afpParmErr );
+    case afpWrite:
+        afpOffset = afpRequest.pull_num<UINT32>();
+        afpReqCount = afpRequest.pull_num<UINT32>();
+        break;
+
+    case afpWriteExt:
+        afpOffset = afpRequest.pull_num<INT64>();
+        afpReqCount = afpRequest.pull_num<INT64>();
+        break;
+
+    default:
+        return (afpParmErr);
     }
 
-    afpAFPOpenFile = afpAFPSession->find_open_file(afpForkRef);
-    afpError	= (afpAFPOpenFile == NULL) ? afpParmErr : AFP_OK;
+    afp_open_file* afpAFPOpenFile = afpAFPSession->find_open_file(afpForkRef);
+    AFPERROR afpError = (afpAFPOpenFile == nullptr) ? afpParmErr : AFP_OK;
 
     if (AFP_SUCCESS(afpError))
     {
@@ -981,9 +842,9 @@ AFPERROR FPWrite(
         //
         afpError = AFPVolumeWriteAccessCheck(afpAFPOpenFile->get_vol_id());
 
-        if (!AFP_SUCCESS(afpError))
+        if (AFP_FAILED(afpError))
         {
-            return( afpError );
+            return (afpError);
         }
 
         if (!afp_impersonate_user(afpSession->hUserToken))
@@ -991,34 +852,33 @@ AFPERROR FPWrite(
             //
             //Impersonation failed, don't allow any further operations.
             //
-            return( afpAccessDenied );
+            return (afpAccessDenied);
         }
 
         afpError = afpAFPOpenFile->write_fork(
-                                    afpRequest,
-                                    afpOffset,
-                                    afpReqCount,
-                                    (afpFlag & kWriteStartEndFlag) ? FALSE : TRUE,
-                                    &afpActCount
-                                    );
+            afpRequest,
+            afpOffset,
+            afpReqCount,
+            (afpFlag & kWriteStartEndFlag) ? FALSE : TRUE,
+            &afpActCount
+        );
 
         afp_revert_to_self(afpSession->hUserToken);
 
         if (AFP_SUCCESS(afpError))
         {
-            switch(afpCommand)
+            switch (afpCommand)
             {
-                case afpWrite:
-                    afpReply.push_int32((int32)afpActCount);
-                    break;
-                
-                case afpWriteExt:
-                    afpReply.push_int64(afpActCount);
-                    break;
+            case afpWrite:
+                afpReply.push_int32(static_cast<int32>(afpActCount));
+                break;
+
+            case afpWriteExt:
+                afpReply.push_int64(afpActCount);
+                break;
             }
         }
     }
-    
-    return( afpError );
-}
 
+    return (afpError);
+}

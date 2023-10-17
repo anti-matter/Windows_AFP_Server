@@ -1,3 +1,4 @@
+// ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
 #include "StdAfx.h"
 
 #include <windows.h>

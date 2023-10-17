@@ -1,75 +1,60 @@
-/*
- *	afpfileio.h
- *	Created 3/5/2005
- *
- *	Copyright © 2005, Michael J. Conrad. All Rights Reserved.
- */
+// ReSharper disable CppInconsistentNaming
+#pragma once
 
-#ifndef __afpfileio__
-#define __afpfileio__
-
-#include "afphelp.h"
-#include "fpinfo.h"
-#include "fdparms.h"
-#include "afpnotify.h"
 #include "afp_net_buffer.h"
 #include "afp_session.h"
-#include "afp_open_file.h"
 
 
 AFPERROR FPFlushFork(
-	IN	afp_net_buffer&	afpRequest,
-	IN	afp_net_buffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+    IN const afp_net_buffer& afp_request,
+    IN const afp_net_buffer& afp_reply,
+    IN const dsi::dsi_connection* connection
+);
 
 AFPERROR FPCloseFork(
-	IN	afp_net_buffer&	afpRequest,
-	IN	afp_net_buffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+    IN afp_net_buffer& afp_request,
+    IN const afp_net_buffer& afp_reply,
+    IN const dsi::dsi_connection* connection
+);
 
 AFPERROR FPOpenFork(
-	IN	afp_net_buffer&	afpRequest,
-	IN	afp_net_buffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN const dsi::dsi_connection* connection
+);
 
 AFPERROR FPSetForkParms(
-	IN	afp_net_buffer&	afpRequest,
-	IN	afp_net_buffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+    IN afp_net_buffer& afp_request,
+    IN const afp_net_buffer& afp_reply,
+    IN const dsi::dsi_connection* connection
+);
 
 AFPERROR FPGetForkParms(
-	IN	afp_net_buffer&	afpRequest,
-	IN	afp_net_buffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN const dsi::dsi_connection* connection
+);
 
 AFPERROR FPCreateFile(
-	IN	afp_net_buffer&	afpRequest,
-	IN	afp_net_buffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+    IN afp_net_buffer& afp_request,
+    IN const afp_net_buffer& afp_reply,
+    IN const dsi::dsi_connection* connection
+);
 
 AFPERROR FPByteRangeLock(
-	IN	afp_net_buffer&	afpRequest,
-	IN	afp_net_buffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+    IN afp_net_buffer& afpRequest,
+    IN afp_net_buffer& afpReply,
+    IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPRead(
-	IN	afp_net_buffer&	afpRequest,
-	IN	afp_net_buffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+    IN afp_net_buffer& afpRequest,
+    IN afp_net_buffer& afpReply,
+    IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPWrite(
-	IN	afp_net_buffer&	afpRequest,
-	IN	afp_net_buffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
-
-
-#endif //__afpfileio__
+    IN afp_net_buffer& afpRequest,
+    IN afp_net_buffer& afpReply,
+    IN dsi::dsi_connection* connection
+);

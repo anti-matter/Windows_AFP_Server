@@ -21,29 +21,29 @@
 // parameters.
 //
 size_t AFPGetParmsBufferSizeRequired(
-    IN	PFILEDIRPARMS	pFdp
+    IN PFILEDIRPARMS pFdp
 )
 {
-    WORD	i;
-    size_t	wSize	= 0;
-    WORD	wBitmap = (pFdp->bFDPAttributes & kFileDirIsDir) ? pFdp->wDirBitmap : pFdp->wFileBitmap;
+    WORD i;
+    size_t wSize = 0;
+    WORD wBitmap = (pFdp->bFDPAttributes & kFileDirIsDir) ? pFdp->wDirBitmap : pFdp->wFileBitmap;
 
-    static BYTE	fdParmSizes[14] = {
-                    sizeof(WORD),				//Attributes
-                    sizeof(DWORD),				//Parent DirID
-                    sizeof(LONG),				//Creation date
-                    sizeof(LONG),				//Mod date
-                    sizeof(LONG),				//Backup date
-                    sizeof(FINDER_INFO),		//Finder info
-                    sizeof(WORD) + sizeof(BYTE),//Long name offset
-                    sizeof(WORD) + sizeof(BYTE),//Short name offset
-                    sizeof(DWORD),				//File/Dir ID
-                    sizeof(DWORD),				//Data fork len/offspring count
-                    sizeof(DWORD),				//Res fork len/owner id
-                    sizeof(DWORD),				//Group id
-                    sizeof(DWORD),				//Access rights
-                    PRODOS_LEN					//ProDOS info
-                };
+    static BYTE fdParmSizes[14] = {
+        sizeof(WORD), //Attributes
+        sizeof(DWORD), //Parent DirID
+        sizeof(LONG), //Creation date
+        sizeof(LONG), //Mod date
+        sizeof(LONG), //Backup date
+        sizeof(FINDER_INFO), //Finder info
+        sizeof(WORD) + sizeof(BYTE), //Long name offset
+        sizeof(WORD) + sizeof(BYTE), //Short name offset
+        sizeof(DWORD), //File/Dir ID
+        sizeof(DWORD), //Data fork len/offspring count
+        sizeof(DWORD), //Res fork len/owner id
+        sizeof(DWORD), //Group id
+        sizeof(DWORD), //Access rights
+        PRODOS_LEN //ProDOS info
+    };
 
     if (wBitmap & kFPLongName)
     {
@@ -64,13 +64,13 @@ size_t AFPGetParmsBufferSizeRequired(
     {
         if (wBitmap & 1)
         {
-            wSize += (WORD)fdParmSizes[i];
+            wSize += static_cast<WORD>(fdParmSizes[i]);
         }
 
         wBitmap >>= 1;
     }
 
-    return(wSize);
+    return (wSize);
 }
 
 //---------------------------------------------------------------------
@@ -80,38 +80,38 @@ size_t AFPGetParmsBufferSizeRequired(
 // should be at least MAX_PATH in size.
 //
 AFPERROR AFPMapAFPToWindowsPath(
-    IN	WORD	wVolID,
-    IN	DWORD	dwDirID,
-    IN	PTCHAR	pAFPPath,
-    OUT PTCHAR	pWindowsPath,
-    IN	size_t	cbWindowsPath
+    IN WORD wVolID,
+    IN DWORD dwDirID,
+    IN PTCHAR pAFPPath,
+    OUT PTCHAR pWindowsPath,
+    IN size_t cbWindowsPath
 )
 {
-    AFP_VOLUME_INFO*	pVolInfo;
-    DWORD				dwError;
-        
-    if (AFPGetVolumeInfoBlock(NULL, wVolID, &pVolInfo) == FALSE)
+    AFP_VOLUME_INFO* pVolInfo;
+    DWORD dwError;
+
+    if (AFPGetVolumeInfoBlock(nullptr, wVolID, &pVolInfo) == FALSE)
     {
         DBGWRITE(dbg_level_info, L"[FDP]Failed to get vol info block!\n");
-        return(afpParmErr);
+        return (afpParmErr);
     }
-    
+
     //
     //Go to the volume index and get the path to the
     //directory ID we're working with.
     //
     dwError = AFPIndexGetFullPath(pVolInfo, dwDirID, pWindowsPath, cbWindowsPath);
-    
+
     if (dwError == NO_ERROR)
     {
-        if ((pAFPPath != NULL) && (lstrlen(pAFPPath) > 0))
-        {			
+        if ((pAFPPath != nullptr) && (lstrlen(pAFPPath) > 0))
+        {
             StringCbCat(pWindowsPath, cbWindowsPath, TEXT("\\"));
             StringCbCat(pWindowsPath, cbWindowsPath, pAFPPath);
         }
     }
-    
-    return(dwError);
+
+    return (dwError);
 }
 
 //---------------------------------------------------------------------
@@ -121,57 +121,57 @@ AFPERROR AFPMapAFPToWindowsPath(
 // it using defaults.
 //
 void AFPCheckForAndCreateFinderRsrcStream(
-    IN	p_afp_index		pEntry
+    IN p_afp_index pEntry
 )
 {
-    WCHAR		szTempPath[MAX_PATH];
-    HANDLE		hFile;
-    DWORD		dwError;
+    WCHAR szTempPath[MAX_PATH];
+    HANDLE hFile;
+    DWORD dwError;
 
     StringCbPrintf(szTempPath, sizeof(szTempPath), TEXT("%s%s"), pEntry->sz_path, AFP_RESOURCE_FORK_NAME);
-    
+
     hFile = CreateFile(
-                szTempPath,
-                GENERIC_READ | GENERIC_WRITE,
-                0,
-                NULL,
-                OPEN_EXISTING,
-                FILE_ATTRIBUTE_NORMAL,
-                NULL
+        szTempPath,
+        GENERIC_READ | GENERIC_WRITE,
+        0,
+        nullptr,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        nullptr
     );
-    
+
     if (hFile == INVALID_HANDLE_VALUE)
     {
         dwError = GetLastError();
-        
+
         if (dwError == ERROR_FILE_NOT_FOUND)
         {
             hFile = CreateFile(
-                        szTempPath,
-                        GENERIC_READ | GENERIC_WRITE,
-                        0,
-                        NULL,
-                        CREATE_NEW,
-                        FILE_ATTRIBUTE_NORMAL,
-                        NULL
+                szTempPath,
+                GENERIC_READ | GENERIC_WRITE,
+                0,
+                nullptr,
+                CREATE_NEW,
+                FILE_ATTRIBUTE_NORMAL,
+                nullptr
             );
 
             if (hFile != INVALID_HANDLE_VALUE)
             {
-                DBGWRITE(dbg_level_all, 
-                        L"[FDP]Successfully created new resource stream (%s)\n",
-                        szTempPath
-                        );
-                
+                DBGWRITE(dbg_level_all,
+                         L"[FDP]Successfully created new resource stream (%s)\n",
+                         szTempPath
+                );
+
                 CloseHandle(hFile);
             }
             else
             {
-                DBGWRITE(dbg_level_info, 
-                        L"[FDP]Failed to create resource stream for %s! (%d)\n",
-                        szTempPath,
-                        GetLastError()
-                        );
+                DBGWRITE(dbg_level_info,
+                         L"[FDP]Failed to create resource stream for %s! (%d)\n",
+                         szTempPath,
+                         GetLastError()
+                );
             }
         }
     }
@@ -187,26 +187,26 @@ void AFPCheckForAndCreateFinderRsrcStream(
 // Fill in the parms of a file or dir for a file/dir parms call.
 //
 AFPERROR AFPGetObjectParms(
-    IN	afp_net_buffer&				afpReply,
-    IN	uint16						afpBitmap,
-    IN	uint16						afpVolumeID,
-    IN	UINT32						afpDirID,
-    IN	dsi::dsi_connection*        afpSession,
-    IN	p_afp_index					afpEntry,
-    IN	WIN32_FILE_ATTRIBUTE_DATA	winAttributes
-    )
+    IN afp_net_buffer& afpReply,
+    IN uint16 afpBitmap,
+    IN uint16 afpVolumeID,
+    IN UINT32 afpDirID,
+    IN const dsi::dsi_connection* afpSession,
+    IN p_afp_index afpEntry,
+    IN WIN32_FILE_ATTRIBUTE_DATA winAttributes
+)
 {
-    AFPCHARMAPARRAY		charMap = { 0 };
-    LARGE_INTEGER		dataSize64 = { 0 };
-    LARGE_INTEGER		rsrcSize64 = { 0 };
-    uint16*				longNameOffset = NULL;
-    uint16*				uniNameOffset = NULL;
-    char*				pParmsStart = afpReply.get_current_pos_ptr();
-    AFPERROR			afpError = AFP_OK;
-    
+    AFPCHARMAPARRAY charMap = {0};
+    LARGE_INTEGER dataSize64 = {0};
+    LARGE_INTEGER rsrcSize64 = {0};
+    uint16* longNameOffset = nullptr;
+    uint16* uniNameOffset = nullptr;
+    char* pParmsStart = afpReply.get_current_pos_ptr();
+    AFPERROR afpError = AFP_OK;
+
     if (afpBitmap & kFPFileAttributes)
     {
-        uint16	afpAttributes = 0;
+        uint16 afpAttributes = 0;
 
         AFPWinToAFPAttributes(winAttributes.dwFileAttributes, &afpAttributes);
 
@@ -215,41 +215,43 @@ AFPERROR AFPGetObjectParms(
         //
         if ((winAttributes.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0)
         {
-            if (afpEntry->flags & flag_index_resource_fork_open) {
+            if (afpEntry->flags & flag_index_resource_fork_open)
+            {
                 afpAttributes |= kFileRsrcForkOpen;
             }
-            
-            if (afpEntry->flags & flag_index_data_fork_open) {
+
+            if (afpEntry->flags & flag_index_data_fork_open)
+            {
                 afpAttributes |= kFileDataForkOpen;
             }
         }
 
-		afpReply.push_num<UINT16>(afpAttributes);
+        afpReply.push_num<UINT16>(afpAttributes);
     }
 
-    if (afpBitmap & kFPParentID)	afpReply.push_num<UINT32>(afpEntry->par_id);
-    if (afpBitmap & kFPCreateDate)	afpReply.push_num<UINT32>(afp_windows_to_mac_time(&winAttributes.ftCreationTime));
-    if (afpBitmap & kFPModDate)		afpReply.push_num<UINT32>(afp_windows_to_mac_time(&winAttributes.ftLastWriteTime));
-    if (afpBitmap & kFPBackupDate)	afpReply.push_num<UINT32>(0x80000000);
-    
+    if (afpBitmap & kFPParentID) afpReply.push_num<UINT32>(afpEntry->par_id);
+    if (afpBitmap & kFPCreateDate) afpReply.push_num<UINT32>(afp_windows_to_mac_time(&winAttributes.ftCreationTime));
+    if (afpBitmap & kFPModDate) afpReply.push_num<UINT32>(afp_windows_to_mac_time(&winAttributes.ftLastWriteTime));
+    if (afpBitmap & kFPBackupDate) afpReply.push_num<UINT32>(0x80000000);
+
     if (afpBitmap & kFPFinderInfo)
     {
-        FINDER_INFO	finderInfo;
-        
+        FINDER_INFO finderInfo;
+
         RtlZeroMemory(&finderInfo, sizeof(FINDER_INFO));
-        
+
         if (AFP_SUCCESS(AFPGetFinderInfo(afpEntry, &finderInfo)))
-        {		
+        {
             if (winAttributes.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN)
             {
                 finderInfo.fdFlags |= kFDInvisible;
             }
-                    
-            finderInfo.fdFlags 		= htons(finderInfo.fdFlags);
+
+            finderInfo.fdFlags = htons(finderInfo.fdFlags);
             finderInfo.fdLocation.x = htons(finderInfo.fdLocation.x);
             finderInfo.fdLocation.y = htons(finderInfo.fdLocation.y);
-            finderInfo.fdFldr		= htons(finderInfo.fdFldr);
-            
+            finderInfo.fdFldr = htons(finderInfo.fdFldr);
+
             afpReply.push_raw_data(&finderInfo, sizeof(FINDER_INFO));
         }
     }
@@ -260,49 +262,58 @@ AFPERROR AFPGetObjectParms(
         afpReply.advance_pos_ptr(sizeof(int16));
     }
 
-    if (afpBitmap & kFPFileNum)	afpReply.push_num<UINT32>(afpEntry->object_id);
-    
+    if (afpBitmap & kFPFileNum) afpReply.push_num<UINT32>(afpEntry->object_id);
+
     //
     //The maps are a little different here for file and directories.
     //
     if (winAttributes.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
     {
-        if (afpBitmap & kFPDirOffCount) {
+        if (afpBitmap & kFPDirOffCount)
+        {
             afpReply.push_num<UINT16>(AFPGetDirOffspringCount(afpVolumeID, afpEntry));
         }
 
         if (afpBitmap & (kFPDirOwnerID | kFPDirGroupID))
         {
-            DWORD	dwOwnerID	= 0;
-            DWORD	dwGroupID	= 0;
+            DWORD dwOwnerID = 0;
+            DWORD dwGroupID = 0;
 
             //AFPGetDirectoryOwnerAndGroupID(afpEntry->szPath, &dwOwnerID, &dwGroupID);
 
-            if (afpBitmap & kFPDirOwnerID) {
+            if (afpBitmap & kFPDirOwnerID)
+            {
                 afpReply.push_num<UINT32>(dwOwnerID);
             }
-            
-            if (afpBitmap & kFPDirGroupID) {
+
+            if (afpBitmap & kFPDirGroupID)
+            {
                 afpReply.push_num<UINT32>(dwGroupID);
             }
         }
-        
+
         if (afpBitmap & kFPDirAccess)
         {
-            uint32	afpRights		= 0;
+            uint32 afpRights = 0;
 
-            afpError = afp_get_directory_rights(
-                            afpSession->get_user_token(),
-                            afpEntry->sz_path,
-                            afpSession->get_user_name(),
-                            (lstrlen(afpSession->get_domain_name()) > 0) ? afpSession->get_domain_name() : nullptr,
-                            &afpRights
-                            );
+            const auto user_name = _wcsdup(afpSession->get_user_name().c_str());
+            const auto domain_name = _wcsdup(afpSession->get_domain_name().c_str());
 
-            if (AFP_SUCCESS(afpError)) {
+            const auto win_error = afp_get_directory_rights(
+                afpSession->get_user_token(),
+                afpEntry->sz_path,
+                user_name,
+                (lstrlen(domain_name) > 0) ? domain_name : nullptr,
+                &afpRights
+            );
 
+            if (SUCCEEDED(win_error))
+            {
                 afpReply.push_num<UINT32>(afpRights);
             }
+
+            free(user_name);
+            free(domain_name);
         }
 
         if (afpBitmap & kFPUnicodeName)
@@ -322,12 +333,13 @@ AFPERROR AFPGetObjectParms(
                 dataSize64.LowPart = 0;
                 DBGWRITE(dbg_level_info, L"[FDP]GetCompressedFileSize() failed! (%d)\n", GetLastError());
             }
-            else {
+            else
+            {
                 DBGWRITE(dbg_level_all, L"[FDP]Data fork size =  (%d)\n", dataSize64.LowPart);
             }
 
-            if (afpBitmap & kFPDFLen) {
-
+            if (afpBitmap & kFPDFLen)
+            {
                 afpReply.push_num<UINT32>(dataSize64.LowPart);
             }
         }
@@ -337,27 +349,29 @@ AFPERROR AFPGetObjectParms(
             afp_open_file afpFile(afpVolumeID, afpDirID, kReadMode, kAttrFork, afpEntry, afpEntry->sz_path);
 
             rsrcSize64.QuadPart = afpFile.get_stream_length(AFP_RESOURCE_FORK_NAME_PLAIN);
-            
+
             if (rsrcSize64.QuadPart == BAD_LENGTH_64)
             {
                 //
                 //There was an error getting the file size
                 //
-                DBGWRITE(dbg_level_all, L"[FDP]GetStreamLength() failed! (%d) (%s)\n", GetLastError(), afpEntry->sz_object_name);
+                DBGWRITE(dbg_level_all, L"[FDP]GetStreamLength() failed! (%d) (%s)\n", GetLastError(),
+                         afpEntry->sz_object_name);
                 rsrcSize64.QuadPart = 0;
             }
-            else {
+            else
+            {
                 DBGWRITE(dbg_level_all, L"[FDP]Resource fork size =  (%d)\n", rsrcSize64.LowPart);
             }
         }
 
-        if (afpBitmap & kFPRFLen) {
-            
+        if (afpBitmap & kFPRFLen)
+        {
             afpReply.push_num<UINT32>(rsrcSize64.LowPart);
         }
 
-        if (afpBitmap & kFPExtDataForkLen) {
-
+        if (afpBitmap & kFPExtDataForkLen)
+        {
             afpReply.push_num<UINT64>(dataSize64.QuadPart);
         }
 
@@ -380,7 +394,7 @@ AFPERROR AFPGetObjectParms(
             afpReply.push_num<UINT64>(rsrcSize64.QuadPart);
         }
     }
-    
+
     if ((afpBitmap & kFPLongName) || (afpBitmap & kFPUnicodeName))
     {
         memset(charMap, 0, sizeof(AFPCHARMAPARRAY));
@@ -388,18 +402,18 @@ AFPERROR AFPGetObjectParms(
 
         if (afpBitmap & kFPLongName)
         {
-            *longNameOffset = htons((uint16)(afpReply.get_current_pos_ptr() - pParmsStart));
+            *longNameOffset = htons(static_cast<uint16>(afpReply.get_current_pos_ptr() - pParmsStart));
             afpReply.push_pascal_string(afpEntry->sz_object_name, charMap);
         }
 
         if (afpBitmap & kFPUnicodeName)
-        {			
-            *uniNameOffset = htons((uint16)(afpReply.get_current_pos_ptr() - pParmsStart));
+        {
+            *uniNameOffset = htons(static_cast<uint16>(afpReply.get_current_pos_ptr() - pParmsStart));
             afpReply.push_unicode_string(afpEntry->sz_object_name, charMap);
         }
     }
-    
-    return( AFP_OK );
+
+    return (AFP_OK);
 }
 
 //---------------------------------------------------------------------
@@ -409,22 +423,22 @@ AFPERROR AFPGetObjectParms(
 // the quickly by search the index rather than the disk.
 //
 WORD AFPGetDirOffspringCount(
-    IN	WORD		wVolID,
-    IN	p_afp_index	pDirEntry
+    IN WORD wVolID,
+    IN p_afp_index pDirEntry
 )
 {
-    AFP_VOLUME_INFO*	pVolInfo;
-    WORD				wCount = 0;
+    AFP_VOLUME_INFO* pVolInfo;
+    WORD wCount = 0;
 
-    if (AFPGetVolumeInfoBlock(NULL, wVolID, &pVolInfo) == FALSE)
+    if (AFPGetVolumeInfoBlock(nullptr, wVolID, &pVolInfo) == FALSE)
     {
         DBGWRITE(dbg_level_info, L"[FDP]Failed to get vol info block in AFPGetDirOffspringCount()!\n");
-        return(static_cast<WORD>(afpParmErr));
+        return (static_cast<WORD>(afpParmErr));
     }
-    
-    wCount = (WORD)(pVolInfo->index->get_offspring(pDirEntry->object_id));
 
-    return( wCount );
+    wCount = static_cast<WORD>(pVolInfo->index->get_offspring(pDirEntry->object_id));
+
+    return (wCount);
 }
 
 //---------------------------------------------------------------------
@@ -434,30 +448,30 @@ WORD AFPGetDirOffspringCount(
 // for verifying the bitmap.
 //
 AFPERROR AFPSetFileDirParms(
-    IN	WORD		wBitmap,
-    IN	p_afp_index	pEntry,
-    IN	PCHAR		pParms,
-    IN	DWORD		dwFileAttributes
+    IN WORD wBitmap,
+    IN p_afp_index pEntry,
+    IN PCHAR pParms,
+    IN DWORD dwFileAttributes
 )
 {
-    PCHAR	pTemp 			= pParms;
-    DWORD	dwError			= NO_ERROR;
-    ULONG	lwCreateDate	= 0;
-    ULONG	lwModDate		= 0;
-    ULONG	lwBackupDate	= 0;
-    DWORD	dwAttributes 	= dwFileAttributes;
-    WORD	wAFPAttributes	= 0;
-    
+    PCHAR pTemp = pParms;
+    DWORD dwError = NO_ERROR;
+    ULONG lwCreateDate = 0;
+    ULONG lwModDate = 0;
+    ULONG lwBackupDate = 0;
+    DWORD dwAttributes = dwFileAttributes;
+    WORD wAFPAttributes = 0;
+
     //
     //Change the file's attributes, we only allow some to be
     //changed as per the spec.
     //
     if (wBitmap & kFPFileAttributes)
-    {				
+    {
         EXTRACT_WORD(pTemp, wAFPAttributes);
-                
+
         if (wAFPAttributes & kFileSetClearFlag)
-        {			
+        {
             if (wAFPAttributes & kFileInvisible)
                 dwAttributes |= FILE_ATTRIBUTE_HIDDEN;
             if (wAFPAttributes & kFileSystem)
@@ -478,16 +492,16 @@ AFPERROR AFPSetFileDirParms(
             if (wAFPAttributes & kFileNeedsBackup)
                 dwAttributes &= ~FILE_ATTRIBUTE_ARCHIVE;
         }
-        
+
         if (!SetFileAttributes(pEntry->sz_path, dwAttributes))
         {
             dwError = GetLastError();
             DBGWRITE(dbg_level_info, L"[FDP]SetFileAttributes() failed! (%d)\n", dwError);
-            
-            return(afp_map_win_error_to_afp(dwError, static_cast<DWORD>(afpMiscErr)));
+
+            return (afp_map_win_error_to_afp(dwError, static_cast<DWORD>(afpMiscErr)));
         }
     }
-    
+
     if (wBitmap & (kFPCreateDate | kFPModDate | kFPBackupDate))
     {
         if (wBitmap & kFPCreateDate)
@@ -497,26 +511,26 @@ AFPERROR AFPSetFileDirParms(
         if (wBitmap & kFPBackupDate)
             EXTRACT_LONG(pTemp, lwBackupDate);
     }
-    
+
     if (wBitmap & kFPFinderInfo)
     {
-        FINDER_INFO	fInfo;
-        
+        FINDER_INFO fInfo;
+
         RtlCopyMemory(&fInfo, pTemp, sizeof(FINDER_INFO));
         pTemp += sizeof(FINDER_INFO);
-                
-        fInfo.fdFlags 		= ntohs(fInfo.fdFlags);
-        fInfo.fdLocation.x 	= ntohs(fInfo.fdLocation.x);
-        fInfo.fdLocation.y 	= ntohs(fInfo.fdLocation.y);
-        fInfo.fdFldr		= ntohs(fInfo.fdFldr);
-                                
+
+        fInfo.fdFlags = ntohs(fInfo.fdFlags);
+        fInfo.fdLocation.x = ntohs(fInfo.fdLocation.x);
+        fInfo.fdLocation.y = ntohs(fInfo.fdLocation.y);
+        fInfo.fdFldr = ntohs(fInfo.fdFldr);
+
         AFPSetFinderInfo(pEntry, &fInfo, FALSE);
     }
-    
+
     if (wBitmap & kFPProDos)
     {
     }
-    
+
     //
     //Now handle the dir specific cases.
     //
@@ -525,16 +539,16 @@ AFPERROR AFPSetFileDirParms(
         if (wBitmap & kFPDirOwnerID)
         {
         }
-        
+
         if (wBitmap & kFPDirGroupID)
         {
         }
-        
+
         if (wBitmap & kFPDirAccess)
         {
         }
     }
-    
+
     //
     //We wait till the very end to do this since many things above will
     //change the modification date of an object.
@@ -544,13 +558,13 @@ AFPERROR AFPSetFileDirParms(
         AFPSetFileTime(
             pEntry->sz_path,
             (dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? TRUE : FALSE,
-            (lwCreateDate == 0) ? NULL : &lwCreateDate,
-            (lwModDate == 0) 	? NULL : &lwModDate,
-            (lwBackupDate == 0) ? NULL : &lwBackupDate
+            (lwCreateDate == 0) ? nullptr : &lwCreateDate,
+            (lwModDate == 0) ? nullptr : &lwModDate,
+            (lwBackupDate == 0) ? nullptr : &lwBackupDate
         );
     }
-    
-    return(NO_ERROR);
+
+    return (NO_ERROR);
 }
 
 //---------------------------------------------------------------------
@@ -559,20 +573,20 @@ AFPERROR AFPSetFileDirParms(
 // Set the time fields of a file.
 //
 AFPERROR AFPSetFileTime(
-    IN	PTCHAR	pWindowspath,
-    IN	BOOL	fIsDirectory,
-    IN	PULONG	plwCreation,
-    IN	PULONG	plwModification,
-    IN	PULONG	plwBackup
+    IN PTCHAR pWindowspath,
+    IN BOOL fIsDirectory,
+    IN PULONG plwCreation,
+    IN PULONG plwModification,
+    IN PULONG plwBackup
 )
 {
-    HANDLE		hFile		= INVALID_HANDLE_VALUE;
-    DWORD		dwError		= NO_ERROR;
-    PFILETIME	pCreation	= NULL;
-    PFILETIME	pMod		= NULL;
-    PFILETIME	pBackup		= NULL;
-    FILETIME	creation,mod,backup;
-    
+    auto hFile = INVALID_HANDLE_VALUE;
+    DWORD dwError = NO_ERROR;
+    PFILETIME pCreation = nullptr;
+    PFILETIME pMod = nullptr;
+    PFILETIME pBackup = nullptr;
+    FILETIME creation, mod, backup;
+
     //
     //To set the file time, we have to have a handle to
     //the file object. This sucks.
@@ -580,77 +594,77 @@ AFPERROR AFPSetFileTime(
     if (fIsDirectory)
     {
         hFile = CreateFile(
-                    pWindowspath,
-                    FILE_GENERIC_WRITE,
-                    FILE_SHARE_READ|FILE_SHARE_DELETE,
-                    NULL,
-                    OPEN_EXISTING,
-                    FILE_FLAG_BACKUP_SEMANTICS,
-                    NULL);
+            pWindowspath,
+            FILE_GENERIC_WRITE,
+            FILE_SHARE_READ | FILE_SHARE_DELETE,
+            nullptr,
+            OPEN_EXISTING,
+            FILE_FLAG_BACKUP_SEMANTICS,
+            nullptr);
     }
     else
     {
         hFile = CreateFile(
-                    pWindowspath,
-                    GENERIC_WRITE,
-                    FILE_SHARE_READ	| FILE_SHARE_WRITE,
-                    NULL,
-                    OPEN_EXISTING,
-                    FILE_FLAG_BACKUP_SEMANTICS,
-                    NULL
+            pWindowspath,
+            GENERIC_WRITE,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            nullptr,
+            OPEN_EXISTING,
+            FILE_FLAG_BACKUP_SEMANTICS,
+            nullptr
         );
     }
-    
+
     if (hFile == INVALID_HANDLE_VALUE)
     {
         dwError = GetLastError();
-        
-        DBGWRITE(dbg_level_info, 
-                L"[FDP]CreatFile() failed in AFPSetFileTime! (%d)\n", dwError);
-        
-        switch(dwError)
+
+        DBGWRITE(dbg_level_info,
+                 L"[FDP]CreatFile() failed in AFPSetFileTime! (%d)\n", dwError);
+
+        switch (dwError)
         {
-            case ERROR_FILE_NOT_FOUND:
-                return(afpObjectNotFound);
-                break;
-            
-            default:
-                return(afpMiscErr);
+        case ERROR_FILE_NOT_FOUND:
+            return (afpObjectNotFound);
+            break;
+
+        default:
+            return (afpMiscErr);
         }
     }
-    
+
     //
     //Convert all the mac times to FILETIME structures.
     //
-    if (plwCreation != NULL)
+    if (plwCreation != nullptr)
     {
         afp_mac_to_windows_time(*plwCreation, &creation);
         pCreation = &creation;
     }
-    if (plwModification != NULL)
+    if (plwModification != nullptr)
     {
         afp_mac_to_windows_time(*plwModification, &mod);
         pMod = &mod;
     }
-    if (plwBackup != NULL)
+    if (plwBackup != nullptr)
     {
         afp_mac_to_windows_time(*plwBackup, &backup);
         pBackup = &backup;
     }
-    
+
     //
     //Make the windows API call that does the dirty deed.
     //
-    if (!SetFileTime(hFile, pCreation, NULL, pMod))
+    if (!SetFileTime(hFile, pCreation, nullptr, pMod))
     {
         DBGWRITE(dbg_level_info,
-                L"[FDP]SetFileTime() failed! (%d)\n", GetLastError());
-        
+                 L"[FDP]SetFileTime() failed! (%d)\n", GetLastError());
+
         dwError = static_cast<DWORD>(afpMiscErr);
     }
-        
+
     CloseHandle(hFile);
-    return(dwError);
+    return (dwError);
 }
 
 //---------------------------------------------------------------------
@@ -659,12 +673,12 @@ AFPERROR AFPSetFileTime(
 // Convert windows to AFP attributes.
 //
 WORD AFPWinToAFPAttributes(
-    IN	DWORD	dwWinAttributes,
-    OUT	PWORD	pwAFPAttributes
+    IN DWORD dwWinAttributes,
+    OUT PWORD pwAFPAttributes
 )
 {
-    WORD	wAFPAttribs = 0;
-    
+    WORD wAFPAttribs = 0;
+
     if (dwWinAttributes & FILE_ATTRIBUTE_HIDDEN)
         wAFPAttribs |= kFileInvisible;
     if (dwWinAttributes & FILE_ATTRIBUTE_SYSTEM)
@@ -675,13 +689,13 @@ WORD AFPWinToAFPAttributes(
         wAFPAttribs |= kFileNeedsBackup;
     if (dwWinAttributes & FILE_ATTRIBUTE_SYSTEM)
         wAFPAttribs |= kFileSystem;
-    
-    if (pwAFPAttributes != NULL)
+
+    if (pwAFPAttributes != nullptr)
     {
         *pwAFPAttributes = wAFPAttribs;
     }
-    
-    return(wAFPAttribs);
+
+    return (wAFPAttribs);
 }
 
 #ifdef _DEBUG
@@ -690,21 +704,21 @@ WORD AFPWinToAFPAttributes(
 // ---------------------------------------------------------------------------
 // Extracts requested dir information from the FPFileDirParms reply block.
 void AFPExtractDirParms(
-        IN PBYTE		pParms,		//Points to actual start of data
-        IN WORD			wBitMap
+    IN PBYTE pParms, //Points to actual start of data
+    IN WORD wBitMap
 )
 {
-    PBYTE UNALIGNED	pTemp;
-    PBYTE UNALIGNED	pTemp2;
+    PBYTE UNALIGNED pTemp;
+    PBYTE UNALIGNED pTemp2;
     PBYTE UNALIGNED pInputParms;
-    BYTE			wLen;
-    CHAR			name[MAX_PATH];
-    DWORD			dwTemp;
-    WORD			wTemp;
-    
-    pTemp		= pParms;
-    pInputParms	= pParms;
-    
+    BYTE wLen;
+    CHAR name[MAX_PATH];
+    DWORD dwTemp;
+    WORD wTemp;
+
+    pTemp = pParms;
+    pInputParms = pParms;
+
     if (wBitMap & kFPDirAttribute)
     {
         EXTRACT_WORD(pTemp, wTemp);
@@ -739,25 +753,25 @@ void AFPExtractDirParms(
     if (wBitMap & kFPDirLongName)
     {
         RtlZeroMemory(name, MAX_PATH);
-        
-        pTemp2 	= pInputParms + ntohs(*(WORD UNALIGNED *)pTemp);
-        wLen 	= *(pTemp2++);
-                
+
+        pTemp2 = pInputParms + ntohs(*(WORD UNALIGNED *)pTemp);
+        wLen = *(pTemp2++);
+
         strncpy_s(name, sizeof(name), (PCHAR)pTemp2, wLen);
         pTemp += sizeof(WORD);
-        
+
         DBGWRITE(dbg_level_info, L"[FDP]dir long name = %s\n", name);
     }
     if (wBitMap & kFPDirShortName)
     {
         RtlZeroMemory(name, MAX_PATH);
-        
-        pTemp2 	= pInputParms + ntohs(*(WORD UNALIGNED *)pTemp);
-        wLen 	= *(pTemp2++);
-        
+
+        pTemp2 = pInputParms + ntohs(*(WORD UNALIGNED *)pTemp);
+        wLen = *(pTemp2++);
+
         strncpy_s(name, sizeof(name), (PCHAR)pTemp2, wLen);
         pTemp += sizeof(WORD);
-        
+
         DBGWRITE(dbg_level_info, L"[FDP]dir short name = %s\n", name);
     }
     if (wBitMap & kFPDirID)
@@ -787,9 +801,3 @@ void AFPExtractDirParms(
     }
 }
 #endif
-
-
-
-
-
-
