@@ -1,3 +1,4 @@
+// ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
 #include "StdAfx.h"
 #include "afpuser.h"
 
@@ -81,9 +82,8 @@ AFPERROR FPGetSessionToken(
 	std::unique_ptr<char[]> afp_id;
 	uint32 afp_time_stamp = 0;
 	const UINT32 afp_token = session->get_token();
-	bool f_saved_id = false;
 
-	DBGWRITE(dbg_level_info, L"Enter...\n");
+    DBGWRITE(dbg_level_info, L"Enter...\n");
 
 	afp_request.advance_pos_ptr(sizeof(int16));
 	const auto afp_type = afp_request.pull_num<INT16>();

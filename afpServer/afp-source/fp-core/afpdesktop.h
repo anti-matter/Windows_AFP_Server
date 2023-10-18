@@ -48,7 +48,7 @@ AFPERROR FPGetComment(
 
 AFPERROR FPRemoveComment(
 	IN afp_net_buffer& afp_request,
-	IN const afp_net_buffer& afp_reply,
+	IN afp_net_buffer& afp_reply,
 	IN dsi::dsi_connection* connection
 );
 
@@ -60,12 +60,12 @@ AFPERROR FPGetAPPL(
 
 AFPERROR FPAddAPPL(
 	IN afp_net_buffer& afp_request,
-	IN const afp_net_buffer& afp_reply,
-	IN const dsi::dsi_connection* connection
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
 );
 
 AFPERROR FPRemoveAPPL(
 	IN afp_net_buffer& afp_request,
-	IN const afp_net_buffer& afp_reply,
-	IN const dsi::dsi_connection* connection
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
 );

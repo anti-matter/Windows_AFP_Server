@@ -6,9 +6,9 @@
 
 
 AFPERROR FPGetSrvrParms(
-	IN const afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_request,
 	IN afp_net_buffer& afp_reply,
-	IN const dsi::dsi_connection* connection
+	IN dsi::dsi_connection* connection
 );
 
 AFPERROR FPGetSrvrInfo(

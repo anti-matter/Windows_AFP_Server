@@ -1,8 +1,10 @@
+// ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
 #include "StdAfx.h"
 #include "afp.h"
 #include "afpdesktop.h"
 #include "afpdirectory.h"
 #include "afp_session.h"
+#include "fdparms.h"
 
 using namespace dsi;
 
@@ -328,7 +330,7 @@ AFPERROR FPAddComment(
 AFPERROR FPGetComment(
 	IN afp_net_buffer& afp_request,
 	IN afp_net_buffer& afp_reply,
-	IN dsi_connection* connection
+	IN const dsi_connection* connection
 )
 {
 	DESKTOP_ENTRY search_entry;
@@ -397,7 +399,7 @@ AFPERROR FPGetComment(
 AFPERROR FPRemoveComment(
 	IN afp_net_buffer& afp_request,
 	IN const afp_net_buffer& afp_reply,
-	IN dsi_connection* connection
+	IN const dsi_connection* connection
 )
 {
 	UNREFERENCED_PARAMETER(afp_reply);
@@ -445,7 +447,7 @@ AFPERROR FPRemoveComment(
 AFPERROR FPGetAPPL(
 	IN afp_net_buffer& afp_request,
 	IN afp_net_buffer& afp_reply,
-	IN dsi_connection* connection
+	IN const dsi_connection* connection
 )
 {
 	WIN32_FILE_ATTRIBUTE_DATA winAttributes;
