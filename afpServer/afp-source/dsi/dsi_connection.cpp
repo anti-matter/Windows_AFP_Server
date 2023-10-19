@@ -188,7 +188,7 @@ namespace dsi
 					// error to the caller.
 					if (dsi_command != dsi_cmd_tickle)
 					{
-						send_reply(std::move(reply_buffer), dsi_command, afpParmErr, 0);
+						send_reply(reply_buffer.get(), dsi_command, afpParmErr, 0);
 					}
 
 					return;
@@ -245,7 +245,7 @@ namespace dsi
 		const auto afp_error = FPGetSrvrInfo(req_buffer, rep_buffer, this);
 
 		send_reply(
-			std::move(reply_buffer),
+			reply_buffer.get(),
 			dsi_cmd_get_status,
 			afp_error,
 			rep_buffer.get_data_length());
@@ -277,7 +277,7 @@ namespace dsi
 		reply.push_num<UINT32>(dsi_server_request_quantum_size);
 
 		send_reply(
-			std::move(reply_buffer),
+			reply_buffer.get(),
 			dsi_cmd_open_session,
 			0,
 			reply.get_data_length());
@@ -292,7 +292,7 @@ namespace dsi
 		dsi_session_open_ = false;
 
 		send_reply(
-			std::move(reply_buffer),
+			reply_buffer.get(),
 			dsi_cmd_close_session,
 			AFP_OK,
 			0);
@@ -315,7 +315,7 @@ namespace dsi
 			: request.get_data_length();
 
 		send_reply(
-			std::move(reply_buffer),
+			reply_buffer.get(),
 			dsi_cmd,
 			afp_error,
 			data_size
@@ -345,7 +345,7 @@ namespace dsi
 	}
 
 	void dsi_connection::send_reply(
-		std::unique_ptr<char[]> reply_buffer,
+		char* reply_buffer,
 		const UINT8 dsi_command,
 		const INT32 afp_error,
 		const INT32 data_size)
@@ -370,11 +370,11 @@ namespace dsi
 
 		last_tickle_ = GetTickCount64();
 
-		DBG_DUMP_BUFFER(reply_buffer.get(), bytes_size);
+		DBG_DUMP_BUFFER(reply_buffer, bytes_size);
 
 		do
 		{
-			bytes_sent = send(socket_, reply_buffer.get(), bytes_size, 0);
+			bytes_sent = send(socket_, reply_buffer, bytes_size, 0);
 
 			if (bytes_sent < 0)
 			{
@@ -407,9 +407,17 @@ namespace dsi
 
 	void dsi_connection::send_tickle()
 	{
+		send_reply(nullptr, dsi_cmd_tickle, AFP_OK, 0);
+		last_tickle_ = GetTickCount64();
 	}
 
-	bool dsi_connection::client_lost() const
+    void dsi_connection::send_attention(UINT16 code)
+    {
+		UINT16 swapped_code = htons(code);
+		send_reply(reinterpret_cast<char*>(&swapped_code), dsi_cmd_attention, AFP_OK, sizeof(UINT16));
+    }
+
+    bool dsi_connection::client_lost() const
 	{
 		if (GetTickCount64() - last_tickle_ > AFP_CLIENT_LOST)
 		{
@@ -447,7 +455,9 @@ namespace dsi
 	}
 
     afp_session* dsi_connection::get_afp_session() const
-    { return afp_session_.get(); }
+	{
+	    return afp_session_.get();
+	}
 
     void dsi_connection::make_afp_session()
     {
@@ -455,5 +465,7 @@ namespace dsi
     }
 
     void dsi_connection::free_afp_session()
-    { afp_session_ = nullptr; }
+	{
+	    afp_session_ = nullptr;
+	}
 }

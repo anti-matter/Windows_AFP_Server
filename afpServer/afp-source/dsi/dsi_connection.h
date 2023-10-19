@@ -45,6 +45,15 @@ enum dsi_commands
 	dsi_cmd_attention = 8
 };
 
+enum dsi_attention_flags
+{
+    dsi_attention_server_shutdown = 0x8000,
+	dsi_attention_user_disconnect = 0x9000,
+	dsi_attention_server_message = 0x2000,
+	dsi_attention_server_notify = 0x3001,
+	dsi_attention_time_mask = 0x0FFF
+};
+
 constexpr UINT16 dsi_max_request_id = 65535;
 constexpr UINT32 dsi_server_request_quantum_size = MAXSHORT - dsi_header_size;
 
@@ -77,8 +86,9 @@ namespace dsi
 
 		UINT16 adjust_client_request_id(UINT16 id_from_client);
 
-		void send_reply(std::unique_ptr<char[]> reply_buffer, UINT8 dsi_command, INT32 afp_error, INT32 data_size);
+		void send_reply(char* reply_buffer, UINT8 dsi_command, INT32 afp_error, INT32 data_size);
 		void send_tickle();
+		void send_attention(UINT16 code);
 
 		bool client_lost() const;
 		void kill_connection();

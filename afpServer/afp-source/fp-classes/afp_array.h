@@ -84,7 +84,7 @@ public:
     *
     * Returns: T*
     */
-    T* get_item(uint32 index)
+    T* get_item(UINT32 index)
     {
         std::unique_ptr<T, D> &up = m_data_.at(index);
         return up.get();

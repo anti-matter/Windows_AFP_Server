@@ -12,6 +12,8 @@
 #include "afpdebug.h"
 #include "counters.h"
 
+#include "dsi/dsi_connections.h"
+
 //
 //These are the counter id's, we have to provide ourselves since
 //ctrpp doesn't auto-generate them for us in the header (why??)
@@ -26,6 +28,8 @@
 //
 extern BOOL		g_running;				//from dsi.cpp, true while app is running
 extern SHORT	g_worker_thread_ref_count;	//Thread reference counter so we wait while cleaining up
+
+extern dsi::dsi_connections active_connections;
 
 //
 //These globals are needed to track some of the perf
@@ -189,7 +193,7 @@ DWORD WINAPI AFPCounterThread(
                             AFPServerCounters,
                             connectionsInstance,
                             ID_CONNECTIONS,
-                            (ULONG)DSICountSessions(true)
+                            active_connections.count(true)
                             );
 
         if (status != ERROR_SUCCESS)
@@ -300,7 +304,7 @@ cleanup:
 
     //
     //This is from afpCounters.h, the auto-generated file from
-    //the perf counter mainfest.
+    //the perf counter manifest.
     //
     CounterCleanup();
 

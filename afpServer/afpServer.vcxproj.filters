@@ -56,9 +56,6 @@
     <ClCompile Include="afp-source\fp-imp\afpdhxlogin.cpp">
       <Filter>Source Files\fp-imp</Filter>
     </ClCompile>
-    <ClCompile Include="afp-source\fp-imp\attention.cpp">
-      <Filter>Source Files\fp-imp</Filter>
-    </ClCompile>
     <ClCompile Include="afp-source\fp-imp\desktop.cpp">
       <Filter>Source Files\fp-imp</Filter>
     </ClCompile>

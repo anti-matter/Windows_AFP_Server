@@ -23,6 +23,7 @@
 #include <strsafe.h>
 
 #include "afpEvents.h"
+#include "dsi/dsi_connections.h"
 #include "dsi/dsi_init.h"
 
 #undef	AFP_HASVOL_PASSWORD_SUPPORT
@@ -38,6 +39,9 @@ extern AFP_VOLUME_INFO* gVolumes;
 extern BOOL g_allow_guests;
 extern DWORD g_max_sessions;
 extern BOOL g_force_encrypted_logon;
+
+extern dsi::dsi_connections active_connections;
+
 
 void FillVolumeListBox(
     IN HWND hDlg
@@ -771,7 +775,7 @@ BOOL CALLBACK MainDialogProc(
         {
         case PBT_APMQUERYSUSPEND:
             {
-                if (DSICountSessions(false) > 0)
+                if (active_connections.count() > 0)
                 {
                     return (BROADCAST_QUERY_DENY);
                 }

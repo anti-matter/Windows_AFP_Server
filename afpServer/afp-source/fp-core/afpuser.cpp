@@ -277,13 +277,13 @@ AFPERROR FPLogin(
 		//Note that we only count authenticated sessions on the server. There could be
 		//some "utility" sessions still looming around that we don't want to count.
 		//
-		if (DSICountSessions(TRUE) >= g_max_sessions)
+		if (active_connections.count(true) >= g_max_sessions)
 		{
 			//
 			//Too many sessions open on the server. The spec doesn't say what error
 			//code to return in this case.
 			//
-			return (afpAccessDenied);
+			return afpAccessDenied;
 		}
 	}
 

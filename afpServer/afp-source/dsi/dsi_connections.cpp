@@ -111,4 +111,34 @@ namespace dsi
 
 		return nullptr;
 	}
+
+    void dsi_connections::broadcast_attention(const UINT16 code)
+    {
+		std::lock_guard<std::mutex> guard(connections_mutex_);
+
+		for (const auto& connection : connections_)
+		{
+			connection->send_attention(code);
+		}
+    }
+
+    UINT16 dsi_connections::count(const bool authenticated_only)
+    {
+		std::lock_guard<std::mutex> guard(connections_mutex_);
+
+		UINT16 result = 0;
+
+		for (const auto& connection : connections_)
+		{
+		    if (authenticated_only && connection->get_is_session_authenticated())
+		    {
+				result++;
+				continue;
+		    }
+
+			result++;
+		}
+
+		return result;
+    }
 }

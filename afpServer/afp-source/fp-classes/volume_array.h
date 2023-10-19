@@ -49,5 +49,23 @@ public:
 
         return nullptr;
     }
+
+    std::vector<WORD> find_dirty_volumes()
+    {
+        auto_lock lock(&m_mutex_);
+        std::vector<WORD> result;
+
+        for (const auto& volume : m_data_)
+        {
+            DBGWRITE(dbg_level_info, L"Considering volume %s (%d)\n", volume->szShareName, volume->wVolID);
+            if (volume->fDirty)
+            {
+                DBGWRITE(dbg_level_info, L"Found dirty volume (&s)\n", volume->szShareName);
+                result.push_back(volume->wVolID);
+            }
+        }
+
+        return result;
+    }
 };
 

@@ -21,7 +21,7 @@ namespace dsi
 	#define SCAVENGE_THREAD_SLEEP		5000 //scavenger scavenges every 5 seconds
 
 	// Class that manages all dsi connections that are open.
-	class dsi_connections
+	class dsi_connections  // NOLINT(cppcoreguidelines-special-member-functions)
 	{
 	public:
 		dsi_connections();
@@ -34,6 +34,9 @@ namespace dsi
 
 		afp_session* find_afp_session_with_id(const char* afp_id, const UINT32 id_size);
 		afp_session* find_afp_session_with_token(const UINT32 token);
+
+		void broadcast_attention(UINT16 code);
+		UINT16 count(bool authenticated_only = false);
 
 	private:
 		std::vector<std::unique_ptr<dsi_connection>> connections_;

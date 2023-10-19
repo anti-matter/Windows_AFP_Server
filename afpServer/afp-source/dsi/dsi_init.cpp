@@ -2,14 +2,17 @@
 #include <thread>
 #include <winsock2.h>
 
+#include "afp.h"
 #include "dsi_init.h"
 #include "dsi_connection.h"
 #include "afpdebug.h"
 #include "dsi_connections.h"
+#include "volume_array.h"
 
 bool server_running = true;
 SOCKET listen_socket;
 extern dsi::dsi_connections active_connections;
+extern volume_array g_volume_array;
 
 namespace dsi
 {
@@ -27,6 +30,9 @@ namespace dsi
 
 		std::thread listen_thread(dsi_listen, nullptr);
 		listen_thread.detach();
+
+		std::thread attention_thread(dsi_attention);
+		attention_thread.detach();
 	}
 
 	void dsi_listen(void* /*data*/)
@@ -117,7 +123,7 @@ namespace dsi
 		// The server is shutting down. First thing to do is send
 		// an attention message to all connected clients informing
 		// them of the closure.
-		// TODO: implement send attention.
+		active_connections.broadcast_attention(dsi_attention_server_shutdown);
 
 		// Signal listening thread to stop looping.
 		server_running = false;
@@ -125,4 +131,23 @@ namespace dsi
 		closesocket(listen_socket);
 	}
 
+	void dsi_attention()
+	{
+	    while (server_running)
+	    {
+			const auto dirty_volumes = g_volume_array.find_dirty_volumes();
+			if (!dirty_volumes.empty())
+			{
+                for (const WORD dirty_volume : dirty_volumes)
+                {
+                    const auto volume_info = g_volume_array.find_by_id(dirty_volume);
+					if (volume_info != nullptr)
+					{
+						volume_info->fDirty = false;
+						active_connections.broadcast_attention(dsi_attention_server_notify);
+					}
+                }
+			}
+	    }
+	}
 }
