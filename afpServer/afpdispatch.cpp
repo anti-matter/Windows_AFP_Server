@@ -106,7 +106,8 @@ AFPERROR fp_unimplemented(
 	IN afp_net_buffer& afp_request,
 	// ReSharper disable once CppParameterMayBeConstPtrOrRef
 	IN afp_net_buffer& afp_reply,
-	IN const dsi::dsi_connection* connection
+    // ReSharper disable once CppParameterMayBeConstPtrOrRef
+    IN dsi::dsi_connection* connection
 )
 {
 	UNREFERENCED_PARAMETER(afp_request);

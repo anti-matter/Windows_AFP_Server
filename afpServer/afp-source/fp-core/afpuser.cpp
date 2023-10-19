@@ -1,4 +1,5 @@
 // ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
+// ReSharper disable CppParameterMayBeConstPtrOrRef
 #include "StdAfx.h"
 #include "afpuser.h"
 
@@ -73,7 +74,7 @@ INT8 get_uam_type_as_int(const WCHAR* uam_string)
 AFPERROR FPGetSessionToken(
 	IN afp_net_buffer& afp_request,
 	IN afp_net_buffer& afp_reply,
-	const dsi::dsi_connection* connection
+	IN dsi::dsi_connection* connection
 )
 {
 	auto* session = connection->get_afp_session();
@@ -131,7 +132,7 @@ AFPERROR FPGetSessionToken(
 		if (afp_old_session != nullptr)
 		{
 			DBGWRITE(dbg_level_info, L"Found old session!!!\n");
-			DSICleanupSession(afp_old_session->get_dsi_session());
+			afp_old_session->get_dsi_session()->kill_connection();
 			break;
 		}
 
@@ -139,7 +140,6 @@ AFPERROR FPGetSessionToken(
 		break;
 
 	case kReconnWithID:
-
 		break;
 
 	// The client wants his old session to be discarded. The client is sending
@@ -156,10 +156,8 @@ AFPERROR FPGetSessionToken(
 
 			if (afp_old_session->get_afp_time_stamp() != afp_time_stamp)
 			{
-				//
-				//Time stamps do not match, discard the old session.
-				//
-				DSICleanupSession(afp_old_session->get_dsi_session());
+				// Time stamps do not match, discard the old session.
+				afp_old_session->get_dsi_session()->kill_connection();
 				break;
 			}
 		}
@@ -213,8 +211,8 @@ AFPERROR FPGetSessionToken(
 // ReSharper disable once CppInconsistentNaming
 AFPERROR FPDisconnectOldSession(
 	IN afp_net_buffer& afp_request,
-	IN const afp_net_buffer& afp_reply,
-	const dsi::dsi_connection* connection
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
 )
 {
 	UNREFERENCED_PARAMETER(afp_reply);
@@ -260,7 +258,7 @@ AFPERROR FPDisconnectOldSession(
 AFPERROR FPLogin(
 	IN afp_net_buffer& afp_request,
 	IN afp_net_buffer& afp_reply,
-	dsi::dsi_connection* connection
+	IN dsi::dsi_connection* connection
 )
 {
 	unichar afp_version[MAX_AFP_VERSION_LEN + 1];
@@ -419,14 +417,14 @@ AFPERROR FPLogin(
 			// public and private keys.
 
 			// This is where we store all the information we'll need for the login continue.
-			auto dhx_info = std::make_unique<DHXInfo>();
+            const auto dhx_info = new DHXInfo;
 			if (dhx_info == nullptr)
 			{
 				DBGWRITE(dbg_level_error, L"Failed to allocate DHXInfo structure, exiting.\n");
 				return afpMiscErr;
 			}
 
-			RtlZeroMemory(dhx_info.get(), sizeof(DHXInfo));
+			RtlZeroMemory(dhx_info, sizeof(DHXInfo));
 
 			const AFPERROR afp_error = DHXLogin(
 				afp_request,
@@ -476,7 +474,7 @@ AFPERROR FPLogin(
 AFPERROR FPContLogin(
 	IN afp_net_buffer& afp_request,
 	IN afp_net_buffer& afp_reply,
-	dsi::dsi_connection* connection
+	IN dsi::dsi_connection* connection
 )
 {
 	AFPERROR afp_error;
@@ -491,7 +489,7 @@ AFPERROR FPContLogin(
 	{
 		char sz_password[DHX_PASSWDLEN + 1];
 		WCHAR sz_password_w[DHX_PASSWDLEN + 1];
-		const auto dhx_info = connection->get_extended_logon_info();
+		const auto dhx_info = static_cast<DHXInfo*>(connection->get_extended_logon_info());
 
 		// The DHXInfo structure should have been allocated and filled in already
 		// from the FPLogin() sequence.
@@ -560,7 +558,7 @@ AFPERROR FPContLogin(
 AFPERROR FPChangePassword(
 	IN afp_net_buffer& afp_request,
 	IN afp_net_buffer& afp_reply,
-	dsi::dsi_connection* connection
+	IN dsi::dsi_connection* connection
 )
 {
 	WCHAR sz_uam_version[MAX_UAM_STRING_LEN + 1];
@@ -635,7 +633,7 @@ AFPERROR FPChangePassword(
 			if (connection->get_extended_logon_info() == nullptr)
 			{
 				// Must be our first time through, so no blob info saved yet.
-				auto dhx_info = std::make_unique<DHXInfo>();
+                const auto dhx_info = new DHXInfo;
 				if (dhx_info == nullptr)
 				{
 					// We failed to allocated the necessary block of data to store information
@@ -645,7 +643,7 @@ AFPERROR FPChangePassword(
 					return (afpMiscErr);
 				}
 
-				RtlZeroMemory(dhx_info.get(), sizeof(DHXInfo));
+				RtlZeroMemory(dhx_info, sizeof(DHXInfo));
 				connection->set_extended_logon_info(dhx_info);
 			}
 
@@ -663,7 +661,7 @@ AFPERROR FPChangePassword(
 				sizeof(sz_old_password),
 				sz_new_password,
 				sizeof(sz_new_password),
-				connection->get_extended_logon_info()
+				static_cast<DHXInfo*>(connection->get_extended_logon_info())
 			);
 
 			if (afp_error == afpAuthContinue)
@@ -730,9 +728,9 @@ AFPERROR FPChangePassword(
 
 // ReSharper disable once CppInconsistentNaming
 AFPERROR FPLogout(
-	IN const afp_net_buffer& afp_request,
-	IN const afp_net_buffer& afp_reply,
-	dsi::dsi_connection* connection
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
 )
 {
 	UNREFERENCED_PARAMETER(afp_reply);
@@ -775,7 +773,7 @@ AFPERROR FPLogout(
 AFPERROR FPMapID(
 	IN afp_net_buffer& afp_request,
 	IN afp_net_buffer& afp_reply,
-	const dsi::dsi_connection* connection
+	IN dsi::dsi_connection* connection
 )
 {
 	UNREFERENCED_PARAMETER(connection);
@@ -858,7 +856,7 @@ AFPERROR FPMapID(
 AFPERROR FPGetSrvrMsg(
 	IN afp_net_buffer& afp_request,
 	IN afp_net_buffer& afp_reply,
-	const dsi::dsi_connection* connection
+	IN dsi::dsi_connection* connection
 )
 {
 	UNREFERENCED_PARAMETER(connection);

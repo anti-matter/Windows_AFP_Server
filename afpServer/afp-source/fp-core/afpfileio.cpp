@@ -1,7 +1,7 @@
 // ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
+// ReSharper disable CppParameterMayBeConstPtrOrRef
 #include "StdAfx.h"
 #include "afpfileio.h"
-
 #include "afp_open_file.h"
 #include "fdparms.h"
 #include "fpinfo.h"
@@ -18,9 +18,9 @@
 
 // ReSharper disable once CppInconsistentNaming
 AFPERROR FPFlushFork(
-    IN const afp_net_buffer& afp_request,
-    IN const afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
 )
 {
     UNREFERENCED_PARAMETER(afp_request);
@@ -43,8 +43,8 @@ AFPERROR FPFlushFork(
 // ReSharper disable once CppInconsistentNaming
 AFPERROR FPCloseFork(
     IN afp_net_buffer& afp_request,
-    IN const afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
 )
 {
     UNREFERENCED_PARAMETER(afp_reply);
@@ -77,7 +77,7 @@ AFPERROR FPCloseFork(
 AFPERROR FPOpenFork(
     IN afp_net_buffer& afp_request,
     IN afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN dsi::dsi_connection* connection
 )
 {
     unichar afp_pathname[MAX_AFP_PATH];
@@ -143,7 +143,7 @@ AFPERROR FPOpenFork(
         return (afpTooManyFilesOpen);
     }
 
-    afp_open_file* open_file = afp_session::open_file(
+    afp_open_file* opened_file = open_file(
         afp_afp_session,
         afp_volume_id,
         afp_dir_id,
@@ -153,7 +153,7 @@ AFPERROR FPOpenFork(
         afp_entry->sz_path
     );
 
-    afp_error = (open_file == nullptr) ? afpMiscErr : AFP_OK;
+    afp_error = opened_file == nullptr ? afpMiscErr : AFP_OK;
     if (AFP_SUCCESS(afp_error))
     {
         // Impersonate the logged on user for security checks.
@@ -164,7 +164,7 @@ AFPERROR FPOpenFork(
         }
 
         // Now, actually open the file for access as desired.
-        afp_error = open_file->afp_open_file_fork();
+        afp_error = opened_file->afp_open_file_fork();
 
         afp_revert_to_self(connection->get_user_token());
 
@@ -173,7 +173,7 @@ AFPERROR FPOpenFork(
         if (AFP_SUCCESS(afp_error))
         {
             // We need to return the file ref num to the caller.
-            const auto afp_new_ref_num = open_file->get_file_ref_num();
+            const auto afp_new_ref_num = opened_file->get_file_ref_num();
 
             // We don't support the following bitmaps, so we clear them.
             if (connection->get_afp_version() < afpVersion30)
@@ -203,7 +203,7 @@ AFPERROR FPOpenFork(
     // open file counts.
     if (AFP_FAILED(afp_error))
     {
-        afp_afp_session->close_file(open_file->get_file_ref_num());
+        afp_afp_session->close_file(opened_file->get_file_ref_num());
     }
 
     return afp_error;
@@ -223,8 +223,8 @@ AFPERROR FPOpenFork(
 // ReSharper disable once CppInconsistentNaming
 AFPERROR FPSetForkParms(
     IN afp_net_buffer& afp_request,
-    IN const afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
 )
 {
     UNREFERENCED_PARAMETER(afp_reply);
@@ -242,7 +242,7 @@ AFPERROR FPSetForkParms(
     // Fork length bytes
     afp_request.advance_pos_ptr(sizeof(UINT32));
 
-    afp_open_file* open_file = afp_afp_session->find_open_file(afp_fork_ref);
+    const afp_open_file* open_file = afp_afp_session->find_open_file(afp_fork_ref);
     AFPERROR afp_error = (open_file == nullptr) ? afpParmErr : AFP_OK;
 
     if (AFP_SUCCESS(afp_error))
@@ -294,7 +294,7 @@ AFPERROR FPSetForkParms(
 AFPERROR FPGetForkParms(
     IN afp_net_buffer& afp_request,
     IN afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN dsi::dsi_connection* connection
 )
 {
     afp_session* afp_session = connection->get_afp_session();
@@ -367,8 +367,8 @@ AFPERROR FPGetForkParms(
 // ReSharper disable once CppInconsistentNaming
 AFPERROR FPCreateFile(
     IN afp_net_buffer& afp_request,
-    IN const afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
 )
 {
     UNREFERENCED_PARAMETER(afp_reply);
@@ -453,7 +453,7 @@ AFPERROR FPCreateFile(
 
     // Impersonate the logged on user. This makes sure only those who
     // are allowed can create files.
-    if (!afp_impersonate_user(afp_session->hUserToken))
+    if (!afp_impersonate_user(connection->get_user_token()))
     {
         // Impersonation failed, don't allow any further operations.
         return afpAccessDenied;
@@ -470,7 +470,7 @@ AFPERROR FPCreateFile(
         nullptr
     );
 
-    afp_revert_to_self(afp_session->hUserToken);
+    afp_revert_to_self(connection->get_user_token());
 
     if (h_file == INVALID_HANDLE_VALUE)
     {
@@ -534,7 +534,7 @@ AFPERROR FPCreateFile(
 AFPERROR FPByteRangeLock(
     IN afp_net_buffer& afp_request,
     IN afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN dsi::dsi_connection* connection
 )
 {
     afp_session* afp_session = connection->get_afp_session();
@@ -563,7 +563,7 @@ AFPERROR FPByteRangeLock(
     }
 
     // Get the handle to the open file fork.
-    afp_open_file* open_file = afp_session->find_open_file(afp_fork_ref);
+    const afp_open_file* open_file = afp_session->find_open_file(afp_fork_ref);
     AFPERROR afp_error = (open_file == nullptr) ? afpParmErr : AFP_OK;
 
     if (AFP_FAILED(afp_error))
@@ -571,9 +571,9 @@ AFPERROR FPByteRangeLock(
         return (afp_error);
     }
 
-    auto hFile = open_file->get_file_handle();
+    const auto h_file = open_file->get_file_handle();
 
-    if (hFile == INVALID_HANDLE_VALUE)
+    if (h_file == INVALID_HANDLE_VALUE)
     {
         //
         //Bad news, the fork is apparently not open.
@@ -584,7 +584,7 @@ AFPERROR FPByteRangeLock(
     // Determine the size of the file so we can calculate the offset
     // from the end of the file and lock the entire range if
     // necessary.
-    uint32 afp_file_size = GetFileSize(hFile, nullptr);
+    const uint32 afp_file_size = GetFileSize(h_file, nullptr);
     afp_error = (afp_file_size == 0xFFFFFFFF) ? afpParmErr : AFP_OK;
 
     if (AFP_SUCCESS(afp_error))
@@ -692,13 +692,13 @@ AFPERROR FPByteRangeLock(
 AFPERROR FPRead(
     IN afp_net_buffer& afp_request,
     IN afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN dsi::dsi_connection* connection
 )
 {
     afp_session* afp_session = connection->get_afp_session();
     INT64 afp_offset;
     INT64 afp_req_count;
-    UINT32 afp_act_count = 0;
+    uint32 afp_act_count = 0;
 
     DBGWRITE(dbg_level_all, L"Enter\n");
 
@@ -773,7 +773,7 @@ AFPERROR FPRead(
 AFPERROR FPWrite(
     IN afp_net_buffer& afp_request,
     IN afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN dsi::dsi_connection* connection
 )
 {
     afp_session* afp_session = connection->get_afp_session();
@@ -803,7 +803,7 @@ AFPERROR FPWrite(
         return (afpParmErr);
     }
 
-    afp_open_file* open_file = afp_session->find_open_file(afp_fork_ref);
+    const afp_open_file* open_file = afp_session->find_open_file(afp_fork_ref);
     AFPERROR afp_error = (open_file == nullptr) ? afpParmErr : AFP_OK;
 
     if (AFP_SUCCESS(afp_error))

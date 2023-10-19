@@ -1,7 +1,10 @@
 // ReSharper disable CppStringLiteralToCharPointerConversion
+// ReSharper disable CppParameterMayBeConstPtrOrRef
+// ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
 #include "StdAfx.h"
 #include "afpsrvr.h"
 #include "volume_array.h"
+#include "dsi/dsi_connection.h"
 
 extern volume_array g_volume_array;
 extern BOOL g_allow_guests;
@@ -20,9 +23,9 @@ extern BOOL g_force_encrypted_logon;
 
 // ReSharper disable once CppInconsistentNaming
 AFPERROR FPGetSrvrParms(
-	IN const afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_request,
 	IN afp_net_buffer& afp_reply,
-	IN const dsi::dsi_connection* connection
+	IN dsi::dsi_connection* connection
 )
 {
 	UNREFERENCED_PARAMETER(afp_request);
@@ -30,11 +33,10 @@ AFPERROR FPGetSrvrParms(
 	const UINT8 afp_num_volumes_active = AFPNumVolumesActive();
 	SYSTEMTIME sys_time;
 	FILETIME file_time;
-
-	//
-	//Make sure the session requesting parms is an authenticated
-	//user (logged on).
-	//
+		
+	// Make sure the session requesting parms is an authenticated
+	// user (logged on).
+	
 	if (!connection->get_is_session_authenticated())
 	{
 		//
@@ -104,7 +106,7 @@ AFPERROR FPGetSrvrParms(
 
 // ReSharper disable once CppInconsistentNaming
 AFPERROR FPGetSrvrInfo(
-	IN const afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_request,
 	IN afp_net_buffer& afp_reply,
 	IN dsi::dsi_connection* /*connection*/
 )
@@ -202,7 +204,7 @@ AFPERROR FPGetSrvrInfo(
 	*address_count_offset = static_cast<int16>(afp_reply.get_data_length());
 	afp_reply.push_num<UINT8>(0);
 
-	return (NO_ERROR);
+	return NO_ERROR;
 }
 
 
@@ -219,7 +221,7 @@ AFPERROR FPGetSrvrInfo(
 // ReSharper disable once CppInconsistentNaming
 AFPERROR FPZzzz(
 	IN afp_net_buffer& afp_request,
-	IN const afp_net_buffer& afp_reply,
+	IN afp_net_buffer& afp_reply,
 	IN dsi::dsi_connection* connection
 )
 {
@@ -239,5 +241,5 @@ AFPERROR FPZzzz(
 	// don't hear from it.
 	connection->set_sleep_state(true);
 
-	return (AFP_OK);
+	return AFP_OK;
 }

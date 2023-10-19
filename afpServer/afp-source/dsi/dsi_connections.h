@@ -25,6 +25,7 @@ namespace dsi
 	{
 	public:
 		dsi_connections();
+		~dsi_connections();
 
 		void track_connection(std::unique_ptr<dsi_connection>& connection);
 		void stop_tracking(UINT32 connection_id);

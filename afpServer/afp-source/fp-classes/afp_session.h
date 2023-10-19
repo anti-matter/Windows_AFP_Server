@@ -17,16 +17,6 @@ public:
 	AFPERROR close_file(int16 file_reference);
 	afp_open_file* find_open_file(int16 file_reference);
 
-	static afp_open_file* open_file(
-		afp_session* session,
-		uint16 vol_id,
-		uint32 dir_id,
-		int16 access_mode,
-		int8 fork_to_open,
-		p_afp_index entry,
-		const WCHAR* win_path
-	);
-
 	AFPERROR open_volume(uint16 volume_id);
 	AFPERROR close_volume(uint16 volume_id);
 	AFP_VOLUME_INFO* find_open_volume_block(uint16 volume_id);
@@ -68,3 +58,13 @@ private:
 
 	dsi::dsi_connection* m_dsi_session_;
 };
+
+afp_open_file* open_file(
+	afp_session* session,
+	uint16 vol_id,
+	uint32 dir_id,
+	int16 access_mode,
+	int8 fork_to_open,
+	p_afp_index entry,
+	const WCHAR* win_path
+);

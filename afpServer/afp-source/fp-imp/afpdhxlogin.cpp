@@ -1,22 +1,12 @@
-/*
- *	afpdhxlogin.cpp
- *	Created 05/04/09
- *
- *	Copyright © 2003-09, Michael J. Conrad. All Rights Reserved.
- *
- *	Implement the server-side DHCAST128 UAM. Details for how it's supposed
- *	to work can found at http://support.apple.com/kb/TA43945.
- *
- */
-
 // ReSharper disable CppInconsistentNaming
 // ReSharper disable StringLiteralTypo
 // ReSharper disable CppCStyleCast
 // ReSharper disable CppZeroConstantCanBeReplacedWithNullptr
 // ReSharper disable CppClangTidyCppcoreguidelinesAvoidGoto
 // ReSharper disable IdentifierTypo
-
 // ReSharper disable CppClangTidyClangDiagnosticMicrosoftGoto
+// ReSharper disable CppParameterMayBeConstPtrOrRef
+
 #include "StdAfx.h"
 #include "strsafe.h"
 
@@ -35,7 +25,7 @@
  */
 
 AFPERROR DHXLogin(
-	IN const afp_net_buffer& afpRequest,
+	IN afp_net_buffer& afpRequest,
 	IN afp_net_buffer& afpReply,
 	IN dsi::dsi_connection* dsiSession,
 	IN DHXInfo* dhxInfo
@@ -164,7 +154,7 @@ AFPERROR DHXLogin(
 	//API call. This is stored in a blob in the afpSession object.
 	//
 	memcpy(dhxInfo->randomBuffer, randbuf, sizeof(randbuf));
-	memcpy(&dhxInfo->castkey, &castkey, sizeof(castkey));
+	memcpy(&dhxInfo->cast_key, &castkey, sizeof(castkey));
 	dhxInfo->sessionID = sessid;
 
 	afpError = afpAuthContinue;
@@ -194,7 +184,7 @@ exit:
 AFPERROR DHXLoginContinue(
 	IN afp_net_buffer& afpRequest,
 	IN afp_net_buffer& afpReply,
-	IN LPSESSION dsiSession,
+	IN dsi::dsi_connection* dsiSession,
 	IN char* afpPassword,
 	IN int16 afpPasswordLen,
 	IN DHXInfo* dhxInfo
@@ -233,7 +223,7 @@ AFPERROR DHXLoginContinue(
 		(unsigned char*)afpRequest.get_current_pos_ptr(),
 		(unsigned char*)tempBuf,
 		DHX_CRYPT2BUFLEN,
-		&dhxInfo->castkey,
+		&dhxInfo->cast_key,
 		iv,
 		CAST_DECRYPT
 	);
@@ -360,7 +350,7 @@ AFPERROR DHXChangePassword(
 		(unsigned char*)afpRequest.get_current_pos_ptr(),
 		(unsigned char*)tempBuff,
 		DHX_CHNGPSWDBUFLEN,
-		&dhxInfo->castkey,
+		&dhxInfo->cast_key,
 		iv,
 		CAST_DECRYPT
 	);

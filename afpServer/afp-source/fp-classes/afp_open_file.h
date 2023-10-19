@@ -15,13 +15,13 @@ typedef struct
 class afp_open_file  // NOLINT(cppcoreguidelines-special-member-functions)
 {
 public:
-	afp_open_file(
+    afp_open_file(
 		uint16 vol_id,
 		uint32 dir_id,
 		int16 access_mode,
 		uint8 fork,
 		p_afp_index entry,
-		const WCHAR* win_path
+        const WCHAR* win_path
 	);
 
 	~afp_open_file();

@@ -1,3 +1,4 @@
+// ReSharper disable CppInconsistentNaming
 #pragma once
 
 #include "stdlib.h"
@@ -8,7 +9,6 @@
 #include "afp_net_buffer.h"
 #include "dsi/dsi_connection.h"
 
-#include "openssl/bn.h"
 #include "openssl/dh.h"
 #include "openssl/cast.h"
 
@@ -30,11 +30,11 @@
 //The following is the blob we store between FPLogin() and 
 //FPLoginCont() function calls.
 //
-using DHXInfo = struct
+struct DHXInfo
 {
 	int16 sessionID;
 	uint8 randomBuffer[16];
-	CAST_KEY castkey;
+	CAST_KEY cast_key;
 };
 
 AFPERROR DHXLogin(

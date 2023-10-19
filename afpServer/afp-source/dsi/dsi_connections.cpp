@@ -2,11 +2,14 @@
 #include <thread>
 
 #include "dsi_connections.h"
+#include "afpdebug.h"
+#include "afp_session.h"
 
+
+dsi::dsi_connections active_connections;
 
 namespace dsi
 {
-	dsi_connections active_connections;
 	bool connections_initialized = false;
 
 	dsi_connections::dsi_connections()
@@ -23,7 +26,13 @@ namespace dsi
 		periodic.detach();
 	}
 
-	void dsi_connections::track_connection(std::unique_ptr<dsi_connection>& connection)
+    dsi_connections::~dsi_connections()
+    {
+		std::lock_guard<std::mutex> guard(connections_mutex_);
+
+    }
+
+    void dsi_connections::track_connection(std::unique_ptr<dsi_connection>& connection)
 	{
 		std::lock_guard<std::mutex> guard(connections_mutex_);
 		connections_.push_back(std::move(connection));
@@ -67,7 +76,7 @@ namespace dsi
 	{
 		std::lock_guard<std::mutex> guard(connections_mutex_);
 
-		for (const auto connection : connections_)
+		for (const auto& connection : connections_)
 		{
 			const auto afp_object = connection->get_afp_session();
 			if (afp_object != nullptr)
@@ -88,7 +97,7 @@ namespace dsi
 	{
 		std::lock_guard<std::mutex> guard(connections_mutex_);
 
-		for (const auto connection : connections_)
+		for (const auto& connection : connections_)
 		{
 			const auto afp_object = connection->get_afp_session();
 			if (afp_object != nullptr)

@@ -89,9 +89,6 @@
     <ClCompile Include="afp-source\server-core\counters.cpp">
       <Filter>Source Files\server-core</Filter>
     </ClCompile>
-    <ClCompile Include="afp-source\server-core\dsi.cpp">
-      <Filter>Source Files\server-core</Filter>
-    </ClCompile>
     <ClCompile Include="afp-source\ui\aboutdlg.cpp">
       <Filter>Source Files\ui</Filter>
     </ClCompile>
@@ -128,13 +125,13 @@
     <ClCompile Include="afpdispatch.cpp">
       <Filter>Source Files\fp-core</Filter>
     </ClCompile>
-    <ClCompile Include="afp-source\dsi\dsi_init.cpp">
-      <Filter>Source Files\dsi</Filter>
-    </ClCompile>
     <ClCompile Include="afp-source\dsi\dsi_connections.cpp">
       <Filter>Source Files\dsi</Filter>
     </ClCompile>
     <ClCompile Include="afp-source\dsi\dsi_connection.cpp">
+      <Filter>Source Files\dsi</Filter>
+    </ClCompile>
+    <ClCompile Include="afp-source\dsi\dsi_init.cpp">
       <Filter>Source Files\dsi</Filter>
     </ClCompile>
   </ItemGroup>
@@ -156,9 +153,6 @@
     </ClInclude>
     <ClInclude Include="afp-source\AltStreams.h">
       <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\server-core\dsi.h">
-      <Filter>Source Files\server-core</Filter>
     </ClInclude>
     <ClInclude Include="afp-source\helpers\afpdebug.h">
       <Filter>Source Files\helpers</Filter>
@@ -208,9 +202,6 @@
     <ClInclude Include="afpdispatch.h">
       <Filter>Source Files\fp-core</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\dsi\dsi_init.h">
-      <Filter>Source Files\dsi</Filter>
-    </ClInclude>
     <ClInclude Include="afp-source\fp-core\afp.h">
       <Filter>Source Files\server-core</Filter>
     </ClInclude>
@@ -246,6 +237,10 @@
     </ClInclude>
     <ClInclude Include="afp-source\fp-imp\logonimp.h">
       <Filter>Source Files\fp-imp</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\fp-imp\fdparms.h" />
+    <ClInclude Include="afp-source\dsi\dsi_init.h">
+      <Filter>Source Files\dsi</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

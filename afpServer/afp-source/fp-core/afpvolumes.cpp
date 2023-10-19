@@ -1,4 +1,5 @@
 // ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
+// ReSharper disable CppParameterMayBeConstPtrOrRef
 #include "StdAfx.h"
 #include "afpvolumes.h"
 
@@ -16,11 +17,11 @@
 AFPERROR FPOpenVol(
     IN afp_net_buffer& afp_request,
     IN afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN dsi::dsi_connection* connection
 )
 {
     unichar afp_volume_name[MAX_VOLNAME_LEN + 1];
-    auto afp_session = connection->get_afp_session();
+    const auto afp_session = connection->get_afp_session();
     UINT16 afp_volume_id = 0;
     AFPERROR afp_error = AFP_OK;
 
@@ -83,15 +84,15 @@ AFPERROR FPOpenVol(
 
 AFPERROR fp_close_vol(
     IN afp_net_buffer& afp_request,
-    IN const afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
 )
 {
     UNREFERENCED_PARAMETER(afp_reply);
 
     afp_request.advance_pos_ptr(sizeof(int16));
-    auto afp_volume_id = afp_request.pull_num<INT16>();
-    auto afp_session = connection->get_afp_session();
+    const auto afp_volume_id = afp_request.pull_num<INT16>();
+    const auto afp_session = connection->get_afp_session();
 
     return afp_session->close_volume(afp_volume_id);
 }
@@ -110,14 +111,14 @@ AFPERROR fp_close_vol(
  // ReSharper disable once CppInconsistentNaming
 AFPERROR FPFlush(
     IN afp_net_buffer& afp_request,
-    IN const afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
 )
 {
     UNREFERENCED_PARAMETER(afp_reply);
 
     afp_request.advance_pos_ptr(sizeof(int16));
-    auto afp_volume_id = afp_request.pull_num<INT16>();
+    const auto afp_volume_id = afp_request.pull_num<INT16>();
 
     if (!connection->get_afp_session()->session_has_volume_open(afp_volume_id))
     {
@@ -141,7 +142,7 @@ AFPERROR FPFlush(
 AFPERROR FPGetVolParms(
     IN afp_net_buffer& afp_request,
     IN afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN dsi::dsi_connection* connection
 )
 {
     DBGWRITE(dbg_level_all, L"FPGetVolParms...\n");

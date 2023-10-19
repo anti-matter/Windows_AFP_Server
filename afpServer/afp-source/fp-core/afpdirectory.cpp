@@ -1,6 +1,8 @@
 // ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
+// ReSharper disable CppParameterMayBeConstPtrOrRef
 #include "StdAfx.h"
 #include "afpdirectory.h"
+#include "afp_session.h"
 #include "fdparms.h"
 #include "fpinfo.h"
 
@@ -17,7 +19,7 @@
 AFPERROR FPResolveID(
     IN afp_net_buffer& afp_request,
     IN afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN dsi::dsi_connection* connection
 )
 {
     p_afp_index afp_entry = nullptr;
@@ -89,7 +91,7 @@ AFPERROR FPResolveID(
 AFPERROR FPGetFileDirParms(
     IN afp_net_buffer& afp_request,
     IN afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN dsi::dsi_connection* connection
 )
 {
     WIN32_FILE_ATTRIBUTE_DATA win_attributes;
@@ -193,7 +195,7 @@ AFPERROR FPGetFileDirParms(
 AFPERROR FPEnumerate(
     IN afp_net_buffer& afp_request,
     IN afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN dsi::dsi_connection* connection
 )
 {
     WCHAR afp_pathname[MAX_AFP_PATH];
@@ -468,8 +470,8 @@ AFPERROR FPEnumerate(
 // ReSharper disable once CppInconsistentNaming
 AFPERROR FPSetFileDirParms(
     IN afp_net_buffer& afp_request,
-    IN const afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
 )
 {
     UNREFERENCED_PARAMETER(afp_reply);
@@ -590,7 +592,7 @@ AFPERROR FPSetFileDirParms(
 AFPERROR FPCreateDir(
     IN afp_net_buffer& afp_request,
     IN afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN dsi::dsi_connection* connection
 )
 {
     AFPCHARMAPARRAY char_map;
@@ -723,8 +725,8 @@ AFPERROR FPCreateDir(
 // ReSharper disable once CppInconsistentNaming
 AFPERROR FPDelete(
     IN afp_net_buffer& afp_request,
-    IN const afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
 )
 {
     UNREFERENCED_PARAMETER(afp_reply);
@@ -841,8 +843,8 @@ AFPERROR FPDelete(
 // ReSharper disable once CppInconsistentNaming
 AFPERROR FPCopyFile(
     IN afp_net_buffer& afp_request,
-    IN const afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
 )
 {
     UNREFERENCED_PARAMETER(afp_reply);
@@ -1033,8 +1035,8 @@ AFPERROR FPCopyFile(
 // ReSharper disable once CppInconsistentNaming
 AFPERROR FPMoveAndRename(
     IN afp_net_buffer& afp_request,
-    IN const afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
 )
 {
     UNREFERENCED_PARAMETER(afp_reply);
@@ -1202,8 +1204,8 @@ AFPERROR FPMoveAndRename(
 // ReSharper disable once CppInconsistentNaming
 AFPERROR FPRename(
     IN afp_net_buffer& afp_request,
-    IN const afp_net_buffer& afp_reply,
-    IN const dsi::dsi_connection* connection
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
 )
 {
     UNREFERENCED_PARAMETER(afp_reply);

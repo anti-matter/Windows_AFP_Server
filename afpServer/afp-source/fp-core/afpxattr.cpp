@@ -1,5 +1,6 @@
 // ReSharper disable CppInconsistentNaming
 // ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
+// ReSharper disable CppParameterMayBeConstPtrOrRef
 #include "StdAfx.h"
 
 #include "afp.h"
@@ -53,7 +54,7 @@ AFPERROR FPGetExtAttribute(
     //See if the user has the volume open and get a pointer to
     //the volume object.
     //	
-    if (!static_cast<afp_session*>(connection.get_afp_session()->session_has_volume_open(afpVolID)))
+    if (!connection->get_afp_session()->session_has_volume_open(afpVolID))
     {
         DBGWRITE(dbg_level_warning, L"[FPGetExtAttribute]User does not have volume open!\n");
         return (afpParmErr);

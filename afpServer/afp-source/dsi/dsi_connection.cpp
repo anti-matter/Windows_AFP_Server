@@ -1,17 +1,17 @@
 #include "stdafx.h"
-#include <afpdebug.h>
-#include <afpsrvr.h>
+#include "afpdebug.h"
+#include "afpsrvr.h"
 #include "dsi_connection.h"
-
-#include <afpfileio.h>
-
+#include "afpfileio.h"
 #include "afpdispatch.h"
+#include "afpdhxlogin.h"
+#include "afp_session.h"
 #include "dsi_connections.h"
+
+extern dsi::dsi_connections active_connections;
 
 namespace dsi
 {
-	extern dsi_connections active_connections;
-
 	dsi_connection::dsi_connection(const SOCKET socket, const UINT32 connection_id)
 		: socket_(socket)
 		  , connection_id_(connection_id)
@@ -242,7 +242,7 @@ namespace dsi
 		afp_net_buffer req_buffer(&receive_buffer_[dsi_offset_data_start], dsi_server_request_quantum_size);
 		afp_net_buffer rep_buffer(&reply_buffer[dsi_offset_data_start], dsi_server_request_quantum_size);
 
-		const auto afp_error = FPGetSrvrInfo(req_buffer, rep_buffer, nullptr);
+		const auto afp_error = FPGetSrvrInfo(req_buffer, rep_buffer, this);
 
 		send_reply(
 			std::move(reply_buffer),
@@ -348,7 +348,7 @@ namespace dsi
 		std::unique_ptr<char[]> reply_buffer,
 		const UINT8 dsi_command,
 		const INT32 afp_error,
-		const UINT32 data_size)
+		const INT32 data_size)
 	{
 		// We're replying, set the correct flag and command we're replying to.
 		reply_buffer[dsi_offset_flags] = dsi_reply_flag;
@@ -445,4 +445,15 @@ namespace dsi
 
 		closesocket(socket_);
 	}
+
+    afp_session* dsi_connection::get_afp_session() const
+    { return afp_session_.get(); }
+
+    void dsi_connection::make_afp_session()
+    {
+		afp_session_ = std::make_unique<afp_session>(this);
+    }
+
+    void dsi_connection::free_afp_session()
+    { afp_session_ = nullptr; }
 }

@@ -9,11 +9,10 @@
 
 bool server_running = true;
 SOCKET listen_socket;
+extern dsi::dsi_connections active_connections;
 
 namespace dsi
 {
-	extern dsi_connections active_connections;
-
 	void dsi_init()
 	{
 		WSADATA wsa_data;

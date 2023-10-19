@@ -1,4 +1,5 @@
 // ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
+// ReSharper disable CppParameterMayBeConstPtrOrRef
 #include "StdAfx.h"
 #include "afp.h"
 #include "afpdesktop.h"
@@ -21,7 +22,7 @@ using namespace dsi;
 AFPERROR FPOpenDT(
 	afp_net_buffer& afp_request,
 	afp_net_buffer& afp_reply,
-	const dsi_connection* connection
+	dsi_connection* connection
 )
 {
 	UINT16 afp_dt_ref_num = 0;
@@ -55,8 +56,8 @@ AFPERROR FPOpenDT(
 // ReSharper disable once CppInconsistentNaming
 AFPERROR FPCloseDT(
 	IN afp_net_buffer& afp_request,
-	IN const afp_net_buffer& afp_reply,
-	IN const dsi_connection* connection
+	IN afp_net_buffer& afp_reply,
+	IN dsi_connection* connection
 )
 {
 	UNREFERENCED_PARAMETER(afp_reply);
@@ -82,8 +83,8 @@ AFPERROR FPCloseDT(
 // ReSharper disable once CppInconsistentNaming
 AFPERROR FPAddIcon(
 	IN afp_net_buffer& afp_request,
-	IN const afp_net_buffer& afp_reply,
-	IN const dsi_connection* connection
+	IN afp_net_buffer& afp_reply,
+	IN dsi_connection* connection
 )
 {
 	UNREFERENCED_PARAMETER(afp_reply);
@@ -152,7 +153,7 @@ AFPERROR FPAddIcon(
 AFPERROR FPGetIcon(
 	IN afp_net_buffer& afp_request,
 	IN afp_net_buffer& afp_reply,
-	IN const dsi_connection* connection
+	IN dsi_connection* connection
 )
 {
 	DESKTOP_ENTRY search_entry;
@@ -208,7 +209,7 @@ AFPERROR FPGetIcon(
 AFPERROR FPGetIconInfo(
 	IN afp_net_buffer& afp_request,
 	IN afp_net_buffer& afp_reply,
-	IN const dsi_connection* connection
+	IN dsi_connection* connection
 )
 {
 	DESKTOP_ENTRY search_entry;
@@ -255,8 +256,8 @@ AFPERROR FPGetIconInfo(
 // ReSharper disable once CppInconsistentNaming
 AFPERROR FPAddComment(
 	IN afp_net_buffer& afp_request,
-	IN const afp_net_buffer& afp_reply,
-	IN const dsi_connection* connection
+	IN afp_net_buffer& afp_reply,
+	IN dsi_connection* connection
 )
 {
 	UNREFERENCED_PARAMETER(afp_reply);
@@ -330,7 +331,7 @@ AFPERROR FPAddComment(
 AFPERROR FPGetComment(
 	IN afp_net_buffer& afp_request,
 	IN afp_net_buffer& afp_reply,
-	IN const dsi_connection* connection
+	IN dsi_connection* connection
 )
 {
 	DESKTOP_ENTRY search_entry;
@@ -398,8 +399,8 @@ AFPERROR FPGetComment(
 // ReSharper disable once CppInconsistentNaming
 AFPERROR FPRemoveComment(
 	IN afp_net_buffer& afp_request,
-	IN const afp_net_buffer& afp_reply,
-	IN const dsi_connection* connection
+	IN afp_net_buffer& afp_reply,
+	IN dsi_connection* connection
 )
 {
 	UNREFERENCED_PARAMETER(afp_reply);
@@ -447,7 +448,7 @@ AFPERROR FPRemoveComment(
 AFPERROR FPGetAPPL(
 	IN afp_net_buffer& afp_request,
 	IN afp_net_buffer& afp_reply,
-	IN const dsi_connection* connection
+	IN dsi_connection* connection
 )
 {
 	WIN32_FILE_ATTRIBUTE_DATA winAttributes;
@@ -526,8 +527,8 @@ AFPERROR FPGetAPPL(
 // ReSharper disable once CppInconsistentNaming
 AFPERROR FPAddAPPL(
 	IN afp_net_buffer& afp_request,
-	IN const afp_net_buffer& afp_reply,
-	IN const dsi_connection* connection
+	IN afp_net_buffer& afp_reply,
+	IN dsi_connection* connection
 )
 {
 	UNREFERENCED_PARAMETER(afp_reply);
@@ -576,8 +577,8 @@ AFPERROR FPAddAPPL(
 // ReSharper disable once CppInconsistentNaming
 AFPERROR FPRemoveAPPL(
 	IN afp_net_buffer& afp_request,
-	IN const afp_net_buffer& afp_reply,
-	IN const dsi_connection* connection
+	IN afp_net_buffer& afp_reply,
+	IN dsi_connection* connection
 )
 {
 	UNREFERENCED_PARAMETER(afp_reply);

@@ -1,12 +1,9 @@
 #pragma once
 #include <winsock2.h>
 
-#include "afpdhxlogin.h"
-#include "afp_session.h"
-
 // This is the largest request that the server can receive
 // from the client. It does not include the DSI header size.
-#define SRVR_REQUEST_QUANTUM_SIZE	(MAXSHORT-dsi_header_size)
+#define SRVR_REQUEST_QUANTUM_SIZE	(MAXSHORT-dsi_header_size)  // NOLINT(clang-diagnostic-macro-redefined)
 
 // DSIOpen option fields
 enum dsi_option_fields
@@ -51,8 +48,12 @@ enum dsi_commands
 constexpr UINT16 dsi_max_request_id = 65535;
 constexpr UINT32 dsi_server_request_quantum_size = MAXSHORT - dsi_header_size;
 
-#define RECV_BUFFER_SIZE		(MAXSHORT) 
-#define SEND_BUFFER_SIZE		(MAXSHORT)
+#define RECV_BUFFER_SIZE (MAXSHORT)
+#define SEND_BUFFER_SIZE (MAXSHORT)
+
+constexpr UINT32 tickle_time = (1000 * 15);
+
+class afp_session;
 
 namespace dsi
 {
@@ -76,14 +77,14 @@ namespace dsi
 
 		UINT16 adjust_client_request_id(UINT16 id_from_client);
 
-		void send_reply(std::unique_ptr<char[]> reply_buffer, UINT8 dsi_command, INT32 afp_error, UINT32 data_size);
+		void send_reply(std::unique_ptr<char[]> reply_buffer, UINT8 dsi_command, INT32 afp_error, INT32 data_size);
 		void send_tickle();
 
 		bool client_lost() const;
 		void kill_connection();
 
 		// Accessors
-		bool tickle_required() const { return GetTickCount64() - last_tickle_ > AFP_TICKLE_TIME; }
+		bool tickle_required() const { return GetTickCount64() - last_tickle_ > tickle_time; }
 		void set_sleep_state(const bool sleeping) { client_sleeping_ = sleeping;  }
 		bool get_is_client_sleeping() const { return client_sleeping_; }
 
@@ -105,15 +106,15 @@ namespace dsi
 		void set_domain_name(const std::wstring& domain_name) { domain_name_ = domain_name; }
 		std::wstring get_domain_name() const { return domain_name_; }
 
-		void set_extended_logon_info(std::unique_ptr<DHXInfo>& data) { extended_logon_info_ = std::move(data); }
-		DHXInfo* get_extended_logon_info() const { return extended_logon_info_.get(); }
-		void free_extended_logon_info() { extended_logon_info_ = nullptr; }
+		void set_extended_logon_info(void* data) { extended_logon_info_ = data; }
+		void* get_extended_logon_info() const { return extended_logon_info_; }
+		void free_extended_logon_info() { free(extended_logon_info_); extended_logon_info_ = nullptr; }
 
-		afp_session* get_afp_session() const { return afp_session_.get(); }
-		void make_afp_session() { afp_session_ = std::make_unique<afp_session>(this); }
-		void free_afp_session() { afp_session_ = nullptr; }
+		afp_session* get_afp_session() const;
+        void make_afp_session();
+        void free_afp_session();
 
-	private:
+    private:
 		SOCKET socket_;
 		UINT32 connection_id_;
 		UINT32 attention_quantum_size_;
@@ -138,7 +139,7 @@ namespace dsi
 		UINT8 afp_version_;
 
 		INT8 uam_type_;
-		std::unique_ptr<DHXInfo> extended_logon_info_;
+		void* extended_logon_info_;
 
 		std::wstring user_name_;
 		std::wstring domain_name_;

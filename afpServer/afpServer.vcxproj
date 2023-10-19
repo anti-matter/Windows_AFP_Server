@@ -188,7 +188,6 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
     <ClCompile Include="afp-source\server-core\afpnotify.cpp" />
     <ClCompile Include="afp-source\server-core\afpworker.cpp" />
     <ClCompile Include="afp-source\server-core\counters.cpp" />
-    <ClCompile Include="afp-source\server-core\dsi.cpp" />
     <ClCompile Include="afp-source\helpers\afpdebug.cpp" />
     <ClCompile Include="afp-source\helpers\afphelp.cpp" />
     <ClCompile Include="afp-source\ui\aboutdlg.cpp" />
@@ -229,7 +228,6 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
     <ClInclude Include="afp-source\helpers\afphelp.h" />
     <ClInclude Include="afp-source\helpers\byte_swap.h" />
     <ClInclude Include="afp-source\server-core\afpnotify.h" />
-    <ClInclude Include="afp-source\server-core\dsi.h" />
     <ClInclude Include="afpdispatch.h" />
     <ClInclude Include="resources\resource.h" />
     <ClInclude Include="stdafx.h" />

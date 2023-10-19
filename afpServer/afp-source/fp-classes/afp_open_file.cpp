@@ -12,14 +12,8 @@
  * Returns: None
  */
 
-afp_open_file::afp_open_file(
-	const uint16 vol_id,
-	const uint32 dir_id,
-	const int16 access_mode,
-	const uint8 fork,
-	const p_afp_index entry,
-	const WCHAR* win_path
-)
+afp_open_file::afp_open_file(const uint16 vol_id, const uint32 dir_id, const int16 access_mode, const uint8 fork, const p_afp_index entry,
+                             const WCHAR* win_path)
 {
 	m_file_handle_ = INVALID_HANDLE_VALUE;
 	m_volume_id_ = vol_id;

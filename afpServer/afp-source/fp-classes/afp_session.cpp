@@ -150,7 +150,7 @@ afp_open_file* afp_session::find_open_file(const int16 file_reference)
  * Returns: The new file object or nullptr.
  */
 
-afp_open_file* afp_session::open_file(
+afp_open_file* open_file(
     afp_session* session,
     const uint16 vol_id,
     const uint32 dir_id,

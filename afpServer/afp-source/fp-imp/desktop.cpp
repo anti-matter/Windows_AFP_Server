@@ -41,9 +41,9 @@ AFPERROR AFPInitDesktop()
 
 AFPERROR AFPFindEntry(
     IN LPDESKTOP_ENTRY searchEntry,
-       IN WORD wSearchIndex,
-       IN OPEN_DESKTOP* deskFile,
-       OUT LPDESKTOP_ENTRY foundEntry
+    IN WORD wSearchIndex,
+    IN OPEN_DESKTOP* deskFile,
+    OUT LPDESKTOP_ENTRY foundEntry
 )
 {
     AFP_VOLUME_INFO* volumeInfo = nullptr;
@@ -70,10 +70,10 @@ AFPERROR AFPFindEntry(
         return AFP_OK;
     }
 
-    #ifdef _DEBUG
-    auto const itemType = searchEntry->entryType == ENTRY_TYPE_ICON ? L"ICON" : L"APPLorCMNT";
+#ifdef _DEBUG
+    const auto itemType = searchEntry->entryType == ENTRY_TYPE_ICON ? L"ICON" : L"APPLorCMNT";
     DBGWRITE(dbg_level_info, L"[desk]Failed to find item in desktop DB! (type = %s)\n", itemType);
-    #endif
+#endif
 
     return afpItemNotFound;
 }
@@ -90,7 +90,7 @@ AFPERROR AFPFindEntry(
 
 AFPERROR AFPAddEntry(
     IN LPDESKTOP_ENTRY newEntry,
-       IN OPEN_DESKTOP* deskFile
+    IN OPEN_DESKTOP* deskFile
 )
 {
     AFP_VOLUME_INFO* volumeInfo = nullptr;
@@ -152,7 +152,7 @@ AFPERROR AFPAddEntry(
 
 AFPERROR AFPRemoveEntry(
     IN LPDESKTOP_ENTRY removeEntry,
-       IN OPEN_DESKTOP* deskFile
+    IN OPEN_DESKTOP* deskFile
 )
 {
     ASSERT(removeEntry != nullptr);
@@ -172,7 +172,7 @@ AFPERROR AFPRemoveEntry(
 
     DBGWRITE(dbg_level_info, L"[desk]Removing entry from DT array for file %s\n", removeEntry->pathname);
 
-    return volumeInfo->desktop->remove_entry(removeEntry);;
+    return volumeInfo->desktop->remove_entry(removeEntry);
 }
 
 
@@ -187,7 +187,7 @@ AFPERROR AFPRemoveEntry(
 
 AFPERROR AFPOpenDeskTopDB(
     IN WORD wVolID,
-       IN OPEN_DESKTOP* deskFile
+    IN OPEN_DESKTOP* deskFile
 )
 {
     AFP_VOLUME_INFO* volumeInfo;

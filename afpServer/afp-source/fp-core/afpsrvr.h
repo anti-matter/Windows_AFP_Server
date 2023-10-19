@@ -2,8 +2,11 @@
 #pragma once
 
 #include "afp_net_buffer.h"
-#include "dsi/dsi_connection.h"
 
+namespace dsi
+{
+    class dsi_connection;
+}
 
 AFPERROR FPGetSrvrParms(
 	IN afp_net_buffer& afp_request,
