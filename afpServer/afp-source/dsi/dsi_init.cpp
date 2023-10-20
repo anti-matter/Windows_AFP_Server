@@ -85,15 +85,15 @@ namespace dsi
 
 					if (error == WSAEINTR)
 					{
-						//This error means that we have closed the socket
-						//and are attempting to shut the thread down.
+						// This error means that we have closed the socket
+						// and are attempting to shut the thread down.
 
 						DBGWRITE(dbg_level_info, L"Accept thread shutting down...\n");
 						break;
 					}
 
-					//An error occurred and the acceptance failed. Continue on
-					//to the next request.
+					// An error occurred and the acceptance failed. Continue on
+					// to the next request.
 					DBGWRITE(dbg_level_warning, L"Accept socket failed! (%d)\n", error);
 					continue;
 				}

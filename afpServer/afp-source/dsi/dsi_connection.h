@@ -81,7 +81,7 @@ namespace dsi
 
 		void dsi_send_server_status(std::unique_ptr<char[]> reply_buffer);
 		void dsi_open_session(std::unique_ptr<char[]> reply_buffer);
-		void dsi_close_session(std::unique_ptr<char[]> reply_buffer);
+		void dsi_close_session(std::unique_ptr<char[]>& reply_buffer);
 		void dsi_process_command(std::unique_ptr<char[]> reply_buffer, UINT8 dsi_cmd, UINT8 afp_cmd);
 
 		UINT16 adjust_client_request_id(UINT16 id_from_client);

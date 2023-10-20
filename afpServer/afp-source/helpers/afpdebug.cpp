@@ -145,14 +145,16 @@ void hex_dump_buffer(const CHAR* p_buffer, const DWORD length)
 
 		for (DWORD k = 0; k < j; k++)
 		{
-			if (std::isprint(little[k]))
+			if (little[k] >= 0 && std::isprint(little[k]))
 			{
 				foo[0] = little[k];
 				foo[1] = 0;
 				StringCbCatA(line, sizeof(line), foo);
 			}
 			else
-				StringCbCatA(line, sizeof(line), ".");
+            {
+                StringCbCatA(line, sizeof(line), ".");
+            }
 		}
 
 		StringCbCatA(line, sizeof(line), "\n");

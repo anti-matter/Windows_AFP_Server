@@ -57,7 +57,6 @@ public:
 
         for (const auto& volume : m_data_)
         {
-            DBGWRITE(dbg_level_info, L"Considering volume %s (%d)\n", volume->szShareName, volume->wVolID);
             if (volume->fDirty)
             {
                 DBGWRITE(dbg_level_info, L"Found dirty volume (&s)\n", volume->szShareName);

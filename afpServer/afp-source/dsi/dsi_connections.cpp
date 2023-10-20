@@ -56,20 +56,20 @@ namespace dsi
 	{
 		std::lock_guard<std::mutex> guard(connections_mutex_);
 
-		//for (const auto connection : connections_)
-		//{
-		//	// Check if we need to tickle the client.
-		//	if (connection->tickle_required())
-		//	{
-		//		connection->send_tickle();
-		//	}
+		for (const auto& connection : connections_)
+		{
+			// Check if we need to tickle the client.
+			if (connection->tickle_required())
+			{
+				connection->send_tickle();
+			}
 
-		//	if (connection->client_lost())
-		//	{
-		//		connection->kill_connection();
-		//		stop_tracking(connection->get_connection_id());
-		//	}
-		//}
+			if (connection->client_lost())
+			{
+				connection->kill_connection();
+				stop_tracking(connection->get_connection_id());
+			}
+		}
 	}
 
 	afp_session* dsi_connections::find_afp_session_with_id(const char* afp_id, const UINT32 id_size)

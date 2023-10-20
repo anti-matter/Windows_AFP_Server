@@ -43,6 +43,8 @@ namespace dsi
 
 	void dsi_connection::connection_thread()
 	{
+		const auto connection_id = connection_id_;
+
 		// Loop thread to handle received packets.
 		receive();
 
@@ -50,12 +52,12 @@ namespace dsi
 		// that the thread has an opportunity to terminate gracefully.
 		active_connections.stop_tracking(connection_id_);
 
-		DBGWRITE(dbg_level_info, L"Connection thread terminated (%d)\n", connection_id_);
+		DBGWRITE(dbg_level_info, L"Connection thread terminated (%d)\n", connection_id);
 	}
 
 	void dsi_connection::receive()
 	{
-		if (receive_buffer_ == nullptr || afp_session_ == nullptr)
+		if (receive_buffer_ == nullptr)
 		{
 			DBGWRITE(dbg_level_error, L"Connection not properly initialized.\n");
 			ASSERT(0);
@@ -257,17 +259,20 @@ namespace dsi
 
 	void dsi_connection::dsi_open_session(std::unique_ptr<char[]> reply_buffer)
 	{
-		DBGWRITE(dbg_level_info, L"DSI open session command received.\n");
+		DBGWRITE(dbg_level_info, L"DSI open session command received (cid: %d).\n", connection_id_);
 
-		const auto option = *reinterpret_cast<UINT8*>(&receive_buffer_[dsi_offset_data_start]);
-		const auto option_size = *reinterpret_cast<UINT8*>(&receive_buffer_[dsi_offset_data_start+sizeof(INT8)]);
+		//afp_net_buffer request(&receive_buffer_[dsi_offset_data_start], dsi_server_request_quantum_size);
+
+		const auto option = receive_buffer_[dsi_offset_data_start];
+		const auto option_size = receive_buffer_[dsi_offset_data_start+sizeof(BYTE)];
 
 		if (option_size == sizeof(UINT32) && option == attention_quantum)
 		{
-			attention_quantum_size_ = ntohl(
-				*reinterpret_cast<UINT8*>(&receive_buffer_[dsi_offset_data_start + sizeof(UINT16)]));
+			attention_quantum_size_ = (DWORD UNALIGNED)receive_buffer_[dsi_offset_data_start + sizeof(UINT16)];
 			DBGWRITE(dbg_level_info, L"Attention quantum size: %d\n", attention_quantum_size_);
 		}
+
+		DBG_DUMP_BUFFER(receive_buffer_.get(), dsi_header_size + sizeof(UINT16) + sizeof(UINT32));
 
 		// Get a buffer wrapper for out AFP payload.
 		afp_net_buffer reply(&reply_buffer[dsi_offset_data_start], dsi_server_request_quantum_size);
@@ -285,7 +290,8 @@ namespace dsi
 		dsi_session_open_ = true;
 	}
 
-	void dsi_connection::dsi_close_session(std::unique_ptr<char[]> reply_buffer)
+    // ReSharper disable once CppParameterMayBeConstPtrOrRef
+    void dsi_connection::dsi_close_session(std::unique_ptr<char[]>& reply_buffer)
 	{
 		DBGWRITE(dbg_level_info, L"DSI close sesssion command received.\n");
 
@@ -300,7 +306,7 @@ namespace dsi
 		kill_connection();
 	}
 
-	void dsi_connection::dsi_process_command(std::unique_ptr<char[]> reply_buffer, UINT8 dsi_cmd, UINT8 afp_cmd)
+	void dsi_connection::dsi_process_command(std::unique_ptr<char[]> reply_buffer, const UINT8 dsi_cmd, const UINT8 afp_cmd)
 	{
 		// Get a wrapper for the AFP request payload.
 		afp_net_buffer request(&receive_buffer_[dsi_offset_data_start], dsi_server_request_quantum_size);
