@@ -14,8 +14,7 @@
 #include "afp_file_index.h"
 #include "afpEvents.h"
 
-extern BOOL		g_running;
-extern SHORT	g_worker_thread_ref_count; 
+extern bool server_running;
 
 HANDLE					gWorkerEvent		= INVALID_HANDLE_VALUE;
 PAFP_WORKER_ELEMENT		gWorkerElements		= NULL;
@@ -33,7 +32,6 @@ void AFPInitializeWorkerThread(IN HWND hMainWindow)
     DWORD	dwThreadID;
     HANDLE	hThread;
 
-    g_running	= TRUE;
     gMainWindow	= hMainWindow;
 
     InitializeCriticalSection(&gWorkerCS);
@@ -62,7 +60,7 @@ void AFPInitializeWorkerThread(IN HWND hMainWindow)
 
 void AFPShutdownWorkerThread()
 {
-    ASSERT(g_running == FALSE);
+    ASSERT(server_running == FALSE);
 
     EnterCriticalSection(&gWorkerCS);
     SetEvent(gWorkerEvent);
@@ -85,9 +83,7 @@ DWORD WINAPI AFPWorkerThread(
 
     PAFP_WORKER_ELEMENT		workerElement, nextElement;
 
-    g_worker_thread_ref_count++;
-    
-    while(g_running)
+    while(server_running)
     {
         //
         //The event will be signaled when there is data queued up to be sent.
@@ -98,7 +94,7 @@ DWORD WINAPI AFPWorkerThread(
         //Check to see if we're shutting down or not. If so, then we close
         //our event handle and break out.
         //
-        if (!g_running)
+        if (!server_running)
         {
             CloseHandle(gWorkerEvent);
             break;
@@ -202,7 +198,6 @@ DWORD WINAPI AFPWorkerThread(
         }
     }
 
-    g_worker_thread_ref_count--;
     return(0);
 }
 

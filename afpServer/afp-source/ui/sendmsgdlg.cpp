@@ -6,11 +6,12 @@
 
 #include "StdAfx.h"
 #include "sendmsgdlg.h"
+#include "dsi/dsi_connections.h"
 
 extern HINSTANCE	ghInstance;
 extern BOOL			gMainWindowVisible;
 extern WCHAR		g_server_message[AFP_MSG_MAXLEN+1];
-
+extern dsi::dsi_connections active_connections;
 
 
 //---------------------------------------------------------------------
@@ -40,8 +41,9 @@ LRESULT CALLBACK SendMessageDlgProc(
                                             (WPARAM)sizeof(g_server_message), (LPARAM)g_server_message);
                     
                     //Let DSI do all the real work of sending the message
-                    DSISendAttention(NULL, ATTN_SERVER_MESSAGE);
-                case IDCANCEL:
+                    active_connections.broadcast_attention(ATTN_SERVER_MESSAGE);
+
+                case IDCANCEL:  // NOLINT(clang-diagnostic-implicit-fallthrough)
                     EndDialog(hDlg, LOWORD(wParam));
                     return (TRUE);
             }

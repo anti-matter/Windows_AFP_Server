@@ -2,7 +2,6 @@
 #include <thread>
 #include <winsock2.h>
 
-#include "afp.h"
 #include "dsi_init.h"
 #include "dsi_connection.h"
 #include "afpdebug.h"
@@ -31,7 +30,7 @@ namespace dsi
 		std::thread listen_thread(dsi_listen, nullptr);
 		listen_thread.detach();
 
-		std::thread attention_thread(dsi_attention);
+		std::thread attention_thread(dsi_attention_thread);
 		attention_thread.detach();
 	}
 
@@ -131,7 +130,7 @@ namespace dsi
 		closesocket(listen_socket);
 	}
 
-	void dsi_attention()
+	void dsi_attention_thread()
 	{
 	    while (server_running)
 	    {
@@ -148,6 +147,8 @@ namespace dsi
 					}
                 }
 			}
+
+			std::this_thread::sleep_for(std::chrono::seconds(1));
 	    }
 	}
 }

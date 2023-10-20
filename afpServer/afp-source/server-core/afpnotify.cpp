@@ -22,8 +22,7 @@
 
 #define CHNG_NOTIFY_RESULT_BUFFER_SIZE	(64*1024)
 
-extern SHORT	g_worker_thread_ref_count;
-extern BOOL		g_running;
+extern bool server_running;
 
 //---------------------------------------------------------------------
 // AFPNotifyThread()
@@ -41,11 +40,6 @@ DWORD WINAPI AFPNotifyThread(
 	HANDLE				hDirectory		= INVALID_HANDLE_VALUE;
 	PBYTE				pResultBuffer	= NULL;
 	AFP_VOLUME_INFO*	pVolInfo		= (AFP_VOLUME_INFO*)pParam;
-
-	//
-	//For worker thread tracking...
-	//
-	g_worker_thread_ref_count++;
 
 	//
 	//Get a handle to the directory we'll be watch for changes.
@@ -91,7 +85,7 @@ DWORD WINAPI AFPNotifyThread(
 	//
 	pVolInfo->dwRefCount++;
 
-	while((g_running) && (pVolInfo->wVolumeFlags & FLAG_VOLUME_SHARED))
+	while((server_running) && (pVolInfo->wVolumeFlags & FLAG_VOLUME_SHARED))
 	{
 		AFPReadDirChanges(pVolInfo, hDirectory, pResultBuffer);
 		ZeroMemory(pResultBuffer, CHNG_NOTIFY_RESULT_BUFFER_SIZE);
@@ -101,8 +95,6 @@ DWORD WINAPI AFPNotifyThread(
 
 	DBG_FREE(pResultBuffer);
 	CloseHandle(hDirectory);
-
-	g_worker_thread_ref_count--;
 
 	DBGWRITE(dbg_level_info, L"[NOTIFY]Notify thread gone for %s\n", pVolInfo->szShareName);
 	return(0);
@@ -150,7 +142,7 @@ void AFPReadDirChanges(
 	{
 		while (!GetOverlappedResult(hDirectory, &overlapped, &dwNumBytesReturned, FALSE))
 		{
-			if ((GetLastError() != ERROR_IO_INCOMPLETE) || (!g_running) || (!(pVolInfo->wVolumeFlags & FLAG_VOLUME_SHARED)))
+			if ((GetLastError() != ERROR_IO_INCOMPLETE) || (!server_running) || (!(pVolInfo->wVolumeFlags & FLAG_VOLUME_SHARED)))
 			{
 				DBGWRITE(	dbg_level_info, 
 							L"[NOTIFY]ReadDirectoryChangesW() failed during async! (%d)\n",

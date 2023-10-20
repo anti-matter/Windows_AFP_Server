@@ -23,12 +23,7 @@
 #define ID_BYTESSENTPERSEC		3
 #define ID_AFPREQUESTSPROCESSED	4
 
-//
-//A couple needed globals to keep the thread running, etc.
-//
-extern BOOL		g_running;				//from dsi.cpp, true while app is running
-extern SHORT	g_worker_thread_ref_count;	//Thread reference counter so we wait while cleaining up
-
+extern bool server_running;
 extern dsi::dsi_connections active_connections;
 
 //
@@ -168,12 +163,6 @@ DWORD WINAPI AFPCounterThread(
     PPERF_COUNTERSET_INSTANCE	connectionsInstance	= NULL;
     ULONG						status = ERROR_SUCCESS;
 
-    //
-    //Increment thread reference count so the app will wait until thread is
-    //shutdown and cleanup complete before quitting.
-    //
-    g_worker_thread_ref_count++;
-
     status = AFPCreateCounterInstance(&connectionsInstance);
     if (status != ERROR_SUCCESS)
     {
@@ -184,7 +173,7 @@ DWORD WINAPI AFPCounterThread(
         goto cleanup;
     }
 
-    while(g_running)
+    while(server_running)
     {
         //
         //Update the number of DSI connections active for this server.
@@ -299,8 +288,6 @@ DWORD WINAPI AFPCounterThread(
     }
 
 cleanup:
-
-    g_worker_thread_ref_count--;
 
     //
     //This is from afpCounters.h, the auto-generated file from
