@@ -135,7 +135,7 @@ AFPERROR fp_dispatch_command(
 	IN dsi::dsi_connection* connection
 )
 {
-	const auto afp_command = afp_request.get_num<INT8>();
+	const auto afp_command = afp_request.get_num<UINT8>();
 	AFPERROR afp_error = afpCallNotSupported;
 
 	// Whether we're authenticated or not is how we determine

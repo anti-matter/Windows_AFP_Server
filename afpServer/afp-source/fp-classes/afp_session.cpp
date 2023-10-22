@@ -47,7 +47,10 @@ afp_session::~afp_session()
 
     std::for_each(m_afp_open_files_.begin(), m_afp_open_files_.end(), [=](const std::unique_ptr<afp_open_file>& of)
     {
-        close_file(of->get_file_ref_num());
+        if (of != nullptr)
+        {
+            close_file(of->get_file_ref_num());
+        }
     });
 
     std::for_each(m_open_volumes_.begin(), m_open_volumes_.end(), [=](const AFP_VOLUME_INFO* ov)

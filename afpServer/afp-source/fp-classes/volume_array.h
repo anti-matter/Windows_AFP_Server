@@ -59,7 +59,7 @@ public:
         {
             if (volume->fDirty)
             {
-                DBGWRITE(dbg_level_info, L"Found dirty volume (&s)\n", volume->szShareName);
+                DBGWRITE(dbg_level_info, L"Found dirty volume (%s)\n", volume->szShareName);
                 result.push_back(volume->wVolID);
             }
         }

@@ -122,7 +122,7 @@ AFPERROR FPAddIcon(
 	if (icon_entry.dataSize > MAX_DESKTOP_DATA_SIZE)
 	{
 		// Nothing to do here but bail out!
-		return (afpParmErr);
+		return afpParmErr;
 	}
 
 	// Now copy the actual icon data into our buffer to store.

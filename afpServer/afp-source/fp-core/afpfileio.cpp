@@ -800,7 +800,7 @@ AFPERROR FPWrite(
         break;
 
     default:
-        return (afpParmErr);
+        return afpParmErr;
     }
 
     const afp_open_file* open_file = afp_session->find_open_file(afp_fork_ref);

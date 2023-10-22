@@ -224,6 +224,7 @@ namespace dsi
 					break;
 
 				case dsi_cmd_write:
+					dsi_process_command(std::move(reply_buffer), dsi_cmd_write, receive_buffer_[dsi_offset_data_start]);
 					break;
 
 				default:
@@ -323,6 +324,11 @@ namespace dsi
 
 		// Get a wrapper for the AFP reply payload.
 		afp_net_buffer reply(&reply_buffer[dsi_offset_data_start], dsi_server_request_quantum_size);
+
+		if (afp_cmd != 192)
+		{
+			DBGWRITE(dbg_level_info, L"Processing AFP cmd: %d\n", afp_cmd);
+		}
 
 		const auto afp_error = fp_dispatch_command(request, reply, this);
 		const auto data_size = afp_cmd == afpRead || afp_cmd == afpReadExt
