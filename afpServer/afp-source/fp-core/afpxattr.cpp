@@ -495,7 +495,7 @@ AFPERROR FPListExtAttribute(
                 {
                     //
                     //Check to make sure the stream isn't one of our special streams. We
-                    //don't want to send streams the server owns back to the client (e.g.
+                    //don't want to send_ streams the server owns back to the client (e.g.
                     //the resource or info streams).
                     //
                     if ((!lstrcmp(afpAttrInfo.stream_name, AFP_INFO_STREAM_NAME)) ||

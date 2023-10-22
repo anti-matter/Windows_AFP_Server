@@ -1,7 +1,7 @@
 //===================================================================
 // sendmsgdlg.cpp
 //
-// Routines handling the send message dialog box.
+// Routines handling the send_ message dialog box.
 //===================================================================
 
 #include "StdAfx.h"
@@ -59,7 +59,7 @@ LRESULT CALLBACK SendMessageDlgProc(
 //---------------------------------------------------------------------
 // SendMessageFromUI()
 //---------------------------------------------------------------------
-// Give the admin the opportunity to send a message as entered in a
+// Give the admin the opportunity to send_ a message as entered in a
 // dialog box.
 //
 

@@ -82,8 +82,18 @@ namespace dsi
 		void dsi_process_command(std::unique_ptr<char[]> reply_buffer, UINT8 dsi_cmd, UINT8 afp_cmd);
 
 		UINT16 adjust_client_request_id(UINT16 id_from_client);
+		UINT16 get_next_request_id()
+		{
+			server_request_id_ = server_request_id_ == dsi_max_request_id
+				? 0
+				: server_request_id_++;  // NOLINT(clang-diagnostic-unsequenced)
 
+			return server_request_id_;
+		}
+
+		void send_(const char* buffer, INT32 send_size);
 		void send_reply(char* reply_buffer, UINT8 dsi_command, INT32 afp_error, INT32 data_size);
+		void send_request(char* buffer, UINT8 dsi_command, INT32 afp_data_size);
 		void send_tickle();
 		void send_attention(UINT16 code);
 

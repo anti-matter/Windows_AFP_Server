@@ -145,8 +145,8 @@ namespace dsi
 
 	void dsi_connection::process_dsi_packet(const UINT16 bytes_in_buffer)
 	{
-		DBGWRITE(dbg_level_info, L"Receive buffer:\n");
-		DBG_DUMP_BUFFER(&receive_buffer_[0], bytes_in_buffer);
+		//DBGWRITE(dbg_level_info, L"Receive buffer:\n");
+		//DBG_DUMP_BUFFER(&receive_buffer_[0], bytes_in_buffer);
 
 		// Extract the DSI header parameters.
 		afp_net_buffer header(&receive_buffer_[0], dsi_header_size);
@@ -194,7 +194,7 @@ namespace dsi
 					(dsi_command != dsi_cmd_open_session && dsi_command != dsi_cmd_get_status))
 				{
 					// If we are in a weird situation and we received a tickle here,
-					// we must consider that we don't have a return buffer to send an
+					// we must consider that we don't have a return buffer to send_ an
 					// error to the caller.
 					if (dsi_command != dsi_cmd_tickle)
 					{
@@ -335,6 +335,11 @@ namespace dsi
 			? reply.get_dsi_return_value()
 			: reply.get_data_length();
 
+		if (AFP_FAILED(afp_error))
+		{
+			DBGWRITE(dbg_level_error, L"AFP error: %d\n", afp_error);
+		}
+
 		send_reply(
 			reply_buffer.get(),
 			dsi_cmd,
@@ -365,35 +370,15 @@ namespace dsi
 		return client_request_id_;
 	}
 
-	void dsi_connection::send_reply(
-		char* reply_buffer,
-		const UINT8 dsi_command,
-		const INT32 afp_error,
-		const INT32 data_size)
-	{
-		// Can only send one at a time.
-		std::lock_guard<std::mutex> guard(send_mutex_);
-
-		afp_net_buffer header(reply_buffer, dsi_header_size + data_size);
-		header.push_num<UINT8>(dsi_reply_flag);
-		header.push_num<UINT8>(dsi_command);
-		header.push_num<UINT16>(client_request_id_);
-		header.push_num<INT32>(afp_error);
-		header.push_num<UINT32>(data_size);
-		header.push_num<UINT32>(0);
-
+    void dsi_connection::send_(const char* buffer, const INT32 send_size)
+    {
 		UINT32 offset = 0;
 		INT32 bytes_sent;
-		INT32 bytes_size = data_size + dsi_header_size;
-
-		last_tickle_ = GetTickCount64();
-
-		DBGWRITE(dbg_level_info, L"Bytes to send: %d\n", bytes_size);
-		DBG_DUMP_BUFFER(reply_buffer, bytes_size);
+		INT32 bytes_size = send_size;
 
 		do
 		{
-			bytes_sent = send(socket_, &reply_buffer[offset], bytes_size, 0);
+			bytes_sent = send(socket_, &buffer[offset], bytes_size, 0);
 
 			if (bytes_sent < 0)
 			{
@@ -405,7 +390,7 @@ namespace dsi
 				break;
 			}
 
-			if (bytes_sent < data_size)
+			if (bytes_sent < send_size)
 			{
 				offset += bytes_sent;
 				bytes_size -= bytes_sent;
@@ -424,13 +409,54 @@ namespace dsi
 			DBGWRITE(dbg_level_error, L"send() failed (%d)\n", WSAGetLastError());
 			kill_connection();
 		}
+    }
+
+	void dsi_connection::send_reply(
+		char* reply_buffer,
+		const UINT8 dsi_command,
+		const INT32 afp_error,
+		const INT32 data_size)
+	{
+		// Can only send_ one at a time.
+		std::lock_guard<std::mutex> guard(send_mutex_);
+
+		afp_net_buffer header(reply_buffer, dsi_header_size + data_size);
+		header.push_num<UINT8>(dsi_reply_flag);
+		header.push_num<UINT8>(dsi_command);
+		header.push_num<UINT16>(client_request_id_);
+		header.push_num<INT32>(afp_error);
+		header.push_num<UINT32>(data_size);
+		header.push_num<UINT32>(0);
+
+		last_tickle_ = GetTickCount64();
+
+		send_(reply_buffer, data_size + dsi_header_size);
 	}
 
-	void dsi_connection::send_tickle()
+    void dsi_connection::send_request(char* buffer, const UINT8 dsi_command, const INT32 afp_data_size)
+    {
+		std::lock_guard<std::mutex> guard(send_mutex_);
+
+		const auto data_size = afp_data_size + dsi_header_size;
+
+		afp_net_buffer header(buffer, data_size);
+		header.push_num<UINT8>(dsi_request_flag);
+		header.push_num<UINT8>(dsi_command);
+		header.push_num(get_next_request_id());
+		header.push_num<UINT32>(0);
+		header.push_num(afp_data_size);
+		header.push_num<UINT32>(0);
+
+		DBGWRITE(dbg_level_info, L"Sending request, DSI command: %d\n", dsi_command);
+
+		send_(buffer, data_size);
+    }
+
+    void dsi_connection::send_tickle()
 	{
         char reply_buffer[dsi_header_size] = {};
 
-		send_reply(reply_buffer, dsi_cmd_tickle, AFP_OK, 0);
+		send_request(reply_buffer, dsi_cmd_tickle, 0);
 		last_tickle_ = GetTickCount64();
 	}
 
@@ -443,7 +469,7 @@ namespace dsi
 
 		DBGWRITE(dbg_level_info, L"Sending attention: %x\n", code);
 
-		send_reply(reply_buffer, dsi_cmd_attention, AFP_OK, sizeof(UINT16));
+		send_request(reply_buffer, dsi_cmd_attention, sizeof(UINT16));
     }
 
     bool dsi_connection::client_lost() const

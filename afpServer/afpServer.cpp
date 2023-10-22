@@ -148,7 +148,7 @@ void UpdateVolCaption(HWND hParent)
     TCHAR szShareName[MAX_PATH];
 
     //
-    //First, send a message to the volume listbox to get the currently
+    //First, send_ a message to the volume listbox to get the currently
     //selected cell.
     //
     dwResult = SendDlgItemMessage(hParent, IDC_SHARES, LB_GETCURSEL, 0, 0);
@@ -241,7 +241,7 @@ void DoRemoveVolume(HWND hParent)
     WCHAR szSharename[MAX_PATH];
 
     //
-    //First, send a message to the volume listbox to get the currently
+    //First, send_ a message to the volume listbox to get the currently
     //selected cell.
     //
     dwResult = SendDlgItemMessage(hParent, IDC_SHARES, LB_GETCURSEL, 0, 0);
@@ -513,7 +513,7 @@ void SaveVolPassword(
     AFP_VOLUME_INFO*	afpVolume	= NULL;
 
     //
-    //First, send a message to the volume listbox to get the currently
+    //First, send_ a message to the volume listbox to get the currently
     //selected cell.
     //
     dwResult = SendDlgItemMessage(hDlg, IDC_SHARES, LB_GETCURSEL, 0, 0);
@@ -567,7 +567,7 @@ void HandleROCheckbox(
     DWORD volFlags = 0;
 
     //
-    //First, send a message to the volume listbox to get the currently
+    //First, send_ a message to the volume listbox to get the currently
     //selected cell.
     //
     dwResult = SendDlgItemMessage(hDlg, IDC_SHARES, LB_GETCURSEL, 0, 0);

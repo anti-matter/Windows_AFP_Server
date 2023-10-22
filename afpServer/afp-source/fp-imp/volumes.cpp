@@ -847,7 +847,7 @@ AFPERROR AFPIndexBuild(
     }
 
     //
-    //If we're indexing the root dir, then we send a worker cmd that
+    //If we're indexing the root dir, then we send_ a worker cmd that
     //will signal that indexing is complete.
     //
     if (dwParID == kRootDirID)

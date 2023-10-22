@@ -117,11 +117,11 @@ AFPERROR FPGetSessionToken(
 		break;
 
 	// The AFP client can set the Type parameter to kLoginWithID, set the ID 
-	// parameter to a unique client-defined value, and send this command. The server 
+	// parameter to a unique client-defined value, and send_ this command. The server 
 	// will associate the value of ID with the session. Later, if the local system crashes 
 	// and the AFP client logs in again, the AFP client can set the Type parameter to 
 	// kLoginWithID, set the ID parameter to the ID that it previously sent to the remote 
-	// server, and send this command again. The remote server will look for a session that 
+	// server, and send_ this command again. The remote server will look for a session that 
 	// matches the value of ID. If a match is found, it will close any files associated with 
 	// the session that are open, free any locked resources, and disconnect the matching session
 	case kLoginWithID:

@@ -705,7 +705,7 @@ AFPERROR FPCreateDir(
         // Mark the volume dirty to so other clients will see the changes
         AFPMarkVolumeDirty(afp_volume->wVolID);
 
-        // Now build the reply block to send back to the client.
+        // Now build the reply block to send_ back to the client.
         afp_reply.push_num(afp_dir_id);
     }
 
