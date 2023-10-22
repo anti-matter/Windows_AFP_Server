@@ -74,7 +74,7 @@ namespace dsi
 
 		void connection_thread();
 		void receive();
-		void process_dsi_packet(UINT16 bytes_in_buffer);
+		void process_dsi_packet();
 
 		void dsi_send_server_status(std::unique_ptr<char[]> reply_buffer);
 		void dsi_open_session(std::unique_ptr<char[]> reply_buffer);

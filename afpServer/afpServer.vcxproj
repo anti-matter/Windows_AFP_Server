@@ -156,6 +156,8 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
     <ClCompile Include="afp-source\fp-classes\auto_lock.cpp" />
     <ClCompile Include="afpdispatch.cpp" />
     <ClCompile Include="afpServer.cpp" />
+    <ClCompile Include="afp_volume.cpp" />
+    <ClCompile Include="afp_volumes.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
@@ -229,6 +231,8 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
     <ClInclude Include="afp-source\helpers\byte_swap.h" />
     <ClInclude Include="afp-source\server-core\afpnotify.h" />
     <ClInclude Include="afpdispatch.h" />
+    <ClInclude Include="afp_volume.h" />
+    <ClInclude Include="afp_volumes.h" />
     <ClInclude Include="resources\resource.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>

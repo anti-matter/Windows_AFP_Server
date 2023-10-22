@@ -106,7 +106,7 @@ namespace dsi
 			do
 			{
 				// We have the entire DSI header and AFP payload.
-				process_dsi_packet(bytes_in_buffer);
+				process_dsi_packet();
 
 				// Check for connection closure.
 				if (!continue_receive_)
@@ -143,11 +143,8 @@ namespace dsi
 		}
 	}
 
-	void dsi_connection::process_dsi_packet(const UINT16 bytes_in_buffer)
+	void dsi_connection::process_dsi_packet()
 	{
-		//DBGWRITE(dbg_level_info, L"Receive buffer:\n");
-		//DBG_DUMP_BUFFER(&receive_buffer_[0], bytes_in_buffer);
-
 		// Extract the DSI header parameters.
 		afp_net_buffer header(&receive_buffer_[0], dsi_header_size);
 		const auto dsi_flags = header.pull_num<INT8>();
@@ -170,10 +167,9 @@ namespace dsi
 						L"DSI request id does not match expected value: %d expected, %d recevied.\n",
 						expected_request_id,
 						dsi_request_id);
-					//ASSERT(0);
 
-					//kill_connection();
-					//return;
+					kill_connection();
+					return;
 				}
 				client_request_id_ = dsi_request_id;
 
@@ -372,6 +368,9 @@ namespace dsi
 
     void dsi_connection::send_(const char* buffer, const INT32 send_size)
     {
+		// Can only send_ one at a time.
+		//std::lock_guard<std::mutex> guard(send_mutex_);
+
 		UINT32 offset = 0;
 		INT32 bytes_sent;
 		INT32 bytes_size = send_size;
@@ -417,9 +416,6 @@ namespace dsi
 		const INT32 afp_error,
 		const INT32 data_size)
 	{
-		// Can only send_ one at a time.
-		std::lock_guard<std::mutex> guard(send_mutex_);
-
 		afp_net_buffer header(reply_buffer, dsi_header_size + data_size);
 		header.push_num<UINT8>(dsi_reply_flag);
 		header.push_num<UINT8>(dsi_command);
@@ -435,8 +431,6 @@ namespace dsi
 
     void dsi_connection::send_request(char* buffer, const UINT8 dsi_command, const INT32 afp_data_size)
     {
-		std::lock_guard<std::mutex> guard(send_mutex_);
-
 		const auto data_size = afp_data_size + dsi_header_size;
 
 		afp_net_buffer header(buffer, data_size);

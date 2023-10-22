@@ -89,7 +89,7 @@ AFPERROR FPAddIcon(
 {
 	UNREFERENCED_PARAMETER(afp_reply);
 
-	DESKTOP_ENTRY icon_entry;
+	DESKTOP_ENTRY icon_entry = {};
 	AFPERROR afp_error = AFP_OK;
 
 	// The first work contains the command and padding byte.

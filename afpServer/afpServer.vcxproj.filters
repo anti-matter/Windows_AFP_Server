@@ -131,6 +131,12 @@
     <ClCompile Include="afp-source\dsi\dsi_init.cpp">
       <Filter>Source Files\dsi</Filter>
     </ClCompile>
+    <ClCompile Include="afp_volume.cpp">
+      <Filter>Source Files\fp-classes</Filter>
+    </ClCompile>
+    <ClCompile Include="afp_volumes.cpp">
+      <Filter>Source Files\fp-classes</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="afp-source\headers\afpworker.h">
@@ -235,12 +241,20 @@
     <ClInclude Include="afp-source\fp-imp\logonimp.h">
       <Filter>Source Files\fp-imp</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\fp-imp\fdparms.h" />
     <ClInclude Include="afp-source\dsi\dsi_init.h">
       <Filter>Source Files\dsi</Filter>
     </ClInclude>
     <ClInclude Include="afp-source\fp-imp\volumes.h">
       <Filter>Source Files\fp-imp</Filter>
+    </ClInclude>
+    <ClInclude Include="afp_volume.h">
+      <Filter>Source Files\fp-classes</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\fp-imp\fdparms.h">
+      <Filter>Source Files\fp-imp</Filter>
+    </ClInclude>
+    <ClInclude Include="afp_volumes.h">
+      <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

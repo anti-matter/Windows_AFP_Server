@@ -1,9 +1,8 @@
 #pragma once
 
-#include "volumes.h"
-
 #define SUBKEY_BASEPARAMS	TEXT("Software\\MacFile\\afpserver")
 #define SUBKEY_VOLUMES		TEXT("Software\\MacFile\\afpserver\\volumes")
+#include "afp.h"
 
 enum
 {

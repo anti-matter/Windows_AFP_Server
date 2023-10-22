@@ -40,7 +40,7 @@ namespace dsi
 		{
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 
-			DBGWRITE(dbg_level_info, L"Inializing listening socket.");
+			DBGWRITE(dbg_level_info, L"Inializing listening socket.\n");
 
 			listen_socket = socket(AF_INET, SOCK_STREAM, 0);
 			if (listen_socket == INVALID_SOCKET)
@@ -57,7 +57,7 @@ namespace dsi
 			auto error = bind(listen_socket, reinterpret_cast<PSOCKADDR>(&internet_address), sizeof(internet_address));
 			if (error != ERROR_SUCCESS)
 			{
-				DBGWRITE(dbg_level_error, L"Failed to bind accept socket (%d)", WSAGetLastError());
+				DBGWRITE(dbg_level_error, L"Failed to bind accept socket (%d)\n", WSAGetLastError());
 
 				closesocket(listen_socket);
 				continue;
@@ -66,7 +66,7 @@ namespace dsi
 			error = listen(listen_socket, SOMAXCONN);
 			if (error == SOCKET_ERROR)
 			{
-				DBGWRITE(dbg_level_error, L"listen() failed (%d)", WSAGetLastError());
+				DBGWRITE(dbg_level_error, L"listen() failed (%d)\n", WSAGetLastError());
 
 				closesocket(listen_socket);
 				continue;

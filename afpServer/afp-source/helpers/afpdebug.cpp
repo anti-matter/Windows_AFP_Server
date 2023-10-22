@@ -22,10 +22,27 @@ void afp_debug_write(_In_ const dbg_level debug_level, _In_ const std::string& f
 	va_start(args, format);
 
 	// Don't halt thread execution waiting for debug output.
-	auto future = std::async(std::launch::async, [function,format,args]()
+	auto future = std::async(std::launch::async, [debug_level,function,format,args]()
 	{
+		std::wstring level;
+        switch (debug_level)
+        {
+        case dbg_level_error:
+			level = L"[ERROR]";
+			break;
+        case dbg_level_warning:
+			level = L"[WARNING]";
+			break;
+        case dbg_level_info:
+			level = L"[INFO]";
+			break;
+        case dbg_level_all:
+			level = L"[ALL]";
+			break;
+        }
+
 		std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-		const std::wstring combined = L"[" + converter.from_bytes(function) + L"]" + format;
+		const std::wstring combined = level + L"[" + converter.from_bytes(function) + L"]" + format;
 
 		// Len + terminating character
 		const auto len = _vscwprintf(combined.c_str(), args) + 1;

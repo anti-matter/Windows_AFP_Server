@@ -118,12 +118,7 @@ public:
             return false;
         });
 
-        if (it != m_data_.end())
-        {
-            return it->get();
-        }
-
-        return nullptr;
+        return it == m_data_.end() ? nullptr : it->get();
     }
 
     /*

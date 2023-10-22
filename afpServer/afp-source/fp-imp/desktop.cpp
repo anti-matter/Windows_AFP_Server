@@ -10,6 +10,9 @@
 #include "StdAfx.h"
 #include "afpdebug.h"
 #include "desktop.h"
+
+#include <codecvt>
+
 #include "volumes.h"
 #include "fpinfo.h"
 #include "fdparms.h"
@@ -58,11 +61,10 @@ AFPERROR AFPFindEntry(
         return afpParmErr;
     }
 
-    auto entry = volumeInfo->desktop->find_entry(searchEntry, wSearchIndex);
-
+    const auto entry = volumeInfo->desktop->find_entry(searchEntry, wSearchIndex);
     if (entry != nullptr)
     {
-        DBGWRITE(dbg_level_info, L"[desk:AFPFindEntry]Found entry for file = %s\n", entry->pathname);
+        //DBGWRITE(dbg_level_info, L"[desk:AFPFindEntry]Found entry for file = %s\n", entry->pathname);
 
         // Make a copy instead of passing original pointer.
         memcpy_s(foundEntry, sizeof(DESKTOP_ENTRY), entry, sizeof(DESKTOP_ENTRY));
@@ -108,7 +110,7 @@ AFPERROR AFPAddEntry(
     //
     //Search to see if the data we want to add already exists.
     //
-    auto existingEntry = volumeInfo->desktop->find_entry(newEntry);
+    const auto existingEntry = volumeInfo->desktop->find_entry(newEntry);
 
     //
     //If we find an entry in the data base that matches the new entry, we
