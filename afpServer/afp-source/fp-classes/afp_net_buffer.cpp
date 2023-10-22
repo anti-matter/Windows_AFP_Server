@@ -274,22 +274,28 @@ void afp_net_buffer::pull_raw_data(void* buffer, const size_t amount)
  */
 AFPERROR afp_net_buffer::push_pascal_string(const char* string)
 {
-	if (string != nullptr)
+	constexpr size_t max_pascal_string_length = 255;
+
+	if (string == nullptr)
 	{
-		const auto cb_string = strlen(string);
-
-		if (mCurrentPos - mBuffer + cb_string + 1 <= mBufferSize)
-		{
-			*mCurrentPos++ = static_cast<char>(cb_string);
-			memcpy(mCurrentPos, string, cb_string);
-
-			mCurrentPos += cb_string;
-
-			return AFP_OK;
-		}
+		return afpParmErr;
 	}
 
-	return afpParmErr;
+	const auto cb_string = strlen(string);
+	if (cb_string > max_pascal_string_length || not_enough_space(cb_string))
+	{
+		return afpParmErr;
+	}
+
+	const INT8 p_len = static_cast<INT8>(cb_string);
+
+	// Push the preceding string length byte in the reply.
+	push_num(p_len);
+
+	// Now the rest.
+	push_raw_data(string, cb_string);
+
+	return AFP_OK;
 }
 
 /*
@@ -387,28 +393,6 @@ AFPERROR afp_net_buffer::push_int32(const INT32 value)
 AFPERROR afp_net_buffer::push_int64(const INT64 value)
 {
 	return push_num<INT64>(value);
-}
-
-/*
- * push_raw_data()
- *
- * Description:
- *		InAdds raw data into the buffer and advances the
- *		buffer pointer.
- *
- * Returns: AFPERROR
- */
-AFPERROR afp_net_buffer::push_raw_data(const void* data, const size_t size)
-{
-	if (mCurrentPos - mBuffer + size <= mBufferSize)
-	{
-		memcpy(mCurrentPos, data, size);
-		mCurrentPos += size;
-
-		return (AFP_OK);
-	}
-
-	return afpParmErr;
 }
 
 bool afp_net_buffer::check_space_needed(const size_t space_needed) const

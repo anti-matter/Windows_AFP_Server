@@ -85,7 +85,7 @@ AFPERROR FPGetSrvrParms(
 			continue;
 		}
 
-		DBGWRITE(dbg_level_all, L"[AFP]Stuffing volume: %s\n", afp_volume_info->szShareName);
+		DBGWRITE(dbg_level_all, L"Stuffing volume: %s\n", afp_volume_info->szShareName);
 
 		afp_reply.push_num(afp_volume_info->bAFPFlags);
 		afp_reply.push_pascal_string(afp_volume_info->szShareName);

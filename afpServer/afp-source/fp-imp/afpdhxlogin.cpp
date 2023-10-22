@@ -32,140 +32,122 @@ AFPERROR DHXLogin(
 )
 {
 	unsigned char iv[] = "CJalbert";
-	uint8 p[] = {
+    const uint8 p[] = {
 		0xBA, 0x28, 0x73, 0xDF, 0xB0, 0x60, 0x57, 0xD4,
 		0x3F, 0x20, 0x24, 0x74, 0x4C, 0xEE, 0xE7, 0x5B
 	};
-	uint8 g = 0x07;
-	BIGNUM* gbn = NULL;
-	BIGNUM* pbn = NULL;
-	DH* dh = NULL;
+    constexpr uint8 g = 0x07;
 	AFPERROR afpError = afpParmErr;
+	DH* dh = NULL;
 	uint8 randbuf[DHX_RANDBUFSIZE];
-	CAST_KEY castkey;
-	int i;
 
-	if (dhxInfo == NULL)
+    if (dhxInfo == NULL)
 	{
 		DBGWRITE(dbg_level_info, L"dhxInfo invalid\n");
-		return (afpParmErr);
+		return afpParmErr;
 	}
 
-	//
-	//Obtain the client's public key
-	//
-	BIGNUM* bn = BN_bin2bn((unsigned char*)afpRequest.get_current_pos_ptr(), DHX_KEYSIZE, NULL);
-
-	if (bn == NULL)
+	// Obtain the client's public key from the request.
+	BIGNUM* client_pub_key = BN_bin2bn((unsigned char*)afpRequest.get_current_pos_ptr(), DHX_KEYSIZE, NULL);
+	if (client_pub_key == NULL)
 	{
 		DBGWRITE(dbg_level_info, L"BN_bin2bn() failed obtaining the client's key\n");
 		goto exit;
 	}
 
-	//
-	//Obtain our primes
-	//
-	gbn = BN_bin2bn(&g, sizeof(g), NULL);
-
+	// Obtain our primes
+	BIGNUM* gbn = BN_bin2bn(&g, sizeof(g), NULL);
 	if (gbn == NULL)
 	{
-		DBGWRITE(dbg_level_info, L"BN_bin2bn() failed obtaining obtaining our primes1\n");
+		DBGWRITE(dbg_level_info, L"BN_bin2bn() failed obtaining our primes1\n");
 		goto exit;
 	}
 
-	pbn = BN_bin2bn(p, sizeof(p), NULL);
-
+    BIGNUM* pbn = BN_bin2bn(p, sizeof(p), NULL);
 	if (pbn == NULL)
 	{
 		DBGWRITE(dbg_level_info, L"BN_bin2bn() failed obtaining our primes2\n");
 		goto exit;
 	}
 
-	dh = DH_new();
-
+    dh = DH_new();
 	if (dh == NULL)
 	{
 		DBGWRITE(dbg_level_info, L"DH_new() failed creating new DH context\n");
 		goto exit;
 	}
 
-	//
-	//Generate the key and ensure we have enough space
-	//
-	const BIGNUM* qs;
-	const BIGNUM* ps;
-	const BIGNUM* gs;
+	if (!DH_set0_pqg(dh, pbn, nullptr, gbn))
+	{
+		DBGWRITE(dbg_level_error, L"DH_set0_pqg() failed.\n");
+		goto exit;
+	}
 
-	DH_get0_pqg(dh, &ps, &qs, &gs);
-	DH_set0_pqg(dh, pbn, const_cast<BIGNUM*>(qs), gbn);
-
-	if (!DH_generate_key(dh) || (BN_num_bytes(DH_get0_pub_key(dh)) > DHX_KEYSIZE))
+	// Generate the key
+	if (!DH_generate_key(dh))
 	{
 		DBGWRITE(dbg_level_info, L"DH_generate_key() failed generating our public keys\n");
 		goto exit;
 	}
 
-	pbn = NULL;
-	gbn = NULL;
+	const BIGNUM* pub_key;
+	DH_get0_key(dh, &pub_key, nullptr);
+	if (BN_num_bytes(pub_key) > DHX_KEYSIZE)
+	{
+		ASSERT(0);
+	}
 
-	//
-	//Figure out the key, use the reply buffer as a temporary buffer.
-	//
-	i = DH_compute_key((unsigned char*)afpReply.get_current_pos_ptr(), bn, dh);
+	// Figure out the key and stick it in our reply buffer.
+	CAST_KEY cast_key;
+    const int i = DH_compute_key((unsigned char*)afpReply.get_current_pos_ptr(), client_pub_key, dh);
+ 	CAST_set_key(&cast_key, i, (unsigned char*)afpReply.get_current_pos_ptr());
 
-	//
-	//Now, set the key
-	//
-	CAST_set_key(&castkey, i, (unsigned char*)afpReply.get_current_pos_ptr());
-
-	//
-	//Compute and set the session id which is based on our session object
-	//
+	// Compute and set the session id which is based on our session object
 	const uint16 sessid = dhxhash((ULONG_PTR)dsiSession);
 	afpReply.push_num(sessid);
 
-	//
-	//Send our public key along to the client
-	//
-	BN_bn2bin(DH_get0_pub_key(dh), (unsigned char*)afpReply.get_current_pos_ptr());
+	// Include the public key in reply.
+	BN_bn2bin(pub_key, (unsigned char*)afpReply.get_current_pos_ptr());
 	afpReply.advance_pos_ptr(DHX_KEYSIZE);
 
-	//
-	//Now we setup our buffer to be encrypted.
-	//
-	afpGetRandomNumber(dsiSession, (char*)randbuf, sizeof(randbuf));
+	// Now we setup our buffer to be encrypted.
+ 	afpGetRandomNumber(dsiSession, (char*)randbuf, sizeof(randbuf));
 
-	memcpy(afpReply.get_current_pos_ptr(), &randbuf, sizeof(randbuf));
-	memset((unsigned char*)afpReply.get_current_pos_ptr() + DHX_RANDBUFSIZE, 0, DHX_RANDBUFSIZE);
+	unsigned char encrypt_buffer[DHX_CRYPTBUFLEN] = {};
+	memcpy(encrypt_buffer, &randbuf, sizeof(randbuf));
+	memset(encrypt_buffer + DHX_RANDBUFSIZE, 0, DHX_RANDBUFSIZE);
 
 	CAST_cbc_encrypt(
-		(unsigned char*)afpReply.get_current_pos_ptr(),
+		encrypt_buffer,
 		(unsigned char*)afpReply.get_current_pos_ptr(),
 		DHX_CRYPTBUFLEN,
-		&castkey,
+		&cast_key,
 		iv,
 		CAST_ENCRYPT
 	);
 
 	afpReply.advance_pos_ptr(DHX_CRYPTBUFLEN);
 
-	//
-	//Save off all the needed information for the login continue
-	//API call. This is stored in a blob in the afpSession object.
-	//
+	// Save off all the needed information for the login continue
+	// API call. This is stored in a blob in the afpSession object.
 	memcpy(dhxInfo->randomBuffer, randbuf, sizeof(randbuf));
-	memcpy(&dhxInfo->cast_key, &castkey, sizeof(castkey));
+	memcpy(&dhxInfo->cast_key, &cast_key, sizeof(cast_key));
 	dhxInfo->sessionID = sessid;
 
 	afpError = afpAuthContinue;
 
 exit:
-	if (bn) BN_free(bn);
-	if (gbn) BN_free(gbn);
-	if (pbn) BN_free(pbn);
-	if (dh) DH_free(dh);
+	if (client_pub_key)
+    {
+        BN_free(client_pub_key);
+    }
 
-	return (afpError);
+	if (dh)
+    {
+        DH_free(dh);
+    }
+
+	return afpError;
 }
 
 
@@ -175,8 +157,8 @@ exit:
  * Description:
  *		Continue a login sequence for the DHCAST128 UAM.
  *
- *		Note that this funciton expects the afpReqBuffer to point at
- *		the positino just past the afp command and flags fields.
+ *		Note that this function expects the afpReqBuffer to point at
+ *		the position just past the afp command and flags fields.
  *
  * Returns: AFPERROR
  */
@@ -193,12 +175,12 @@ AFPERROR DHXLoginContinue(
 	UNREFERENCED_PARAMETER(dsiSession);
 
 	unsigned char iv[] = "LWallace";
-	char* tempBuf = afpReply.get_current_pos_ptr(); //use as temporary buffer space
+	char* tempBuf = afpReply.get_current_pos_ptr();
 
 	if (dhxInfo == NULL)
 	{
 		DBGWRITE(dbg_level_info, L"[afpuser:DHXLoginContinue]dhxInfo invalid\n");
-		return (afpMiscErr);
+		return afpMiscErr;
 	}
 
 	//
@@ -212,7 +194,7 @@ AFPERROR DHXLoginContinue(
 	{
 		DBGWRITE(dbg_level_info, L"[afpuser:DHXLoginContinue]Session ID's don't match! (%d vs. %d)\n", sessionID,
 		         dhxhash((ULONG_PTR)dsiSession));
-		return (afpParmErr);
+		return afpParmErr;
 	}
 
 	//
@@ -315,7 +297,7 @@ AFPERROR DHXChangePassword(
 
 	//
 	//If there is no ID in the buffer, then this is the first time through
-	//the change pswrd process. We need to call the login stuff again to
+	//the change password process. We need to call the login stuff again to
 	//setup all the key exchanges.
 	//
 	if (sessionID == 0)
@@ -480,7 +462,7 @@ exit:
 
 	DBGWRITE(dbg_level_info, L"[afpuser:DHXCheckRandnum]Returning: %d\n", afpError);
 
-	return (afpError);
+	return afpError;
 }
 
 

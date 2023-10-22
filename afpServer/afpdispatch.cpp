@@ -180,6 +180,10 @@ AFPERROR fp_dispatch_command(
 			afp_error = FPContLogin(afp_request, afp_reply, connection);
 			break;
 
+		case afpLogout:
+			afp_error = FPLogout(afp_request, afp_reply, connection);
+			break;
+
 		default:
 			DBGWRITE(dbg_level_info, L"Call not implemented (%d)\n", afp_command);
 			afp_error = afpAccessDenied;

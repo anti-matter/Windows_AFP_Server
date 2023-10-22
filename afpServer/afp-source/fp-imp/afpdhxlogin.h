@@ -32,8 +32,8 @@
 //
 struct DHXInfo
 {
-	int16 sessionID;
-	uint8 randomBuffer[16];
+	UINT16 sessionID;
+	UINT8 randomBuffer[16];
 	CAST_KEY cast_key;
 };
 

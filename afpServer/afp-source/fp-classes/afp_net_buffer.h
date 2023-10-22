@@ -35,8 +35,6 @@ public:
 	AFPERROR push_int32(INT32 value);
 	AFPERROR push_int64(INT64 value);
 
-	AFPERROR push_raw_data(const void* data, size_t size);
-
 	INT32 get_data_length() const;
 
 	void add_parameter_offset(INT16 offset, INT16 value);
@@ -47,7 +45,8 @@ public:
 
 	char* get_current_pos_ptr() const;
 	void advance_pos_ptr(UINT32 offset);
-	void advance_if_odd();
+    void push_raw_data(const void* data, size_t size);
+    void advance_if_odd();
 	void advance_to(INT32 offset);
 	char* get_buffer() const;
 	size_t get_buffer_size() const;
@@ -195,6 +194,20 @@ inline void afp_net_buffer::advance_pos_ptr(const UINT32 offset)
 	}
 
 	mCurrentPos += offset;
+}
+
+inline void afp_net_buffer::push_raw_data(const void* data, const size_t size)
+{
+	if (will_overflow(size))
+	{
+		DBGWRITE(dbg_level_error, L"Overflow pushing raw data to buffer! size = %d\n", size);
+		ASSERT(0);
+
+		return;
+	}
+
+	memcpy(get_current_pos_ptr(), data, size);
+	advance_pos_ptr(size);
 }
 
 inline void afp_net_buffer::advance_if_odd()

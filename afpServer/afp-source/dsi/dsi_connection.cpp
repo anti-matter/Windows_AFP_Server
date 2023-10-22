@@ -106,7 +106,7 @@ namespace dsi
 			do
 			{
 				// We have the entire DSI header and AFP payload.
-				process_dsi_packet();
+				process_dsi_packet(bytes_in_buffer);
 
 				// Check for connection closure.
 				if (!continue_receive_)
@@ -135,18 +135,26 @@ namespace dsi
 						afp_data_length = ntohl(*reinterpret_cast<ULONG*>(&receive_buffer_[dsi_offset_data_len]));
 					}
 				}
+				else
+				{
+					bytes_in_buffer = 0;
+				}
 			} while (bytes_in_buffer >= dsi_header_size + afp_data_length);
 		}
 	}
 
-	void dsi_connection::process_dsi_packet()
+	void dsi_connection::process_dsi_packet(const UINT16 bytes_in_buffer)
 	{
+		DBGWRITE(dbg_level_info, L"Receive buffer:\n");
+		DBG_DUMP_BUFFER(&receive_buffer_[0], bytes_in_buffer);
+
 		// Extract the DSI header parameters.
-		const auto dsi_flags = *reinterpret_cast<INT8*>(&receive_buffer_[dsi_offset_flags]);
-		const auto dsi_command = *reinterpret_cast<INT8*>(&receive_buffer_[dsi_offset_command]);
-		const auto dsi_request_id = ntohs(*reinterpret_cast<UINT16*>(&receive_buffer_[dsi_offset_request_id]));
-		const auto dsi_data_offset = ntohl(*reinterpret_cast<UINT32*>(&receive_buffer_[dsi_offset_data_offset]));
-		const auto dsi_data_length = ntohl(*reinterpret_cast<UINT32*>(&receive_buffer_[dsi_offset_data_len]));
+		afp_net_buffer header(&receive_buffer_[0], dsi_header_size);
+		const auto dsi_flags = header.pull_num<INT8>();
+		const auto dsi_command = header.pull_num<INT8>();
+		const auto dsi_request_id = header.pull_num<UINT16>();
+		const auto dsi_data_offset = header.pull_num<UINT32>();
+		const auto dsi_data_length = header.pull_num<UINT32>();
 
 		last_tickle_ = GetTickCount64();
 
@@ -191,6 +199,7 @@ namespace dsi
 					if (dsi_command != dsi_cmd_tickle)
 					{
 						send_reply(reply_buffer.get(), dsi_command, afpParmErr, 0);
+						ASSERT(0);
 					}
 
 					return;
@@ -261,37 +270,37 @@ namespace dsi
 	{
 		DBGWRITE(dbg_level_info, L"DSI open session command received (cid: %d).\n", connection_id_);
 
-		//afp_net_buffer request(&receive_buffer_[dsi_offset_data_start], dsi_server_request_quantum_size);
-
-		const auto option = receive_buffer_[dsi_offset_data_start];
-		const auto option_size = receive_buffer_[dsi_offset_data_start+sizeof(BYTE)];
+		afp_net_buffer request(&receive_buffer_[dsi_offset_data_start], dsi_server_request_quantum_size);
+		const auto option = request.pull_num<INT8>();
+		const auto option_size = request.pull_num<INT8>();
 
 		if (option_size == sizeof(UINT32) && option == attention_quantum)
 		{
-			attention_quantum_size_ = (DWORD UNALIGNED)receive_buffer_[dsi_offset_data_start + sizeof(UINT16)];
+			attention_quantum_size_ = request.pull_num<UINT32>();
 			DBGWRITE(dbg_level_info, L"Attention quantum size: %d\n", attention_quantum_size_);
 		}
 
-		DBG_DUMP_BUFFER(receive_buffer_.get(), dsi_header_size + sizeof(UINT16) + sizeof(UINT32));
-
 		// Get a buffer wrapper for out AFP payload.
 		afp_net_buffer reply(&reply_buffer[dsi_offset_data_start], dsi_server_request_quantum_size);
-
 		reply.push_num<UINT8>(server_request_quantum);
 		reply.push_num<UINT8>(sizeof(UINT32));
 		reply.push_num<UINT32>(dsi_server_request_quantum_size);
 
+		//Include the replay cache size option
+		reply.push_num<UINT8>(server_replay_cache_size);
+		reply.push_num<UINT8>(sizeof(int32));
+		reply.push_num<UINT32>(replay_cache_size);
+
 		send_reply(
 			reply_buffer.get(),
 			dsi_cmd_open_session,
-			0,
+			AFP_OK,
 			reply.get_data_length());
 
 		dsi_session_open_ = true;
 	}
 
-    // ReSharper disable once CppParameterMayBeConstPtrOrRef
-    void dsi_connection::dsi_close_session(std::unique_ptr<char[]>& reply_buffer)
+    void dsi_connection::dsi_close_session(std::unique_ptr<char[]> reply_buffer)
 	{
 		DBGWRITE(dbg_level_info, L"DSI close sesssion command received.\n");
 
@@ -317,14 +326,14 @@ namespace dsi
 
 		const auto afp_error = fp_dispatch_command(request, reply, this);
 		const auto data_size = afp_cmd == afpRead || afp_cmd == afpReadExt
-			? request.get_dsi_return_value()
-			: request.get_data_length();
+			? reply.get_dsi_return_value()
+			: reply.get_data_length();
 
 		send_reply(
 			reply_buffer.get(),
 			dsi_cmd,
 			afp_error,
-			data_size
+			static_cast<INT32>(data_size)
 		);
 
 		if (!session_authenticated_ && afp_error != afpAuthContinue)
@@ -356,19 +365,16 @@ namespace dsi
 		const INT32 afp_error,
 		const INT32 data_size)
 	{
-		// We're replying, set the correct flag and command we're replying to.
-		reply_buffer[dsi_offset_flags] = dsi_reply_flag;
-		reply_buffer[dsi_offset_command] = static_cast<char>(dsi_command);
+		// Can only send one at a time.
+		std::lock_guard<std::mutex> guard(send_mutex_);
 
-		// Insert the request ID and error code into the header.
-		*reinterpret_cast<UINT16*>(&reply_buffer[dsi_offset_request_id]) = htons(client_request_id_);
-		*reinterpret_cast<UINT32*>(&reply_buffer[dsi_offset_error_code]) = htonl(afp_error);
-
-		// Add the size of the AFP data we're including.
-		*reinterpret_cast<UINT32*>(&reply_buffer[dsi_offset_data_len]) = htonl(data_size);
-
-		// This is the reserved field in the header, it must be zero.
-		*reinterpret_cast<UINT32*>(&reply_buffer[dsi_offset_reserved]) = 0;
+		afp_net_buffer header(reply_buffer, dsi_header_size + data_size);
+		header.push_num<UINT8>(dsi_reply_flag);
+		header.push_num<UINT8>(dsi_command);
+		header.push_num<UINT16>(client_request_id_);
+		header.push_num<INT32>(afp_error);
+		header.push_num<UINT32>(data_size);
+		header.push_num<UINT32>(0);
 
 		UINT32 offset = 0;
 		INT32 bytes_sent;
@@ -376,11 +382,12 @@ namespace dsi
 
 		last_tickle_ = GetTickCount64();
 
+		DBGWRITE(dbg_level_info, L"Bytes to send: %d\n", bytes_size);
 		DBG_DUMP_BUFFER(reply_buffer, bytes_size);
 
 		do
 		{
-			bytes_sent = send(socket_, reply_buffer, bytes_size, 0);
+			bytes_sent = send(socket_, &reply_buffer[offset], bytes_size, 0);
 
 			if (bytes_sent < 0)
 			{
@@ -404,6 +411,8 @@ namespace dsi
 
 		} while (true);
 
+		DBGWRITE(dbg_level_info, L"Bytes sent: %d\n", bytes_sent);
+
 		if (bytes_sent < 0)
 		{
 			DBGWRITE(dbg_level_error, L"send() failed (%d)\n", WSAGetLastError());
@@ -413,14 +422,22 @@ namespace dsi
 
 	void dsi_connection::send_tickle()
 	{
-		send_reply(nullptr, dsi_cmd_tickle, AFP_OK, 0);
+        char reply_buffer[dsi_header_size] = {};
+
+		send_reply(reply_buffer, dsi_cmd_tickle, AFP_OK, 0);
 		last_tickle_ = GetTickCount64();
 	}
 
-    void dsi_connection::send_attention(UINT16 code)
+    void dsi_connection::send_attention(const UINT16 code)
     {
-		UINT16 swapped_code = htons(code);
-		send_reply(reinterpret_cast<char*>(&swapped_code), dsi_cmd_attention, AFP_OK, sizeof(UINT16));
+		char reply_buffer[dsi_header_size + sizeof(UINT16)] = {};
+
+		afp_net_buffer reply(&reply_buffer[dsi_offset_data_start], sizeof(UINT16));
+		reply.push_num(code);
+
+		DBGWRITE(dbg_level_info, L"Sending attention: %x\n", code);
+
+		send_reply(reply_buffer, dsi_cmd_attention, AFP_OK, sizeof(UINT16));
     }
 
     bool dsi_connection::client_lost() const

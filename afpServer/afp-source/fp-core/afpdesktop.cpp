@@ -277,7 +277,7 @@ AFPERROR FPAddComment(
 		new_entry.pathname,
 		sizeof(new_entry.pathname), 
 		true,
-		static_cast<INT8>(new_entry.pathType),
+		new_entry.pathType,
 		nullptr);
 
 	if (afp_error != AFP_OK)
@@ -289,7 +289,7 @@ AFPERROR FPAddComment(
 	afp_request.get_pascal_string(new_entry.data, sizeof(new_entry.data));
 
 	new_entry.entryType = ENTRY_TYPE_CMNT;
-	new_entry.dataSize = static_cast<size_t>(strlen(new_entry.data));
+	new_entry.dataSize = static_cast<UINT16>(strlen(new_entry.data));
 
 	const auto desktop = connection->get_afp_session()->find_desk_file(afp_dt_ref_num);
 

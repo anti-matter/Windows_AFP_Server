@@ -1,18 +1,14 @@
 #pragma once
+#include <mutex>
 #include <winsock2.h>
 
-// This is the largest request that the server can receive
-// from the client. It does not include the DSI header size.
-#define SRVR_REQUEST_QUANTUM_SIZE	(MAXSHORT-dsi_header_size)  // NOLINT(clang-diagnostic-macro-redefined)
-
-// DSIOpen option fields
 enum dsi_option_fields
 {
 	server_request_quantum = 0x00,
-	attention_quantum = 0x01
+	attention_quantum = 0x01,
+	server_replay_cache_size = 0x02
 };
 
-// Offsets for the DSI header fields
 enum dsi_header_offsets
 {
 	dsi_offset_flags = 0,
@@ -56,6 +52,7 @@ enum dsi_attention_flags
 
 constexpr UINT16 dsi_max_request_id = 65535;
 constexpr UINT32 dsi_server_request_quantum_size = MAXSHORT - dsi_header_size;
+constexpr UINT32 replay_cache_size = 32;
 
 #define RECV_BUFFER_SIZE (MAXSHORT)
 #define SEND_BUFFER_SIZE (MAXSHORT)
@@ -77,11 +74,11 @@ namespace dsi
 
 		void connection_thread();
 		void receive();
-		void process_dsi_packet();
+		void process_dsi_packet(UINT16 bytes_in_buffer);
 
 		void dsi_send_server_status(std::unique_ptr<char[]> reply_buffer);
 		void dsi_open_session(std::unique_ptr<char[]> reply_buffer);
-		void dsi_close_session(std::unique_ptr<char[]>& reply_buffer);
+		void dsi_close_session(std::unique_ptr<char[]> reply_buffer);
 		void dsi_process_command(std::unique_ptr<char[]> reply_buffer, UINT8 dsi_cmd, UINT8 afp_cmd);
 
 		UINT16 adjust_client_request_id(UINT16 id_from_client);
@@ -153,5 +150,7 @@ namespace dsi
 
 		std::wstring user_name_;
 		std::wstring domain_name_;
+
+		std::mutex send_mutex_;
 	};
 }

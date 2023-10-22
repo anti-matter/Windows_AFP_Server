@@ -353,6 +353,7 @@ AFPERROR FPLogin(
 
 			afp_path_type = afp_request.pull_num<INT8>();
 			afp_request.get_pascal_string(sz_pathname, sizeof(sz_pathname), false, afp_path_type);
+			DBGWRITE(dbg_level_info, L"pathname: %s\n", sz_pathname);
 		}
 		else
 		{
