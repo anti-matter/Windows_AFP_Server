@@ -65,6 +65,6 @@ afp_open_file* open_file(
 	uint32 dir_id,
 	int16 access_mode,
 	int8 fork_to_open,
-	p_afp_index entry,
+	afp_index* entry,
 	const WCHAR* win_path
 );

@@ -28,19 +28,19 @@ namespace dsi
 
     dsi_connections::~dsi_connections()
     {
-		std::lock_guard<std::mutex> guard(connections_mutex_);
+		std::lock_guard guard(connections_mutex_);
 
     }
 
     void dsi_connections::track_connection(std::unique_ptr<dsi_connection>& connection)
 	{
-		std::lock_guard<std::mutex> guard(connections_mutex_);
+		std::lock_guard guard(connections_mutex_);
 		connections_.push_back(std::move(connection));
 	}
 
 	void dsi_connections::stop_tracking(UINT32 connection_id)
 	{
-		std::lock_guard<std::mutex> guard(connections_mutex_);
+		std::lock_guard guard(connections_mutex_);
 		const auto itr = std::remove_if(
 			connections_.begin(),
 			connections_.end(),
@@ -54,7 +54,7 @@ namespace dsi
 
 	void dsi_connections::periodic_thread()
 	{
-		std::lock_guard<std::mutex> guard(connections_mutex_);
+		std::lock_guard guard(connections_mutex_);
 
 		for (const auto& connection : connections_)
 		{
@@ -74,7 +74,7 @@ namespace dsi
 
 	afp_session* dsi_connections::find_afp_session_with_id(const char* afp_id, const UINT32 id_size)
 	{
-		std::lock_guard<std::mutex> guard(connections_mutex_);
+		std::lock_guard guard(connections_mutex_);
 
 		for (const auto& connection : connections_)
 		{
@@ -95,7 +95,7 @@ namespace dsi
 
 	afp_session* dsi_connections::find_afp_session_with_token(const UINT32 token)
 	{
-		std::lock_guard<std::mutex> guard(connections_mutex_);
+		std::lock_guard guard(connections_mutex_);
 
 		for (const auto& connection : connections_)
 		{
@@ -114,7 +114,7 @@ namespace dsi
 
     void dsi_connections::broadcast_attention(const UINT16 code)
     {
-		std::lock_guard<std::mutex> guard(connections_mutex_);
+		std::lock_guard guard(connections_mutex_);
 
 		for (const auto& connection : connections_)
 		{
@@ -124,7 +124,7 @@ namespace dsi
 
     UINT16 dsi_connections::count(const bool authenticated_only)
     {
-		std::lock_guard<std::mutex> guard(connections_mutex_);
+		std::lock_guard guard(connections_mutex_);
 
 		UINT16 result = 0;
 

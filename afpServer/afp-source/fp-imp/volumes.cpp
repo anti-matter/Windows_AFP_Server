@@ -12,9 +12,10 @@
 #include "afpworker.h"
 #include "afp_net_buffer.h"
 #include "afp_registry.h"
+#include "afp_volumes.h"
 #include "volume_array.h"
 
-volume_array g_volume_array;
+extern std::unique_ptr<afp_volumes> g_volumes;
 USHORT gNextVolumeID = 65535;
 
 
@@ -68,8 +69,8 @@ DWORD WINAPI InitializeVolumesThread(
 
 DWORD AFPAddNewVolumeFromUI(
     IN WCHAR* szSharename,
-       IN WCHAR* szPath,
-       IN WCHAR* szPassword
+    IN WCHAR* szPath,
+    IN WCHAR* szPassword
 )
 {
     afp_registry theRegistry;
@@ -151,11 +152,11 @@ void AFPInitializeVolumes()
 
 AFP_VOLUME_INFO* AFPAddVolume(
     IN PWCHAR pszShareName,
-       IN PWCHAR pszPath,
-       IN DWORD dwFlags
+    IN PWCHAR pszPath,
+    IN DWORD dwFlags
 )
 {
-    p_afp_index pIndex;
+    afp_index* pIndex;
     WIN32_FILE_ATTRIBUTE_DATA winAttribData;
     DWORD dwError;
     WCHAR szWinPath[MAX_PATH];
@@ -213,7 +214,7 @@ AFP_VOLUME_INFO* AFPAddVolume(
     //Create the Afp_AfpInfo stream that holds FinderInfo for the root dir.
     //
     AFPCheckForAndAddFinderInfoStream(pIndex);
-    StringCbPrintf(szWinPath, sizeof(szWinPath), TEXT("%s:%s"), pIndex->sz_path, AFP_INFO_STREAM_NAME);
+    StringCbPrintf(szWinPath, sizeof(szWinPath), TEXT("%s:%s"), pIndex->sz_path.c_str(), AFP_INFO_STREAM_NAME);
 
     hFile = CreateFile(
         szWinPath,
@@ -278,8 +279,8 @@ AFP_VOLUME_INFO* AFPAddVolume(
     hThread = CreateThread(
         nullptr,
         0,
-        AFPNotifyThread,
-        static_cast<LPVOID>(tempVolume),
+        afp_notify_thread,
+        tempVolume,
         0,
         &dwThreadID
     );
@@ -372,17 +373,17 @@ AFPERROR AFPRemoveAllVolumes()
 // szVolName is NULL, then the search is performed using the vol id.
 //
 
-BOOL AFPGetVolumeInfoBlock(
-    IN PWCHAR szVolName,
-       IN WORD wVolID,
-       OUT AFP_VOLUME_INFO** ppVolInfo
+BOOL afp_get_volume_info_block(
+    IN const PWCHAR volume_name,
+    IN const WORD volume_id,
+    OUT afp_volume** volume
 )
 {
-    *ppVolInfo = szVolName != nullptr
-                    ? g_volume_array.find_by_name(szVolName)
-                    : g_volume_array.find_by_id(wVolID);
+    *volume = volume_name != nullptr
+                     ? g_volumes->find(volume_name)
+                     : g_volumes->find(volume_id);
 
-    return *ppVolInfo != nullptr;
+    return *volume != nullptr;
 }
 
 
@@ -394,7 +395,7 @@ BOOL AFPGetVolumeInfoBlock(
 
 BOOL AFPMapVolumeNameToID(
     IN PWCHAR szVolumeName,
-       OUT PWORD wVolID
+    OUT PWORD wVolID
 )
 {
     auto volumeInfo = g_volume_array.find_by_name(szVolumeName);
@@ -461,8 +462,8 @@ BYTE AFPNumVolumesShared()
 
 AFPERROR AFPGetVolumeParameters(
     IN WORD afpVolumeID,
-       IN WORD afpBitmap,
-       IN afp_net_buffer& afpReply
+    IN WORD afpBitmap,
+    IN afp_net_buffer& afpReply
 )
 {
     DWORD dwError;
@@ -497,7 +498,7 @@ AFPERROR AFPGetVolumeParameters(
         i64NumBytesInDisk.QuadPart = 0;
         i64NumFreeBytes.QuadPart = 0;
 
-        if (!GetDiskFreeSpaceEx(
+        if (GetDiskFreeSpaceEx(
             afpVolume->szPath,
             &i64FreeBytesAvailable,
             &i64NumBytesInDisk,
@@ -738,12 +739,12 @@ void AFPMarkVolumeDirty(
 
 AFPERROR AFPIndexBuild(
     IN PWCHAR pPath,
-       IN DWORD dwParID,
-       IN AFP_VOLUME_INFO* pVInfo
+    IN DWORD dwParID,
+    IN AFP_VOLUME_INFO* pVInfo
 )
 {
-    p_afp_index pIndex;
-    const auto cbPath = MAX_PATH * sizeof(WCHAR);
+    afp_index* pIndex;
+    constexpr auto cbPath = MAX_PATH * sizeof(WCHAR);
     WIN32_FIND_DATA findData;
 
 #if defined(DBG) || defined(_DEBUG)
@@ -770,7 +771,7 @@ AFPERROR AFPIndexBuild(
     }
     else
     {
-        DWORD dwNewDirID;
+        UINT32 dwNewDirID;
 
         auto_lock lock(&pVInfo->csNotifyQueue);
 
@@ -832,7 +833,7 @@ AFPERROR AFPIndexBuild(
                     //to the index. So we don't run out of stack, what we do it post a new
                     //worker element to a worker thread that will call this function again.
                     //
-                    AFPAddDirectoryToIndexWorkerQueue(pVInfo, path.get(), dwNewDirID);
+                    afp_add_directory_to_index_worker_queue(pVInfo, path.get(), dwNewDirID);
                 }
             }
             else
@@ -868,18 +869,18 @@ AFPERROR AFPIndexBuild(
 
 
 //---------------------------------------------------------------------
-// AFPAddDirectoryToIndexWorkerQueue()
+// afp_add_directory_to_index_worker_queue()
 //---------------------------------------------------------------------
 // Add a new directory to be indexed to the worker thread queue.
 //
 
-void AFPAddDirectoryToIndexWorkerQueue(
-    IN AFP_VOLUME_INFO* pVolInfo,
-       IN PWCHAR pPath,
-       IN DWORD dwParentID
+void afp_add_directory_to_index_worker_queue(
+    IN afp_volume* volume,
+    IN const std::filesystem::path& dir_path,
+    IN DWORD dir_parent_id
 )
 {
-    const auto cbNewPath = MAX_PATH * sizeof(WCHAR);
+    constexpr auto cbNewPath = MAX_PATH * sizeof(WCHAR);
     auto newWorker = static_cast<PAFP_WORKER_ELEMENT>(DBG_ALLOC(sizeof(AFP_WORKER_ELEMENT)));
 
     if (newWorker != nullptr)
@@ -915,14 +916,14 @@ void AFPAddDirectoryToIndexWorkerQueue(
 // Add a new directory or file to the afp index.
 //
 
-p_afp_index AFPIndexAddEntry(
+afp_index* AFPIndexAddEntry(
     IN AFP_VOLUME_INFO* pPassedVolInfo OPTIONAL,
-       IN WORD wVolID OPTIONAL,
-       IN DWORD dwParID,
-       IN PWCHAR pObjectName,
-       IN PWCHAR pObjectPath,
-       IN bool isDirectory,
-       OUT PDWORD pdwNewDirID
+    IN WORD wVolID OPTIONAL,
+    IN DWORD dwParID,
+    IN PWCHAR pObjectName,
+    IN PWCHAR pObjectPath,
+    IN bool isDirectory,
+    OUT UINT32* pdwNewDirID
 )
 {
     AFP_VOLUME_INFO* pVolInfo = nullptr;
@@ -963,11 +964,11 @@ p_afp_index AFPIndexAddEntry(
 //
 
 AFPERROR AFPIndexUpdateEntry(
-    IN AFP_VOLUME_INFO* pVolInfo,
-       IN WORD wVolID,
-       IN p_afp_index pEntry,
-       IN p_afp_index pNewParentEntry,
-       IN PWCHAR pNewName
+    IN afp_volume* pVolInfo,
+    IN WORD wVolID,
+    IN afp_index* pEntry,
+    IN afp_index* pNewParentEntry,
+    IN PWCHAR pNewName
 )
 {
     auto pVInfo = pVolInfo;
@@ -978,7 +979,7 @@ AFPERROR AFPIndexUpdateEntry(
     //
     if (pVInfo == nullptr)
     {
-        if (AFPGetVolumeInfoBlock(nullptr, wVolID, &pVInfo) == FALSE)
+        if (afp_get_volume_info_block(nullptr, wVolID, &pVInfo) == FALSE)
         {
             DBGWRITE(dbg_level_info, L"[VOL]Bad volume ID!\n");
             return afpParmErr;
@@ -1001,8 +1002,8 @@ AFPERROR AFPIndexUpdateEntry(
 //
 
 AFPERROR AFPIndexUpdateEntryFlags(
-    IN p_afp_index pEntry,
-       IN WORD wFlags
+    IN afp_index* pEntry,
+    IN WORD wFlags
 )
 {
     ASSERT(pEntry != NULL);
@@ -1048,8 +1049,8 @@ AFPERROR AFPIndexUpdateEntryFlags(
 
 void AFPIndexRemoveEntry(
     IN AFP_VOLUME_INFO* pInfo,
-       IN p_afp_index pEntry,
-       IN bool deleteDirectorySubTree
+    IN afp_index* pEntry,
+    IN bool deleteDirectorySubTree
 )
 {
     pInfo->index->remove_entry(pEntry->object_id, deleteDirectorySubTree);
@@ -1065,9 +1066,9 @@ void AFPIndexRemoveEntry(
 
 AFPERROR AFPIndexFindEntryWithVolIDAndPath(
     IN WORD wVolID,
-       IN DWORD dwDirID,
-       IN PWCHAR pPath,
-       OUT p_afp_index* ppEntry
+    IN DWORD dwDirID,
+    IN PWCHAR pPath,
+    OUT afp_index** ppEntry
 )
 {
     AFP_VOLUME_INFO* pVolInfo;
@@ -1102,9 +1103,9 @@ AFPERROR AFPIndexFindEntryWithVolIDAndPath(
 
 AFPERROR AFPIndexFindEntryWithPath(
     IN AFP_VOLUME_INFO* pVolInfo,
-       IN DWORD dwSearchID,
-       IN PWCHAR pPath,
-       OUT p_afp_index* ppEntry
+    IN DWORD dwSearchID,
+    IN PWCHAR pPath,
+    OUT afp_index** ppEntry
 )
 {
     auto pFileIndex = pVolInfo->index;
@@ -1128,7 +1129,7 @@ AFPERROR AFPIndexFindEntryWithPath(
     //
     if (pPath != nullptr && lstrlen(pPath) > 0)
     {
-        StringCbPrintf(szTemp, sizeof(szTemp), TEXT("%s\\%s"), pEntry->sz_path, pPath);
+        StringCbPrintf(szTemp, sizeof(szTemp), TEXT("%s\\%s"), pEntry->sz_path.c_str(), pPath);
     }
     else
     {
@@ -1142,7 +1143,7 @@ AFPERROR AFPIndexFindEntryWithPath(
     //
     //Now, search for the full path string in the index.
     //
-    pEntry = pFileIndex->find_entry_with_full_path(szTemp);
+    pEntry = pFileIndex->find(szTemp);
 
     if (pEntry != nullptr)
     {
@@ -1168,8 +1169,8 @@ AFPERROR AFPIndexFindEntryWithPath(
 
 AFPERROR AFPIndexFindEntry(
     IN AFP_VOLUME_INFO* pVolInfo,
-       IN DWORD dwSearchID,
-       OUT p_afp_index* ppEntry
+    IN DWORD dwSearchID,
+    OUT afp_index** ppEntry
 )
 {
     ASSERT(pVolInfo != nullptr);
@@ -1182,8 +1183,8 @@ AFPERROR AFPIndexFindEntry(
         //We didn't find the directory ID in our volume index.
         //
         DBGWRITE(dbg_level_all,
-            L"[VOL]Directory not found in AFPIndexFindEntry() (dirid = %d)\n",
-            dwSearchID);
+                 L"[VOL]Directory not found in AFPIndexFindEntry() (dirid = %d)\n",
+                 dwSearchID);
 
         return afpObjectNotFound;
     }
@@ -1202,18 +1203,18 @@ AFPERROR AFPIndexFindEntry(
 
 AFPERROR AFPIndexGetFullPath(
     IN AFP_VOLUME_INFO* pVolInfo,
-       IN DWORD dwDirID,
-       IN PWCHAR pPath,
-       IN size_t cbPath
+    IN DWORD dwDirID,
+    IN PWCHAR pPath,
+    IN size_t cbPath
 )
 {
-    p_afp_index pEntry;
+    afp_index* pEntry;
 
     ASSERT(pPath != NULL);
 
     if (AFPIndexFindEntry(pVolInfo, dwDirID, &pEntry) == NO_ERROR)
     {
-        StringCbCopy(pPath, cbPath, pEntry->sz_path);
+        StringCbCopy(pPath, cbPath, pEntry->sz_path.c_str());
         return NO_ERROR;
     }
 
@@ -1255,7 +1256,7 @@ AFPVolumeWriteAccessCheck(
 AFPERROR
 AFPCheckVolumePassword(
     IN WORD wVolID,
-       IN PassWord* inPass
+    IN PassWord* inPass
 )
 {
     afp_registry theRegistry;

@@ -146,7 +146,7 @@ AFPERROR FPGetSrvrInfo(
 	//Set the machine type string and offset
 	//
 	afp_reply.add_parameter_offset(SRVRINFO_OFFSET_MACHTYPE, static_cast<int16>(afp_reply.get_data_length()));
-	afp_reply.push_pascal_string(AFP_MACHINE_TYPE);
+	afp_reply.push_pascal_string(UAM_NONE_STR);
 
 	//AFP versions
 	afp_reply.add_parameter_offset(SRVRINFO_OFFSET_AFPVERSCOUNT, static_cast<int16>(afp_reply.get_data_length()));

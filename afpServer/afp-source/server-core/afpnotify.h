@@ -1,27 +1,22 @@
-//===================================================================
-// afpnotify.c
-//===================================================================
-
 #pragma once
+#include "afp_volume.h"
 
-struct AFP_VOLUME_INFO;
-
-DWORD WINAPI AFPNotifyThread(
-		IN LPVOID	pParam
+void afp_notify_thread(
+    IN void* param
 );
 
-void AFPReadDirChanges(
-	IN	AFP_VOLUME_INFO*	pVolInfo,
-	IN	HANDLE				hDirectory,
-	IN	PBYTE				pResultBuffer
+void afp_read_dir_changes(
+    IN afp_volume* volume,
+    IN HANDLE h_directory,
+    IN PBYTE result_buffer
 );
 
-void AFPChngNotifyAdd(
-	IN	FILE_NOTIFY_INFORMATION*	pInfo,
-	IN	AFP_VOLUME_INFO*			pVolInfo
+void afp_change_notify_add(
+    IN FILE_NOTIFY_INFORMATION * file_notify_info,
+    IN afp_volume* volume
 );
 
-void AFPChngNotifyRemove(
-	IN	FILE_NOTIFY_INFORMATION*	pInfo,
-	IN	AFP_VOLUME_INFO*			pVolInfo
+void afp_change_notify_remove(
+    IN const FILE_NOTIFY_INFORMATION * file_notify_info,
+    IN afp_volume* volume
 );

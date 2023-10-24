@@ -1,5 +1,6 @@
 #pragma once
 #include <mutex>
+#include <filesystem>
 
 #include "afp_file_index.h"
 #include "desktop_database.h"
@@ -19,11 +20,34 @@ enum volume_flags
 class afp_volume
 {
 public:
-    afp_volume();
+    afp_volume(std::wstring share_name, std::filesystem::path share_path, UINT16 volume_id, BYTE afp_flags, UINT32 internal_flags);
     ~afp_volume();
+
+    afp_index* find(const std::wstring& full_path) const { return index_->find(full_path); }
+    afp_index* find(const DWORD directory_id, const std::wstring& path) const { return index_->find(directory_id, path); }
+
+    [[nodiscard]] afp_file_index* get_index() const { return index_.get(); }
+
+    void set_create_date(const FILETIME date) { creation_date_ = date; }
+    void set_modified_date(const FILETIME date) { modification_date_ = date; }
+    void set_internal_flag(const UINT32 flags) { internal_flags_ |= flags; }
+    void set_is_dirty() { is_dirty_ = true; }
+
+    UINT16 get_volume_id() const { return id_; }
+
+    std::filesystem::path& get_share_path() { return share_path_; }
+    std::wstring& get_share_name() { return share_name_; }
+    UINT32 get_internal_flags() const { return internal_flags_; }
+
+    HANDLE get_notify_handle() const { return notify_event_; }
+    void set_notify_handle(const HANDLE handle) { notify_event_ = handle; }
 
 private:
     UINT16 id_;
+
+    std::wstring share_name_;
+    std::filesystem::path share_path_;
+
     BYTE afp_flags_;
     UINT32 internal_flags_;
 
@@ -31,16 +55,16 @@ private:
     FILETIME modification_date_;
     FILETIME backup_date_;
 
-    std::wstring share_name_;
-    std::wstring path_;
-
     bool is_dirty_;
 
+    // Each volume has its own directory and file index.
     std::unique_ptr<afp_file_index> index_;
+
+    // Desktop array/index associated with this volume.
     std::unique_ptr<desktop_database> desktop_;
 
-    HANDLE notifyEvent_;
+    HANDLE notify_event_;
 
-    std::mutex send_mutex_;
+    std::mutex volumes_mutex_;
 };
 

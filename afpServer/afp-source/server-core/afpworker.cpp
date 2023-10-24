@@ -117,7 +117,7 @@ DWORD WINAPI AFPWorkerThread(
             {
                 case AFP_WORKER_DELETE_INDEX_ENTRY:
                     ((afp_file_index*)workerElement->pParam1)->remove_entry(
-                            ((p_afp_index)workerElement->pParam2)->object_id,
+                            ((afp_index*)workerElement->pParam2)->object_id,
                             true
                             );
                     

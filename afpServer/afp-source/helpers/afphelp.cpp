@@ -17,6 +17,42 @@ users_and_groups_array g_user_and_group_id;
 DWORD g_next_user_id = 1;
 DWORD g_next_group_id = 1;
 
+std::string wide_string_to_string(const std::wstring& wide_string)
+{
+	if (wide_string.empty())
+	{
+		return "";
+	}
+
+	const auto size_needed = WideCharToMultiByte(CP_UTF8, 0, &wide_string.at(0), (int)wide_string.size(), nullptr, 0, nullptr, nullptr);
+	if (size_needed <= 0)
+	{
+		throw std::runtime_error("WideCharToMultiByte() failed: " + std::to_string(size_needed));
+	}
+
+	std::string result(size_needed, 0);
+	WideCharToMultiByte(CP_UTF8, 0, &wide_string.at(0), (int)wide_string.size(), &result.at(0), size_needed, nullptr, nullptr);
+	return result;
+}
+
+std::wstring string_to_wide_string(const std::string& string)
+{
+	if (string.empty())
+	{
+		return L"";
+	}
+
+	const auto size_needed = MultiByteToWideChar(CP_UTF8, 0, &string.at(0), (int)string.size(), nullptr, 0);
+	if (size_needed <= 0)
+	{
+		throw std::runtime_error("MultiByteToWideChar() failed: " + std::to_string(size_needed));
+	}
+
+	std::wstring result(size_needed, 0);
+	MultiByteToWideChar(CP_UTF8, 0, &string.at(0), (int)string.size(), &result.at(0), size_needed);
+	return result;
+}
+
 /* 
  * AFPGetLogonSID()
  *
@@ -1108,7 +1144,7 @@ bool is_white_space(const char c)
 }
 
 PCHAR afp_windows_to_mac_path(
-	IN const PWCHAR p_win_path,
+	IN const WCHAR* p_win_path,
 	IN const WORD afp_buff_size,
 	IN AFPCHARMAPARRAY p_char_map,
 	OUT const PCHAR p_afp_path

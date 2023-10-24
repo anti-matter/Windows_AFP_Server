@@ -20,7 +20,7 @@ public:
 		uint32 dir_id,
 		int16 access_mode,
 		uint8 fork,
-		p_afp_index entry,
+		afp_index* entry,
         const WCHAR* win_path
 	);
 
@@ -58,7 +58,7 @@ public:
 	int16 get_vol_id() const { return m_volume_id_; }
 	int32 get_dir_id() const { return m_dir_id_; }
 	WCHAR* get_win_path() { return m_windows_path_; }
-	p_afp_index get_entry() const { return m_entry_; }
+	afp_index* get_entry() const { return m_entry_; }
 
 private:
 
@@ -70,7 +70,7 @@ private:
 	int16 m_access_mode_;
 	int8 m_fork_;
 
-	p_afp_index m_entry_;
+	afp_index* m_entry_;
 
 	WCHAR m_windows_path_[MAX_PATH];
 };

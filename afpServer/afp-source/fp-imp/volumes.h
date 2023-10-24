@@ -3,6 +3,7 @@
 #include "afp.h"
 #include "afp_file_index.h"
 #include "afp_net_buffer.h"
+#include "afp_volume.h"
 #include "desktop_database.h"
 
 #define MAX_LEVELS_DEEP				128
@@ -51,9 +52,10 @@ struct AFP_VOLUME_INFO
 struct AFP_INDEX_REMOVE_ENTRY_WORKER_ELEMENT
 {
     AFP_VOLUME_INFO* pVolInfo;
-    p_afp_index pEntryToRemove;
+    afp_index* pEntryToRemove;
 };
-typedef AFP_INDEX_REMOVE_ENTRY_WORKER_ELEMENT* PAFP_INDEX_REMOVE_ENTRY_WORKER_ELEMENT;
+
+using PAFP_INDEX_REMOVE_ENTRY_WORKER_ELEMENT = AFP_INDEX_REMOVE_ENTRY_WORKER_ELEMENT*;
 
 DWORD
 WINAPI InitializeVolumesThread(
@@ -66,8 +68,8 @@ AFPInitializeVolumes();
 DWORD
 AFPAddNewVolumeFromUI(
     IN WCHAR* szSharename,
-       IN WCHAR* szPath,
-       IN WCHAR* szPassword
+    IN WCHAR* szPath,
+    IN WCHAR* szPassword
 );
 
 DWORD AFPRemoveVolumeFromUI(
@@ -77,8 +79,8 @@ DWORD AFPRemoveVolumeFromUI(
 AFP_VOLUME_INFO*
 AFPAddVolume(
     IN PWCHAR pszShareName,
-       IN PWCHAR pszPath,
-       IN DWORD dwFlags
+    IN PWCHAR pszPath,
+    IN DWORD dwFlags
 );
 
 AFPERROR AFPRemoveVolume(
@@ -89,16 +91,16 @@ AFPERROR
 AFPRemoveAllVolumes();
 
 BOOL
-AFPGetVolumeInfoBlock(
-    IN PWCHAR szVolName,
-       IN WORD wVolID,
-       OUT AFP_VOLUME_INFO** ppVolInfo
+afp_get_volume_info_block(
+    IN PWCHAR volume_name,
+    IN WORD volume_id,
+    OUT afp_volume** volume
 );
 
 BOOL
 AFPMapVolumeNameToID(
     IN PWCHAR szVolumeName,
-       OUT PWORD wVolID
+    OUT PWORD wVolID
 );
 
 BYTE
@@ -109,8 +111,8 @@ AFPNumVolumesActive();
 
 AFPERROR AFPGetVolumeParameters(
     IN WORD afpVolumeID,
-       IN WORD afpBitmap,
-       IN afp_net_buffer& afpReply
+    IN WORD afpBitmap,
+    IN afp_net_buffer& afpReply
 );
 
 void
@@ -121,77 +123,77 @@ AFPMarkVolumeDirty(
 AFPERROR
 AFPIndexBuild(
     IN PWCHAR pPath,
-       IN DWORD dwParID,
-       IN AFP_VOLUME_INFO* pVInfo
+    IN DWORD dwParID,
+    IN AFP_VOLUME_INFO* pVInfo
 );
 
 void
-AFPAddDirectoryToIndexWorkerQueue(
-    IN AFP_VOLUME_INFO* pVolInfo,
-       IN PWCHAR pPath,
-       IN DWORD dwParentID
+afp_add_directory_to_index_worker_queue(
+    IN afp_volume* volume,
+    IN const std::filesystem::path& dir_path,
+    IN DWORD dir_parent_id
 );
 
-p_afp_index
+afp_index*
 AFPIndexAddEntry(
     IN AFP_VOLUME_INFO* pPassedVolInfo OPTIONAL,
-       IN WORD wVolID OPTIONAL,
-       IN DWORD dwParID,
-       IN PWCHAR pObjectName,
-       IN PWCHAR pObjectPath,
-       IN bool isDirectory,
-       OUT PDWORD pdwNewDirID
+    IN WORD wVolID OPTIONAL,
+    IN DWORD dwParID,
+    IN PWCHAR pObjectName,
+    IN PWCHAR pObjectPath,
+    IN bool isDirectory,
+    OUT UINT32* pdwNewDirID
 );
 
 AFPERROR AFPIndexUpdateEntryFlags(
-    IN p_afp_index pEntry,
-       IN WORD wFlags
+    IN afp_index* pEntry,
+    IN WORD wFlags
 );
 
 AFPERROR
 AFPIndexUpdateEntry(
     IN AFP_VOLUME_INFO* pVolInfo,
-       IN WORD wVolID,
-       IN p_afp_index pEntry,
-       IN p_afp_index pNewParentEntry,
-       IN PWCHAR pNewName
+    IN WORD wVolID,
+    IN afp_index* pEntry,
+    IN afp_index* pNewParentEntry,
+    IN PWCHAR pNewName
 );
 
 void AFPIndexRemoveEntry(
     IN AFP_VOLUME_INFO* pInfo,
-       IN p_afp_index pEntry,
-       IN bool deleteDirectorySubTree
+    IN afp_index* pEntry,
+    IN bool deleteDirectorySubTree
 );
 
 AFPERROR
 AFPIndexFindEntryWithVolIDAndPath(
     IN WORD wVolID,
-       IN DWORD dwDirID,
-       IN PWCHAR pPath,
-       OUT p_afp_index* ppEntry
+    IN DWORD dwDirID,
+    IN PWCHAR pPath,
+    OUT afp_index** ppEntry
 );
 
 AFPERROR
 AFPIndexFindEntryWithPath(
     IN AFP_VOLUME_INFO* pVolInfo,
-       IN DWORD dwSearchID,
-       IN PWCHAR pPath,
-       OUT p_afp_index* ppEntry
+    IN DWORD dwSearchID,
+    IN PWCHAR pPath,
+    OUT afp_index** ppEntry
 );
 
 AFPERROR
 AFPIndexFindEntry(
     IN AFP_VOLUME_INFO* pVolInfo,
-       IN DWORD dwDirID,
-       OUT p_afp_index* ppEntry
+    IN DWORD dwDirID,
+    OUT afp_index** ppEntry
 );
 
 AFPERROR
 AFPIndexGetFullPath(
     IN AFP_VOLUME_INFO* pVolInfo,
-       IN DWORD dwDirID,
-       IN PWCHAR pPath,
-       IN size_t cbPath
+    IN DWORD dwDirID,
+    IN PWCHAR pPath,
+    IN size_t cbPath
 );
 
 AFPERROR
@@ -202,7 +204,7 @@ AFPVolumeWriteAccessCheck(
 AFPERROR
 AFPCheckVolumePassword(
     IN WORD wVolID,
-       IN PassWord* inPass
+    IN PassWord* inPass
 );
 
 inline void AQUIRE_NOTIFY_LOCK_VOLINFO(AFP_VOLUME_INFO* volumeInfo)

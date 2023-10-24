@@ -121,14 +121,14 @@ AFPERROR AFPMapAFPToWindowsPath(
 // it using defaults.
 //
 void AFPCheckForAndCreateFinderRsrcStream(
-    IN p_afp_index pEntry
+    IN afp_index* pEntry
 )
 {
     WCHAR szTempPath[MAX_PATH];
     HANDLE hFile;
     DWORD dwError;
 
-    StringCbPrintf(szTempPath, sizeof(szTempPath), TEXT("%s%s"), pEntry->sz_path, AFP_RESOURCE_FORK_NAME);
+    StringCbPrintf(szTempPath, sizeof(szTempPath), TEXT("%s%s"), pEntry->sz_path.c_str(), AFP_RESOURCE_FORK_NAME);
 
     hFile = CreateFile(
         szTempPath,
@@ -192,7 +192,7 @@ AFPERROR AFPGetObjectParms(
     IN uint16 afpVolumeID,
     IN UINT32 afpDirID,
     IN const dsi::dsi_connection* afpSession,
-    IN p_afp_index afpEntry,
+    IN afp_index* afpEntry,
     IN WIN32_FILE_ATTRIBUTE_DATA winAttributes
 )
 {
@@ -301,7 +301,7 @@ AFPERROR AFPGetObjectParms(
 
             const auto win_error = afp_get_directory_rights(
                 afpSession->get_user_token(),
-                afpEntry->sz_path,
+                const_cast<wchar_t*>(afpEntry->sz_path.c_str()),
                 user_name,
                 (lstrlen(domain_name) > 0) ? domain_name : nullptr,
                 &afpRights
@@ -326,7 +326,7 @@ AFPERROR AFPGetObjectParms(
     {
         if (afpBitmap & (kFPDFLen | kFPExtDataForkLen))
         {
-            dataSize64.LowPart = GetCompressedFileSize(afpEntry->sz_path, (LPDWORD)&dataSize64.HighPart);
+            dataSize64.LowPart = GetCompressedFileSize(afpEntry->sz_path.c_str(), (LPDWORD)&dataSize64.HighPart);
 
             if ((dataSize64.LowPart == INVALID_FILE_SIZE) && (GetLastError() != NO_ERROR))
             {
@@ -346,9 +346,9 @@ AFPERROR AFPGetObjectParms(
 
         if (afpBitmap & (kFPRFLen | kFPExtRsrcForkLen))
         {
-            afp_open_file afpFile(afpVolumeID, afpDirID, kReadMode, kAttrFork, afpEntry, afpEntry->sz_path);
+            afp_open_file afpFile(afpVolumeID, afpDirID, kReadMode, kAttrFork, afpEntry, afpEntry->sz_path.c_str());
 
-            rsrcSize64.QuadPart = afpFile.get_stream_length(AFP_RESOURCE_FORK_NAME_PLAIN);
+            rsrcSize64.QuadPart = afpFile.get_stream_length(const_cast<wchar_t*>(AFP_RESOURCE_FORK_NAME_PLAIN));
 
             if (rsrcSize64.QuadPart == BAD_LENGTH_64)
             {
@@ -356,7 +356,7 @@ AFPERROR AFPGetObjectParms(
                 //There was an error getting the file size
                 //
                 DBGWRITE(dbg_level_all, L"[FDP]GetStreamLength() failed! (%d) (%s)\n", GetLastError(),
-                         afpEntry->sz_object_name);
+                         afpEntry->sz_object_name.c_str());
                 rsrcSize64.QuadPart = 0;
             }
             else
@@ -424,7 +424,7 @@ AFPERROR AFPGetObjectParms(
 //
 WORD AFPGetDirOffspringCount(
     IN WORD wVolID,
-    IN p_afp_index pDirEntry
+    IN afp_index* pDirEntry
 )
 {
     AFP_VOLUME_INFO* pVolInfo;
@@ -449,7 +449,7 @@ WORD AFPGetDirOffspringCount(
 //
 AFPERROR AFPSetFileDirParms(
     IN WORD wBitmap,
-    IN p_afp_index pEntry,
+    IN afp_index* pEntry,
     IN PCHAR pParms,
     IN DWORD dwFileAttributes
 )
@@ -493,7 +493,7 @@ AFPERROR AFPSetFileDirParms(
                 dwAttributes &= ~FILE_ATTRIBUTE_ARCHIVE;
         }
 
-        if (!SetFileAttributes(pEntry->sz_path, dwAttributes))
+        if (!SetFileAttributes(pEntry->sz_path.c_str(), dwAttributes))
         {
             dwError = GetLastError();
             DBGWRITE(dbg_level_info, L"[FDP]SetFileAttributes() failed! (%d)\n", dwError);
@@ -556,7 +556,7 @@ AFPERROR AFPSetFileDirParms(
     if (wBitmap & (kFPCreateDate | kFPModDate | kFPBackupDate))
     {
         AFPSetFileTime(
-            pEntry->sz_path,
+            const_cast<wchar_t*>(pEntry->sz_path.c_str()),
             (dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? TRUE : FALSE,
             (lwCreateDate == 0) ? nullptr : &lwCreateDate,
             (lwModDate == 0) ? nullptr : &lwModDate,

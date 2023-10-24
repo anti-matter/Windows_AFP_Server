@@ -82,7 +82,7 @@ AFPERROR FPOpenFork(
 {
     unichar afp_pathname[MAX_AFP_PATH];
     afp_session* afp_afp_session = connection->get_afp_session();
-    p_afp_index afp_entry = nullptr;
+    afp_index* afp_entry = nullptr;
 
     WIN32_FILE_ATTRIBUTE_DATA win_attributes;
 
@@ -127,10 +127,10 @@ AFPERROR FPOpenFork(
     }
 
     // Collect attribute data on the file or folder.
-    if (!GetFileAttributesEx(afp_entry->sz_path, GetFileExInfoStandard, &win_attributes))
+    if (!GetFileAttributesEx(afp_entry->sz_path.c_str(), GetFileExInfoStandard, &win_attributes))
     {
         DBGWRITE(dbg_level_info, L"GetFileAttributesEx() failed! (%d)\n", GetLastError());
-        DBGWRITE(dbg_level_info, L"path = %s\n", afp_entry->sz_path);
+        DBGWRITE(dbg_level_info, L"path = %s\n", afp_entry->sz_path.c_str());
 
         return afpObjectNotFound;
     }
@@ -150,7 +150,7 @@ AFPERROR FPOpenFork(
         afp_mode,
         afp_fork,
         afp_entry,
-        afp_entry->sz_path
+        afp_entry->sz_path.c_str()
     );
 
     afp_error = opened_file == nullptr ? afpMiscErr : AFP_OK;
@@ -376,7 +376,7 @@ AFPERROR FPCreateFile(
     unichar afp_pathname[MAX_AFP_PATH];
     unichar win_path[MAX_PATH];
     AFPCHARMAPARRAY char_map;
-    p_afp_index afp_entry = nullptr;
+    afp_index* afp_entry = nullptr;
 
     DBGWRITE(dbg_level_all, L"Enter\n");
 
@@ -446,7 +446,7 @@ AFPERROR FPCreateFile(
 
     // Create the full path to the new file.
     // ReSharper disable once CppFunctionResultShouldBeUsed
-    StringCbPrintf(win_path, sizeof(win_path), TEXT("%s\\%s"), afp_entry->sz_path, afp_pathname);
+    StringCbPrintf(win_path, sizeof(win_path), TEXT("%s\\%s"), afp_entry->sz_path.c_str(), afp_pathname);
 
     // Don't let the change notify mechanism do anything yet.
     auto_lock lock(&afp_volume_info->csNotifyQueue);

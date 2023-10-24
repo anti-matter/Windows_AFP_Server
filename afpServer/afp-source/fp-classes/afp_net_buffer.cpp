@@ -95,6 +95,27 @@ AFPERROR afp_net_buffer::get_pascal_string(
 	return afp_error;
 }
 
+std::wstring afp_net_buffer::get_pascal_string()
+{
+    if (const auto string_length = pull_num<UINT8>(); string_length > 0)
+	{
+        char raw[MAX_AFP30_PATH];
+        wchar_t raw_wide[MAX_AFP30_PATH];
+
+        pull_raw_data(raw, string_length);
+		raw[string_length] = '\0';
+
+		afp_mac_to_windows_string(raw, string_length+1, raw_wide);
+
+		std::wstring w_string = raw_wide;
+		return w_string;
+	}
+
+	std::wstring none;
+
+	return none;
+}
+
 /*
  * get_pascal_string()
  *
@@ -307,11 +328,11 @@ AFPERROR afp_net_buffer::push_pascal_string(const char* string)
  *
  * Returns: error code.
  */
-AFPERROR afp_net_buffer::push_pascal_string(unichar* string, AFPCHARMAPARRAY char_map)
+AFPERROR afp_net_buffer::push_pascal_string(const std::wstring& wide_string, AFPCHARMAPARRAY char_map)
 {
 	char ansi_string[MAX_AFP_PATH];
 
-	if (afp_windows_to_mac_path(string, sizeof(ansi_string), char_map, ansi_string) != nullptr)
+	if (afp_windows_to_mac_path(const_cast<wchar_t*>(wide_string.c_str()), sizeof(ansi_string), char_map, ansi_string) != nullptr)
 	{
 		return push_pascal_string(ansi_string);
 	}
@@ -329,42 +350,37 @@ AFPERROR afp_net_buffer::push_pascal_string(unichar* string, AFPCHARMAPARRAY cha
  *
  * Returns: None
  */
-AFPERROR afp_net_buffer::push_unicode_string(unichar* string, AFPCHARMAPARRAY char_map)
+AFPERROR afp_net_buffer::push_unicode_string(const std::wstring& wide_string, AFPCHARMAPARRAY char_map)
 {
-	const size_t cb_string = lstrlen(string);
+    if (mCurrentPos - mBuffer + wide_string.length() * 2 + 2 <= mBufferSize)
+    {
+        char ansi_string[MAX_AFP_PATH];
+        if (afp_windows_to_mac_path(const_cast<wchar_t*>(wide_string.c_str()), sizeof(ansi_string), char_map, ansi_string) != nullptr)
+        {
+            const auto string_len = strlen(ansi_string);
 
-	if (string != nullptr)
-	{
-		if (((mCurrentPos - mBuffer) + (cb_string * 2) + 2) <= mBufferSize)
-		{
-			char ansi_string[MAX_AFP_PATH];
-			if (afp_windows_to_mac_path(string, sizeof(ansi_string), char_map, ansi_string) != nullptr)
-			{
-				const auto string_len = strlen(ansi_string);
+            // If charMap is not NULL that means we are dealing with a pathname.
+            // We only add the hint for paths, not any other type of string.
+            if (char_map != nullptr)
+            {
+                // This is supposed to be the encoding hint. We need to
+                // build an encoding mapping table before we can use this.
+                // for now, 0 == MAC_ROMAN encoding.
+                push_num<UINT32>(0);
+            }
 
-				// If charMap is not NULL that means we are dealing with a pathname.
-				// We only add the hint for paths, not any other type of string.
-				if (char_map != nullptr)
-				{
-					// This is supposed to be the encoding hint. We need to
-					// build an encoding mapping table before we can use this.
-					// for now, 0 == MAC_ROMAN encoding.
-					push_num<UINT32>(0);
-				}
+            push_num<UINT16>(static_cast<UINT16>(string_len));
+            push_raw_data(ansi_string, string_len);
 
-				push_num<UINT16>(static_cast<UINT16>(string_len));
-				push_raw_data(ansi_string, string_len);
+            return AFP_OK;
+        }
 
-				return AFP_OK;
-			}
+        // If conversion failed, we want to write a 0 to the buffer
+        // to show that there is 0 sized string.
+        push_num<INT16>(0);
+    }
 
-			// If conversion failed, we want to write a 0 to the buffer
-			// to show that there is 0 sized string.
-			push_num<INT16>(0);
-		}
-	}
-
-	return afpParmErr;
+    return afpParmErr;
 }
 
 /*

@@ -12,7 +12,7 @@
  * Returns: None
  */
 
-afp_open_file::afp_open_file(const uint16 vol_id, const uint32 dir_id, const int16 access_mode, const uint8 fork, const p_afp_index entry,
+afp_open_file::afp_open_file(const uint16 vol_id, const uint32 dir_id, const int16 access_mode, const uint8 fork, afp_index* entry,
                              const WCHAR* win_path)
 {
 	m_file_handle_ = INVALID_HANDLE_VALUE;
@@ -73,7 +73,8 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 
 	if (m_access_mode_ & kWriteMode)
 	{
-		desired_access |= GENERIC_WRITE;
+        // ReSharper disable once CppAssignedValueIsNeverUsed
+        desired_access |= GENERIC_WRITE;
 	}
 
 	// ReSharper disable CppFunctionResultShouldBeUsed

@@ -1,5 +1,5 @@
 #pragma once
-
+#include <filesystem>
 #include "afphelp.h"
 
 constexpr int32 hash_multiplier = 1024;
@@ -27,11 +27,11 @@ typedef struct
 	DWORD par_id;
 	PVOID par_entry;
 	DWORD object_id;
-	WCHAR sz_object_name[MAX_AFP30_NAME];
-	WCHAR sz_path[MAX_PATH];
+	std::wstring sz_object_name;
+	std::filesystem::path sz_path;
 	WORD flags;
 	DWORD path_hash;
-} afp_index, *p_afp_index;
+} afp_index;
 
 class afp_file_index  // NOLINT(cppcoreguidelines-special-member-functions)
 {
@@ -39,32 +39,27 @@ public:
 	afp_file_index();
 	~afp_file_index();
 
-	p_afp_index add_entry(
+	afp_index* add_entry(
 		uint32 par_id,
-		PWCHAR p_object_name,
-		PWCHAR p_object_path,
+        const std::wstring& p_object_name,
+        const std::filesystem::path& p_object_path,
 		bool is_directory,
-		uint32* p_new_dir_id = nullptr
+		UINT32* p_new_dir_id = nullptr
 	);
-	p_afp_index get_entry(uint32 object_id);
+	afp_index* get_entry(uint32 object_id);
 
-	void remove_entry(p_afp_index entry, bool delete_directory_sub_tree = false);
+	void remove_entry(const afp_index* entry, bool delete_directory_sub_tree = false);
 	void remove_entry(uint32 object_id, bool delete_directory_sub_tree = false);
 
-	void update_entry(
-		p_afp_index p_entry,
-		p_afp_index p_new_parent,
-		PWCHAR p_new_name
-	);
+	void update_entry(afp_index* entry, afp_index* new_parent, PWCHAR new_name);
 
-	static void update_entry_flags(
-		p_afp_index p_entry,
-		uint16 flags
-	);
-
+	static void update_entry_flags(afp_index* p_entry, uint16 flags);
 	static size_t hash_string(PWCHAR string);
-	p_afp_index find_entry_with_full_path(PWCHAR pFullPath);
-	uint32 get_offspring(uint32 par_id, std::vector<p_afp_index>** new_index = nullptr);
+
+	afp_index* find(const std::wstring& full_path);
+	afp_index* find(DWORD directory_id, const std::wstring& path);
+
+	uint32 get_offspring(uint32 par_id, std::vector<afp_index*>** new_index = nullptr);
 
 	uint32 next_id() { return m_next_id_++; }
 
@@ -77,8 +72,7 @@ public:
 #endif
 
 private:
-	CRITICAL_SECTION m_index_critical_section_;
-
+	std::mutex mutex_;
 	std::vector<std::unique_ptr<afp_index>> m_index_;
 
 	uint32 m_next_id_;

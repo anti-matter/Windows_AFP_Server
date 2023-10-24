@@ -4,6 +4,8 @@
 #include <codecvt>
 #include <future>
 
+#include "afphelp.h"
+
 
 #if defined(DBG) || defined(_DEBUG)
 
@@ -41,8 +43,7 @@ void afp_debug_write(_In_ const dbg_level debug_level, _In_ const std::string& f
 			break;
         }
 
-		std::wstring_convert<std::codecvt_utf8<wchar_t>> converter;
-		const std::wstring combined = level + L"[" + converter.from_bytes(function) + L"]" + format;
+		const std::wstring combined = level + L"[" + string_to_wide_string(function) + L"]" + format;
 
 		// Len + terminating character
 		const auto len = _vscwprintf(combined.c_str(), args) + 1;

@@ -263,7 +263,7 @@ AFPERROR FPAddComment(
 	UNREFERENCED_PARAMETER(afp_reply);
 
 	DESKTOP_ENTRY new_entry;
-	p_afp_index afp_entry = nullptr;
+	afp_index* afp_entry = nullptr;
 
 	DBGWRITE(dbg_level_all, L"[afp:FPAddComment]Enter\n");
 
@@ -304,7 +304,7 @@ AFPERROR FPAddComment(
 		new_entry.pathname,
 		&afp_entry);
 
-	if (afp_error != AFP_OK || GetFileAttributes(afp_entry->sz_path) == AFP_MAX_DWORD)
+	if (afp_error != AFP_OK || GetFileAttributes(afp_entry->sz_path.c_str()) == AFP_MAX_DWORD)
 	{
 		DBGWRITE(dbg_level_info, L"[afp:FPAddComment]Path not found!\n");
 		afp_error = afpObjectNotFound;
@@ -336,7 +336,7 @@ AFPERROR FPGetComment(
 {
 	DESKTOP_ENTRY search_entry;
 	DESKTOP_ENTRY found_entry;
-	p_afp_index afp_entry = nullptr;
+	afp_index* afp_entry = nullptr;
 
 	DBGWRITE(dbg_level_all, L"[afp:FPGetComment]Enter\n");
 
@@ -368,7 +368,7 @@ AFPERROR FPGetComment(
 		search_entry.pathname,
 		&afp_entry);
 
-	if (AFP_FAILED(afp_error) || GetFileAttributes(afp_entry->sz_path) == AFP_MAX_DWORD)
+	if (AFP_FAILED(afp_error) || GetFileAttributes(afp_entry->sz_path.c_str()) == AFP_MAX_DWORD)
 	{
 		DBGWRITE(dbg_level_info, L"[afp:FPGetComment]Path not found!\n");
 		afp_error = afpObjectNotFound;
@@ -453,7 +453,7 @@ AFPERROR FPGetAPPL(
 {
 	WIN32_FILE_ATTRIBUTE_DATA winAttributes;
 	DESKTOP_ENTRY search_entry, found_entry;
-	p_afp_index afpEntry = nullptr;
+	afp_index* afpEntry = nullptr;
 
 	afp_request.advance_pos_ptr(sizeof(int16));
 	const auto afp_dt_refnum = afp_request.pull_num<UINT16>();
@@ -491,7 +491,7 @@ AFPERROR FPGetAPPL(
 		{
 			const uint16 afp_volume_id = desktop->volID;
 
-			if (!GetFileAttributesEx(afpEntry->sz_path, GetFileExInfoStandard, &winAttributes))
+			if (!GetFileAttributesEx(afpEntry->sz_path.c_str(), GetFileExInfoStandard, &winAttributes))
 			{
 				return afpObjectNotFound;
 			}

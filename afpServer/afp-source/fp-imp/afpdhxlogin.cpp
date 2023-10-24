@@ -40,6 +40,11 @@ AFPERROR DHXLogin(
 	AFPERROR afpError = afpParmErr;
 	DH* dh = NULL;
 	uint8 randbuf[DHX_RANDBUFSIZE];
+	unsigned char encrypt_buffer[DHX_CRYPTBUFLEN] = {};
+	const uint16 sessid = dhxhash((ULONG_PTR)dsiSession);
+	BIGNUM* gbn;
+	BIGNUM* pbn;
+	int i;
 
     if (dhxInfo == NULL)
 	{
@@ -56,14 +61,14 @@ AFPERROR DHXLogin(
 	}
 
 	// Obtain our primes
-	BIGNUM* gbn = BN_bin2bn(&g, sizeof(g), NULL);
+	gbn = BN_bin2bn(&g, sizeof(g), NULL);
 	if (gbn == NULL)
 	{
 		DBGWRITE(dbg_level_info, L"BN_bin2bn() failed obtaining our primes1\n");
 		goto exit;
 	}
 
-    BIGNUM* pbn = BN_bin2bn(p, sizeof(p), NULL);
+    pbn = BN_bin2bn(p, sizeof(p), NULL);
 	if (pbn == NULL)
 	{
 		DBGWRITE(dbg_level_info, L"BN_bin2bn() failed obtaining our primes2\n");
@@ -99,11 +104,10 @@ AFPERROR DHXLogin(
 
 	// Figure out the key and stick it in our reply buffer.
 	CAST_KEY cast_key;
-    const int i = DH_compute_key((unsigned char*)afpReply.get_current_pos_ptr(), client_pub_key, dh);
+    i = DH_compute_key((unsigned char*)afpReply.get_current_pos_ptr(), client_pub_key, dh);
  	CAST_set_key(&cast_key, i, (unsigned char*)afpReply.get_current_pos_ptr());
 
 	// Compute and set the session id which is based on our session object
-	const uint16 sessid = dhxhash((ULONG_PTR)dsiSession);
 	afpReply.push_num(sessid);
 
 	// Include the public key in reply.
@@ -113,7 +117,6 @@ AFPERROR DHXLogin(
 	// Now we setup our buffer to be encrypted.
  	afpGetRandomNumber(dsiSession, (char*)randbuf, sizeof(randbuf));
 
-	unsigned char encrypt_buffer[DHX_CRYPTBUFLEN] = {};
 	memcpy(encrypt_buffer, &randbuf, sizeof(randbuf));
 	memset(encrypt_buffer + DHX_RANDBUFSIZE, 0, DHX_RANDBUFSIZE);
 

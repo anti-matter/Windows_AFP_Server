@@ -89,6 +89,9 @@ using status_t = HRESULT;
 
 #define SAFE_CLOSE_HANDLE(h) if ((h) != nullptr)  CloseHandle(h)
 
+std::string wide_string_to_string(const std::wstring & wide_string);
+std::wstring string_to_wide_string(const std::string & string);
+
 enum
 {
 	afp_user_name_type = 0,
@@ -197,7 +200,7 @@ PWCHAR afp_mac_to_windows_path(
 );
 
 PCHAR afp_windows_to_mac_path(
-	IN PWCHAR p_win_path,
+	IN const WCHAR* p_win_path,
 	IN WORD afp_buff_size,
 	IN AFPCHARMAPARRAY p_char_map,
 	OUT PCHAR p_afp_path

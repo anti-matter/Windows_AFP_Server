@@ -4,6 +4,7 @@
 #include "StdAfx.h"
 
 #include "afp.h"
+#include "afphelp.h"
 #include "afpdebug.h"
 #include "afpxattr.h"
 #include "volumes.h"
@@ -31,7 +32,7 @@ AFPERROR FPGetExtAttribute(
     WCHAR afpAttrName[MAX_AFP_NAME];
     uint16 afpNameLen;
     uint32 afpActualRead = 0;
-    p_afp_index afpEntry = nullptr;
+    afp_index* afpEntry = nullptr;
 
     DBGWRITE(dbg_level_all, L"[FPGetExtAttribute]Enter...\n");
 
@@ -111,7 +112,7 @@ AFPERROR FPGetExtAttribute(
         //Get the size of the attribute data. Note we don't pass the name of the
         //stream because we already have an open handle to the right stream.
         //
-        const auto afpDataLen = static_cast<uint32>(GetStreamLen(afpEntry->sz_path, afpAttrName));
+        const auto afpDataLen = static_cast<uint32>(GetStreamLen(const_cast<wchar_t*>(afpEntry->sz_path.c_str()), afpAttrName));
 
         if (afpDataLen != BAD_LENGTH_32)
         {
@@ -128,7 +129,7 @@ AFPERROR FPGetExtAttribute(
             {
                 if (afpReply.check_space_needed(afpDataLen))
                 {
-                    StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->sz_path, afpAttrName);
+                    StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->sz_path.string().c_str(), afpAttrName);
 
                     if (!afp_impersonate_user(connection->get_user_token()))
                     {
@@ -232,7 +233,7 @@ AFPERROR FPSetExtAttribute(
 
     WCHAR afpPathname[MAX_AFP_PATH];
     WCHAR afpAttrName[MAX_AFP_NAME];
-    p_afp_index afpEntry = nullptr;
+    afp_index* afpEntry = nullptr;
     uint16 afpNameLen;
     DWORD bytesWritten = 0;
 
@@ -313,7 +314,7 @@ AFPERROR FPSetExtAttribute(
         //We have different errors to check for based on the supplied attribute
         //flags (replace and/or already exists).
         //
-        const auto status = static_cast<uint32>(GetStreamLen(afpEntry->sz_path, afpAttrName));
+        const auto status = static_cast<uint32>(GetStreamLen(const_cast<wchar_t*>(afpEntry->sz_path.c_str()), afpAttrName));
 
         if ((status == BAD_LENGTH_32) && (afpBitmap & kXAttrCreate))
         {
@@ -324,7 +325,7 @@ AFPERROR FPSetExtAttribute(
             return (afpObjectNotFound);
         }
 
-        StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->sz_path, afpAttrName);
+        StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->sz_path.c_str(), afpAttrName);
 
         if (!afp_impersonate_user(connection->get_user_token()))
         {
@@ -396,7 +397,7 @@ AFPERROR FPListExtAttribute(
 )
 {
     WCHAR afpPathname[MAX_AFP_PATH];
-    p_afp_index afpEntry = nullptr;
+    afp_index* afpEntry = nullptr;
     int32 afpDataLen = 0;
 
     DBGWRITE(dbg_level_info, L"[FPListExtAttribute]Enter...\n");
@@ -454,7 +455,7 @@ AFPERROR FPListExtAttribute(
 
         DBGWRITE(
             dbg_level_info,
-            L"[FPListExtAttribute]Getting stream list for %s\n", afpEntry->sz_path);
+            L"[FPListExtAttribute]Getting stream list for %s\n", afpEntry->sz_path.c_str());
 
         if (!afp_impersonate_user(connection->get_user_token()))
         {
@@ -464,7 +465,7 @@ AFPERROR FPListExtAttribute(
             return (afpAccessDenied);
         }
 
-        afpError = GetStreams(afpEntry->sz_path, streamArray);
+        afpError = GetStreams(const_cast<wchar_t*>(afpEntry->sz_path.c_str()), streamArray);
 
         if (AFP_SUCCESS(afpError))
         {
@@ -514,6 +515,7 @@ AFPERROR FPListExtAttribute(
                                 dbg_level_info,
                                 L"[FPListExtAttribute]New attr name added: %s\n",
                                     afpAttrInfo.stream_name);
+
 
                             if (afp_windows_to_mac_path(afpAttrInfo.stream_name, sizeof(ansi_string), nullptr,
                                                         ansi_string) != nullptr)
@@ -581,7 +583,7 @@ AFPERROR FPRemoveExtAttribute(
 
     WCHAR afpPathname[MAX_AFP_PATH];
     WCHAR afpAttrName[MAX_PATH];
-    p_afp_index afpEntry = nullptr;
+    afp_index* afpEntry = nullptr;
     uint16 afpNameLen;
 
     DBGWRITE(dbg_level_info, L"[FPRemoveExtAttribute]Enter...\n");
@@ -666,7 +668,7 @@ AFPERROR FPRemoveExtAttribute(
 
     DBGWRITE(dbg_level_info, L"[FPRemoveExtAttribute]Removing attr, file=%s, attr=%s\n", afpPathname, afpAttrName);
 
-    StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->sz_path, afpAttrName);
+    StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->sz_path.c_str(), afpAttrName);
 
     if (!afp_impersonate_user(connection->get_user_token()))
     {
@@ -680,7 +682,7 @@ AFPERROR FPRemoveExtAttribute(
     {
         DBGWRITE(dbg_level_info,
                  L"[FPRemoveExtAttribute]DeleteFile failed on %s! (%d)\n",
-                 afpEntry->sz_path,
+                 afpEntry->sz_path.c_str(),
                  GetLastError()
         );
 

@@ -11,6 +11,8 @@ public:
 
 	AFPERROR get_pascal_string(unichar* string, UINT16 cb_string, bool is_path = false, INT8 path_type = kLongNames,
 	                   AFPCHARMAPARRAY char_map = nullptr);
+
+	std::wstring get_pascal_string();
 	AFPERROR get_pascal_string(char* string, UINT16 cb_string, INT16* s_len = nullptr);
 	AFPERROR get_unicode_string(WCHAR* string, UINT16 cb_string, UINT16* s_len);
 	AFPERROR get_unicode_string(char* string, UINT16 cb_string, INT16* s_len, bool is_path, bool is_afp_name = true);
@@ -18,8 +20,8 @@ public:
 	void pull_raw_data(void* buffer, size_t amount);
 
 	AFPERROR push_pascal_string(const char* string);
-	AFPERROR push_pascal_string(unichar* string, AFPCHARMAPARRAY char_map = nullptr);
-	AFPERROR push_unicode_string(unichar* string, AFPCHARMAPARRAY char_map = nullptr);
+	AFPERROR push_pascal_string(const std::wstring& wide_string, AFPCHARMAPARRAY char_map = nullptr);
+	AFPERROR push_unicode_string(const std::wstring& wide_string, AFPCHARMAPARRAY char_map = nullptr);
 
 	template <class T>
 	AFPERROR push_num(T value);

@@ -56,7 +56,7 @@ AFPERROR afp_imp_user_logon(
 	CloseHandle(token);
 
 	// ReSharper disable once CppStringLiteralToCharPointerConversion
-	afp_adjust_privilege(SE_IMPERSONATE_NAME, TRUE, dupe_handle);
+	afp_adjust_privilege(const_cast<wchar_t*>(SE_IMPERSONATE_NAME), TRUE, dupe_handle);
 
 	connection->set_session_authenticated(true);
 	connection->make_afp_session();

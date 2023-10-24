@@ -234,11 +234,11 @@ AFPERROR AFPOpenDeskTopDB(
             //If we create a new file above, then we also need to add the
             //desktop file to the index.
             //
-            auto pEntry = AFPIndexAddEntry(
+            const auto pEntry = AFPIndexAddEntry(
                 nullptr,
                 wVolID,
                 kRootDirID,
-                DESKTOP_FILE_NAME,
+                const_cast<wchar_t*>(DESKTOP_FILE_NAME),
                 szPath,
                 false,
                 nullptr

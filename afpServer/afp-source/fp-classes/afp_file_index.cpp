@@ -3,7 +3,6 @@
 
 #include "afp.h"
 #include "afpworker.h"
-#include "auto_lock.h"
 #include "afp_file_index.h"
 
 constexpr int first_directory_id = 1;
@@ -22,7 +21,6 @@ afp_file_index::afp_file_index()
 	: m_next_id_(first_directory_id)
 	  , m_ref_count_(0)
 {
-	InitializeCriticalSection(&m_index_critical_section_);
 }
 
 
@@ -49,8 +47,6 @@ afp_file_index::~afp_file_index()
 
 		Sleep(500);
 	}
-
-	DeleteCriticalSection(&m_index_critical_section_);
 }
 
 
@@ -61,54 +57,41 @@ afp_file_index::~afp_file_index()
  *		Add a new index entry to the array.
  *
  *	Returns
- *		p_afp_index
+ *		afp_index*
  */
 
-p_afp_index afp_file_index::add_entry(
-	const uint32 par_id,
-	const PWCHAR p_object_name,
-	const PWCHAR p_object_path,
-	const bool is_directory,
-	uint32* p_new_dir_id
+afp_index* afp_file_index::add_entry(
+    const uint32 par_id,
+    const std::wstring& p_object_name,
+    const std::filesystem::path& p_object_path,
+    const bool is_directory,
+	UINT32* p_new_dir_id
 )
 {
-	auto_lock lock(&m_index_critical_section_);
+	std::lock_guard guard(mutex_);
 	auto entry = std::make_unique<afp_index>();
 
-	//
-	//Set the correct flags if it's a directory.
-	//
 	if (is_directory)
 	{
 		entry->flags |= flag_index_is_dir;
 	}
 
-	//
-	//Copy the name and path into the index entry.
-	//
-	// ReSharper disable CppFunctionResultShouldBeUsed
-	StringCbCopy(entry->sz_object_name, sizeof(entry->sz_object_name), p_object_name);
-	StringCbCopy(entry->sz_path, sizeof(entry->sz_path), p_object_path);
-	// ReSharper restore CppFunctionResultShouldBeUsed
-
+	entry->sz_object_name = p_object_name;
+	entry->sz_path = p_object_path;
 	entry->object_id = m_next_id_++;
 	entry->par_id = par_id;
 	entry->par_entry = get_entry(par_id);
 
-	//
-	//We get a hash to the path string so that we can perform faster,
-	//more efficient searches for full paths.
-	//
-	entry->path_hash = hash_string(p_object_path);
+	// We get a hash to the path string so that we can perform faster,
+	// more efficient searches for full paths.
+	entry->path_hash = std::hash<std::wstring>{}(p_object_path);
 
 	// Save as the std::move() makes the entry confusing.
 	const auto result = entry.get();
 
 	m_index_.push_back(std::move(entry));
 
-	//
-	//If the caller wants us to return the new directory ID, then do so.
-	//
+	// If the caller wants us to return the new directory ID, then do so.
 	if (is_directory && p_new_dir_id != nullptr)
 	{
 		*p_new_dir_id = result->object_id;
@@ -125,12 +108,12 @@ p_afp_index afp_file_index::add_entry(
  *		Get an entry from the array based on its object ID.
  *
  *	Returns
- *		p_afp_index
+ *		afp_index*
  */
 
-p_afp_index afp_file_index::get_entry(const uint32 object_id)
+afp_index* afp_file_index::get_entry(const uint32 object_id)
 {
-	auto_lock lock(&m_index_critical_section_);
+	std::lock_guard guard(mutex_);
 
 	const auto it = std::find_if(m_index_.begin(), m_index_.end(), [=](const std::unique_ptr<afp_index>& i)
 	{
@@ -159,7 +142,7 @@ p_afp_index afp_file_index::get_entry(const uint32 object_id)
  *		None
  */
 
-void afp_file_index::remove_entry(const p_afp_index entry, const bool delete_directory_sub_tree)
+void afp_file_index::remove_entry(const afp_index* entry, const bool delete_directory_sub_tree)
 {
 	remove_entry(entry->object_id, delete_directory_sub_tree);
 }
@@ -177,7 +160,7 @@ void afp_file_index::remove_entry(const p_afp_index entry, const bool delete_dir
 
 void afp_file_index::remove_entry(const uint32 object_id, const bool delete_directory_sub_tree)
 {
-	auto_lock lock(&m_index_critical_section_);
+	std::lock_guard guard(mutex_);
 
 	const auto it = std::find_if(m_index_.begin(), m_index_.end(), [=](const std::unique_ptr<afp_index>& i)
 	{
@@ -236,70 +219,49 @@ void afp_file_index::remove_entry(const uint32 object_id, const bool delete_dire
 }
 
 
-/*
- *	update_entry()
- *
- *	Description
- *		Update the entry's parID and/or name.
- *
- *	Returns
- *		None
- */
-
-void afp_file_index::update_entry(
-	const p_afp_index p_entry,
-	const p_afp_index p_new_parent,
-	const PWCHAR p_new_name
-)
+void afp_file_index::update_entry(afp_index* entry, afp_index* new_parent, const PWCHAR new_name)
 {
 	DBGWRITE(
 		dbg_level_info,
 		L"Updating entry:\n\toldName=%s\n\tnewName=%s\n\tnewParID=%d, oldParID=%d\n",
-		p_entry->sz_object_name,
-		p_new_name,
-		p_entry->par_id,
-		p_new_parent->object_id
+		entry->sz_object_name.c_str(),
+		new_name,
+		entry->par_id,
+		new_parent->object_id
 	);
 
+	std::lock_guard guard(mutex_);
+
 	// First, update the object's name and full path to the new one.
-	if (p_new_name != nullptr && lstrlen(p_new_name) > 0)
+	if (new_name != nullptr && lstrlen(new_name) > 0)
 	{
-		// ReSharper disable once CppFunctionResultShouldBeUsed
-		StringCbCopy(p_entry->sz_object_name, sizeof p_entry->sz_object_name, p_new_name);
+		entry->sz_object_name = new_name;
 	}
 
 	// Update the new full path and full path hash
-	// ReSharper disable once CppFunctionResultShouldBeUsed
-	StringCbPrintf(
-		p_entry->sz_path,
-		sizeof(p_entry->sz_object_name),
-		TEXT("%s\\%s"),
-		p_new_parent->sz_path,
-		p_entry->sz_object_name
-	);
-
-	p_entry->path_hash = hash_string(p_entry->sz_path);
+	entry->sz_path = new_parent->sz_path / entry->sz_object_name;
+	entry->path_hash = std::hash<std::wstring>{}(entry->sz_path);
 
 	// Only if the object moved do we update the parent id and entry
-	if (p_entry->par_entry != p_new_parent)
+	if (entry->par_entry != new_parent)
 	{
-		p_entry->par_id = p_new_parent->object_id;
-		p_entry->par_entry = p_new_parent;
+		entry->par_id = new_parent->object_id;
+		entry->par_entry = new_parent;
 	}
 
 	// If the entry that was moved is a directory, then we have to update the
 	// full path of every object below it.
-	if (p_entry->flags & flag_index_is_dir)
+	if (entry->flags & flag_index_is_dir)
 	{
-		auto_lock lock(&m_index_critical_section_);
+		std::lock_guard guard(mutex_);
 
 		for (auto sub_it = m_index_.begin(); sub_it < m_index_.end(); ++sub_it)
 		{
 			const auto sub_entry = sub_it->get();
-			if (sub_entry->par_id != p_entry->object_id)
+			if (sub_entry->par_id != entry->object_id)
 				continue;
 
-			update_entry(sub_entry, p_entry, nullptr);
+			update_entry(sub_entry, entry, nullptr);
 		}
 	}
 }
@@ -315,10 +277,7 @@ void afp_file_index::update_entry(
  *		None
  */
 
-void afp_file_index::update_entry_flags(
-	const p_afp_index p_entry,
-	const uint16 flags
-)
+void afp_file_index::update_entry_flags(afp_index* p_entry, const uint16 flags)
 {
 	//
 	//If the "set item" flag is set, then we are setting the flags. Otherwise
@@ -379,39 +338,47 @@ size_t afp_file_index::hash_string(const PWCHAR string)
 
 
 /*
- *	find_entry_with_full_path()
+ *	find()
  *
  *	Description
  *		Finds an entry in the array by looking for its full path.
  *
  *	Returns
- *		p_afp_index
+ *		afp_index*
  */
 
-p_afp_index afp_file_index::find_entry_with_full_path(PWCHAR fullPath)
+afp_index* afp_file_index::find(const std::wstring& full_path)
 {
-	if (fullPath == nullptr)
-	{
-		return nullptr;
-	}
+	std::lock_guard guard(mutex_);
 
-	auto_lock lock(&m_index_critical_section_);
-
-	const auto it = std::find_if(m_index_.begin(), m_index_.end(), [=](const std::unique_ptr<afp_index>& i)
-	{
-		return lstrcmp(i->sz_path, fullPath) == 0;
-	});
+	const auto it = std::ranges::find_if(m_index_, [=](const std::unique_ptr<afp_index>& i)
+    {
+        return i->sz_path.compare(full_path) == 0;
+    });
 
 	if (it == m_index_.end())
 	{
-		DBGWRITE(
-			dbg_level_info,
-			L"Failed to find object! (%s)\n", fullPath);
-
+		DBGWRITE(dbg_level_info, L"Failed to find indexed object! (%s)\n", full_path.c_str());
 		return nullptr;
 	}
 
 	return it->get();
+}
+
+afp_index* afp_file_index::find(const DWORD directory_id, const std::wstring& path)
+{
+	std::lock_guard guard(mutex_);
+
+    if (const auto it = std::ranges::find_if(m_index_, [=](const std::unique_ptr<afp_index>& i)
+    {
+			return i->object_id == directory_id;
+    }); it != m_index_.end())
+	{
+        const std::filesystem::path temp_path = it->get()->sz_path / path;
+		return find(temp_path);
+	}
+
+	return nullptr;
 }
 
 
@@ -429,11 +396,11 @@ p_afp_index afp_file_index::find_entry_with_full_path(PWCHAR fullPath)
  *		afp_file_index*
  */
 
-uint32 afp_file_index::get_offspring(const uint32 par_id, std::vector<p_afp_index>** new_index)
+uint32 afp_file_index::get_offspring(const uint32 par_id, std::vector<afp_index*>** new_index)
 {
-	const auto sub_index = new std::vector<p_afp_index>();
+	const auto sub_index = new std::vector<afp_index*>();
 
-	auto_lock lock(&m_index_critical_section_);
+	std::lock_guard guard(mutex_);
 
 	for (auto it = m_index_.begin(); it < m_index_.end(); ++it)
 	{
@@ -477,7 +444,7 @@ void afp_file_index::dump_index()
 		const auto entry = it->get();
 
 		DBGWRITE(dbg_level_info,
-		         L"ID = %d parID = %d\tPath = %s\n", entry->object_id, entry->par_id, entry->sz_path);
+		         L"ID = %d parID = %d\tPath = %s\n", entry->object_id, entry->par_id, entry->sz_path.c_str());
 	}
 }
 #endif

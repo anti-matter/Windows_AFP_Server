@@ -159,7 +159,7 @@ afp_open_file* open_file(
     const uint32 dir_id,
     const int16 access_mode,
     const int8 fork_to_open,
-    const p_afp_index entry,
+    afp_index* entry,
     const WCHAR* win_path
 )
 {
