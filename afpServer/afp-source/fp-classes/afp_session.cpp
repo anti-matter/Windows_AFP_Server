@@ -227,10 +227,10 @@ AFPERROR afp_session::close_volume(const uint16 volume_id)
     auto_lock lock(&m_mutex_);
 
     const auto it =
-        std::find_if(m_open_volumes_.begin(), m_open_volumes_.end(), [=](const afp_volume* v)
+        std::ranges::find_if(m_open_volumes_, [=](const std::shared_ptr<afp_volume>& v)
         {
 	        const auto result = v->get_volume_id() == volume_id;
-            return result;
+	        return result;
         });
 
     if (it != m_open_volumes_.end())
@@ -260,10 +260,10 @@ std::shared_ptr<afp_volume> afp_session::find_open_volume(const uint16 volume_id
     auto_lock lock(&m_mutex_);
 
     const auto it =
-        std::find_if(m_open_volumes_.begin(), m_open_volumes_.end(), [=](const afp_volume* v)
-    {
-        return v->get_volume_id() == volume_id;
-    });
+        std::ranges::find_if(m_open_volumes_, [=](const std::shared_ptr<afp_volume>& v)
+        {
+	        return v->get_volume_id() == volume_id;
+        });
 
     if (it != m_open_volumes_.end())
     {

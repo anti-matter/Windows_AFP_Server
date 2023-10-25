@@ -3,9 +3,7 @@
 // ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
 #include "StdAfx.h"
 #include "afpsrvr.h"
-
 #include "afp_volumes.h"
-#include "volume_array.h"
 #include "dsi/dsi_connection.h"
 
 extern BOOL g_allow_guests;
@@ -227,11 +225,9 @@ AFPERROR FPZzzz(
 
 	afp_request.advance_pos_ptr(sizeof(int16));
 
-	// Nab the flag parameter, this is a reserved field by
+	// The flag parameter is a reserved field by
 	// Apple and is ignored now.
-	// ReSharper disable once CppAssignedValueIsNeverUsed
-	// ReSharper disable once CppDeclaratorNeverUsed
-	uint32 afp_flag = afp_request.pull_num<UINT32>();
+	afp_request.advance_pos_ptr(sizeof(UINT32));
 
 	// Set the client sleeping flag so we don't kill it when we
 	// don't hear from it.

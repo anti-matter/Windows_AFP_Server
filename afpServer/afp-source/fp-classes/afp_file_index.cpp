@@ -89,12 +89,14 @@ afp_index* afp_file_index::add_entry(
 		*p_new_dir_id = result->object_id;
 	}
 
+	check_waiters(result->sz_path);
+
 	return result;
 }
 
 void afp_file_index::check_waiters(const std::filesystem::path& path)
 {
-	const auto it = std::ranges::find_if(waiting_for_add_, [=](const std::unique_ptr<index_wait_for_add_data> wait_data)
+	const auto it = std::ranges::find_if(waiting_for_add_, [=](const std::shared_ptr<index_wait_for_add_data>& wait_data)
 		{
 			return wait_data->object_path == path;
 		});
@@ -108,7 +110,7 @@ void afp_file_index::check_waiters(const std::filesystem::path& path)
 
 UINT32 afp_file_index::wait_for_entry(const std::filesystem::path& path)
 {
-    const auto wait_data = std::make_unique<index_wait_for_add_data>();
+    const auto wait_data = std::make_shared<index_wait_for_add_data>();
 	waiting_for_add_.push_back(wait_data);
 
 	const auto result = WaitForSingleObject(wait_data->event, 10000);
@@ -234,7 +236,7 @@ void afp_file_index::remove_entry(const uint32 object_id, const bool delete_dire
 				p_worker_element->pParam2 = element;
 				p_worker_element->dwWorkerFunction = AFP_WORKER_DELETE_INDEX_ENTRY;
 
-				AFPWorkerAddElementToWorkerQueue(p_worker_element);
+				//AFPWorkerAddElementToWorkerQueue(p_worker_element);
 			}
 		}
 	}

@@ -149,8 +149,6 @@ T afp_net_buffer::pull_num()
 template <class T>
 T afp_net_buffer::get_num() const
 {
-	T result;
-
 	if (sizeof(T) > 1)
 	{
 		return byte_swap<T>(*reinterpret_cast<T*>(mCurrentPos));

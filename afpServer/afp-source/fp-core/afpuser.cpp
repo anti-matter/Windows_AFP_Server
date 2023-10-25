@@ -220,10 +220,7 @@ AFPERROR FPDisconnectOldSession(
 
 	DBGWRITE(dbg_level_info, L"Enter...\n");
 
-	afp_request.advance_pos_ptr(sizeof(int16));
-
-	// ReSharper disable once CppDeclaratorNeverUsed
-	int8 afp_type = afp_request.pull_num<INT8>();
+	afp_request.advance_pos_ptr(sizeof(UINT16) + sizeof(UINT8));
 	const int32 afp_token_length = afp_request.pull_num<INT32>();
 
 	if (afp_token_length != AFP_SESSION_TOKEN_SIZE)
@@ -294,9 +291,8 @@ AFPERROR FPLogin(
 
 	if (afp_command == afpLoginExt)
 	{
-		afp_request.advance_pos_ptr(sizeof(int8));
-		// ReSharper disable once CppDeclaratorNeverUsed
-		auto afp_flags = afp_request.pull_num<INT16>();
+		afp_request.advance_pos_ptr(sizeof(UINT8));
+		afp_request.advance_pos_ptr(sizeof(UINT16)); // afp_flags
 	}
 
 	if (AFP_FAILED(afp_request.get_pascal_string(afp_version, sizeof(afp_version))))

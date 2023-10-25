@@ -155,7 +155,6 @@ AFPERROR AFPGetObjectParms(
     uint16* longNameOffset = nullptr;
     uint16* uniNameOffset = nullptr;
     char* pParmsStart = afpReply.get_current_pos_ptr();
-    AFPERROR afpError = AFP_OK;
 
     if (afpBitmap & kFPFileAttributes)
     {

@@ -12,7 +12,7 @@
 #include "afp_registry.h"
 #include "fdparms.h"
 
-const auto g_volumes = std::make_unique<afp_volumes>();
+std::unique_ptr<afp_volumes> g_volumes = std::make_unique<afp_volumes>();
 const std::wstring parent_directory_name = L"Parent";
 
 afp_volumes::afp_volumes()
@@ -165,7 +165,7 @@ void afp_volumes::remove_all_volumes()
 }
 
 
-bool afp_volumes::index_build(const std::filesystem::path& share_path, const UINT32  parent_dir_id, std::shared_ptr<afp_volume>& volume)
+bool afp_volumes::index_build(const std::filesystem::path& share_path, const UINT32  parent_dir_id, const std::shared_ptr<afp_volume>& volume)
 {
     if (parent_dir_id == kRootDirID)
     {

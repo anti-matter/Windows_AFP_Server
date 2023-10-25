@@ -33,11 +33,13 @@ AFPERROR FPResolveID(
 
     // Get a pointer to the volume info structure for this volume.
     const auto afp_session = connection->get_afp_session();
-    std::shared_ptr<afp_volume> afp_volume_info = afp_session->find_open_volume(afp_volume_id);
-    const auto afp_entry = afp_volume_info->get_index()->find(afp_file_id, afp_entry->sz_path);
-    
+    const std::shared_ptr<afp_volume> afp_volume_info = afp_session->find_open_volume(afp_volume_id);
+    const std::filesystem::path path;
+    const auto afp_entry = afp_volume_info->get_index()->find(afp_file_id,path);
 
-    if (AFP_SUCCESS(afp_error))
+    AFPERROR afp_error = AFP_OK;
+
+    if (afp_entry != nullptr)
     {
         // We don't support the following bitmaps, so we clear them.
         if (connection->get_afp_version() < afpVersion30)
@@ -664,9 +666,9 @@ AFPERROR FPCreateDir(
         return afpAccessDenied;
     }
 
-    afp_error = (CreateDirectory(win_path, nullptr))
-                   ? AFP_OK
-                   : afp_map_win_error_to_afp(GetLastError(), afpMiscErr);
+    afp_error = CreateDirectory(win_path, nullptr)
+	                ? AFP_OK
+	                : afp_map_win_error_to_afp(GetLastError(), afpMiscErr);
 
     afp_revert_to_self(connection->get_user_token());
 

@@ -45,8 +45,7 @@ AFPERROR FPGetExtAttribute(
     const auto afpVolID = afpRequest.pull_num<UINT16>();
     const uint32 afpDirID = afpRequest.pull_num<UINT32>();
     const auto afpBitmap = afpRequest.pull_num<UINT16>();
-    auto afpOffset = afpRequest.pull_num<INT64>();
-    auto afpReqCount = afpRequest.pull_num<INT64>();
+    afpRequest.advance_pos_ptr(sizeof(INT64) * 2); // offset and req count
     const int32 afpMaxReplySize = afpRequest.pull_num<INT32>();
     const int8 afpPathtype = afpRequest.pull_num<INT8>();
     // ReSharper restore CppDeclaratorNeverUsed
@@ -154,7 +153,7 @@ AFPERROR FPGetExtAttribute(
 
                     if (hFile != INVALID_HANDLE_VALUE)
                     {
-                        ReadFile(
+                        const auto read_result = ReadFile(
                             hFile,
                             afpReply.get_current_pos_ptr(),
                             min((int)afpDataLen, (int)afpMaxReplySize),
@@ -247,8 +246,7 @@ AFPERROR FPSetExtAttribute(
     const auto afpVolID = afpRequest.pull_num<UINT16>();
     const uint32 afpDirID = afpRequest.pull_num<UINT32>();
     const auto afpBitmap = afpRequest.pull_num<UINT16>();
-    // ReSharper disable once CppDeclaratorNeverUsed
-    auto afpOffset = afpRequest.pull_num<INT64>();
+    afpRequest.advance_pos_ptr(sizeof(INT64)); //offset
     const int8 afpPathtype = afpRequest.pull_num<INT8>();
 
     //
@@ -410,10 +408,7 @@ AFPERROR FPListExtAttribute(
     const auto afpVolID = afpRequest.pull_num<UINT16>();
     const uint32 afpDirID = afpRequest.pull_num<UINT32>();
     const auto afpBitmap = afpRequest.pull_num<UINT16>();
-    // ReSharper disable CppDeclaratorNeverUsed
-    auto afpReqCount = afpRequest.pull_num<INT16>();
-    int32 afpStartIndex = afpRequest.pull_num<INT32>();
-    // ReSharper restore CppDeclaratorNeverUsed
+    afpRequest.advance_pos_ptr(sizeof(UINT16) + sizeof(UINT32)); // req count and start index
     const int32 afpMaxReplySize = afpRequest.pull_num<INT32>();
     const int8 afpPathtype = afpRequest.pull_num<INT8>();
 
@@ -595,8 +590,7 @@ AFPERROR FPRemoveExtAttribute(
 
     const auto afpVolID = afpRequest.pull_num<UINT16>();
     const uint32 afpDirID = afpRequest.pull_num<UINT32>();
-    // ReSharper disable once CppDeclaratorNeverUsed
-    auto afpBitmap = afpRequest.pull_num<UINT16>();
+    afpRequest.advance_pos_ptr(sizeof(UINT16)); // bitmap
     const int8 afpPathtype = afpRequest.pull_num<INT8>();
 
     //
@@ -761,14 +755,18 @@ AFPERROR GetStreams(
     //
     //First load the proc for our undocumented API.
     //
-    reinterpret_cast<FARPROC&>(NtQueryInformationFile) = GetProcAddress(  // NOLINT(clang-diagnostic-undefined-reinterpret-cast)
-        ::GetModuleHandle(L"ntdll.dll"),
-        "NtQueryInformationFile"
-    );
-    if (NtQueryInformationFile == nullptr)
+    const HMODULE nt_dll = GetModuleHandle(L"ntdll.dll");
+    if (nt_dll != nullptr)
     {
-        DBGWRITE(dbg_level_info, L"[afpxattr:GetStreams]GetProcAddress() failed! (%d)\n", GetLastError());
-        return (afpParmErr);
+        reinterpret_cast<FARPROC&>(NtQueryInformationFile) = GetProcAddress(  // NOLINT(clang-diagnostic-undefined-reinterpret-cast)
+            nt_dll,
+            "NtQueryInformationFile"
+        );
+        if (NtQueryInformationFile == nullptr)
+        {
+            DBGWRITE(dbg_level_info, L"[afpxattr:GetStreams]GetProcAddress() failed! (%d)\n", GetLastError());
+            return (afpParmErr);
+        }
     }
 
     //

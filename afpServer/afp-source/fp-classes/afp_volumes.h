@@ -46,7 +46,7 @@ public:
     // of dir id's and dir names. The 'root' of this volume is the
     // share point. We pass kRootDirID as that will be the starting
     // dir id for the root directory of our volume.
-    bool index_build(const std::filesystem::path& share_path, const UINT32 parent_dir_id, std::shared_ptr<afp_volume>& volume);
+    bool index_build(const std::filesystem::path& share_path, const UINT32 parent_dir_id, const std::shared_ptr<afp_volume>& volume);
 
     // Thread to handle (avoid) recursive calls into directories when
     // indexing a volume and handling notify events.

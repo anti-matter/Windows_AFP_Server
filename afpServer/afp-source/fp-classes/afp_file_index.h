@@ -51,7 +51,6 @@ public:
 		UINT32* p_new_dir_id = nullptr
 	);
 
-	void check_waiters(const std::filesystem::path& path);
 	UINT32 wait_for_entry(const std::filesystem::path& path);
 
 	afp_index* get_entry(uint32 object_id);
@@ -76,10 +75,12 @@ public:
 #endif
 
 private:
+	void check_waiters(const std::filesystem::path& path);
+
 	std::mutex mutex_;
 	std::vector<std::unique_ptr<afp_index>> m_index_;
 
 	uint32 m_next_id_;
 
-	std::vector<std::unique_ptr<index_wait_for_add_data>> waiting_for_add_;
+	std::vector<std::shared_ptr<index_wait_for_add_data>> waiting_for_add_;
 };

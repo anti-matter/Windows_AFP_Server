@@ -81,6 +81,12 @@ void afp_read_dir_changes(
     OVERLAPPED overlapped;
 
     overlapped.hEvent = CreateEvent(nullptr, FALSE, TRUE, nullptr);
+    if (overlapped.hEvent == nullptr)
+    {
+        ASSERT(0);
+        return;
+    }
+
     volume->set_notify_handle(overlapped.hEvent);
 
     // This call will put the thread into a wait state until an change
@@ -206,7 +212,10 @@ void afp_read_dir_changes(
     }
     while (TRUE);
 
-    CloseHandle(overlapped.hEvent);
+    if (overlapped.hEvent != nullptr)
+    {
+        CloseHandle(overlapped.hEvent);
+    }
 }
 
 
