@@ -16,437 +16,39 @@
 #include "volume_array.h"
 
 extern std::unique_ptr<afp_volumes> g_volumes;
-USHORT gNextVolumeID = 65535;
 
-
-//---------------------------------------------------------------------
-// InitializeVolumesThread()
-//---------------------------------------------------------------------
-// Since building the index of the volumes may take a long time, we
-// do it in a separate thread so we don't stop access to the rest
-// of the volumes or the UI while indexing is happening.
-
-DWORD WINAPI InitializeVolumesThread(
-    IN LPVOID pParam
-)
-{
-    UNREFERENCED_PARAMETER(pParam);
-
-    WCHAR szShareName[33];
-    WCHAR szSharePath[MAX_PATH];
-    PassWord szPassword;
-    DWORD volFlags;
-    afp_registry theRegistry;
-
-    if (theRegistry.open_volume_list_reg_key())
-    {
-        while (theRegistry.next_volume(
-            szShareName,
-            sizeof(szShareName),
-            szSharePath,
-            sizeof(szSharePath),
-            reinterpret_cast<PCHAR>(szPassword),
-            sizeof(PassWord),
-            &volFlags))
-        {
-            //
-            //Now add the volume to our volume index and initialize it.
-            //
-            AFPAddVolume(szShareName, szSharePath, volFlags);
-        }
-    }
-
-    return 0;
-}
-
-
-//---------------------------------------------------------------------
-// AFPAddNewVolumeFromUI()
-//---------------------------------------------------------------------
-// Call this function when the user is adding a new AFP share from
-// the UI. It adds the new share parms to the registry as well as
-// publishes the volume to afp clients.
 
 DWORD AFPAddNewVolumeFromUI(
-    IN WCHAR* szSharename,
-    IN WCHAR* szPath,
-    IN WCHAR* szPassword
+    IN WCHAR* share_name,
+    IN WCHAR* share_path,
+    IN WCHAR* share_password
 )
 {
     afp_registry theRegistry;
-    DWORD dwError;
 
-    dwError = theRegistry.add_volume(szSharename, szPath, szPassword);
-
-    if (SUCCEEDED(dwError))
+    const DWORD dw_error = theRegistry.add_volume(share_name, share_path, share_password);
+    if (SUCCEEDED(dw_error))
     {
-        dwError = (AFPAddVolume(szSharename, szPath, 0) == nullptr) ? E_FAIL : ERROR_SUCCESS;
+        g_volumes->add_volume(share_name, share_path, 0);
     }
 
-    return dwError;
+    return dw_error;
 }
 
 
-//---------------------------------------------------------------------
-// AFPRemoveVolumeFromUI()
-//---------------------------------------------------------------------
-// Call this function when the user is removing an AFP share from
-// the UI.
-//
-
 DWORD AFPRemoveVolumeFromUI(
-    IN WCHAR* szShareName
+    IN WCHAR* share_name
 )
 {
     afp_registry registry;
-    DWORD error = 2;
 
-    auto volume = g_volume_array.find_by_name(szShareName);
+    const auto volume = g_volumes->find(share_name);
     if (volume != nullptr)
     {
-        error = AFPRemoveVolume(volume);
+        g_volumes->remove_volume(volume->get_volume_id());
     }
 
-    if ((error == NO_ERROR) || (error == 2))
-    {
-        //
-        //Lastly, remove the volume from the registry.
-        //
-        error = registry.remove_volume(szShareName);
-    }
-
-    return error;
-}
-
-
-//---------------------------------------------------------------------
-// AFPInitializeVolumes()
-//---------------------------------------------------------------------
-// Initialize our AFP volumes and data structures needed to maintain
-// the volume list.
-//
-
-void AFPInitializeVolumes()
-{
-    HANDLE hThread;
-    DWORD dwThreadID;
-
-    hThread = CreateThread(
-        nullptr,
-        0,
-        InitializeVolumesThread,
-        nullptr,
-        0,
-        &dwThreadID
-    );
-
-    CloseHandle(hThread);
-}
-
-
-//---------------------------------------------------------------------
-// AFPAddVolume()
-//---------------------------------------------------------------------
-// Add a volume to our shared list.
-//
-
-AFP_VOLUME_INFO* AFPAddVolume(
-    IN PWCHAR pszShareName,
-    IN PWCHAR pszPath,
-    IN DWORD dwFlags
-)
-{
-    afp_index* pIndex;
-    WIN32_FILE_ATTRIBUTE_DATA winAttribData;
-    DWORD dwError;
-    WCHAR szWinPath[MAX_PATH];
-    HANDLE hThread;
-    DWORD dwThreadID = 0;
-    HANDLE hFile;
-
-    //
-    //In addition to getting the creation and mod dates for the
-    //volume, we use this to verify the location exists.
-    //
-    if (!GetFileAttributesEx(pszPath, GetFileExInfoStandard, &winAttribData))
-    {
-        DBGWRITE(dbg_level_warning, L"[VOL]ERROR: Share path not found! (%d)\n", GetLastError());
-        return nullptr;
-    }
-
-    auto newVolume = std::make_unique<AFP_VOLUME_INFO>();
-
-    StringCbCopy(newVolume->szShareName, sizeof(newVolume->szShareName), pszShareName);
-    StringCbCopy(newVolume->szPath, sizeof(newVolume->szPath), pszPath);
-
-    InitializeCriticalSection(&newVolume->csNotifyQueue);
-
-    newVolume->wVolID = gNextVolumeID--;
-    newVolume->dwRefCount = 0;
-    newVolume->bAFPFlags = 0;
-    newVolume->wVolumeFlags = dwFlags;
-    newVolume->desktop = nullptr;
-    newVolume->notifyEvent = INVALID_HANDLE_VALUE;
-
-    //
-    //Create the initial entries in the volume's afp index. This entry is
-    //the "parent of root" and "root dir" entries.
-    //
-    lstrcpyn(szWinPath, pszPath, lstrlen(pszPath) - (lstrlen(pszShareName)));
-
-    newVolume->index = new afp_file_index();
-
-    newVolume->index->add_entry(
-        static_cast<DWORD>(-1),
-        TEXT("Parent"),
-        szWinPath,
-        true
-    );
-
-    pIndex = newVolume->index->add_entry(
-        kParentOfRoot,
-        pszShareName,
-        pszPath,
-        true
-    );
-
-    //
-    //Create the Afp_AfpInfo stream that holds FinderInfo for the root dir.
-    //
-    AFPCheckForAndAddFinderInfoStream(pIndex);
-    StringCbPrintf(szWinPath, sizeof(szWinPath), TEXT("%s:%s"), pIndex->sz_path.c_str(), AFP_INFO_STREAM_NAME);
-
-    hFile = CreateFile(
-        szWinPath,
-        GENERIC_READ | GENERIC_WRITE,
-        0,
-        nullptr,
-        CREATE_NEW,
-        FILE_ATTRIBUTE_NORMAL,
-        nullptr
-    );
-
-    if (hFile == INVALID_HANDLE_VALUE)
-    {
-        dwError = GetLastError();
-
-        //
-        //If the file already exists, that's okay, just ignore the error.
-        //
-        if (dwError != ERROR_FILE_EXISTS)
-        {
-            DBGWRITE(dbg_level_info, L"[AFP]CreateFile() for info fork failed in AddVolume! (%d)\n", dwError);
-        }
-    }
-    else
-    {
-        CloseHandle(hFile);
-    }
-
-    newVolume->ftCreationDate = winAttribData.ftCreationTime;
-    newVolume->ftModDate = winAttribData.ftLastWriteTime;
-
-    //
-    //Build the AFP index for this volume. This index keeps track
-    //of dir id's and dir names. The 'root' of this volume is the
-    //share point. We pass kRootDirID as that will be the starting
-    //dir id for the root directory of our volume.
-    //	
-    if (AFPIndexBuild(pszPath, kRootDirID, newVolume.get()) != NO_ERROR)
-    {
-        //
-        //If we get here, then we had a catostrophic failure during indexing.
-        //
-        ASSERT(0);
-
-        return nullptr;
-    }
-
-    //
-    //This needs to be set so the notify thread keeps looping.
-    //
-    newVolume->wVolumeFlags |= FLAG_VOLUME_SHARED;
-
-    //
-    //Add the new volume element to the volume list.
-    //
-    auto tempVolume = newVolume.get();
-    g_volume_array.add_item(newVolume);
-
-    //
-    //Now add the change notify thread.
-    //
-    hThread = CreateThread(
-        nullptr,
-        0,
-        afp_notify_thread,
-        tempVolume,
-        0,
-        &dwThreadID
-    );
-
-    CloseHandle(hThread);
-
-    return tempVolume;
-}
-
-
-//---------------------------------------------------------------------
-// AFPRemoveVolume()
-//---------------------------------------------------------------------
-// Remove a volume from our shared list.
-//
-
-AFPERROR AFPRemoveVolume(
-    IN AFP_VOLUME_INFO* pVolInfo
-)
-{
-    //
-    //IMPLEMENT: a thread which will watch for volumes marked
-    //for deletion and delete them when the refcount reaches 0.
-    //
-
-    //
-    //Signal to the change notify thread that we are no longer a 
-    //shared volume resource.
-    //
-    pVolInfo->wVolumeFlags &= ~FLAG_VOLUME_SHARED;
-
-    //
-    //This releases the event that ReadDirectoryChangesW() is waiting on
-    //in the change notify thread so it will exit.
-    //
-    if (pVolInfo->notifyEvent != INVALID_HANDLE_VALUE)
-    {
-        SetEvent(pVolInfo->notifyEvent);
-    }
-
-    while (pVolInfo->dwRefCount > 0)
-    {
-        Sleep(500);
-    }
-
-    DBGWRITE(dbg_level_info, L"[VOL]Removing volume %s\n", pVolInfo->szShareName);
-
-    //
-    //Now erase the entire index structure for this volume from memory.
-    //NOTE: this is where we would save the index to disk if we were
-    //going to do that.
-    //
-    delete pVolInfo->index;
-    delete pVolInfo->desktop;
-
-    //
-    //First step is to remove the volume structure pointer
-    //for the volume from the volume tracking array.
-    //
-    g_volume_array.remove_item(pVolInfo);
-
-    return AFP_OK;
-}
-
-
-//---------------------------------------------------------------------
-// AFPRemoveAllVolumes()
-//---------------------------------------------------------------------
-// Called in response to us shutting down.
-//
-
-AFPERROR AFPRemoveAllVolumes()
-{
-    auto_lock lock(g_volume_array.mutex());
-
-    auto size = g_volume_array.num_items();
-    for (UINT32 i = 0; i < size; ++i)
-    {
-        AFPRemoveVolume(g_volume_array.get_item(i));
-    }
-
-    return AFP_OK;
-}
-
-
-//---------------------------------------------------------------------
-// AFPGetVolumeInfoBlock()
-//---------------------------------------------------------------------
-// Returns a volume info block pertaining to a volume name or ID. If
-// szVolName is NULL, then the search is performed using the vol id.
-//
-
-BOOL afp_get_volume_info_block(
-    IN const PWCHAR volume_name,
-    IN const WORD volume_id,
-    OUT afp_volume** volume
-)
-{
-    *volume = volume_name != nullptr
-                     ? g_volumes->find(volume_name)
-                     : g_volumes->find(volume_id);
-
-    return *volume != nullptr;
-}
-
-
-//---------------------------------------------------------------------
-// AFPMapVolumeNameToID()
-//---------------------------------------------------------------------
-// Maps a volume name to an AFP volume ID.
-//
-
-BOOL AFPMapVolumeNameToID(
-    IN PWCHAR szVolumeName,
-    OUT PWORD wVolID
-)
-{
-    auto volumeInfo = g_volume_array.find_by_name(szVolumeName);
-
-    if (volumeInfo != nullptr)
-    {
-        *wVolID = volumeInfo->wVolID;
-        return true;
-    }
-
-    return false;
-}
-
-
-//---------------------------------------------------------------------
-// AFPNumVolumesActive()
-//---------------------------------------------------------------------
-// Returns the number of volumes that are available for clients to
-// to access.
-//
-
-BYTE AFPNumVolumesActive()
-{
-    auto_lock lock(g_volume_array.mutex());
-    BYTE count = 0;
-
-    for (auto it = g_volume_array.begin(); it < g_volume_array.end(); ++it)
-    {
-        //
-        //First, we check to make sure the volume has been fully indexed. If not
-        //we cannot offer it to the clients.
-        //
-        if ((it->get()->wVolumeFlags & FLAG_VOLUME_INDEXINGCOMPLETE) != 0)
-        {
-            count++;
-        }
-    }
-
-    return count;
-}
-
-
-//---------------------------------------------------------------------
-// AFPNumVolumesShared()
-//---------------------------------------------------------------------
-// Returns the number of volumes that are shared.
-//
-
-BYTE AFPNumVolumesShared()
-{
-    return static_cast<BYTE>(g_volume_array.num_items());
+    return registry.remove_volume(share_name);;
 }
 
 
@@ -468,7 +70,7 @@ AFPERROR AFPGetVolumeParameters(
 {
     DWORD dwError;
     uint16* volNameOffset = nullptr;
-    AFP_VOLUME_INFO* afpVolume = nullptr;
+    std::shared_ptr<afp_volume> afpVolume = g_volumes->find(afpVolumeID);
     ULARGE_INTEGER i64FreeBytesAvailable = {0};
     ULARGE_INTEGER i64NumBytesInDisk = {0};
     ULARGE_INTEGER i64NumFreeBytes = {0};
@@ -482,7 +84,7 @@ AFPERROR AFPGetVolumeParameters(
     //Get a pointer to our volume information block which contains
     //a lot of the data we need here.
     //
-    if (AFPGetVolumeInfoBlock(nullptr, afpVolumeID, &afpVolume) == FALSE)
+    if (afpVolume == nullptr)
     {
         DBGWRITE(dbg_level_warning, L"[VOL]Volume ID not found in AFPGetVolumeParameters()!\n");
         return afpIDNotFound;
@@ -499,7 +101,7 @@ AFPERROR AFPGetVolumeParameters(
         i64NumFreeBytes.QuadPart = 0;
 
         if (GetDiskFreeSpaceEx(
-            afpVolume->szPath,
+            afpVolume->get_share_path().c_str(),
             &i64FreeBytesAvailable,
             &i64NumBytesInDisk,
             &i64NumFreeBytes) == FALSE)
@@ -523,10 +125,8 @@ AFPERROR AFPGetVolumeParameters(
         DWORD maxFileNameLen = 0;
         DWORD systemFlags = 0;
 
-        StringCbPrintf(tempName, sizeof(tempName), TEXT("%c:\\"), afpVolume->szShareName[0]);
-
-        auto success = GetVolumeInformation(
-            tempName,
+        if (GetVolumeInformation(
+            afpVolume->get_share_path().root_name().c_str(),
             szVolumeName,
             sizeof(szVolumeName),
             nullptr,
@@ -534,9 +134,7 @@ AFPERROR AFPGetVolumeParameters(
             &systemFlags,
             fileSystemName,
             sizeof(fileSystemName)
-        );
-
-        if (success)
+        ))
         {
             //Fix non-support for FILE_READ_ONLY_VOLUME
 #if 0
@@ -546,12 +144,12 @@ AFPERROR AFPGetVolumeParameters(
             }
 #endif
         }
-        else if (afpVolume->wVolumeFlags & FLAG_VOLUME_READONLY)
+        else if (afpVolume->get_internal_flags() & flag_volume_readonly)
         {
             attributes |= kFPVolReadOnly;
         }
 
-        if (afpVolume->wVolumeFlags & FLAG_VOLUME_HASPASSWORD)
+        if (afpVolume->get_internal_flags() & flag_volume_has_password)
         {
             attributes |= kFPVolHasVolumePassword;
         }
@@ -561,11 +159,11 @@ AFPERROR AFPGetVolumeParameters(
 
     if (afpBitmap & kFPVolSignatureBit) afpReply.push_int16(kFixedDirectoryID);
 
-    if (afpBitmap & kFPVolCreateDateBit) afpReply.push_int32(afp_windows_to_mac_time(&afpVolume->ftCreationDate));
-    if (afpBitmap & kFPVolModDateBit) afpReply.push_int32(afp_windows_to_mac_time(&afpVolume->ftModDate));
-    if (afpBitmap & kFPVolBackupDateBit) afpReply.push_int32(afp_windows_to_mac_time(&afpVolume->ftBackupDate));
+    if (afpBitmap & kFPVolCreateDateBit) afpReply.push_num(afp_windows_to_mac_time(afpVolume->get_create_date()));
+    if (afpBitmap & kFPVolModDateBit) afpReply.push_num(afp_windows_to_mac_time(afpVolume->get_modified_date()));
+    if (afpBitmap & kFPVolBackupDateBit) afpReply.push_num(afp_windows_to_mac_time(afpVolume->get_backup_date()));
 
-    if (afpBitmap & kFPVolIDBit) afpReply.push_int16(afpVolume->wVolID);
+    if (afpBitmap & kFPVolIDBit) afpReply.push_num(afpVolume->get_volume_id());
 
     if (afpBitmap & kFPVolBytesFreeBit)
     {
@@ -574,11 +172,11 @@ AFPERROR AFPGetVolumeParameters(
         //
         if (i64FreeBytesAvailable.QuadPart > MAXLONG)
         {
-            afpReply.push_int32(MAXLONG);
+            afpReply.push_num(MAXLONG);
         }
         else
         {
-            afpReply.push_int32(i64FreeBytesAvailable.LowPart);
+            afpReply.push_num(i64FreeBytesAvailable.LowPart);
         }
     }
 
@@ -591,16 +189,16 @@ AFPERROR AFPGetVolumeParameters(
         //
         if (i64NumBytesInDisk.QuadPart > MAXLONG)
         {
-            afpReply.push_int32(MAXLONG);
+            afpReply.push_num(MAXLONG);
         }
         else
         {
-            afpReply.push_int32(i64NumBytesInDisk.LowPart);
+            afpReply.push_num(i64NumBytesInDisk.LowPart);
         }
     }
 
     //
-    //Save the pointer to where we neet to write the offset
+    //Save the pointer to where we need to write the offset
     //to the volume name.
     //
     if (afpBitmap & kFPVolNameBit)
@@ -613,13 +211,12 @@ AFPERROR AFPGetVolumeParameters(
     //The following 3 bits will only be set if the caller
     //is using AFP 2.2 or later.
     //
-    if (afpBitmap & kFPVolExtBytesFree) afpReply.push_int64(i64NumFreeBytes.QuadPart);
-    if (afpBitmap & kFPVolExtBytesTotal) afpReply.push_int64(i64NumBytesInDisk.QuadPart);
+    if (afpBitmap & kFPVolExtBytesFree) afpReply.push_num(i64NumFreeBytes.QuadPart);
+    if (afpBitmap & kFPVolExtBytesTotal) afpReply.push_num(i64NumBytesInDisk.QuadPart);
 
     if (afpBitmap & kFPVolBlockSize)
     {
         DWORD dwAllocationSize;
-        auto i64Capacity = i64NumBytesInDisk.QuadPart;
 
         //
         //Since we only work on NTFS volumes, we use the NTFS
@@ -629,7 +226,7 @@ AFPERROR AFPGetVolumeParameters(
         //BUGBUG: Find API that will get us the real number if it exists!
         //
 
-        if (i64Capacity <= 512000000)
+        if (const auto i64Capacity = i64NumBytesInDisk.QuadPart; i64Capacity <= 512000000)
         {
             dwAllocationSize = 512;
         }
@@ -646,7 +243,7 @@ AFPERROR AFPGetVolumeParameters(
             dwAllocationSize = 4096;
         }
 
-        afpReply.push_int32(dwAllocationSize);
+        afpReply.push_num(dwAllocationSize);
 
         DBGWRITE(dbg_level_all, L"[VOL]Allocation block size = %d\n", dwAllocationSize);
     }
@@ -654,7 +251,7 @@ AFPERROR AFPGetVolumeParameters(
     if (afpBitmap & kFPVolNameBit)
     {
         *volNameOffset = htons(static_cast<uint16>(afpReply.get_data_length()) - sizeof(int16));
-        afpReply.push_pascal_string(afpVolume->szShareName);
+        afpReply.push_pascal_string(afpVolume->get_share_name());
     }
 
     return AFP_OK;
@@ -867,47 +464,6 @@ AFPERROR AFPIndexBuild(
     return NO_ERROR;
 }
 
-
-//---------------------------------------------------------------------
-// afp_add_directory_to_index_worker_queue()
-//---------------------------------------------------------------------
-// Add a new directory to be indexed to the worker thread queue.
-//
-
-void afp_add_directory_to_index_worker_queue(
-    IN afp_volume* volume,
-    IN const std::filesystem::path& dir_path,
-    IN DWORD dir_parent_id
-)
-{
-    constexpr auto cbNewPath = MAX_PATH * sizeof(WCHAR);
-    auto newWorker = static_cast<PAFP_WORKER_ELEMENT>(DBG_ALLOC(sizeof(AFP_WORKER_ELEMENT)));
-
-    if (newWorker != nullptr)
-    {
-        //
-        //We have to make a copy of the path, otherwise it may be freed before
-        //the worker gets to it.
-        //
-        auto newPath = static_cast<PWCHAR>(DBG_ALLOC(cbNewPath));
-
-        if (newPath != nullptr)
-        {
-            StringCbCopy(newPath, cbNewPath, pPath);
-
-            newWorker->dwWorkerFunction = AFP_WORKER_INDEX_DIRECTORY;
-            newWorker->pParam1 = pVolInfo;
-            newWorker->pParam2 = newPath;
-            newWorker->dwParam = dwParentID;
-
-            AFPWorkerAddElementToWorkerQueue(newWorker);
-        }
-        else
-        {
-            DBG_FREE(newWorker);
-        }
-    }
-}
 
 
 //---------------------------------------------------------------------

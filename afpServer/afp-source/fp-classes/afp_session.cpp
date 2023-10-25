@@ -1,11 +1,12 @@
 #include "StdAfx.h"
+#include <algorithm>
 #include "afp_session.h"
 #include "auto_lock.h"
 #include "afp_open_file.h"
-#include <algorithm>
-
+#include "afp_volumes.h"
 #include "dsi/dsi_connections.h"
 
+extern std::unique_ptr<afp_volumes> g_volumes;
 
 /*
  * afp_session()
@@ -40,12 +41,12 @@ afp_session::~afp_session()
 {
     EnterCriticalSection(&m_mutex_);
 
-    std::for_each(m_open_desks_.begin(), m_open_desks_.end(), [=](const std::unique_ptr<OPEN_DESKTOP>& dt)
+    std::ranges::for_each(m_open_desks_, [=, this](const std::unique_ptr<OPEN_DESKTOP>& dt)
     {
         close_desk(dt->dtRefNum);
     });
 
-    std::for_each(m_afp_open_files_.begin(), m_afp_open_files_.end(), [=](const std::unique_ptr<afp_open_file>& of)
+    std::ranges::for_each(m_afp_open_files_, [=, this](const std::unique_ptr<afp_open_file>& of)
     {
         if (of != nullptr)
         {
@@ -53,9 +54,9 @@ afp_session::~afp_session()
         }
     });
 
-    std::for_each(m_open_volumes_.begin(), m_open_volumes_.end(), [=](const AFP_VOLUME_INFO* ov)
+    std::ranges::for_each(m_open_volumes_, [=, this](const std::shared_ptr<afp_volume>& ov)
     {
-        close_volume(ov->wVolID);
+        close_volume(ov->get_volume_id());
     });
 
     LeaveCriticalSection(&m_mutex_);
@@ -98,10 +99,10 @@ AFPERROR afp_session::close_file(const int16 file_reference)
     auto_lock lock(&m_mutex_);
 
     const auto it =
-        std::find_if(m_afp_open_files_.begin(), m_afp_open_files_.end(), [=](const std::unique_ptr<afp_open_file>& f)
-    {
-        return f->get_file_ref_num() == file_reference;
-    });
+        std::ranges::find_if(m_afp_open_files_, [=](const std::unique_ptr<afp_open_file>& f)
+        {
+            return f->get_file_ref_num() == file_reference;
+        });
 
     if (it != m_afp_open_files_.end())
     {
@@ -128,10 +129,10 @@ afp_open_file* afp_session::find_open_file(const int16 file_reference)
     auto_lock lock(&m_mutex_);
 
     const auto it =
-        std::find_if(m_afp_open_files_.begin(), m_afp_open_files_.end(), [=](const std::unique_ptr<afp_open_file>& f)
-    {
-        return f->get_file_ref_num() == file_reference;
-    });
+        std::ranges::find_if(m_afp_open_files_, [=](const std::unique_ptr<afp_open_file>& f)
+        {
+            return f->get_file_ref_num() == file_reference;
+        });
 
     if (it != m_afp_open_files_.end())
     {
@@ -196,24 +197,17 @@ afp_open_file* open_file(
 AFPERROR afp_session::open_volume(const uint16 volume_id)
 {
     auto_lock lock(&m_mutex_);
-    AFP_VOLUME_INFO* volume_info;
+    const std::shared_ptr<afp_volume> volume = g_volumes->find(volume_id);
 
-    if (!AFPGetVolumeInfoBlock(nullptr, volume_id, &volume_info))
+    if (volume == nullptr)
     {
-        // We failed to find a block corresponding to the
-        // supplied volume ID.
-
         DBGWRITE(dbg_level_error, L"Bad volume ID\n");
         return afpParmErr;
     }
 
-    m_open_volumes_.push_back(volume_info);
+    m_open_volumes_.push_back(volume);
 
-    // Incrementing the ref count tells our routines that a
-    // user has the volume open and is accessing it's contents.
-    volume_info->dwRefCount++;
-
-    DBGWRITE(dbg_level_all, L"Volume %s opened\n", volume_info->szShareName);
+    DBGWRITE(dbg_level_all, L"Volume %s opened\n", volume->get_share_name().c_str());
 
     return AFP_OK;
 }
@@ -246,7 +240,7 @@ AFPERROR afp_session::close_volume(const uint16 volume_id)
 
     if (it != m_open_volumes_.end())
     {
-        DBGWRITE(dbg_level_all, L"[AFPSession::close_volume]Volume %s was closed\n", (*it)->szShareName);
+        DBGWRITE(dbg_level_all, L"Volume %s was closed\n", (*it)->get_share_name().c_str());
 
         m_open_volumes_.erase(it);
         return AFP_OK;
@@ -257,7 +251,7 @@ AFPERROR afp_session::close_volume(const uint16 volume_id)
 
 
 /*
- * find_open_volume_block()
+ * find_open_volume()
  *
  * Description:
  *		If this session has the volume open, it will return a pointer
@@ -266,7 +260,7 @@ AFPERROR afp_session::close_volume(const uint16 volume_id)
  * Returns: Ptr to the block or nullptr
  */
 
-AFP_VOLUME_INFO* afp_session::find_open_volume_block(const uint16 volume_id)
+std::shared_ptr<afp_volume> afp_session::find_open_volume(const uint16 volume_id)
 {
     auto_lock lock(&m_mutex_);
 
@@ -325,7 +319,7 @@ AFPERROR afp_session::close_desk(const uint16 desk_ref_num)
     auto_lock lock(&m_mutex_);
 
     const auto it =
-        std::find_if(m_open_desks_.begin(), m_open_desks_.end(), [=](const std::unique_ptr<OPEN_DESKTOP>& odt)
+        std::ranges::find_if(m_open_desks_, [=](const std::unique_ptr<OPEN_DESKTOP>& odt)
         {
             return odt->dtRefNum == desk_ref_num;
         });
@@ -357,7 +351,7 @@ OPEN_DESKTOP* afp_session::find_desk_file(const uint16 desk_ref_num)
     auto_lock lock(&m_mutex_);
 
     const auto it =
-        std::find_if(m_open_desks_.begin(), m_open_desks_.end(), [=](const std::unique_ptr<OPEN_DESKTOP>& odt)
+        std::ranges::find_if(m_open_desks_, [=](const std::unique_ptr<OPEN_DESKTOP>& odt)
         {
             return odt->dtRefNum == desk_ref_num;
         });

@@ -3,12 +3,16 @@
 // ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
 #include "StdAfx.h"
 #include "afpsrvr.h"
+
+#include "afp_volumes.h"
 #include "volume_array.h"
 #include "dsi/dsi_connection.h"
 
 extern volume_array g_volume_array;
 extern BOOL g_allow_guests;
 extern BOOL g_force_encrypted_logon;
+
+extern std::unique_ptr<afp_volumes> g_volumes;
 
 
 /*
@@ -30,7 +34,7 @@ AFPERROR FPGetSrvrParms(
 {
 	UNREFERENCED_PARAMETER(afp_request);
 
-	const UINT8 afp_num_volumes_active = AFPNumVolumesActive();
+	const UINT8 afp_num_volumes_active = g_volumes->active_volumes();
 	SYSTEMTIME sys_time;
 	FILETIME file_time;
 		

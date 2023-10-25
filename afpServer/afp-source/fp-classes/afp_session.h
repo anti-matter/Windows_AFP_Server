@@ -19,8 +19,8 @@ public:
 
 	AFPERROR open_volume(uint16 volume_id);
 	AFPERROR close_volume(uint16 volume_id);
-	AFP_VOLUME_INFO* find_open_volume_block(uint16 volume_id);
-	BOOL session_has_volume_open(uint16 inVolumeID) { return find_open_volume_block(inVolumeID) != nullptr; }
+	std::shared_ptr<afp_volume> find_open_volume(uint16 volume_id);
+	BOOL session_has_volume_open(uint16 inVolumeID) { return find_open_volume(inVolumeID) != nullptr; }
 
 	AFPERROR open_desk(uint16 volume_id, uint16* desktop_ref_num);
 	AFPERROR close_desk(uint16 desk_ref_num);
@@ -45,7 +45,7 @@ private:
     CRITICAL_SECTION m_mutex_;
 
     std::vector<std::unique_ptr<afp_open_file>> m_afp_open_files_;
-	std::vector<AFP_VOLUME_INFO*> m_open_volumes_;
+	std::vector<std::shared_ptr<afp_volume>> m_open_volumes_;
 	std::vector<std::unique_ptr<OPEN_DESKTOP>> m_open_desks_;
 
 	// These are used so the AFP client can reference this session in

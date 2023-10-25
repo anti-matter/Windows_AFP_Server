@@ -17,11 +17,9 @@ enum
 	flag_index_set_item = 0x80
 };
 
-//
-//This is a structure to keep track of a single directory or file.
-//We use this to map AFP dirID's to windows directories and file
-//ID's to files.
-//
+// This is a structure to keep track of a single directory or file.
+// We use this to map AFP dirID's to windows directories and file
+// ID's to files.
 typedef struct
 {
 	DWORD par_id;
@@ -32,6 +30,12 @@ typedef struct
 	WORD flags;
 	DWORD path_hash;
 } afp_index;
+
+struct index_wait_for_add_data
+{
+	HANDLE event;
+	std::filesystem::path object_path;
+};
 
 class afp_file_index  // NOLINT(cppcoreguidelines-special-member-functions)
 {
@@ -46,6 +50,10 @@ public:
 		bool is_directory,
 		UINT32* p_new_dir_id = nullptr
 	);
+
+	void check_waiters(const std::filesystem::path& path);
+	UINT32 wait_for_entry(const std::filesystem::path& path);
+
 	afp_index* get_entry(uint32 object_id);
 
 	void remove_entry(const afp_index* entry, bool delete_directory_sub_tree = false);
@@ -63,10 +71,6 @@ public:
 
 	uint32 next_id() { return m_next_id_++; }
 
-	void inc_ref() { m_ref_count_++; }
-	void dec_ref() { m_ref_count_--; }
-	uint32 get_ref() const { return m_ref_count_; }
-
 #ifdef _DEBUG
 	void dump_index();
 #endif
@@ -77,9 +81,5 @@ private:
 
 	uint32 m_next_id_;
 
-	//
-	//This is needed as we pass some operations off to a worker thread.
-	//We don't want to get deleted when a worked may be trying to call us.
-	//
-	uint32 m_ref_count_;
+	std::vector<std::unique_ptr<index_wait_for_add_data>> waiting_for_add_;
 };

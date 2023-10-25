@@ -33,11 +33,16 @@ public:
     void set_internal_flag(const UINT32 flags) { internal_flags_ |= flags; }
     void set_is_dirty() { is_dirty_ = true; }
 
+    FILETIME* get_create_date() { return &creation_date_; }
+    FILETIME* get_modified_date() { return &modification_date_; }
+    FILETIME* get_backup_date() { return &backup_date_; }
+
     UINT16 get_volume_id() const { return id_; }
 
     std::filesystem::path& get_share_path() { return share_path_; }
     std::wstring& get_share_name() { return share_name_; }
     UINT32 get_internal_flags() const { return internal_flags_; }
+    BYTE get_afp_flags() const { return afp_flags_; }
 
     HANDLE get_notify_handle() const { return notify_event_; }
     void set_notify_handle(const HANDLE handle) { notify_event_ = handle; }

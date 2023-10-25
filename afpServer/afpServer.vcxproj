@@ -157,11 +157,11 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
     <ClCompile Include="afp-source\dsi\dsi_connection.cpp" />
     <ClCompile Include="afp-source\dsi\dsi_connections.cpp" />
     <ClCompile Include="afp-source\dsi\dsi_init.cpp" />
+    <ClCompile Include="afp-source\fp-classes\afp_volume.cpp" />
+    <ClCompile Include="afp-source\fp-classes\afp_volumes.cpp" />
     <ClCompile Include="afp-source\fp-classes\auto_lock.cpp" />
-    <ClCompile Include="afpdispatch.cpp" />
+    <ClCompile Include="afp-source\fp-core\afpdispatch.cpp" />
     <ClCompile Include="afpServer.cpp" />
-    <ClCompile Include="afp_volume.cpp" />
-    <ClCompile Include="afp_volumes.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
@@ -191,7 +191,6 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
     </ClCompile>
     <ClCompile Include="afp-source\fp-classes\afp_registry.cpp" />
     <ClCompile Include="afp-source\server-core\afpnotify.cpp" />
-    <ClCompile Include="afp-source\server-core\afpworker.cpp" />
     <ClCompile Include="afp-source\server-core\counters.cpp" />
     <ClCompile Include="afp-source\helpers\afpdebug.cpp" />
     <ClCompile Include="afp-source\helpers\afphelp.cpp" />
@@ -207,6 +206,8 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
     <ClInclude Include="afp-source\dsi\dsi_init.h" />
     <ClInclude Include="afp-source\fp-classes\afp_registry.h" />
     <ClInclude Include="afp-source\fp-classes\afp_net_buffer.h" />
+    <ClInclude Include="afp-source\fp-classes\afp_volume.h" />
+    <ClInclude Include="afp-source\fp-classes\afp_volumes.h" />
     <ClInclude Include="afp-source\fp-classes\auto_lock.h" />
     <ClInclude Include="afp-source\fp-classes\desktop_database.h" />
     <ClInclude Include="afp-source\fp-classes\afp_session.h" />
@@ -219,6 +220,7 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
     <ClInclude Include="afp-source\fp-core\afp.h" />
     <ClInclude Include="afp-source\fp-core\afpdesktop.h" />
     <ClInclude Include="afp-source\fp-core\afpdirectory.h" />
+    <ClInclude Include="afp-source\fp-core\afpdispatch.h" />
     <ClInclude Include="afp-source\fp-core\afpfileio.h" />
     <ClInclude Include="afp-source\fp-core\afpsrvr.h" />
     <ClInclude Include="afp-source\fp-core\afpuser.h" />
@@ -228,15 +230,11 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
     <ClInclude Include="afp-source\fp-imp\fdparms.h" />
     <ClInclude Include="afp-source\fp-imp\logonimp.h" />
     <ClInclude Include="afp-source\fp-imp\volumes.h" />
-    <ClInclude Include="afp-source\headers\afpworker.h" />
     <ClInclude Include="afp-source\headers\counters.h" />
     <ClInclude Include="afp-source\helpers\afpdebug.h" />
     <ClInclude Include="afp-source\helpers\afphelp.h" />
     <ClInclude Include="afp-source\helpers\byte_swap.h" />
     <ClInclude Include="afp-source\server-core\afpnotify.h" />
-    <ClInclude Include="afpdispatch.h" />
-    <ClInclude Include="afp_volume.h" />
-    <ClInclude Include="afp_volumes.h" />
     <ClInclude Include="resources\resource.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>

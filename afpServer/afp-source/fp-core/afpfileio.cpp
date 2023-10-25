@@ -97,7 +97,7 @@ AFPERROR FPOpenFork(
     const INT8 afp_path_type = afp_request.pull_num<INT8>();
 
     // The client must have previously opened the volume we are operating on.
-    AFP_VOLUME_INFO* afp_vol_info = afp_afp_session->find_open_volume_block(afp_volume_id);
+    AFP_VOLUME_INFO* afp_vol_info = afp_afp_session->find_open_volume(afp_volume_id);
     if (afp_vol_info == nullptr)
     {
         // The volume has not been opened, we need to return error.
@@ -427,7 +427,7 @@ AFPERROR FPCreateFile(
         return afpParmErr;
     }
 
-    AFP_VOLUME_INFO* afp_volume_info = afp_session->find_open_volume_block(afp_volume_id);
+    AFP_VOLUME_INFO* afp_volume_info = afp_session->find_open_volume(afp_volume_id);
     if (afp_volume_info == nullptr)
     {
         DBGWRITE(dbg_level_error, L"Bad volume ID!\n");

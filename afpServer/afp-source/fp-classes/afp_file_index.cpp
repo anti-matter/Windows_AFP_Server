@@ -19,7 +19,6 @@ constexpr int first_directory_id = 1;
 
 afp_file_index::afp_file_index()
 	: m_next_id_(first_directory_id)
-	  , m_ref_count_(0)
 {
 }
 
@@ -36,17 +35,10 @@ afp_file_index::afp_file_index()
 
 afp_file_index::~afp_file_index()
 {
-	//
-	//Another thread is still relying on us being around, wait for
-	//the thread to be done with us.
-	//
-	while (m_ref_count_ > 0)
-	{
-		DBGWRITE(dbg_level_info, L"Waiting for ref count before delete\n");
-		ASSERT(0); //Remove if you ever hit this
+	DBGWRITE(dbg_level_info, L"Waiting for ref count before delete\n");
+	ASSERT(0); //Remove if you ever hit this
 
-		Sleep(500);
-	}
+	Sleep(500);
 }
 
 
@@ -100,6 +92,41 @@ afp_index* afp_file_index::add_entry(
 	return result;
 }
 
+void afp_file_index::check_waiters(const std::filesystem::path& path)
+{
+	const auto it = std::ranges::find_if(waiting_for_add_, [=](const std::unique_ptr<index_wait_for_add_data> wait_data)
+		{
+			return wait_data->object_path == path;
+		});
+
+	if (it != waiting_for_add_.end())
+	{
+		SetEvent(it->get()->event);
+		waiting_for_add_.erase(it);
+	}
+}
+
+UINT32 afp_file_index::wait_for_entry(const std::filesystem::path& path)
+{
+    const auto wait_data = std::make_unique<index_wait_for_add_data>();
+	waiting_for_add_.push_back(wait_data);
+
+	const auto result = WaitForSingleObject(wait_data->event, 10000);
+	if (result != WAIT_OBJECT_0)
+	{
+		DBGWRITE(dbg_level_error, L"Waiting for entry add timed out: %s\n", path.c_str());
+		return 0;
+	}
+
+	const auto entry = find(path);
+	if (entry == nullptr)
+	{
+		DBGWRITE(dbg_level_error, L"Waiting for entry not found: %s\n", path.c_str());
+		return 0;
+	}
+
+	return entry->object_id;
+}
 
 /*
  *	get_entry()
@@ -115,10 +142,10 @@ afp_index* afp_file_index::get_entry(const uint32 object_id)
 {
 	std::lock_guard guard(mutex_);
 
-	const auto it = std::find_if(m_index_.begin(), m_index_.end(), [=](const std::unique_ptr<afp_index>& i)
-	{
-		return object_id == i->object_id;
-	});
+	const auto it = std::ranges::find_if(m_index_, [=](const std::unique_ptr<afp_index>& i)
+    {
+        return object_id == i->object_id;
+    });
 
 	if (it != m_index_.end())
 	{
@@ -162,10 +189,10 @@ void afp_file_index::remove_entry(const uint32 object_id, const bool delete_dire
 {
 	std::lock_guard guard(mutex_);
 
-	const auto it = std::find_if(m_index_.begin(), m_index_.end(), [=](const std::unique_ptr<afp_index>& i)
-	{
-		return object_id == i->object_id;
-	});
+	const auto it = std::ranges::find_if(m_index_, [=](const std::unique_ptr<afp_index>& i)
+    {
+        return object_id == i->object_id;
+    });
 
 	if (it == m_index_.end())
 	{
@@ -185,7 +212,7 @@ void afp_file_index::remove_entry(const uint32 object_id, const bool delete_dire
 	//If the entry is a directory, then that means we have to delete all entries
 	//in the index that are sub-files/folders to this directory.
 	//
-	if ((is_directory) && (delete_directory_sub_tree))
+	if (is_directory && delete_directory_sub_tree)
 	{
 		// Find elements in the vector who's parent dir id is the same
 		// as the object we just removed.
@@ -203,11 +230,6 @@ void afp_file_index::remove_entry(const uint32 object_id, const bool delete_dire
 			const auto p_worker_element = static_cast<PAFP_WORKER_ELEMENT>(DBG_ALLOC(sizeof(AFP_WORKER_ELEMENT)));
 			if (p_worker_element != nullptr)
 			{
-				//
-				//Increment the ref counter so we wait before getting deleted.
-				//
-				inc_ref();
-
 				p_worker_element->pParam1 = this;
 				p_worker_element->pParam2 = element;
 				p_worker_element->dwWorkerFunction = AFP_WORKER_DELETE_INDEX_ENTRY;

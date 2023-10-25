@@ -80,9 +80,6 @@
     <ClCompile Include="afp-source\server-core\afpnotify.cpp">
       <Filter>Source Files\server-core</Filter>
     </ClCompile>
-    <ClCompile Include="afp-source\server-core\afpworker.cpp">
-      <Filter>Source Files\server-core</Filter>
-    </ClCompile>
     <ClCompile Include="afp-source\server-core\counters.cpp">
       <Filter>Source Files\server-core</Filter>
     </ClCompile>
@@ -119,9 +116,6 @@
     <ClCompile Include="afp-source\fp-classes\afp_registry.cpp">
       <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
-    <ClCompile Include="afpdispatch.cpp">
-      <Filter>Source Files\fp-core</Filter>
-    </ClCompile>
     <ClCompile Include="afp-source\dsi\dsi_connections.cpp">
       <Filter>Source Files\dsi</Filter>
     </ClCompile>
@@ -131,17 +125,17 @@
     <ClCompile Include="afp-source\dsi\dsi_init.cpp">
       <Filter>Source Files\dsi</Filter>
     </ClCompile>
-    <ClCompile Include="afp_volume.cpp">
+    <ClCompile Include="afp-source\fp-classes\afp_volume.cpp">
       <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
-    <ClCompile Include="afp_volumes.cpp">
+    <ClCompile Include="afp-source\fp-classes\afp_volumes.cpp">
       <Filter>Source Files\fp-classes</Filter>
+    </ClCompile>
+    <ClCompile Include="afp-source\fp-core\afpdispatch.cpp">
+      <Filter>Source Files\fp-core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="afp-source\headers\afpworker.h">
-      <Filter>Source Files\server-core</Filter>
-    </ClInclude>
     <ClInclude Include="afp-source\headers\counters.h">
       <Filter>Source Files\server-core</Filter>
     </ClInclude>
@@ -202,9 +196,6 @@
     <ClInclude Include="afp-source\fp-classes\afp_registry.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
-    <ClInclude Include="afpdispatch.h">
-      <Filter>Source Files\fp-core</Filter>
-    </ClInclude>
     <ClInclude Include="afp-source\fp-core\afp.h">
       <Filter>Source Files\server-core</Filter>
     </ClInclude>
@@ -247,14 +238,17 @@
     <ClInclude Include="afp-source\fp-imp\volumes.h">
       <Filter>Source Files\fp-imp</Filter>
     </ClInclude>
-    <ClInclude Include="afp_volume.h">
-      <Filter>Source Files\fp-classes</Filter>
-    </ClInclude>
     <ClInclude Include="afp-source\fp-imp\fdparms.h">
       <Filter>Source Files\fp-imp</Filter>
     </ClInclude>
-    <ClInclude Include="afp_volumes.h">
+    <ClInclude Include="afp-source\fp-classes\afp_volume.h">
       <Filter>Source Files\fp-classes</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\fp-classes\afp_volumes.h">
+      <Filter>Source Files\fp-classes</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\fp-core\afpdispatch.h">
+      <Filter>Source Files\fp-core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -2,7 +2,9 @@
 // ReSharper disable CppParameterMayBeConstPtrOrRef
 #include "StdAfx.h"
 #include "afpvolumes.h"
+#include "afp_volumes.h"
 
+extern std::unique_ptr<afp_volumes> g_volumes;
 
 /*
  * FPOpenVol()
@@ -36,7 +38,7 @@ AFPERROR FPOpenVol(
     DBGWRITE(dbg_level_all, L"Opening volume: %s\n", afp_volume_name);
 
     // Get the volume ID for the volume to be opened.
-    if (!AFPMapVolumeNameToID(afp_volume_name, &afp_volume_id))
+    if (!g_volumes->map_name_to_id(afp_volume_name, &afp_volume_id))
     {
         DBGWRITE(dbg_level_warning, L"Requested volume doesn't exist! (%s)\n", afp_volume_name);
         return afpParmErr;
@@ -82,7 +84,7 @@ AFPERROR FPOpenVol(
  * Returns: AFPERROR
  */
 
-AFPERROR fp_close_vol(
+AFPERROR FPCloseVol(
     IN afp_net_buffer& afp_request,
     IN afp_net_buffer& afp_reply,
     IN dsi::dsi_connection* connection

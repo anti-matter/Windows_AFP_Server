@@ -338,7 +338,7 @@ AFPERROR AFPUpdateEntryCharMap(
  *
  * Description:
  *		Adds a charmap to an index entry, note that if a charmap
- *		alrady exists, this will overwrite it.
+ *		already exists, this will overwrite it.
  *
  * Returns: AFPERROR
  */

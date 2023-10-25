@@ -3,6 +3,7 @@
 #include "StdAfx.h"
 #include "afpdirectory.h"
 #include "afp_session.h"
+#include "afp_volumes.h"
 #include "fdparms.h"
 #include "fpinfo.h"
 
@@ -33,7 +34,7 @@ AFPERROR FPResolveID(
 
     // Get a pointer to the volume info structure for this volume.
     const auto afp_session = connection->get_afp_session();
-    AFP_VOLUME_INFO* afp_volume_info = afp_session->find_open_volume_block(afp_volume_id);
+    std::shared_ptr<afp_volume> afp_volume_info = afp_session->find_open_volume(afp_volume_id);
 
     AFPERROR afp_error = AFPIndexFindEntry(afp_volume_info, afp_file_id, &afp_entry);
 
@@ -272,7 +273,7 @@ AFPERROR FPEnumerate(
     auto* afp_act_count_spot = reinterpret_cast<INT16*>(afp_reply.get_current_pos_ptr());
     afp_reply.advance_pos_ptr(sizeof(INT16));
 
-    AFP_VOLUME_INFO* afp_volume_info = afp_session->find_open_volume_block(afp_vol_id);
+    std::shared_ptr<afp_volume> afp_volume_info = afp_session->find_open_volume(afp_vol_id);
 
     // Retrieve the index entry of the directory pointed to by the AFP path.
     // We use it's dirID to determine which files we'll return in the enum.
@@ -288,15 +289,12 @@ AFPERROR FPEnumerate(
         return afp_error;
     }
 
-    // Don't let the change notify mechanism do anything while we're enumerating.
-    auto_lock lock(&afp_volume_info->csNotifyQueue);
-
     // Create a temporary index array to hold all the offspring for the
     // target directory.
     std::vector<afp_index*>* afp_temp_index;
 
     // Now populate the temp array with the offspring in the target dir.
-    afp_volume_info->index->get_offspring(afp_target_entry->object_id, &afp_temp_index);
+    afp_volume_info->get_index()->get_offspring(afp_target_entry->object_id, &afp_temp_index);
 
     // Go through the entire index and find entries that have the dirID as their parent.
     for (auto it = afp_temp_index->begin(); it < afp_temp_index->end(); ++it)
@@ -609,7 +607,7 @@ AFPERROR FPCreateDir(
     const auto afp_path_type = afp_request.pull_num<INT8>();
     const auto afp_session = connection->get_afp_session();
 
-    AFP_VOLUME_INFO* afp_volume = afp_session->find_open_volume_block(afp_volume_id);
+    std::shared_ptr<afp_volume> afp_volume = afp_session->find_open_volume(afp_volume_id);
     if (afp_volume == nullptr)
     {
         DBGWRITE(dbg_level_info, L"Bad volume ID in FPCreateDir!\n");
@@ -661,9 +659,6 @@ AFPERROR FPCreateDir(
         return afpObjectExists;
     }
 
-    // Lock down so the notify thread and us don't compete.
-    auto_lock lock(&afp_volume->csNotifyQueue);
-
     // Make sure only those who are allowed can create directories.
     if (!afp_impersonate_user(connection->get_user_token()))
     {
@@ -678,32 +673,8 @@ AFPERROR FPCreateDir(
 
     if (AFP_SUCCESS(afp_error))
     {
-        afp_entry = nullptr;
-
-        // Add the new directory to the afp index. If the call succeeds, pEntry
-        // will contain a pointer to the new index entry data.
-        afp_entry = AFPIndexAddEntry(
-            nullptr,
-            afp_volume_id,
-            afp_dir_id,
-            afp_pathname,
-            win_path,
-            true,
-            &afp_dir_id
-        );
-
-        if (afp_entry != nullptr)
-        {
-            // Make sure there is a finder info stream created for later use.
-            AFPCheckForAndAddFinderInfoStream(afp_entry);
-
-            // Copy the character conversion mapping table into the
-            // object's index entry.
-            AFPAddCharMapToIndexEntry(afp_entry, char_map);
-        }
-
-        // Mark the volume dirty to so other clients will see the changes
-        AFPMarkVolumeDirty(afp_volume->wVolID);
+        afp_dir_id = afp_volume->get_index()->wait_for_entry(win_path);
+        afp_volume->set_is_dirty();
 
         // Now build the reply block to send_ back to the client.
         afp_reply.push_num(afp_dir_id);
@@ -765,7 +736,7 @@ AFPERROR FPDelete(
         return afpParmErr;
     }
 
-    AFP_VOLUME_INFO* afp_volume_info = connection->get_afp_session()->find_open_volume_block(afp_volume_id);
+    std::shared_ptr<afp_volume> afp_volume_info = connection->get_afp_session()->find_open_volume(afp_volume_id);
     if (afp_volume_info == nullptr)
     {
         DBGWRITE(dbg_level_info, L"Bad volume ID! (%d)\n", afp_volume_id);
@@ -778,9 +749,6 @@ AFPERROR FPDelete(
         DBGWRITE(dbg_level_info, L"Index entry not found! (%s)\n", afp_pathname);
         return afp_error;
     }
-
-    // Don't compete with the notify thread.
-    auto_lock lock(&afp_volume_info->csNotifyQueue);
 
     if (!afp_impersonate_user(connection->get_user_token()))
     {
@@ -818,16 +786,7 @@ AFPERROR FPDelete(
 
     afp_revert_to_self(connection->get_user_token());
 
-    // If we successfully deleted the file or directory, we need to
-    // remove it from the afp index.
-    if (AFP_SUCCESS(afp_error))
-    {
-        AFPIndexRemoveEntry(afp_volume_info, afp_entry, true);
-    }
-
-    AFPMarkVolumeDirty(afp_volume_id);
-
-    return (afp_error);
+    return afp_error;
 }
 
 
@@ -962,12 +921,6 @@ AFPERROR FPCopyFile(
     DBGWRITE(dbg_level_all, L"copying from %s\n", afp_src_entry->sz_path.c_str());
     DBGWRITE(dbg_level_all, L"copying to %s\n", new_win_path);
 
-    AFP_VOLUME_INFO* volume_info = nullptr;
-    AFPGetVolumeInfoBlock(nullptr, afp_dst_vol_id, &volume_info);
-
-    // Silence the notify thread while we do our work.
-    auto_lock lock(&volume_info->csNotifyQueue);
-
     // Setup the correct impersonation for this API call. We have to
     // have the right credentials for copy file.
     if (!afp_impersonate_user(connection->get_user_token()))
@@ -984,42 +937,7 @@ AFPERROR FPCopyFile(
 
     afp_revert_to_self(connection->get_user_token());
 
-    if (AFP_SUCCESS(afp_error))
-    {
-        // Add the new file to the afp index for tracking purposes.
-        const afp_index* new_index = AFPIndexAddEntry(
-            nullptr,
-            afp_dst_vol_id,
-            afp_dst_entry->object_id,
-            (lstrlen(afp_new_name) > 0) ? afp_new_name : const_cast<wchar_t*>(afp_src_entry->sz_object_name.c_str()),
-            new_win_path,
-            false,
-            nullptr
-        );
-
-        if (new_index != nullptr)
-        {
-            if (lstrlen(afp_new_name) > 0)
-            {
-                AFPAddCharMapToIndexEntry(afp_dst_entry, new_char_map);
-            }
-            else
-            {
-                AFPAddCharMapToIndexEntry(afp_dst_entry, dest_char_map);
-            }
-
-            AFPMarkVolumeDirty(afp_dst_vol_id);
-        }
-        else
-        {
-            // For some reason we failed to add the new index entry. There's not
-            // much we can do at this point. Hopefully, the notify will add the
-            // new entry.
-            DBGWRITE(dbg_level_info, L"Failed to add new entry!\n");
-        }
-    }
-
-    return (afp_error);
+    return afp_error;
 }
 
 
@@ -1138,12 +1056,7 @@ AFPERROR FPMoveAndRename(
         win_dst_path = afp_dst_entry->sz_path / afp_src_entry->sz_object_name;
     }
 
-    AFP_VOLUME_INFO* volume_info = nullptr;
-    AFPGetVolumeInfoBlock(nullptr, afp_volume_id, &volume_info);
-
-    // Prevent file notifications otherwise we'll get conflicts.
-    auto_lock lock(&volume_info->csNotifyQueue);
-
+    std::shared_ptr<afp_volume> volume_info = afp_volumes::current()->find(afp_volume_id);
 
     DBGWRITE(dbg_level_info, L"Renaming to new path = %s\n", win_dst_path.c_str());
 
@@ -1161,30 +1074,7 @@ AFPERROR FPMoveAndRename(
 
     afp_revert_to_self(connection->get_user_token());
 
-    if (AFP_SUCCESS(afp_error))
-    {
-        // Now we must update the afp index for the moved directory.
-        AFPIndexUpdateEntry(
-            nullptr,
-            afp_volume_id,
-            afp_src_entry,
-            afp_dst_entry,
-            nullptr
-        );
-
-        AFPMarkVolumeDirty(afp_volume_id);
-
-        // If we changed the name of the object, then we need to update
-        // the extended char mapping table.
-        if (lstrlen(afp_new_pathname) > 0)
-        {
-            AFPAddCharMapToIndexEntry(afp_src_entry, new_char_map);
-        }
-        else
-        {
-            AFPAddCharMapToIndexEntry(afp_src_entry, dest_char_map);
-        }
-    }
+    volume_info->set_is_dirty();
 
     return afp_error;
 }
@@ -1272,10 +1162,7 @@ AFPERROR FPRename(
 
     DBGWRITE(dbg_level_info, L"Renaming to new path = %s\n", win_path);
 
-    AFP_VOLUME_INFO* volumeInfo = nullptr;
-    AFPGetVolumeInfoBlock(nullptr, afp_volume_id, &volumeInfo);
-
-    auto_lock lock(&volumeInfo->csNotifyQueue);
+    const std::shared_ptr<afp_volume> volumeInfo = afp_volumes::current()->find(afp_volume_id);
 
     if (!afp_impersonate_user(connection->get_user_token()))
     {
@@ -1290,19 +1177,7 @@ AFPERROR FPRename(
 
     afp_revert_to_self(connection->get_user_token());
 
-    if (AFP_SUCCESS(afp_error))
-    {
-        AFPIndexUpdateEntry(
-            nullptr,
-            afp_volume_id,
-            afp_entry,
-            static_cast<afp_index*>(afp_entry->par_entry),
-            afp_pathname
-        );
-
-        AFPMarkVolumeDirty(afp_volume_id);
-        AFPAddCharMapToIndexEntry(afp_entry, new_char_map);
-    }
+    volumeInfo->set_is_dirty();
 
     return afp_error;
 }

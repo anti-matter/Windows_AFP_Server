@@ -21,11 +21,10 @@ extern bool server_running;
 extern std::unique_ptr<afp_volumes> g_volumes;
 
 void afp_notify_thread(
-    IN void* param
+    IN const std::shared_ptr<afp_volume>& param
 )
 {
-    const auto volume = static_cast<afp_volume*>(param);
-
+    auto volume = param;
     const auto h_directory = CreateFile(
         volume->get_share_path().c_str(),
         FILE_LIST_DIRECTORY,
@@ -58,7 +57,7 @@ void afp_notify_thread(
         return;
     }
 
-    while (server_running && volume->get_internal_flags() & FLAG_VOLUME_SHARED)
+    while (server_running && volume->get_internal_flags() & flag_volume_shared)
     {
         afp_read_dir_changes(volume, h_directory, result_buffer.get());
         ZeroMemory(result_buffer.get(), change_notify_result_buffer_size);
@@ -72,7 +71,7 @@ void afp_notify_thread(
 
 
 void afp_read_dir_changes(
-    IN afp_volume* volume,
+    IN std::shared_ptr<afp_volume>& volume,
     IN const HANDLE h_directory,
     IN const PBYTE result_buffer
 )
@@ -103,7 +102,7 @@ void afp_read_dir_changes(
     while (!GetOverlappedResult(h_directory, &overlapped, &bytes_returned, FALSE))
     {
         if (GetLastError() != ERROR_IO_INCOMPLETE || !server_running ||
-            !(volume->get_internal_flags() & FLAG_VOLUME_SHARED))
+            !(volume->get_internal_flags() & flag_volume_shared))
         {
             DBGWRITE(dbg_level_info,
                      L"ReadDirectoryChangesW() returned error, or volume terminated. (%d)\n",
@@ -184,9 +183,11 @@ void afp_read_dir_changes(
                 // If the object was renamed on the windows box then all bets are
                 // off and there's no way to preserve the character mapping. So,
                 // clear the charmap and hope for the best.
-                memset(charmap, 0, sizeof(AFPCHARMAPARRAY));
-
-                AFPAddCharMapToIndexEntry(index_entry, charmap);
+                if ((index_entry->flags & flag_index_has_charmap) == 0)
+                {
+                    memset(charmap, 0, sizeof(AFPCHARMAPARRAY));
+                    AFPAddCharMapToIndexEntry(index_entry, charmap);
+                }
                 volume->set_is_dirty();
             }
             break;
@@ -211,7 +212,7 @@ void afp_read_dir_changes(
 
 void afp_change_notify_add(
     IN const FILE_NOTIFY_INFORMATION* file_notify_info,
-    IN afp_volume* volume
+    IN const std::shared_ptr<afp_volume>& volume
 )
 {
     WCHAR new_item_pathname[MAX_PATH] = {};
@@ -226,7 +227,7 @@ void afp_change_notify_add(
 
     // First step: we need to find the index entry that is the parent
     // directory of the new object we're adding.
-    const std::filesystem::path new_item_path(new_item_pathname);
+    std::filesystem::path new_item_path(new_item_pathname);
     const std::filesystem::path new_item_parent_path = new_item_path.parent_path();
 
     DBGWRITE(dbg_level_info, L"New item pathname = %s\n", new_item_pathname);
@@ -282,8 +283,8 @@ void afp_change_notify_add(
     if (attribute_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
     {
         // If the item is a directory, we add all of its contents
-        // to the index as well.
-        afp_add_directory_to_index_worker_queue(volume, new_item_path, parent_entry->object_id);
+        // to the volume index as well.
+        g_volumes->index_queue_task(task_index_directory, volume, new_object_id, new_item_path);
     }
     else
     {
@@ -299,7 +300,7 @@ void afp_change_notify_add(
 
 void afp_change_notify_remove(
     IN const FILE_NOTIFY_INFORMATION* file_notify_info,
-    IN afp_volume* volume
+    IN const std::shared_ptr<afp_volume>& volume
 )
 {
     TCHAR remove_item_pathname[MAX_PATH];

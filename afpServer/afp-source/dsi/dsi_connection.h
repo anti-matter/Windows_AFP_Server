@@ -146,7 +146,7 @@ namespace dsi
 
 		ULONGLONG last_tickle_;
 
-		// This is for the new FPZzzz command which tells the server
+		// This is for the new FPZzzz task which tells the server
 		// when the client is going to sleep.
 		bool client_sleeping_;
 
