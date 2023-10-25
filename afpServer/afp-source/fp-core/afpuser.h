@@ -32,8 +32,7 @@ AFPERROR FPContLogin(
 AFPERROR FPChangePassword(
 	IN afp_net_buffer& afp_request,
 	IN afp_net_buffer& afp_reply,
-	IN LPSESSION dsiSession
-);
+	IN dsi::dsi_connection* connection);
 
 AFPERROR FPLogout(
 	IN afp_net_buffer& afp_request,

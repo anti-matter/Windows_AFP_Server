@@ -107,7 +107,7 @@ afp_registry::open_volume_list_reg_key()
 
 BOOL
 afp_registry::open_volume_reg_key(
-	IN WCHAR* sz_share_name
+	IN const WCHAR* sz_share_name
 )
 {
 	WCHAR sz_reg_path[128];
@@ -594,7 +594,7 @@ afp_registry::get_volume_flags(
 
 DWORD
 afp_registry::set_volume_flags(
-	IN WCHAR* sz_share_name,
+	IN const WCHAR* sz_share_name,
 	IN DWORD flags
 )
 {
@@ -620,7 +620,7 @@ afp_registry::set_volume_flags(
 
 DWORD
 afp_registry::get_volume_password(
-	IN WCHAR* sz_share_name,
+	IN const WCHAR* sz_share_name,
 	IN const DWORD cb_password,
 	OUT WCHAR* sz_password
 )
@@ -652,7 +652,7 @@ afp_registry::get_volume_password(
 
 DWORD
 afp_registry::get_volume_password(
-	IN WCHAR* sz_share_name,
+	IN const WCHAR* sz_share_name,
 	IN const DWORD cb_password,
 	OUT PassWord* sz_password
 )

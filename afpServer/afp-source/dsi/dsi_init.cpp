@@ -5,13 +5,13 @@
 #include "dsi_init.h"
 #include "dsi_connection.h"
 #include "afpdebug.h"
+#include "afp_volumes.h"
 #include "dsi_connections.h"
-#include "volume_array.h"
 
 bool server_running = true;
 SOCKET listen_socket;
 extern dsi::dsi_connections active_connections;
-extern volume_array g_volume_array;
+extern std::unique_ptr<afp_volumes> g_volumes;
 
 namespace dsi
 {
@@ -134,18 +134,17 @@ namespace dsi
 	{
 	    while (server_running)
 	    {
-			const auto dirty_volumes = g_volume_array.find_dirty_volumes();
+			std::vector<std::shared_ptr<afp_volume>> dirty_volumes;
+
+			g_volumes->dirty_volumes(&dirty_volumes);
 			if (!dirty_volumes.empty())
 			{
-                for (const WORD dirty_volume : dirty_volumes)
+                for (const auto& dirty_volume : dirty_volumes)
                 {
-                    const auto volume_info = g_volume_array.find_by_id(dirty_volume);
-					if (volume_info != nullptr)
-					{
-						volume_info->fDirty = false;
-						active_connections.broadcast_attention(dsi_attention_server_notify);
-					}
+					dirty_volume->set_is_dirty(false);
                 }
+
+				active_connections.broadcast_attention(dsi_attention_server_notify);
 			}
 
 			std::this_thread::sleep_for(std::chrono::seconds(1));

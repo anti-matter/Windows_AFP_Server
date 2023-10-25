@@ -3,9 +3,9 @@
 #include "StdAfx.h"
 #include "afpfileio.h"
 #include "afp_open_file.h"
+#include "afp_volumes.h"
 #include "fdparms.h"
 #include "fpinfo.h"
-
 
 /*
  * FPFlushFork()
@@ -97,7 +97,7 @@ AFPERROR FPOpenFork(
     const INT8 afp_path_type = afp_request.pull_num<INT8>();
 
     // The client must have previously opened the volume we are operating on.
-    AFP_VOLUME_INFO* afp_vol_info = afp_afp_session->find_open_volume(afp_volume_id);
+    const auto afp_vol_info = afp_afp_session->find_open_volume(afp_volume_id);
     if (afp_vol_info == nullptr)
     {
         // The volume has not been opened, we need to return error.
@@ -140,7 +140,7 @@ AFPERROR FPOpenFork(
     {
         DBGWRITE(dbg_level_info, L"****Can't open file, too many open already! (%d)\n",
                  afp_afp_session->get_num_files_open());
-        return (afpTooManyFilesOpen);
+        return afpTooManyFilesOpen;
     }
 
     afp_open_file* opened_file = open_file(
@@ -427,7 +427,7 @@ AFPERROR FPCreateFile(
         return afpParmErr;
     }
 
-    AFP_VOLUME_INFO* afp_volume_info = afp_session->find_open_volume(afp_volume_id);
+    const auto afp_volume_info = afp_session->find_open_volume(afp_volume_id);
     if (afp_volume_info == nullptr)
     {
         DBGWRITE(dbg_level_error, L"Bad volume ID!\n");
@@ -447,9 +447,6 @@ AFPERROR FPCreateFile(
     // Create the full path to the new file.
     // ReSharper disable once CppFunctionResultShouldBeUsed
     StringCbPrintf(win_path, sizeof(win_path), TEXT("%s\\%s"), afp_entry->sz_path.c_str(), afp_pathname);
-
-    // Don't let the change notify mechanism do anything yet.
-    auto_lock lock(&afp_volume_info->csNotifyQueue);
 
     // Impersonate the logged on user. This makes sure only those who
     // are allowed can create files.
@@ -485,35 +482,31 @@ AFPERROR FPCreateFile(
     {
         afp_error = NO_ERROR;
 
-        // Add the new file to the afp index for tracking purposes.
-        afp_entry = AFPIndexAddEntry(
-            afp_volume_info,
-            afp_volume_id,
-            afp_dir_id,
-            afp_pathname,
-            win_path,
-            false,
-            nullptr
-        );
+        //// Add the new file to the afp index for tracking purposes.
+        //afp_entry = AFPIndexAddEntry(
+        //    afp_volume_info,
+        //    afp_volume_id,
+        //    afp_dir_id,
+        //    afp_pathname,
+        //    win_path,
+        //    false,
+        //    nullptr
+        //);
 
-        if (afp_entry != nullptr)
-        {
-            // Now make sure that our NTFS streams are created so we have
-            // a FInfo and resource forks.
-            AFPCheckForAndAddFinderInfoStream(afp_entry);
-            AFPCheckForAndCreateFinderRsrcStream(afp_entry);
+        //if (afp_entry != nullptr)
+        //{
+        //    // Now make sure that our NTFS streams are created so we have
+        //    // a FInfo and resource forks.
+        //    AFPCheckForAndAddFinderInfoStream(afp_entry);
+        //    AFPCheckForAndCreateFinderRsrcStream(afp_entry);
 
-            // Copy the charmap that contains the Mac-Windows mapping for
-            // characters to the entries mapping table.
-            AFPAddCharMapToIndexEntry(afp_entry, char_map);
-        }
+        //    // Copy the charmap that contains the Mac-Windows mapping for
+        //    // characters to the entries mapping table.
+        //    AFPAddCharMapToIndexEntry(afp_entry, char_map);
+        //}
 
-        // This tells the afp message system to kick in and notify other
-        // Mac clients that a change happened on the volume.
-        AFPMarkVolumeDirty(afp_volume_info->wVolID);
+        afp_volume_info->set_is_dirty();
 
-        // We're done with the file and we don't need the handle
-        // to it anymore.
         CloseHandle(h_file);
     }
 
@@ -568,7 +561,7 @@ AFPERROR FPByteRangeLock(
 
     if (AFP_FAILED(afp_error))
     {
-        return (afp_error);
+        return afp_error;
     }
 
     const auto h_file = open_file->get_file_handle();
@@ -578,7 +571,7 @@ AFPERROR FPByteRangeLock(
         //
         //Bad news, the fork is apparently not open.
         //
-        return (afpParmErr);
+        return afpParmErr;
     }
 
     // Determine the size of the file so we can calculate the offset
@@ -675,7 +668,7 @@ AFPERROR FPByteRangeLock(
         }
     }
 
-    return (afp_error);
+    return afp_error;
 }
 
 

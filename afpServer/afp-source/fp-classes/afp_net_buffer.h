@@ -1,8 +1,10 @@
 #pragma once
 
 #include "afp.h"
+#include "afpdebug.h"
 #include "afphelp.h"
 #include "byte_swap.h"
+#include "dsi/dsi_connection.h"
 
 class afp_net_buffer // NOLINT(cppcoreguidelines-special-member-functions)
 {
@@ -214,7 +216,7 @@ inline void afp_net_buffer::push_raw_data(const void* data, const size_t size)
 
 inline void afp_net_buffer::advance_if_odd()
 {
-	if ((mCurrentPos - (mBuffer + DSI_HEADER_SIZE)) % 2) advance_pos_ptr(sizeof(INT8));
+	if ((mCurrentPos - (mBuffer + dsi_header_size)) % 2) advance_pos_ptr(sizeof(INT8));
 }
 
 inline void afp_net_buffer::advance_to(const INT32 offset)

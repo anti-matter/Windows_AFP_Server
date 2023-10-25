@@ -38,7 +38,7 @@ public:
 
 	DWORD open_base_key();
 	BOOL open_volume_list_reg_key();
-	BOOL open_volume_reg_key(IN WCHAR* sz_share_name);
+	BOOL open_volume_reg_key(IN const WCHAR* sz_share_name);
 
 	BOOL next_volume(
 		OUT TCHAR* sz_share_name,
@@ -88,16 +88,16 @@ public:
 		OUT DWORD* flags
 	);
 	DWORD set_volume_flags(
-		IN WCHAR* sz_share_name,
+		IN const WCHAR* sz_share_name,
 		IN DWORD flags
 	);
 	DWORD get_volume_password(
-		IN WCHAR* sz_share_name,
+		IN const WCHAR* sz_share_name,
 		IN DWORD cb_password,
 		OUT WCHAR* sz_password
 	);
 	DWORD get_volume_password(
-		IN WCHAR* sz_share_name,
+		IN const WCHAR* sz_share_name,
 		IN DWORD cb_password,
 		OUT PassWord* sz_password
 	);

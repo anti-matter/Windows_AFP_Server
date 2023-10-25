@@ -316,7 +316,7 @@ namespace dsi
 	{
 		// Get a wrapper for the AFP request payload.
 		afp_net_buffer request(&receive_buffer_[dsi_offset_data_start], dsi_server_request_quantum_size);
-		request.set_dsi_data_offset(ntohl(*reinterpret_cast<UINT32*>(&receive_buffer_[DSI_OFFSET_DATAOFFSET])));
+		request.set_dsi_data_offset(ntohl(*reinterpret_cast<UINT32*>(&receive_buffer_[dsi_offset_data_offset])));
 
 		// Get a wrapper for the AFP reply payload.
 		afp_net_buffer reply(&reply_buffer[dsi_offset_data_start], dsi_server_request_quantum_size);

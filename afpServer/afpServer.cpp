@@ -4,12 +4,9 @@
 #include "stdafx.h"
 #include "afpServer.h"
 
-#include "dsi.h"
 #include "afp.h"
-#include "desktop.h"
 #include "volumes.h"
 #include "afpdebug.h"
-#include "afpworker.h"
 #include "sendmsgdlg.h"
 #include "addshare.h"
 #include "aboutdlg.h"
@@ -23,6 +20,7 @@
 #include <strsafe.h>
 
 #include "afpEvents.h"
+#include "afp_volumes.h"
 #include "dsi/dsi_connections.h"
 #include "dsi/dsi_init.h"
 
@@ -35,7 +33,7 @@ HINSTANCE ghInstance;
 BOOL gMainWindowVisible;
 
 extern CRITICAL_SECTION gVolumesCS;
-extern AFP_VOLUME_INFO* gVolumes;
+extern std::unique_ptr<afp_volumes> g_volumes;
 extern BOOL g_allow_guests;
 extern DWORD g_max_sessions;
 extern BOOL g_force_encrypted_logon;
@@ -187,7 +185,7 @@ void UpdateVolCaption(HWND hParent)
                         //See if the volume is set to read only. Set the checkbox
                         //to the correct value.
                         //
-                        if (volFlags & FLAG_VOLUME_READONLY)
+                        if (volFlags & flag_volume_readonly)
                         {
                             CheckDlgButton(hParent, IDC_VOLREADONLY, TRUE);
                         }
@@ -343,7 +341,6 @@ void FillVolumeListBox(
     DWORD volFlags = 0;
     DWORD firstFlags = 0;
     afp_registry theRegistry;
-    AFP_VOLUME_INFO* afpVolumeInfo = nullptr;
     WORD count = 0;
 
     SendDlgItemMessage(hDlg, IDC_SHARES, LB_SETCURSEL, 0, 0);
@@ -377,9 +374,10 @@ void FillVolumeListBox(
             //See if the volume is still indexing. If so, then we append a
             //status message to the volume name.
             //
-            if (AFPGetVolumeInfoBlock(szShareName, 0, &afpVolumeInfo))
+            const auto afpVolumeInfo = g_volumes->find(szShareName);
+            if (afpVolumeInfo != nullptr)
             {
-                if ((afpVolumeInfo->wVolumeFlags & FLAG_VOLUME_INDEXINGCOMPLETE) == 0)
+                if ((afpVolumeInfo->get_internal_flags() & flag_volume_indexing_complete) == 0)
                 {
                     //
                     //Indexing is not complete, so add the status message.
@@ -397,7 +395,7 @@ void FillVolumeListBox(
 
         SendDlgItemMessage(hDlg, IDC_SHARES, LB_SETCURSEL, 0, 0);
 
-        if (firstFlags & FLAG_VOLUME_READONLY)
+        if (firstFlags & flag_volume_readonly)
         {
             CheckDlgButton(hDlg, IDC_VOLREADONLY, TRUE);
         }
@@ -562,7 +560,6 @@ void HandleROCheckbox(
 {
     afp_registry theRegistry;
     WCHAR szShareName[64];
-    AFP_VOLUME_INFO* afpVolume = nullptr;
     LRESULT dwResult = 0;
     DWORD volFlags = 0;
 
@@ -582,9 +579,12 @@ void HandleROCheckbox(
 
         if (dwResult != LB_ERR)
         {
-            if ((theRegistry.get_volume_flags(szShareName, &volFlags) == ERROR_SUCCESS) &&
-                (AFPGetVolumeInfoBlock(szShareName, 0, &afpVolume)))
+            const auto afpVolume = g_volumes->find(szShareName);
+            if (theRegistry.get_volume_flags(szShareName, &volFlags) == ERROR_SUCCESS &&
+                afpVolume != nullptr)
             {
+                auto flags = afpVolume->get_internal_flags();
+
                 //
                 //Note that we set 2 different flags. The reason we do this is because there
                 //is a difference between flags in memory and flags on disk. Flags on disk must
@@ -594,17 +594,18 @@ void HandleROCheckbox(
                 {
                     DBGWRITE(dbg_level_info, L"[MAIN]Setting RO to true\n");
 
-                    volFlags |= FLAG_VOLUME_READONLY;
-                    afpVolume->wVolumeFlags |= FLAG_VOLUME_READONLY;
+                    flags |= flag_volume_readonly;
+                    volFlags |= flag_volume_readonly;
                 }
                 else
                 {
                     DBGWRITE(dbg_level_info, L"[MAIN]Setting RO to false\n");
 
-                    volFlags &= ~FLAG_VOLUME_READONLY;
-                    afpVolume->wVolumeFlags &= ~FLAG_VOLUME_READONLY;
+                    volFlags &= ~flag_volume_readonly;
+                    flags &= ~flag_volume_readonly;
                 }
 
+                afpVolume->set_internal_flags(flags);
                 theRegistry.set_volume_flags(szShareName, volFlags);
             }
         }
@@ -639,7 +640,6 @@ void ServerShutdown(
         //wait until shutdown is complete.
         //
         dsi::dsi_shutdown();
-        AFPRemoveAllVolumes();
 
         //
         //We're shutting down, so remove the tray icon from the
@@ -683,10 +683,6 @@ BOOL CALLBACK MainDialogProc(
     case WM_INITDIALOG:
         ShowWindow(hDlg, SW_HIDE);
         InitializeTrayIcon(hDlg);
-
-        AFPInitializeWorkerThread(hDlg);
-        AFPInitializeVolumes();
-        AFPInitDesktop();
 
         dsi::dsi_init();
 

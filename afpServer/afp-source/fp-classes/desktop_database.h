@@ -1,7 +1,6 @@
 #pragma once
 
 #include <algorithm>
-#include <iterator>
 #include <vector>
 #include "afp_array.h"
 #include "desktop.h"

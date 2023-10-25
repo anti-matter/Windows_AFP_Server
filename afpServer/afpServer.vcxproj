@@ -214,7 +214,6 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
     <ClInclude Include="afp-source\fp-classes\afp_critical_section.h" />
     <ClInclude Include="afp-source\fp-classes\afp_open_file.h" />
     <ClInclude Include="afp-source\fp-classes\users_and_groups_array.h" />
-    <ClInclude Include="afp-source\fp-classes\volume_array.h" />
     <ClInclude Include="afp-source\fp-classes\afp_array.h" />
     <ClInclude Include="afp-source\fp-classes\afp_file_index.h" />
     <ClInclude Include="afp-source\fp-core\afp.h" />
@@ -227,6 +226,7 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
     <ClInclude Include="afp-source\fp-core\afpvolumes.h" />
     <ClInclude Include="afp-source\fp-core\afpxattr.h" />
     <ClInclude Include="afp-source\fp-imp\afpdhxlogin.h" />
+    <ClInclude Include="afp-source\fp-imp\desktop.h" />
     <ClInclude Include="afp-source\fp-imp\fdparms.h" />
     <ClInclude Include="afp-source\fp-imp\logonimp.h" />
     <ClInclude Include="afp-source\fp-imp\volumes.h" />

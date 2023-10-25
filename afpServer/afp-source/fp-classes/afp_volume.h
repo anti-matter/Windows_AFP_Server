@@ -23,29 +23,35 @@ public:
     afp_volume(std::wstring share_name, std::filesystem::path share_path, UINT16 volume_id, BYTE afp_flags, UINT32 internal_flags);
     ~afp_volume();
 
-    afp_index* find(const std::wstring& full_path) const { return index_->find(full_path); }
-    afp_index* find(const DWORD directory_id, const std::wstring& path) const { return index_->find(directory_id, path); }
+    void make_desktop_database();
+
+    [[nodiscard]] afp_index* find(const std::wstring& full_path) const { return index_->find(full_path); }
+    [[nodiscard]] afp_index* find(const DWORD directory_id, const std::wstring& path) const { return index_->find(directory_id, path); }
 
     [[nodiscard]] afp_file_index* get_index() const { return index_.get(); }
 
     void set_create_date(const FILETIME date) { creation_date_ = date; }
     void set_modified_date(const FILETIME date) { modification_date_ = date; }
-    void set_internal_flag(const UINT32 flags) { internal_flags_ |= flags; }
-    void set_is_dirty() { is_dirty_ = true; }
+    void set_internal_flags(const UINT32 flags) { internal_flags_ |= flags; }
+
+    void set_is_dirty(const bool is_dirty = true) { is_dirty_ = is_dirty; }
+    [[nodiscard]] bool is_dirty() const { return is_dirty_; }
 
     FILETIME* get_create_date() { return &creation_date_; }
     FILETIME* get_modified_date() { return &modification_date_; }
     FILETIME* get_backup_date() { return &backup_date_; }
 
-    UINT16 get_volume_id() const { return id_; }
+    [[nodiscard]] UINT16 get_volume_id() const { return id_; }
 
     std::filesystem::path& get_share_path() { return share_path_; }
     std::wstring& get_share_name() { return share_name_; }
-    UINT32 get_internal_flags() const { return internal_flags_; }
-    BYTE get_afp_flags() const { return afp_flags_; }
+    [[nodiscard]]UINT32 get_internal_flags() const { return internal_flags_; }
+    [[nodiscard]] BYTE get_afp_flags() const { return afp_flags_; }
 
-    HANDLE get_notify_handle() const { return notify_event_; }
+    [[nodiscard]] HANDLE get_notify_handle() const { return notify_event_; }
     void set_notify_handle(const HANDLE handle) { notify_event_ = handle; }
+
+    [[nodiscard]] desktop_database* get_desktop() const { return desktop_.get(); }
 
 private:
     UINT16 id_;

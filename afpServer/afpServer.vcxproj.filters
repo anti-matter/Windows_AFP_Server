@@ -172,9 +172,6 @@
     <ClInclude Include="afp-source\fp-classes\users_and_groups_array.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\fp-classes\volume_array.h">
-      <Filter>Source Files\fp-classes</Filter>
-    </ClInclude>
     <ClInclude Include="afp-source\server-core\afpnotify.h">
       <Filter>Source Files\server-core</Filter>
     </ClInclude>
@@ -249,6 +246,9 @@
     </ClInclude>
     <ClInclude Include="afp-source\fp-core\afpdispatch.h">
       <Filter>Source Files\fp-core</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\fp-imp\desktop.h">
+      <Filter>Source Files\fp-imp</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

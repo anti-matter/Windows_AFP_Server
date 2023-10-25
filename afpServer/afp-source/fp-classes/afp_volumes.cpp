@@ -86,7 +86,7 @@ void afp_volumes::add_volume(const std::wstring& share_name, const std::filesyst
     const auto new_index = new_volume->get_index();
 
     // Add parent of root.
-    new_index->add_entry(-1, parent_directory_name, share_path.parent_path(), true);
+    new_index->add_entry(MAXDWORD, parent_directory_name, share_path.parent_path(), true);
 
     // Add root directory.
     const auto root_index = new_index->add_entry(kParentOfRoot, share_name, share_path, true);
@@ -123,7 +123,7 @@ void afp_volumes::add_volume(const std::wstring& share_name, const std::filesyst
 
     if (index_build(share_path, kRootDirID, new_volume))
     {
-        new_volume->set_internal_flag(flag_volume_shared);
+        new_volume->set_internal_flags(flag_volume_shared);
 
         std::lock_guard guard(volumes_mutex_);
         volumes_.push_back(new_volume);
@@ -147,7 +147,7 @@ void afp_volumes::remove_volume(const UINT16 id)
 
     auto flags = volume->get_internal_flags();
     flags &= ~flag_volume_shared;
-    volume->set_internal_flag(flags);
+    volume->set_internal_flags(flags);
 
     volumes_.erase(it);
 }
@@ -158,7 +158,7 @@ void afp_volumes::remove_all_volumes()
         {
             auto flags = volume->get_internal_flags();
             flags &= ~flag_volume_shared;
-            volume->set_internal_flag(flags);
+            volume->set_internal_flags(flags);
         });
 
     volumes_.clear();
@@ -306,9 +306,9 @@ std::shared_ptr<afp_volume> afp_volumes::find(const std::wstring& name)
 {
     std::lock_guard guard(volumes_mutex_);
 
-    const auto it = std::ranges::find_if(volumes_, [=](const std::shared_ptr<afp_volume>& i)
+    const auto it = std::ranges::find_if(volumes_, [=](const std::shared_ptr<afp_volume>& v)
     {
-        return i->get_share_name() == name;
+        return v->get_share_name() == name;
     });
 
     if (it != volumes_.end())
@@ -324,9 +324,9 @@ std::shared_ptr<afp_volume> afp_volumes::find(const UINT16 id)
 {
     std::lock_guard guard(volumes_mutex_);
 
-    const auto it = std::ranges::find_if(volumes_, [=](const std::shared_ptr<afp_volume>& i)
+    const auto it = std::ranges::find_if(volumes_, [=](const std::shared_ptr<afp_volume>& v)
         {
-            return i->get_volume_id() == id;
+            return v->get_volume_id() == id;
         });
 
     if (it != volumes_.end())
@@ -349,14 +349,41 @@ bool afp_volumes::map_name_to_id(const std::wstring& share_name, UINT16* id)
     return false;
 }
 
-int afp_volumes::active_volumes()
+int afp_volumes::active_volumes(std::vector<std::shared_ptr<afp_volume>>* volumes_out)
 {
     std::lock_guard guard(volumes_mutex_);
 
-    const auto it = std::ranges::count_if(volumes_, [=](const std::shared_ptr<afp_volume>& i)
+    const auto it = std::ranges::count_if(volumes_, [=](const std::shared_ptr<afp_volume>& v)
+    {
+        if ((v->get_internal_flags() & flag_volume_shared) != 0)
         {
-            return (i->get_internal_flags() & flag_volume_shared) != 0;
-        });
+            if (volumes_out != nullptr)
+            {
+                volumes_out->push_back(v);
+            }
+
+            return true;
+        }
+
+        return false;
+    });
 
     return it;
+}
+
+void afp_volumes::dirty_volumes(std::vector<std::shared_ptr<afp_volume>>* dirty_volumes)
+{
+    std::lock_guard guard(volumes_mutex_);
+    std::vector<std::shared_ptr<afp_volume>> result;
+
+    const auto it = std::ranges::find_if(volumes_, [=](const std::shared_ptr<afp_volume>& v)
+    {
+        if (v->is_dirty())
+        {
+            dirty_volumes->push_back(v);
+            return true;
+        }
+
+        return false;
+    });
 }

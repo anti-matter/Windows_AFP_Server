@@ -1,12 +1,3 @@
-/*
- * fpinfo.cpp
- *
- * Copyright(c) 2000-2004, Michael J. Conrad.
- *
- * Finder info and related char map routines.
- *
- */
-
 #include "StdAfx.h"
 #include "fpinfo.h"
 #include "afpxattr.h"
@@ -30,15 +21,13 @@ BOOL AFPCheckForAndAddFinderInfoStream(
 {
 	EXTENDED_FINDER_INFO finderInfo;
 
-	if (!AFP_SUCCESS(AFPGetFinderInfoEx(pEntry, &finderInfo)))
+	if (AFP_FAILED(AFPGetFinderInfoEx(pEntry, &finderInfo)))
 	{
 		memset(&finderInfo, 0, sizeof(finderInfo));
 
-		auto dwAttributes = GetFileAttributes(pEntry->sz_path.c_str());
+        const auto dwAttributes = GetFileAttributes(pEntry->sz_path.c_str());
 
-		if (((dwAttributes != 0xFFFFFFFF) &&
-				(dwAttributes & FILE_ATTRIBUTE_HIDDEN)) ||
-			(fMakeInvisible))
+		if (dwAttributes != 0xFFFFFFFF && dwAttributes & FILE_ATTRIBUTE_HIDDEN || fMakeInvisible)
 		{
 			finderInfo.fInfo.fdFlags |= kFDInvisible;
 		}
@@ -60,10 +49,10 @@ BOOL AFPCheckForAndAddFinderInfoStream(
 		//
 		AFPSetFinderInfoEx(pEntry, &finderInfo, true);
 
-		return (false);
+		return false;
 	}
 
-	return (true);
+	return true;
 }
 
 
@@ -83,14 +72,14 @@ AFPERROR AFPGetFinderInfo(
 {
 	EXTENDED_FINDER_INFO infoEx;
 
-	auto afpError = AFPGetFinderInfoEx(pEntry, &infoEx);
+    const auto afp_error = AFPGetFinderInfoEx(pEntry, &infoEx);
 
-	if (AFP_SUCCESS(afpError))
+	if (AFP_SUCCESS(afp_error))
 	{
 		RtlCopyMemory(pInfo, &infoEx, sizeof(FINDER_INFO));
 	}
 
-	return (afpError);
+	return (afp_error);
 }
 
 
@@ -124,7 +113,7 @@ AFPERROR AFPGetFinderInfoEx(
 	//
 	//Now open the AFP_Info stream to write to it.
 	//
-	auto hFile = CreateFile(
+    const auto hFile = CreateFile(
 		szPath,
 		GENERIC_READ,
 		FILE_SHARE_READ | FILE_SHARE_WRITE,
@@ -139,7 +128,7 @@ AFPERROR AFPGetFinderInfoEx(
 		dwError = GetLastError();
 		DBGWRITE(dbg_level_all, L"[fpinfo]CreatFile() failed in AFPGetFinderInfo! (%d) (%s)\n", dwError, szPath);
 
-		return afp_map_win_error_to_afp(dwError, static_cast<DWORD>(afpMiscErr));
+		return afp_map_win_error_to_afp(dwError, afpMiscErr);
 	}
 
 	//
@@ -153,12 +142,12 @@ AFPERROR AFPGetFinderInfoEx(
 		dwError = GetLastError();
 		DBGWRITE(dbg_level_info, L"[fpinfo]ReadFile() failed! (%d)\n", dwError);
 
-		dwError = afp_map_win_error_to_afp(dwError, static_cast<DWORD>(afpMiscErr));
+		dwError = afp_map_win_error_to_afp(dwError, afpMiscErr);
 	}
 
 	CloseHandle(hFile);
 
-	return dwError;
+	return afp_map_win_error_to_afp(dwError, afpMiscErr);
 }
 
 
@@ -186,9 +175,9 @@ AFPERROR AFPSetFinderInfo(
 	}
 	else
 	{
-		auto afpError = AFPGetFinderInfoEx(pEntry, &infoEx);
+        const auto afp_error = AFPGetFinderInfoEx(pEntry, &infoEx);
 
-		if (AFP_SUCCESS(afpError))
+		if (AFP_SUCCESS(afp_error))
 		{
 			RtlCopyMemory(&infoEx, pInfo, sizeof(FINDER_INFO));
 		}
@@ -271,7 +260,7 @@ AFPERROR AFPSetFinderInfoEx(
 					szPath);
 			}
 
-			dwError = afp_map_win_error_to_afp(dwError, static_cast<DWORD>(afpMiscErr));
+			dwError = afp_map_win_error_to_afp(dwError, afpMiscErr);
 		}
 
 		break;
@@ -290,7 +279,7 @@ AFPERROR AFPSetFinderInfoEx(
 			dwError = GetLastError();
 			DBGWRITE(dbg_level_info, L"[fpinfo:AFPSetFinderInfoEx]WriteFile() failed! (%d)\n", dwError);
 
-			dwError = afp_map_win_error_to_afp(dwError, static_cast<DWORD>(afpMiscErr));
+			dwError = afp_map_win_error_to_afp(dwError, afpMiscErr);
 		}
 
 		ASSERT(dwBytesWritten == sizeof(EXTENDED_FINDER_INFO));
@@ -299,7 +288,7 @@ AFPERROR AFPSetFinderInfoEx(
 		CloseHandle(hFile);
 	}
 
-	return dwError;
+	return afp_map_win_error_to_afp(dwError, afpMiscErr);
 }
 
 

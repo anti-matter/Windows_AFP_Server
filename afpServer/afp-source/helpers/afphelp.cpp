@@ -24,14 +24,14 @@ std::string wide_string_to_string(const std::wstring& wide_string)
 		return "";
 	}
 
-	const auto size_needed = WideCharToMultiByte(CP_UTF8, 0, &wide_string.at(0), (int)wide_string.size(), nullptr, 0, nullptr, nullptr);
+	const auto size_needed = WideCharToMultiByte(CP_UTF8, 0, &wide_string.at(0), static_cast<int>(wide_string.size()), nullptr, 0, nullptr, nullptr);
 	if (size_needed <= 0)
 	{
 		throw std::runtime_error("WideCharToMultiByte() failed: " + std::to_string(size_needed));
 	}
 
 	std::string result(size_needed, 0);
-	WideCharToMultiByte(CP_UTF8, 0, &wide_string.at(0), (int)wide_string.size(), &result.at(0), size_needed, nullptr, nullptr);
+	WideCharToMultiByte(CP_UTF8, 0, &wide_string.at(0), static_cast<int>(wide_string.size()), &result.at(0), size_needed, nullptr, nullptr);
 	return result;
 }
 
@@ -42,14 +42,14 @@ std::wstring string_to_wide_string(const std::string& string)
 		return L"";
 	}
 
-	const auto size_needed = MultiByteToWideChar(CP_UTF8, 0, &string.at(0), (int)string.size(), nullptr, 0);
+	const auto size_needed = MultiByteToWideChar(CP_UTF8, 0, &string.at(0), static_cast<int>(string.size()), nullptr, 0);
 	if (size_needed <= 0)
 	{
 		throw std::runtime_error("MultiByteToWideChar() failed: " + std::to_string(size_needed));
 	}
 
 	std::wstring result(size_needed, 0);
-	MultiByteToWideChar(CP_UTF8, 0, &string.at(0), (int)string.size(), &result.at(0), size_needed);
+	MultiByteToWideChar(CP_UTF8, 0, &string.at(0), static_cast<int>(string.size()), &result.at(0), size_needed);
 	return result;
 }
 
@@ -1329,23 +1329,24 @@ AFPERROR afp_map_win_error_to_afp(
 {
 	switch (win_error)
 	{
-		case ERROR_LOCK_VIOLATION: return (afpLockErr);
+	case NO_ERROR: return AFP_OK;
+	case ERROR_LOCK_VIOLATION: return afpLockErr;
 
-		case ERROR_FILE_NOT_FOUND:
-		case ERROR_PATH_NOT_FOUND: return (afpObjectNotFound);
+	case ERROR_FILE_NOT_FOUND:
+	case ERROR_PATH_NOT_FOUND: return afpObjectNotFound;
 
-		case ERROR_INVALID_PARAMETER:
-		case ERROR_INVALID_NAME: return (afpParmErr);
+	case ERROR_INVALID_PARAMETER:
+	case ERROR_INVALID_NAME: return afpParmErr;
 
-		case ERROR_ACCESS_DENIED: return (afpAccessDenied);
-		case ERROR_HANDLE_DISK_FULL: return (afpDiskFull);
-		case ERROR_FILE_EXISTS: return (afpObjectExists);
-		case ERROR_DIR_NOT_EMPTY: return (afpDirNotEmpty);
-		case ERROR_HANDLE_EOF: return (afpEofError);
-		case ERROR_INVALID_LOGON_HOURS: return (afpUserNotAuth);
-		case ERROR_PASSWORD_EXPIRED: return (afpPwdExpiredErr);
+	case ERROR_ACCESS_DENIED: return afpAccessDenied;
+	case ERROR_HANDLE_DISK_FULL: return afpDiskFull;
+	case ERROR_FILE_EXISTS: return afpObjectExists;
+	case ERROR_DIR_NOT_EMPTY: return afpDirNotEmpty;
+	case ERROR_HANDLE_EOF: return afpEofError;
+	case ERROR_INVALID_LOGON_HOURS: return afpUserNotAuth;
+	case ERROR_PASSWORD_EXPIRED: return afpPwdExpiredErr;
 
-		default: return default_error;
+	default: return default_error;
 	}
 }
 

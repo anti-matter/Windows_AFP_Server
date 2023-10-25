@@ -13,7 +13,7 @@ AFPERROR FPOpenVol(
 
 AFPERROR FPCloseVol(
     IN afp_net_buffer& afp_request,
-    IN afp_net_buffer& afpReply,
+    IN afp_net_buffer& afp_reply,
     IN dsi::dsi_connection* connection
 );
 

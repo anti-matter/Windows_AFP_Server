@@ -10,27 +10,10 @@
 #include "StdAfx.h"
 #include "afpdebug.h"
 #include "desktop.h"
-
-#include <codecvt>
-
+#include "afp_volumes.h"
 #include "volumes.h"
-#include "fpinfo.h"
-#include "fdparms.h"
 
-
-/*
- * AFPInitDesktop()
- *
- * Description:
- *		Initialize the desktop database access functions.
- *
- * Returns: AFP error code.
- */
-
-AFPERROR AFPInitDesktop()
-{
-    return AFP_OK;
-}
+extern std::unique_ptr<afp_volumes> g_volumes;
 
 
 /*
@@ -43,38 +26,35 @@ AFPERROR AFPInitDesktop()
  */
 
 AFPERROR AFPFindEntry(
-    IN LPDESKTOP_ENTRY searchEntry,
-    IN WORD wSearchIndex,
-    IN OPEN_DESKTOP* deskFile,
-    OUT LPDESKTOP_ENTRY foundEntry
+    IN const LPDESKTOP_ENTRY search_entry,
+    IN const WORD search_index,
+    IN const OPEN_DESKTOP* desk_file,
+    OUT const LPDESKTOP_ENTRY found_entry
 )
 {
-    AFP_VOLUME_INFO* volumeInfo = nullptr;
-
-    if (!AFPGetVolumeInfoBlock(nullptr, deskFile->volID, &volumeInfo))
+    const auto volume_info = g_volumes->find(desk_file->volID);
+    if (volume_info == nullptr)
     {
-        //
-        //We failed to find a block corresponding to the
-        //supplied volume ID.
-        //
-        DBGWRITE(dbg_level_info, L"[desk]Bad volume ID in AFPFindEntry()\n");
+        // We failed to find a block corresponding to the
+        // supplied volume ID.
+        DBGWRITE(dbg_level_info, L"Bad volume ID in AFPFindEntry()\n");
         return afpParmErr;
     }
 
-    const auto entry = volumeInfo->desktop->find_entry(searchEntry, wSearchIndex);
+    const auto entry = volume_info->get_desktop()->find_entry(search_entry, search_index);
     if (entry != nullptr)
     {
         //DBGWRITE(dbg_level_info, L"[desk:AFPFindEntry]Found entry for file = %s\n", entry->pathname);
 
         // Make a copy instead of passing original pointer.
-        memcpy_s(foundEntry, sizeof(DESKTOP_ENTRY), entry, sizeof(DESKTOP_ENTRY));
+        memcpy_s(found_entry, sizeof(DESKTOP_ENTRY), entry, sizeof(DESKTOP_ENTRY));
 
         return AFP_OK;
     }
 
 #ifdef _DEBUG
-    const auto itemType = searchEntry->entryType == ENTRY_TYPE_ICON ? L"ICON" : L"APPLorCMNT";
-    DBGWRITE(dbg_level_info, L"[desk]Failed to find item in desktop DB! (type = %s)\n", itemType);
+    const auto itemType = search_entry->entryType == ENTRY_TYPE_ICON ? L"ICON" : L"APPLorCMNT";
+    DBGWRITE(dbg_level_info, L"Failed to find item in desktop DB! (type = %s)\n", itemType);
 #endif
 
     return afpItemNotFound;
@@ -91,53 +71,47 @@ AFPERROR AFPFindEntry(
  */
 
 AFPERROR AFPAddEntry(
-    IN LPDESKTOP_ENTRY newEntry,
-    IN OPEN_DESKTOP* deskFile
+    IN const LPDESKTOP_ENTRY new_entry,
+    IN const OPEN_DESKTOP* desk_file
 )
 {
-    AFP_VOLUME_INFO* volumeInfo = nullptr;
-
-    if (!AFPGetVolumeInfoBlock(nullptr, deskFile->volID, &volumeInfo))
+    const auto volume_info = g_volumes->find(desk_file->volID);
+    if (volume_info == nullptr)
     {
-        //
-        //We failed to find a block corresponding to the
-        //supplied volume ID.
-        //
-        DBGWRITE(dbg_level_info, L"[desk]Bad volume ID in AFPAddEntry()\n");
+        // We failed to find a block corresponding to the
+        // supplied volume ID.
+        DBGWRITE(dbg_level_info, L"Bad volume ID in AFPAddEntry()\n");
         return afpParmErr;
     }
 
-    //
-    //Search to see if the data we want to add already exists.
-    //
-    const auto existingEntry = volumeInfo->desktop->find_entry(newEntry);
+    // Search to see if the data we want to add already exists.
+    const auto desktop_db = volume_info->get_desktop();
+    const auto existingEntry = desktop_db->find_entry(new_entry);
 
-    //
-    //If we find an entry in the data base that matches the new entry, we
-    //replace the existing data with the new.
-    //
+    // If we find an entry in the data base that matches the new entry, we
+    // replace the existing data with the new.
     if (existingEntry != nullptr)
     {
         //
         //For icon entries, we only replace existing entries if the icon
         //bitmap is the same size.
         //
-        if (newEntry->entryType == ENTRY_TYPE_ICON)
+        if (new_entry->entryType == ENTRY_TYPE_ICON)
         {
-            if (newEntry->dataSize != existingEntry->dataSize)
+            if (new_entry->dataSize != existingEntry->dataSize)
             {
                 return afpIconTypeError;
             }
         }
 
-        DBGWRITE(dbg_level_info, L"[desk]Removing and replacing icon...\n");
+        DBGWRITE(dbg_level_info, L"Removing and replacing icon...\n");
 
-        volumeInfo->desktop->remove_entry(existingEntry);
+       desktop_db->remove_entry(existingEntry);
     }
 
-    volumeInfo->desktop->add_entry(newEntry);
+    desktop_db->add_entry(new_entry);
 
-    DBGWRITE(dbg_level_info, L"[desk]Added new item to desktop database!\n");
+    DBGWRITE(dbg_level_info, L"Added new item to desktop database!\n");
 
     return AFP_OK;
 }
@@ -153,28 +127,25 @@ AFPERROR AFPAddEntry(
  */
 
 AFPERROR AFPRemoveEntry(
-    IN LPDESKTOP_ENTRY removeEntry,
-    IN OPEN_DESKTOP* deskFile
+    IN const LPDESKTOP_ENTRY remove_entry,
+    IN const OPEN_DESKTOP* desk_file
 )
 {
-    ASSERT(removeEntry != nullptr);
-    ASSERT(deskFile != nullptr);
+    ASSERT(remove_entry != nullptr);
+    ASSERT(desk_file != nullptr);
 
-    AFP_VOLUME_INFO* volumeInfo = nullptr;
-
-    if (!AFPGetVolumeInfoBlock(nullptr, deskFile->volID, &volumeInfo))
+    const auto volume_info = g_volumes->find(desk_file->volID);
+    if (volume_info == nullptr)
     {
-        //
-        //We failed to find a block corresponding to the
-        //supplied volume ID.
-        //
+        // We failed to find a block corresponding to the
+        // supplied volume ID.
         DBGWRITE(dbg_level_info, L"[desk]Bad volume ID in AFPAddEntry()\n");
         return afpParmErr;
     }
 
-    DBGWRITE(dbg_level_info, L"[desk]Removing entry from DT array for file %s\n", removeEntry->pathname);
+    DBGWRITE(dbg_level_info, L"[desk]Removing entry from DT array for file %s\n", remove_entry->pathname);
 
-    return volumeInfo->desktop->remove_entry(removeEntry);
+    return volume_info->get_desktop()->remove_entry(remove_entry);
 }
 
 
@@ -188,75 +159,27 @@ AFPERROR AFPRemoveEntry(
  */
 
 AFPERROR AFPOpenDeskTopDB(
-    IN WORD wVolID,
-    IN OPEN_DESKTOP* deskFile
+    IN const WORD volume_id,
+    IN OPEN_DESKTOP* desk_file
 )
 {
-    AFP_VOLUME_INFO* volumeInfo;
-    TCHAR szPath[MAX_PATH];
-    AFPERROR afpError = AFP_OK;
-
-    if (!AFPGetVolumeInfoBlock(nullptr, wVolID, &volumeInfo))
+    const auto volume_info = g_volumes->find(volume_id);
+    if (volume_info == nullptr)
     {
-        //
-        //We failed to find a block corresponding to the
-        //supplied volume ID.
-        //
-        DBGWRITE(dbg_level_info, L"[VOL]Bad volume ID in AFPOpenDeskTopDB()\n");
+        // We failed to find a block corresponding to the
+        // supplied volume ID.
+        DBGWRITE(dbg_level_info, L"Bad volume ID in AFPOpenDeskTopDB()\n");
         return afpParmErr;
     }
 
-    //
-    //Build the path to our desktop file for this volume.
-    //
-    StringCbPrintf(szPath, sizeof(szPath), TEXT("%s\\%s"), volumeInfo->szPath, DESKTOP_FILE_NAME);
+    const auto desktop_path = volume_info->get_share_path() / DESKTOP_FILE_NAME;
+    const auto desktop_file_exists = GetFileAttributes(desktop_path.c_str()) == MAXDWORD ? false : true;
+    ASSERT(desktop_file_exists);
 
-    auto desktopFileExists = (GetFileAttributes(szPath) == MAXDWORD) ? false : true;
+    desk_file->volID = volume_id;
+    desk_file->dtRefNum = volume_id;
 
-    auto_lock lock(&volumeInfo->csNotifyQueue);
-
-    deskFile->volID = wVolID;
-    deskFile->dtRefNum = wVolID;
-
-    if (volumeInfo->desktop == nullptr)
-    {
-        afpError = afpMiscErr;
-
-        volumeInfo->desktop = new desktop_database();
-
-        if (desktopFileExists)
-        {
-            volumeInfo->desktop->from_file(szPath);
-        }
-        else
-        {
-            //
-            //If we create a new file above, then we also need to add the
-            //desktop file to the index.
-            //
-            const auto pEntry = AFPIndexAddEntry(
-                nullptr,
-                wVolID,
-                kRootDirID,
-                const_cast<wchar_t*>(DESKTOP_FILE_NAME),
-                szPath,
-                false,
-                nullptr
-            );
-
-            if (pEntry != nullptr)
-            {
-                AFPCheckForAndAddFinderInfoStream(pEntry, nullptr, true);
-                AFPCheckForAndCreateFinderRsrcStream(pEntry);
-            }
-            else
-            {
-                ASSERT(0);
-            }
-        }
-    }
-
-    return afpError;
+    return AFP_OK;
 }
 
 
@@ -266,29 +189,26 @@ AFPERROR AFPOpenDeskTopDB(
  * Description:
  *		Synchronize the desktop file on the disk to the one in memory.
  *		This is a fairly expensive operation, you don't want to do it
- *		too frequentyly. However, you don't want to not do it too often
- *		as data loss may result if the server crashes and the lastest data
+ *		too frequently. However, you don't want to not do it too often
+ *		as data loss may result if the server crashes and the latest data
  *		hasn't been synched up yet.
  *
  * Returns: none
  */
 
 void AFPSynchronizeDesktopFile(
-    IN WORD wVolID
+    IN const WORD volume_id
 )
 {
-    AFP_VOLUME_INFO* volumeInfo = nullptr;
-    WCHAR szPath[MAX_PATH];
-
-    if (!AFPGetVolumeInfoBlock(nullptr, wVolID, &volumeInfo))
+    const auto volume_info = g_volumes->find(volume_id);
+    if (volume_info == nullptr)
     {
-        DBGWRITE(dbg_level_info, L"[desk:AFPSynchronizeDesktopFile]Bad volume ID in AFPSynchronizeDesktopFile()\n");
+        DBGWRITE(dbg_level_info, L"Bad volume ID.\n");
         return;
     }
 
-    StringCbPrintf(szPath, sizeof(szPath), TEXT("%s\\%s"), volumeInfo->szPath, DESKTOP_FILE_NAME);
-
-    volumeInfo->desktop->to_file(szPath);
+    const auto desktop_path = volume_info->get_share_path() / DESKTOP_FILE_NAME;
+    volume_info->get_desktop()->to_file(desktop_path);
 }
 
 
@@ -302,9 +222,9 @@ void AFPSynchronizeDesktopFile(
  */
 
 AFPERROR AFPCloseDeskTopDB(
-    IN OPEN_DESKTOP* deskFile
+    IN const OPEN_DESKTOP* desk_file
 )
 {
-    AFPSynchronizeDesktopFile(deskFile->volID);
+    AFPSynchronizeDesktopFile(desk_file->volID);
     return NO_ERROR;
 }

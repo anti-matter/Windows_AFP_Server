@@ -1,7 +1,3 @@
-//===================================================================
-// fdparms.c
-//===================================================================
-
 #include "StdAfx.h"
 #include "afp.h"
 #include "afpdebug.h"
@@ -11,8 +7,12 @@
 #include "afpxattr.h"
 #include "afp_session.h"
 #include "afp_open_file.h"
+#include "afp_volumes.h"
 
 #include "winerror.h"
+
+extern std::unique_ptr<afp_volumes> g_volumes;
+
 
 //---------------------------------------------------------------------
 // AFPGetParmsBufferSize()
@@ -74,64 +74,19 @@ size_t AFPGetParmsBufferSizeRequired(
 }
 
 //---------------------------------------------------------------------
-// AFPMapAFPToWindowsPath()
-//---------------------------------------------------------------------
-// Get the real Windows full path to the object in question. pWindowsPath
-// should be at least MAX_PATH in size.
-//
-AFPERROR AFPMapAFPToWindowsPath(
-    IN WORD wVolID,
-    IN DWORD dwDirID,
-    IN PTCHAR pAFPPath,
-    OUT PTCHAR pWindowsPath,
-    IN size_t cbWindowsPath
-)
-{
-    AFP_VOLUME_INFO* pVolInfo;
-    DWORD dwError;
-
-    if (AFPGetVolumeInfoBlock(nullptr, wVolID, &pVolInfo) == FALSE)
-    {
-        DBGWRITE(dbg_level_info, L"[FDP]Failed to get vol info block!\n");
-        return (afpParmErr);
-    }
-
-    //
-    //Go to the volume index and get the path to the
-    //directory ID we're working with.
-    //
-    dwError = AFPIndexGetFullPath(pVolInfo, dwDirID, pWindowsPath, cbWindowsPath);
-
-    if (dwError == NO_ERROR)
-    {
-        if ((pAFPPath != nullptr) && (lstrlen(pAFPPath) > 0))
-        {
-            StringCbCat(pWindowsPath, cbWindowsPath, TEXT("\\"));
-            StringCbCat(pWindowsPath, cbWindowsPath, pAFPPath);
-        }
-    }
-
-    return (dwError);
-}
-
-//---------------------------------------------------------------------
 // AFPCheckForAndCreateFinderRsrcStream)
 //---------------------------------------------------------------------
 // Check to see if a file object has a resource stream. If not, add
 // it using defaults.
 //
 void AFPCheckForAndCreateFinderRsrcStream(
-    IN afp_index* pEntry
+    IN const afp_index* index_entry
 )
 {
-    WCHAR szTempPath[MAX_PATH];
-    HANDLE hFile;
-    DWORD dwError;
+    const std::filesystem::path res_path = index_entry->sz_path / AFP_RESOURCE_FORK_NAME;
 
-    StringCbPrintf(szTempPath, sizeof(szTempPath), TEXT("%s%s"), pEntry->sz_path.c_str(), AFP_RESOURCE_FORK_NAME);
-
-    hFile = CreateFile(
-        szTempPath,
+    HANDLE hFile = CreateFile(
+        res_path.c_str(),
         GENERIC_READ | GENERIC_WRITE,
         0,
         nullptr,
@@ -142,12 +97,10 @@ void AFPCheckForAndCreateFinderRsrcStream(
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        dwError = GetLastError();
-
-        if (dwError == ERROR_FILE_NOT_FOUND)
+        if (GetLastError() == ERROR_FILE_NOT_FOUND)
         {
             hFile = CreateFile(
-                szTempPath,
+                res_path.c_str(),
                 GENERIC_READ | GENERIC_WRITE,
                 0,
                 nullptr,
@@ -159,8 +112,8 @@ void AFPCheckForAndCreateFinderRsrcStream(
             if (hFile != INVALID_HANDLE_VALUE)
             {
                 DBGWRITE(dbg_level_all,
-                         L"[FDP]Successfully created new resource stream (%s)\n",
-                         szTempPath
+                    L"Successfully created new resource stream (%s)\n",
+                    res_path.c_str()
                 );
 
                 CloseHandle(hFile);
@@ -168,9 +121,9 @@ void AFPCheckForAndCreateFinderRsrcStream(
             else
             {
                 DBGWRITE(dbg_level_info,
-                         L"[FDP]Failed to create resource stream for %s! (%d)\n",
-                         szTempPath,
-                         GetLastError()
+                    L"Failed to create resource stream for %s! (%d)\n",
+                    res_path.c_str(),
+                    GetLastError()
                 );
             }
         }
@@ -271,7 +224,11 @@ AFPERROR AFPGetObjectParms(
     {
         if (afpBitmap & kFPDirOffCount)
         {
-            afpReply.push_num<UINT16>(AFPGetDirOffspringCount(afpVolumeID, afpEntry));
+            const auto offspring = static_cast<UINT16>(g_volumes
+                ->find(afpVolumeID)
+                ->get_index()
+                ->get_offspring(afpEntry->object_id, nullptr));
+            afpReply.push_num<UINT16>(offspring);
         }
 
         if (afpBitmap & (kFPDirOwnerID | kFPDirGroupID))
@@ -414,31 +371,6 @@ AFPERROR AFPGetObjectParms(
     }
 
     return (AFP_OK);
-}
-
-//---------------------------------------------------------------------
-// AFPGetDirOffspringCount()
-//---------------------------------------------------------------------
-// Returns the # of files and dirs in a specified directory. We do
-// the quickly by search the index rather than the disk.
-//
-WORD AFPGetDirOffspringCount(
-    IN WORD wVolID,
-    IN afp_index* pDirEntry
-)
-{
-    AFP_VOLUME_INFO* pVolInfo;
-    WORD wCount = 0;
-
-    if (AFPGetVolumeInfoBlock(nullptr, wVolID, &pVolInfo) == FALSE)
-    {
-        DBGWRITE(dbg_level_info, L"[FDP]Failed to get vol info block in AFPGetDirOffspringCount()!\n");
-        return (static_cast<WORD>(afpParmErr));
-    }
-
-    wCount = static_cast<WORD>(pVolInfo->index->get_offspring(pDirEntry->object_id));
-
-    return (wCount);
 }
 
 //---------------------------------------------------------------------

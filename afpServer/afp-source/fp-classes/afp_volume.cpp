@@ -16,8 +16,27 @@ afp_volume::afp_volume(std::wstring share_name, std::filesystem::path share_path
     , notify_event_(nullptr)
 {
     index_ = std::make_unique<afp_file_index>();
+    make_desktop_database();
 }
 
 afp_volume::~afp_volume()
 {
+    SetEvent(notify_event_);
+}
+
+void afp_volume::make_desktop_database()
+{
+    desktop_ = std::make_unique<desktop_database>();
+
+    const std::filesystem::path desktop_path = share_path_ / DESKTOP_FILE_NAME;
+    const auto desktop_file_exists = GetFileAttributes(desktop_path.c_str()) == MAXDWORD ? false : true;
+
+    if (desktop_file_exists)
+    {
+        desktop_->from_file(desktop_path);
+        return;
+    }
+
+    desktop_->to_file(desktop_path);
+    index_->wait_for_entry(desktop_path);
 }

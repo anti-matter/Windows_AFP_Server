@@ -1,7 +1,5 @@
 #pragma once
 
-#include "dsi.h"
-
 //
 //File flags.
 //
@@ -306,14 +304,14 @@ typedef AFPCHARMAP AFPCHARMAPARRAY[MAX_REPLACED_CHARACTERS];
 //session basis and a session who has a fork open more than once
 //can conflict with its own locks as per spec.
 //
-typedef struct
-{
-    DWORD			dwLockStart;
-    DWORD			dwLockLength;
-
-    LPSESSION		pSession;			//Session that locked the range
-    PVOID			nextLockEntry;		//Ptr to next lock entry in list
-}BRL_LOCK_ENTRY, *LPBRL_LOCK_ENTRY;
+//typedef struct
+//{
+//    DWORD			dwLockStart;
+//    DWORD			dwLockLength;
+//
+//    LPSESSION		pSession;			//Session that locked the range
+//    PVOID			nextLockEntry;		//Ptr to next lock entry in list
+//}BRL_LOCK_ENTRY, *LPBRL_LOCK_ENTRY;
 
 //
 //AFP worker thread parameter structure and enums

@@ -23,7 +23,6 @@ AFPERROR FPResolveID(
     IN dsi::dsi_connection* connection
 )
 {
-    afp_index* afp_entry = nullptr;
     WIN32_FILE_ATTRIBUTE_DATA win_attributes;
 
     afp_request.advance_pos_ptr(sizeof(INT16));
@@ -35,8 +34,8 @@ AFPERROR FPResolveID(
     // Get a pointer to the volume info structure for this volume.
     const auto afp_session = connection->get_afp_session();
     std::shared_ptr<afp_volume> afp_volume_info = afp_session->find_open_volume(afp_volume_id);
-
-    AFPERROR afp_error = AFPIndexFindEntry(afp_volume_info, afp_file_id, &afp_entry);
+    const auto afp_entry = afp_volume_info->get_index()->find(afp_file_id, afp_entry->sz_path);
+    
 
     if (AFP_SUCCESS(afp_error))
     {

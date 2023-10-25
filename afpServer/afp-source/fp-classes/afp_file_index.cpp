@@ -2,7 +2,7 @@
 #include <algorithm>
 
 #include "afp.h"
-#include "afpworker.h"
+#include "afpdebug.h"
 #include "afp_file_index.h"
 
 constexpr int first_directory_id = 1;
@@ -275,8 +275,6 @@ void afp_file_index::update_entry(afp_index* entry, afp_index* new_parent, const
 	// full path of every object below it.
 	if (entry->flags & flag_index_is_dir)
 	{
-		std::lock_guard guard(mutex_);
-
 		for (auto sub_it = m_index_.begin(); sub_it < m_index_.end(); ++sub_it)
 		{
 			const auto sub_entry = sub_it->get();
@@ -396,6 +394,11 @@ afp_index* afp_file_index::find(const DWORD directory_id, const std::wstring& pa
 			return i->object_id == directory_id;
     }); it != m_index_.end())
 	{
+		if (path.empty())
+		{
+			return it->get();
+		}
+
         const std::filesystem::path temp_path = it->get()->sz_path / path;
 		return find(temp_path);
 	}

@@ -17,7 +17,7 @@ using afp_function_table = struct
 afp_function_table afp_table[] = {
 	{fp_unimplemented}, //0
 	{FPByteRangeLock},
-	{fp_close_vol},
+	{FPCloseVol},
 	{fp_unimplemented}, //afpDirClose
 	{FPCloseFork},
 	{FPCopyFile},

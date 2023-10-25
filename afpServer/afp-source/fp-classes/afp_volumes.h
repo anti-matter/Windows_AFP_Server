@@ -59,7 +59,13 @@ public:
     std::shared_ptr<afp_volume> find(UINT16 id);
 
     bool map_name_to_id(const std::wstring& share_name, UINT16* id);
-    int active_volumes();
+
+    // Return the count of active volumes and optionally fill in
+    // the supplied std::vector with their pointers.
+    int active_volumes(std::vector<std::shared_ptr<afp_volume>>* volumes_out = nullptr);
+
+    // Return a vector containing all "dirty" volumes.
+    void dirty_volumes(std::vector<std::shared_ptr<afp_volume>>* dirty_volumes);
 
 private:
     UINT16 next_volume_id_;

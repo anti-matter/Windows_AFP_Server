@@ -17,7 +17,7 @@ AFPERROR AFPMapAFPToWindowsPath(
 );
 
 void AFPCheckForAndCreateFinderRsrcStream(
-    IN afp_index* pEntry
+    IN const afp_index* index_entry
 );
 
 AFPERROR AFPGetObjectParms(
@@ -28,11 +28,6 @@ AFPERROR AFPGetObjectParms(
     IN const dsi::dsi_connection* afpSession,
     IN afp_index* afpEntry,
     IN WIN32_FILE_ATTRIBUTE_DATA winAttributes
-);
-
-WORD AFPGetDirOffspringCount(
-    IN WORD wVolID,
-    IN afp_index* pDirEntry
 );
 
 AFPERROR AFPSetFileDirParms(

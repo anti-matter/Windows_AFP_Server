@@ -8,10 +8,8 @@
 #include "volume_array.h"
 #include "dsi/dsi_connection.h"
 
-extern volume_array g_volume_array;
 extern BOOL g_allow_guests;
 extern BOOL g_force_encrypted_logon;
-
 extern std::unique_ptr<afp_volumes> g_volumes;
 
 
@@ -34,7 +32,8 @@ AFPERROR FPGetSrvrParms(
 {
 	UNREFERENCED_PARAMETER(afp_request);
 
-	const UINT8 afp_num_volumes_active = g_volumes->active_volumes();
+	std::vector<std::shared_ptr<afp_volume>> afp_volume_list;
+	const auto afp_num_volumes_active = g_volumes->active_volumes(&afp_volume_list);
 	SYSTEMTIME sys_time;
 	FILETIME file_time;
 		
@@ -73,26 +72,19 @@ AFPERROR FPGetSrvrParms(
 	//
 	//Stuff in all the volume names and their flags.
 	//
-	for (auto it = g_volume_array.begin(); it < g_volume_array.end(); ++it)
+	for (auto it = afp_volume_list.begin(); it < afp_volume_list.end(); ++it)
 	{
-		AFP_VOLUME_INFO* afp_volume_info = it->get();
-
-		//
-		//First, we check to make sure the volume has been fully indexed. If not
-		//we cannot offer it to the clients.
-		//
-		if (!(afp_volume_info->wVolumeFlags & FLAG_VOLUME_INDEXINGCOMPLETE))
+        const auto afp_volume_info = it->get();
+		if (!(afp_volume_info->get_internal_flags() & flag_volume_indexing_complete))
 		{
-			//
-			//Not done indexing, can't show this one now.
-			//
+			// Not done indexing, can't show this one now.
 			continue;
 		}
 
-		DBGWRITE(dbg_level_all, L"Stuffing volume: %s\n", afp_volume_info->szShareName);
+		DBGWRITE(dbg_level_all, L"Stuffing volume: %s\n", afp_volume_info->get_share_name().c_str());
 
-		afp_reply.push_num(afp_volume_info->bAFPFlags);
-		afp_reply.push_pascal_string(afp_volume_info->szShareName);
+		afp_reply.push_num(afp_volume_info->get_afp_flags());
+		afp_reply.push_pascal_string(afp_volume_info->get_share_name());
 	}
 
 	return AFP_OK;
