@@ -128,7 +128,7 @@ AFPERROR FPGetExtAttribute(
             {
                 if (afpReply.check_space_needed(afpDataLen))
                 {
-                    StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->sz_path.string().c_str(), afpAttrName);
+                    StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->sz_path.c_str(), afpAttrName);
 
                     if (!afp_impersonate_user(connection->get_user_token()))
                     {
@@ -163,17 +163,20 @@ AFPERROR FPGetExtAttribute(
 
                         CloseHandle(hFile);
 
-                        //
-                        //We need to advance_pos_ptr the data buffer the amount we read.
-                        //
-                        afpReply.advance_pos_ptr(afpActualRead);
-
                         DBGWRITE(
                             dbg_level_all,
-                            L"[FPGetExtAttribute]ReadFile() returned: %d, read %d bytes\n",
+                            L"ReadFile() returned: %d, read %d bytes\n",
                             GetLastError(),
                             afpActualRead
                         );
+
+                        if (read_result)
+                        {
+                            //
+                            //We need to advance_pos_ptr the data buffer the amount we read.
+                            //
+                            afpReply.advance_pos_ptr(afpActualRead);
+                        }
                     }
 
                     afp_revert_to_self(connection->get_user_token());
@@ -765,8 +768,12 @@ AFPERROR GetStreams(
         if (NtQueryInformationFile == nullptr)
         {
             DBGWRITE(dbg_level_info, L"[afpxattr:GetStreams]GetProcAddress() failed! (%d)\n", GetLastError());
-            return (afpParmErr);
+            return afpParmErr;
         }
+    }
+    else
+    {
+        return afpMiscErr;
     }
 
     //

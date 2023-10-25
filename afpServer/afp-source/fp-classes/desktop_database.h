@@ -134,7 +134,7 @@ public:
         auto_lock lock(&m_mutex_);
 
         const auto success = _wfopen_s(&file, path.c_str(), L"wb");
-        if (success != 0)
+        if (success != 0 || file == nullptr)
         {
 	        return false;
         }
@@ -171,8 +171,10 @@ public:
         auto_lock lock(&m_mutex_);
 
         const auto success = _wfopen_s(&file, path.c_str(), L"w+b");
-        if (success != 0)
+        if (success != 0 || file == nullptr)
+        {
             return false;
+        }
 
         std::vector<std::unique_ptr<DESKTOP_ENTRY, dt_deleter>>::size_type size;
         if (fread(&size, sizeof(size), 1, file) == 0)

@@ -79,14 +79,14 @@ void afp_volumes::add_volume(const std::wstring& share_name, const std::filesyst
         return;
     }
 
-    auto new_volume = std::make_shared<afp_volume>(share_name, share_path, next_volume_id_--, 0, flags);
+    auto new_volume = std::make_shared<afp_volume>(share_name, share_path, next_volume_id_--, static_cast<BYTE>(0), flags);
     new_volume->set_create_date(win_attributes.ftCreationTime);
     new_volume->set_modified_date(win_attributes.ftLastWriteTime);
 
     const auto new_index = new_volume->get_index();
 
     // Add parent of root.
-    new_index->add_entry(MAXDWORD, parent_directory_name, share_path.parent_path(), true);
+    new_index->add_entry(-1, parent_directory_name, share_path.parent_path(), true);
 
     // Add root directory.
     const auto root_index = new_index->add_entry(kParentOfRoot, share_name, share_path, true);
@@ -272,7 +272,7 @@ void afp_volumes::index_queue_thread()
 
             case task_index_complete:
                 EventWriteAFPServerEvt_VolIndexingComplete(element->volume->get_share_name().c_str());
-                SendMessage(HWND_BROADCAST, AFPWM_INDEXING_COMPLETE, static_cast<WPARAM>(NULL), static_cast<LPARAM>(NULL));
+                SendMessage(HWND_BROADCAST, AFPWM_INDEXING_COMPLETE, NULL, NULL);
                 DBGWRITE(dbg_level_info, L"Indexing complete for volume: %s\n", element->volume->get_share_name().c_str());
                 break;
             }

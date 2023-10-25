@@ -60,7 +60,6 @@ afp_index* afp_file_index::add_entry(
 	UINT32* p_new_dir_id
 )
 {
-	std::lock_guard guard(mutex_);
 	auto entry = std::make_unique<afp_index>();
 
 	if (is_directory)
@@ -81,7 +80,9 @@ afp_index* afp_file_index::add_entry(
 	// Save as the std::move() makes the entry confusing.
 	const auto result = entry.get();
 
-	m_index_.push_back(std::move(entry));
+	std::lock_guard guard(mutex_);
+
+    m_index_.push_back(std::move(entry));
 
 	// If the caller wants us to return the new directory ID, then do so.
 	if (is_directory && p_new_dir_id != nullptr)

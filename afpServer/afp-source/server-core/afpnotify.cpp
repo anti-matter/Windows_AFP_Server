@@ -219,10 +219,7 @@ void afp_read_dir_changes(
 }
 
 
-void afp_change_notify_add(
-    IN const FILE_NOTIFY_INFORMATION* file_notify_info,
-    IN const std::shared_ptr<afp_volume>& volume
-)
+void afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_notify_info, const std::shared_ptr<afp_volume>& volume)
 {
     WCHAR new_item_pathname[MAX_PATH] = {};
     WCHAR new_item_name[MAX_PATH];

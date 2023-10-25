@@ -16,6 +16,12 @@ struct index_queue_element
     std::shared_ptr<afp_volume> volume;
     UINT32 item_id;
     std::filesystem::path path;
+
+    index_queue_element()
+        : task(task_delete_index_entry)
+        , item_id(0)
+    {
+    }
 };
 
 class afp_volumes

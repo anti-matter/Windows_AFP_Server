@@ -37,15 +37,13 @@ DWORD AFPRemoveVolumeFromUI(
     IN WCHAR* share_name
 )
 {
-    afp_registry registry;
-
     const auto volume = g_volumes->find(share_name);
     if (volume != nullptr)
     {
         g_volumes->remove_volume(volume->get_volume_id());
     }
 
-    return registry.remove_volume(share_name);
+    return afp_registry::remove_volume(share_name);
 }
 
 
@@ -65,7 +63,6 @@ AFPERROR AFPGetVolumeParameters(
     IN afp_net_buffer& afpReply
 )
 {
-    DWORD dwError;
     uint16* volNameOffset = nullptr;
     std::shared_ptr<afp_volume> afpVolume = g_volumes->find(afpVolumeID);
     ULARGE_INTEGER i64FreeBytesAvailable{};
@@ -103,11 +100,11 @@ AFPERROR AFPGetVolumeParameters(
             &i64NumBytesInDisk,
             &i64NumFreeBytes) == FALSE)
         {
-            dwError = GetLastError();
+            const DWORD dw_error = GetLastError();
 
-            if ((dwError != ERROR_IO_PENDING) && (dwError != NO_ERROR))
+            if ((dw_error != ERROR_IO_PENDING) && (dw_error != NO_ERROR))
             {
-                DBGWRITE(dbg_level_warning, L"[VOL]GetFreeDiskSpaceEx() failed! (%d)\n", dwError);
+                DBGWRITE(dbg_level_warning, L"[VOL]GetFreeDiskSpaceEx() failed! (%d)\n", dw_error);
                 return afpMiscErr;
             }
         }

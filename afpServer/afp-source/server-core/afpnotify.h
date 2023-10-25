@@ -12,11 +12,11 @@ void afp_read_dir_changes(
 );
 
 void afp_change_notify_add(
-    IN FILE_NOTIFY_INFORMATION * file_notify_info,
-    IN std::shared_ptr<afp_volume>& volume
+    IN const FILE_NOTIFY_INFORMATION* file_notify_info,
+    IN const std::shared_ptr<afp_volume>& volume
 );
 
 void afp_change_notify_remove(
-    IN const FILE_NOTIFY_INFORMATION * file_notify_info,
+    IN const FILE_NOTIFY_INFORMATION* file_notify_info,
     IN const std::shared_ptr<afp_volume>& volume
 );

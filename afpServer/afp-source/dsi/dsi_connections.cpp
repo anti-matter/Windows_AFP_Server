@@ -26,11 +26,7 @@ namespace dsi
 		periodic.detach();
 	}
 
-    dsi_connections::~dsi_connections()
-    {
-		std::lock_guard guard(connections_mutex_);
-
-    }
+    dsi_connections::~dsi_connections() = default;
 
     void dsi_connections::track_connection(std::unique_ptr<dsi_connection>& connection)
 	{
@@ -41,10 +37,10 @@ namespace dsi
 	void dsi_connections::stop_tracking(UINT32 connection_id)
 	{
 		std::lock_guard guard(connections_mutex_);
-		const auto itr = std::remove_if(
-			connections_.begin(),
-			connections_.end(),
-			[&](const std::unique_ptr<dsi_connection>& c) {return c->get_connection_id() == connection_id;});
+		const auto itr = std::ranges::remove_if(connections_, [&](const std::unique_ptr<dsi_connection>& c)
+        {
+            return c->get_connection_id() == connection_id;
+        }).begin();
 
 		if (itr != connections_.end())
 		{
