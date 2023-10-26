@@ -242,7 +242,7 @@ AFPERROR AFPSetFinderInfoEx(
 			//
 			if (dwError == ERROR_SHARING_VIOLATION)
 			{
-				DBGWRITE(dbg_level_info, L"[fpinfo:AFPSetFinderInfoEx]Sleeping for 100ns for notify wait!\n");
+				DBGWRITE(dbg_level_info, L"Sleeping for 500ms for notify wait!\n");
 
 				Sleep(500);
 
@@ -252,15 +252,13 @@ AFPERROR AFPSetFinderInfoEx(
 				dwError = NO_ERROR;
 				continue;
 			}
-			else
-			{
-				DBGWRITE(dbg_level_info,
-					L"[fpinfo:AFPSetFinderInfoEx]CreatFile() failed! (%d) (%s)\n",
-					dwError,
-					szPath);
-			}
 
-			dwError = afp_map_win_error_to_afp(dwError, afpMiscErr);
+            DBGWRITE(dbg_level_info,
+                     L"CreatFile() failed! (%d) (%s)\n",
+                     dwError,
+                     szPath);
+
+            dwError = afp_map_win_error_to_afp(dwError, afpMiscErr);
 		}
 
 		break;
@@ -277,13 +275,13 @@ AFPERROR AFPSetFinderInfoEx(
 			//Failure, get the error code and get out of here.
 			//
 			dwError = GetLastError();
-			DBGWRITE(dbg_level_info, L"[fpinfo:AFPSetFinderInfoEx]WriteFile() failed! (%d)\n", dwError);
+			DBGWRITE(dbg_level_info, L"WriteFile() failed! (%d)\n", dwError);
 
 			dwError = afp_map_win_error_to_afp(dwError, afpMiscErr);
 		}
 
 		ASSERT(dwBytesWritten == sizeof(EXTENDED_FINDER_INFO));
-		DBGWRITE(dbg_level_all, L"[fpinfo:AFPSetFinderInfoEx]FinderInfo updated successfully for %s.\n", szPath);
+		DBGWRITE(dbg_level_all, L"FinderInfo updated successfully for %s.\n", szPath);
 
 		CloseHandle(hFile);
 	}

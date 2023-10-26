@@ -255,6 +255,8 @@ AFPERROR FPEnumerate(
         return afp_error;
     }
 
+    DBGWRITE(dbg_level_info, L"Enumerating: %s\n", afp_pathname);
+
     // We don't support the following bitmaps, so we clear them.
     if (connection->get_afp_version() < afpVersion30)
     {
@@ -274,7 +276,7 @@ AFPERROR FPEnumerate(
     auto* afp_act_count_spot = reinterpret_cast<INT16*>(afp_reply.get_current_pos_ptr());
     afp_reply.advance_pos_ptr(sizeof(INT16));
 
-    std::shared_ptr<afp_volume> afp_volume_info = afp_session->find_open_volume(afp_vol_id);
+    const std::shared_ptr<afp_volume> afp_volume_info = afp_session->find_open_volume(afp_vol_id);
 
     // Retrieve the index entry of the directory pointed to by the AFP path.
     // We use it's dirID to determine which files we'll return in the enum.

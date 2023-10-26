@@ -83,7 +83,10 @@ void AFPCheckForAndCreateFinderRsrcStream(
     IN const afp_index* index_entry
 )
 {
-    const std::filesystem::path res_path = index_entry->sz_path / AFP_RESOURCE_FORK_NAME;
+    std::filesystem::path res_path = index_entry->sz_path;
+    res_path.concat(":");
+    res_path.concat(AFP_RESOURCE_FORK_NAME);
+
 
     HANDLE hFile = CreateFile(
         res_path.c_str(),
@@ -437,11 +440,11 @@ AFPERROR AFPSetFileDirParms(
     if (wBitmap & (kFPCreateDate | kFPModDate | kFPBackupDate))
     {
         if (wBitmap & kFPCreateDate)
-            EXTRACT_LONG(pTemp, lwCreateDate);
+            EXTRACT_LONG(pTemp, lwCreateDate)
         if (wBitmap & kFPModDate)
-            EXTRACT_LONG(pTemp, lwModDate);
+            EXTRACT_LONG(pTemp, lwModDate)
         if (wBitmap & kFPBackupDate)
-            EXTRACT_LONG(pTemp, lwBackupDate);
+            EXTRACT_LONG(pTemp, lwBackupDate)
     }
 
     if (wBitmap & kFPFinderInfo)
@@ -452,9 +455,9 @@ AFPERROR AFPSetFileDirParms(
         pTemp += sizeof(FINDER_INFO);
 
         fInfo.fdFlags = ntohs(fInfo.fdFlags);
-        fInfo.fdLocation.x = ntohs(fInfo.fdLocation.x);
-        fInfo.fdLocation.y = ntohs(fInfo.fdLocation.y);
-        fInfo.fdFldr = ntohs(fInfo.fdFldr);
+        fInfo.fdLocation.x = static_cast<SHORT>(ntohs(fInfo.fdLocation.x));
+        fInfo.fdLocation.y = static_cast<SHORT>(ntohs(fInfo.fdLocation.y));
+        fInfo.fdFldr = static_cast<SHORT>(ntohs(fInfo.fdFldr));
 
         AFPSetFinderInfo(pEntry, &fInfo, FALSE);
     }

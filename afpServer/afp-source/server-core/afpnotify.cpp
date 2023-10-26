@@ -110,11 +110,6 @@ void afp_read_dir_changes(
         if (GetLastError() != ERROR_IO_INCOMPLETE || !server_running ||
             !(volume->get_internal_flags() & flag_volume_shared))
         {
-            DBGWRITE(dbg_level_info,
-                     L"ReadDirectoryChangesW() returned error, or volume terminated. (%d)\n",
-                     GetLastError()
-            );
-
             CloseHandle(overlapped.hEvent);
             return;
         }

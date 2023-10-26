@@ -38,5 +38,4 @@ void afp_volume::make_desktop_database()
     }
 
     desktop_->to_file(desktop_path);
-    index_->wait_for_entry(desktop_path);
 }
