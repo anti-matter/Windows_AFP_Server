@@ -79,7 +79,7 @@ afp_index* afp_file_index::add_entry(
     m_index_.push_back(std::move(entry));
 
 	// If the caller wants us to return the new directory ID, then do so.
-	if (is_directory && p_new_dir_id != nullptr)
+	if (p_new_dir_id != nullptr)
 	{
 		*p_new_dir_id = result->object_id;
 	}
@@ -106,6 +106,9 @@ void afp_file_index::check_waiters(const std::filesystem::path& path)
 UINT32 afp_file_index::wait_for_entry(const std::filesystem::path& path)
 {
     const auto wait_data = std::make_shared<index_wait_for_add_data>();
+	wait_data->event = CreateEvent(nullptr, TRUE, FALSE, nullptr);
+	wait_data->object_path = path;
+
 	waiting_for_add_.push_back(wait_data);
 
 	const auto result = WaitForSingleObject(wait_data->event, 10000);
@@ -114,6 +117,8 @@ UINT32 afp_file_index::wait_for_entry(const std::filesystem::path& path)
 		DBGWRITE(dbg_level_error, L"Waiting for entry add timed out: %s\n", path.c_str());
 		return 0;
 	}
+
+	DBGWRITE(dbg_level_info, L"Waiting for entry signaled success.\n");
 
 	const auto entry = find(path);
 	if (entry == nullptr)
@@ -384,7 +389,7 @@ afp_index* afp_file_index::find(const std::wstring& full_path)
 
 afp_index* afp_file_index::find(const DWORD directory_id, const std::wstring& path)
 {
-	std::lock_guard guard(mutex_);
+	std::unique_lock lock(mutex_);
 
     if (const auto it = std::ranges::find_if(m_index_, [=](const std::unique_ptr<afp_index>& i)
     {
@@ -395,6 +400,8 @@ afp_index* afp_file_index::find(const DWORD directory_id, const std::wstring& pa
 		{
 			return it->get();
 		}
+
+		lock.unlock();
 
         const std::filesystem::path temp_path = it->get()->sz_path / path;
 		return find(temp_path);

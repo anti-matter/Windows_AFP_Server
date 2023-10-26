@@ -482,6 +482,8 @@ AFPERROR FPCreateFile(
     {
         afp_error = NO_ERROR;
 
+        afp_volumes::current()->find(afp_volume_id)->get_index()->wait_for_entry(win_path);
+
         //// Add the new file to the afp index for tracking purposes.
         //afp_entry = AFPIndexAddEntry(
         //    afp_volume_info,

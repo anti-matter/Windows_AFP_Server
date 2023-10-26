@@ -7,6 +7,7 @@
 
 constexpr UINT8 max_volume_levels_deep = 128;
 constexpr UINT8 max_volumes = MAXBYTE;
+constexpr FILETIME default_backup_time = { 627916800 , 34316075 };
 
 enum volume_flags
 {
@@ -32,6 +33,7 @@ public:
 
     void set_create_date(const FILETIME date) { creation_date_ = date; }
     void set_modified_date(const FILETIME date) { modification_date_ = date; }
+    void set_backup_date(const FILETIME date) { backup_date_ = date; }
     void set_internal_flags(const UINT32 flags) { internal_flags_ |= flags; }
 
     void set_is_dirty(const bool is_dirty = true) { is_dirty_ = is_dirty; }

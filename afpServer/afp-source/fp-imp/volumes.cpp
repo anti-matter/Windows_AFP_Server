@@ -59,47 +59,38 @@ DWORD AFPRemoveVolumeFromUI(
 //
 
 AFPERROR AFPGetVolumeParameters(
-    IN WORD afpVolumeID,
-    IN WORD afpBitmap,
-    IN afp_net_buffer& afpReply
+    IN const WORD afp_volume_id,
+    IN const WORD afp_bitmap,
+    IN afp_net_buffer& afp_reply
 )
 {
-    uint16* volNameOffset = nullptr;
-    std::shared_ptr<afp_volume> afpVolume = g_volumes->find(afpVolumeID);
-    ULARGE_INTEGER i64FreeBytesAvailable{};
-    ULARGE_INTEGER i64NumBytesInDisk{};
-    ULARGE_INTEGER i64NumFreeBytes{};
+    uint16* volume_name_offset = nullptr;
+    const std::shared_ptr<afp_volume> afp_volume = g_volumes->find(afp_volume_id);
+    ULARGE_INTEGER free_bytes_available{};
+    ULARGE_INTEGER num_bytes_in_disk{};
+    ULARGE_INTEGER num_free_bytes{};
 
-    //
-    //Put the bitmap into the buffer.
-    //
-    afpReply.push_num(afpBitmap);
-
-    //
-    //Get a pointer to our volume information block which contains
-    //a lot of the data we need here.
-    //
-    if (afpVolume == nullptr)
+    if (afp_volume == nullptr)
     {
-        DBGWRITE(dbg_level_warning, L"[VOL]Volume ID not found in AFPGetVolumeParameters()!\n");
+        DBGWRITE(dbg_level_warning, L"Volume ID not found in AFPGetVolumeParameters()!\n");
         return afpIDNotFound;
     }
 
-    //
-    //Get the disk information if it's requested for later use.
-    //
-    if (afpBitmap & (kFPVolBytesFreeBit | kFPVolBytesTotalBit |
+    // Always send back the bitmap we were provided.
+    afp_reply.push_num(afp_bitmap);
+
+    if (afp_bitmap & (kFPVolBytesFreeBit | kFPVolBytesTotalBit |
         kFPVolExtBytesFree | kFPVolExtBytesTotal | kFPVolBlockSize))
     {
-        i64FreeBytesAvailable.QuadPart = 0;
-        i64NumBytesInDisk.QuadPart = 0;
-        i64NumFreeBytes.QuadPart = 0;
+        free_bytes_available.QuadPart = 0;
+        num_bytes_in_disk.QuadPart = 0;
+        num_free_bytes.QuadPart = 0;
 
         if (GetDiskFreeSpaceEx(
-            afpVolume->get_share_path().c_str(),
-            &i64FreeBytesAvailable,
-            &i64NumBytesInDisk,
-            &i64NumFreeBytes) == FALSE)
+            afp_volume->get_share_path().c_str(),
+            &free_bytes_available,
+            &num_bytes_in_disk,
+            &num_free_bytes) == FALSE)
         {
             const DWORD dw_error = GetLastError();
 
@@ -111,141 +102,128 @@ AFPERROR AFPGetVolumeParameters(
         }
     }
 
-    if (afpBitmap & kFPVolAttributeBit)
+    if (afp_bitmap & kFPVolAttributeBit)
     {
-        int16 attributes = (kFPVolSupportsUnicodeNames | kFPVolSupportsFileIDs | kNoExchangeFiles | kSupportsExtAttrs);
-        WCHAR szVolumeName[32];
-        WCHAR fileSystemName[32];
-        DWORD maxFileNameLen = 0;
-        DWORD systemFlags = 0;
+        UINT16 attributes = kFPVolSupportsUnicodeNames | kFPVolSupportsFileIDs | kNoExchangeFiles | kSupportsExtAttrs;
+        WCHAR volume_name[32]{};
+        WCHAR file_system_name[32]{};
+        DWORD max_file_name_len = 0;
+        DWORD system_flags = 0;
 
         if (GetVolumeInformation(
-            afpVolume->get_share_path().root_name().c_str(),
-            szVolumeName,
-            sizeof(szVolumeName),
+            afp_volume->get_share_path().root_name().c_str(),
+            volume_name,
+            sizeof(volume_name),
             nullptr,
-            &maxFileNameLen,
-            &systemFlags,
-            fileSystemName,
-            sizeof(fileSystemName)
+            &max_file_name_len,
+            &system_flags,
+            file_system_name,
+            sizeof(file_system_name)
         ))
         {
-            //Fix non-support for FILE_READ_ONLY_VOLUME
-#if 0
-            if ((systemFlags & FILE_READ_ONLY_VOLUME) || (afpVolume->wVolumeFlags & FLAG_VOLUME_READONLY))
+//#if 0
+            if (system_flags & FILE_READ_ONLY_VOLUME || afp_volume->get_internal_flags() & flag_volume_readonly)
             {
                 attributes |= kFPVolReadOnly;
             }
-#endif
+//#endif
         }
-        else if (afpVolume->get_internal_flags() & flag_volume_readonly)
+        else if (afp_volume->get_internal_flags() & flag_volume_readonly)
         {
             attributes |= kFPVolReadOnly;
         }
 
-        if (afpVolume->get_internal_flags() & flag_volume_has_password)
+        if (afp_volume->get_internal_flags() & flag_volume_has_password)
         {
             attributes |= kFPVolHasVolumePassword;
         }
 
-        afpReply.push_int16(attributes);
+        afp_reply.push_num(attributes);
     }
 
-    if (afpBitmap & kFPVolSignatureBit) afpReply.push_int16(kFixedDirectoryID);
+    if (afp_bitmap & kFPVolSignatureBit) afp_reply.push_num<UINT16>(kFixedDirectoryID);
+    if (afp_bitmap & kFPVolCreateDateBit) afp_reply.push_num(afp_windows_to_mac_time(afp_volume->get_create_date()));
+    if (afp_bitmap & kFPVolModDateBit) afp_reply.push_num(afp_windows_to_mac_time(afp_volume->get_modified_date()));
+    if (afp_bitmap & kFPVolBackupDateBit) afp_reply.push_num(afp_windows_to_mac_time(afp_volume->get_backup_date()));
+    if (afp_bitmap & kFPVolIDBit) afp_reply.push_num(afp_volume->get_volume_id());
 
-    if (afpBitmap & kFPVolCreateDateBit) afpReply.push_num(afp_windows_to_mac_time(afpVolume->get_create_date()));
-    if (afpBitmap & kFPVolModDateBit) afpReply.push_num(afp_windows_to_mac_time(afpVolume->get_modified_date()));
-    if (afpBitmap & kFPVolBackupDateBit) afpReply.push_num(afp_windows_to_mac_time(afpVolume->get_backup_date()));
-
-    if (afpBitmap & kFPVolIDBit) afpReply.push_num(afpVolume->get_volume_id());
-
-    if (afpBitmap & kFPVolBytesFreeBit)
+    if (afp_bitmap & kFPVolBytesFreeBit)
     {
-        //
-        //The max allowable on AFP 2.2 clients is 2GB.
-        //
-        if (i64FreeBytesAvailable.QuadPart > MAXLONG)
+        // The max allowable on AFP 2.2 clients is 2GB.
+        if (free_bytes_available.QuadPart > MAXLONG)
         {
-            afpReply.push_num(MAXLONG);
+            afp_reply.push_num(MAXLONG);
         }
         else
         {
-            afpReply.push_num(i64FreeBytesAvailable.LowPart);
+            afp_reply.push_num(free_bytes_available.LowPart);
         }
     }
 
-    if (afpBitmap & kFPVolBytesTotalBit)
+    if (afp_bitmap & kFPVolBytesTotalBit)
     {
-        //
-        //The max allowable on AFP 2.2 clients is 2GB. As per the AFP 3.0 spec,
-        //if the volume is greater than 4GB, we return the total size of the volume
-        //minus 4GB.
-        //
-        if (i64NumBytesInDisk.QuadPart > MAXLONG)
+        // The max allowable on AFP 2.2 clients is 2GB. As per the AFP 3.0 spec,
+        // if the volume is greater than 4GB, we return the total size of the volume
+        // minus 4GB.
+        if (num_bytes_in_disk.QuadPart > MAXLONG)
         {
-            afpReply.push_num(MAXLONG);
+            afp_reply.push_num(MAXLONG);
         }
         else
         {
-            afpReply.push_num(i64NumBytesInDisk.LowPart);
+            afp_reply.push_num(num_bytes_in_disk.LowPart);
         }
     }
 
-    //
-    //Save the pointer to where we need to write the offset
-    //to the volume name.
-    //
-    if (afpBitmap & kFPVolNameBit)
+    // Save the pointer to where we need to write the offset
+    // to the volume name.
+    if (afp_bitmap & kFPVolNameBit)
     {
-        volNameOffset = reinterpret_cast<uint16*>(afpReply.get_current_pos_ptr());
-        afpReply.advance_pos_ptr(sizeof(int16));
+        volume_name_offset = reinterpret_cast<uint16*>(afp_reply.get_current_pos_ptr());
+        afp_reply.advance_pos_ptr(sizeof(int16));
     }
 
-    //
-    //The following 3 bits will only be set if the caller
-    //is using AFP 2.2 or later.
-    //
-    if (afpBitmap & kFPVolExtBytesFree) afpReply.push_num(i64NumFreeBytes.QuadPart);
-    if (afpBitmap & kFPVolExtBytesTotal) afpReply.push_num(i64NumBytesInDisk.QuadPart);
+    // The following 3 bits will only be set if the caller
+    // is using AFP 2.2 or later.
+    if (afp_bitmap & kFPVolExtBytesFree) afp_reply.push_num(num_free_bytes.QuadPart);
+    if (afp_bitmap & kFPVolExtBytesTotal) afp_reply.push_num(num_bytes_in_disk.QuadPart);
 
-    if (afpBitmap & kFPVolBlockSize)
+    if (afp_bitmap & kFPVolBlockSize)
     {
-        DWORD dwAllocationSize;
+        DWORD allocation_size;
 
+        // Since we only work on NTFS volumes, we use the NTFS
+        // file allocation table to determine what the block
+        // size is.
         //
-        //Since we only work on NTFS volumes, we use the NTFS
-        //file allocation table to determine what the block
-        //size is.
-        //
-        //BUGBUG: Find API that will get us the real number if it exists!
-        //
+        // BUGBUG: Find API that will get us the real number if it exists!
 
-        if (const auto i64Capacity = i64NumBytesInDisk.QuadPart; i64Capacity <= 512000000)
+        if (const auto capacity = num_bytes_in_disk.QuadPart; capacity <= 512000000)
         {
-            dwAllocationSize = 512;
+            allocation_size = 512;
         }
-        else if (i64Capacity <= 1024000000)
+        else if (capacity <= 1024000000)
         {
-            dwAllocationSize = 1024;
+            allocation_size = 1024;
         }
-        else if (i64Capacity <= 2048000000)
+        else if (capacity <= 2048000000)
         {
-            dwAllocationSize = 2048;
+            allocation_size = 2048;
         }
         else
         {
-            dwAllocationSize = 4096;
+            allocation_size = 4096;
         }
 
-        afpReply.push_num(dwAllocationSize);
+        afp_reply.push_num(allocation_size);
 
-        DBGWRITE(dbg_level_all, L"[VOL]Allocation block size = %d\n", dwAllocationSize);
+        DBGWRITE(dbg_level_all, L"Allocation block size = %d (0x%x)\n", allocation_size, allocation_size);
     }
 
-    if (afpBitmap & kFPVolNameBit)
+    if (afp_bitmap & kFPVolNameBit)
     {
-        *volNameOffset = htons(static_cast<uint16>(afpReply.get_data_length()) - sizeof(int16));
-        afpReply.push_pascal_string(afpVolume->get_share_name());
+        *volume_name_offset = htons(static_cast<uint16>(afp_reply.get_data_length()) - sizeof(int16));
+        afp_reply.push_pascal_string(afp_volume->get_share_name());
     }
 
     return AFP_OK;

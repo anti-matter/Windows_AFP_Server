@@ -18,9 +18,9 @@ DWORD AFPRemoveVolumeFromUI(
 );
 
 AFPERROR AFPGetVolumeParameters(
-    IN WORD afpVolumeID,
-    IN WORD afpBitmap,
-    IN afp_net_buffer& afpReply
+    IN WORD afp_volume_id,
+    IN WORD afp_bitmap,
+    IN afp_net_buffer& afp_reply
 );
 
 AFPERROR AFPIndexUpdateEntryFlags(

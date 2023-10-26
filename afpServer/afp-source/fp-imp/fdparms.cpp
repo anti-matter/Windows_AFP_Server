@@ -97,7 +97,8 @@ void AFPCheckForAndCreateFinderRsrcStream(
 
     if (hFile == INVALID_HANDLE_VALUE)
     {
-        if (GetLastError() == ERROR_FILE_NOT_FOUND)
+        const auto error = GetLastError();
+        if (error == ERROR_FILE_NOT_FOUND)
         {
             hFile = CreateFile(
                 res_path.c_str(),

@@ -107,7 +107,7 @@ AFPERROR AFPGetFinderInfoEx(
 	//
 	//First, build the path to the finder info stream.
 	//
-	ASSERT(pEntry->sz_path.string().length() > 0);
+	ASSERT(!pEntry->sz_path.empty());
 	StringCbPrintf(szPath, sizeof(szPath), TEXT("%s:%s"), pEntry->sz_path.c_str(), AFP_INFO_STREAM_NAME);
 
 	//

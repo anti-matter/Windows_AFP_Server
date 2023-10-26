@@ -223,7 +223,6 @@ void afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_notify_info, cons
 {
     WCHAR new_item_pathname[MAX_PATH] = {};
     WCHAR new_item_name[MAX_PATH];
-    afp_index* pEntry = nullptr;
     WIN32_FILE_ATTRIBUTE_DATA attribute_data;
 
     lstrcpyn(new_item_pathname, file_notify_info->FileName, static_cast<int>(file_notify_info->FileNameLength));
@@ -237,7 +236,6 @@ void afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_notify_info, cons
     const std::filesystem::path new_item_parent_path = new_item_path.parent_path();
 
     DBGWRITE(dbg_level_info, L"New item pathname = %s\n", new_item_pathname);
-    DBGWRITE(dbg_level_info, L"Parent dir path = %s\n", new_item_parent_path.c_str());
 
     // Search the afp index for the entry corresponding to the parent
     // directory for the new item.
@@ -251,6 +249,8 @@ void afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_notify_info, cons
         return;
     }
 
+    DBGWRITE(dbg_level_info, L"Parent dir path = %s\n", parent_entry->sz_path.c_str());
+
     // See if there is already an index entry for this object. If so, then we
     // don't need to do anything.
     if (volume->find(kRootDirID, new_item_pathname) != nullptr)
@@ -259,9 +259,12 @@ void afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_notify_info, cons
         return;
     }
 
+    // Build full path to the new item.
+    const std::filesystem::path new_full_path = parent_entry->sz_path / new_item_path;
+
     // Get the file attributes for the new file object. We use these to
     // determine if the object is a file or directory.
-    if (!GetFileAttributesEx(new_item_path.c_str(), GetFileExInfoStandard, &attribute_data))
+    if (!GetFileAttributesEx(new_full_path.c_str(), GetFileExInfoStandard, &attribute_data))
     {
         DBGWRITE(dbg_level_info, L"Item not found on disk!\n");
         return;
@@ -269,10 +272,10 @@ void afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_notify_info, cons
 
     // Finally, add the new file object into the afp index.
     UINT32 new_object_id;
-    volume->get_index()->add_entry(
+    const auto new_entry = volume->get_index()->add_entry(
         parent_entry->object_id,
         new_item_name,
-        new_item_path,
+        new_full_path,
         (attribute_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0,
         &new_object_id);
 
@@ -284,7 +287,7 @@ void afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_notify_info, cons
 
     // Add the finder info stream to the file or directory if
     // it doesn't already exist.
-    AFPCheckForAndAddFinderInfoStream(pEntry);
+    AFPCheckForAndAddFinderInfoStream(new_entry);
 
     if (attribute_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
     {
@@ -295,7 +298,7 @@ void afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_notify_info, cons
     else
     {
         // Add the resource streams if necessary for files.
-        AFPCheckForAndCreateFinderRsrcStream(pEntry);
+        AFPCheckForAndCreateFinderRsrcStream(new_entry);
     }
 
     // Mark the volume dirty so it will tell any connected macs
@@ -309,7 +312,7 @@ void afp_change_notify_remove(
     IN const std::shared_ptr<afp_volume>& volume
 )
 {
-    TCHAR remove_item_pathname[MAX_PATH];
+    WCHAR remove_item_pathname[MAX_PATH];
     WIN32_FILE_ATTRIBUTE_DATA attribute_data;
 
     // Copy the pathname (path plus object name) into a null terminated

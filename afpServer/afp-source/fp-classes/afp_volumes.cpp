@@ -92,6 +92,7 @@ void afp_volumes::add_volume(const std::wstring& share_name, std::filesystem::pa
     const auto new_volume = std::make_shared<afp_volume>(share_name, share_path, next_volume_id_--, static_cast<BYTE>(0), flags);
     new_volume->set_create_date(win_attributes.ftCreationTime);
     new_volume->set_modified_date(win_attributes.ftLastWriteTime);
+    new_volume->set_backup_date(default_backup_time);
 
     const auto new_index = new_volume->get_index();
 
