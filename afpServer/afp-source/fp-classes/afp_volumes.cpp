@@ -63,13 +63,14 @@ void afp_volumes::volume_indexer()
 
             if (keep_going)
             {
-                add_volume(share_name, share_path, flags);
+                std::filesystem::path path = share_path;
+                add_volume(share_name, path, flags);
             }
         } while (keep_going);
     }
 }
 
-void afp_volumes::add_volume(const std::wstring& share_name, const std::filesystem::path& share_path, UINT32 flags)
+void afp_volumes::add_volume(const std::wstring& share_name, std::filesystem::path& share_path, UINT32 flags)
 {
     WIN32_FILE_ATTRIBUTE_DATA win_attributes;
 
@@ -79,14 +80,14 @@ void afp_volumes::add_volume(const std::wstring& share_name, const std::filesyst
         return;
     }
 
-    auto new_volume = std::make_shared<afp_volume>(share_name, share_path, next_volume_id_--, static_cast<BYTE>(0), flags);
+    const auto new_volume = std::make_shared<afp_volume>(share_name, share_path, next_volume_id_--, static_cast<BYTE>(0), flags);
     new_volume->set_create_date(win_attributes.ftCreationTime);
     new_volume->set_modified_date(win_attributes.ftLastWriteTime);
 
     const auto new_index = new_volume->get_index();
 
     // Add parent of root.
-    new_index->add_entry(-1, parent_directory_name, share_path.parent_path(), true);
+    new_index->add_entry(MAXDWORD, parent_directory_name, share_path.parent_path(), true);
 
     // Add root directory.
     const auto root_index = new_index->add_entry(kParentOfRoot, share_name, share_path, true);
@@ -165,7 +166,7 @@ void afp_volumes::remove_all_volumes()
 }
 
 
-bool afp_volumes::index_build(const std::filesystem::path& share_path, const UINT32  parent_dir_id, const std::shared_ptr<afp_volume>& volume)
+bool afp_volumes::index_build(std::filesystem::path& share_path, const UINT32  parent_dir_id, const std::shared_ptr<afp_volume>& volume)
 {
     if (parent_dir_id == kRootDirID)
     {
@@ -173,7 +174,8 @@ bool afp_volumes::index_build(const std::filesystem::path& share_path, const UIN
     }
 
     WIN32_FIND_DATA find_data;
-    const auto h_find = FindFirstFile(share_path.c_str(), &find_data);
+    const std::filesystem::path find_path = share_path / "*";
+    const auto h_find = FindFirstFile(find_path.c_str(), &find_data);
     if (h_find == INVALID_HANDLE_VALUE)
     {
         DBGWRITE(dbg_level_error, L"Bad directory, failed to index: %s\n", share_path.c_str());
@@ -233,6 +235,11 @@ bool afp_volumes::index_build(const std::filesystem::path& share_path, const UIN
     } while (FindNextFile(h_find, &find_data));
 
     FindClose(h_find);
+
+    if (parent_dir_id == kRootDirID)
+    {
+        index_queue_task(task_index_complete, volume, kRootDirID, share_path);
+    }
 
     return true;
 }

@@ -26,7 +26,8 @@ DWORD AFPAddNewVolumeFromUI(
     const DWORD dw_error = theRegistry.add_volume(share_name, share_path, share_password);
     if (SUCCEEDED(dw_error))
     {
-        g_volumes->add_volume(share_name, share_path, 0);
+        std::filesystem::path path = share_path;
+        g_volumes->add_volume(share_name, path, 0);
     }
 
     return dw_error;
