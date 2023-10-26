@@ -191,7 +191,7 @@ AFPERROR DHXLoginContinue(
 	//and make sure the session ID matches what we sent over. Note that
 	//we save the session ID in the afpSession login blob storage.
 	//
-	const auto sessionID = afpRequest.pull_num<INT16>();
+	const auto sessionID = afpRequest.pull_num<UINT16>();
 
 	if (sessionID != dhxInfo->sessionID)
 	{

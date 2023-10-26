@@ -28,15 +28,24 @@ afp_volumes::afp_volumes()
     queued_worker.detach();
 }
 
-afp_volumes::~afp_volumes()
-{
-    index_queue_running_ = false;
-    SetEvent(index_event_);
-}
+afp_volumes::~afp_volumes() = default;
 
 afp_volumes* afp_volumes::current()
 {
     return g_volumes.get();
+}
+
+void afp_volumes::shutdown()
+{
+    current()->instance_shutdown();
+}
+
+void afp_volumes::instance_shutdown()
+{
+    index_queue_running_ = false;
+    SetEvent(index_event_);
+
+    remove_all_volumes();
 }
 
 void afp_volumes::volume_indexer()

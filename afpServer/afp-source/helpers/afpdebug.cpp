@@ -23,38 +23,34 @@ void afp_debug_write(_In_ const dbg_level debug_level, _In_ const std::string& f
 	va_list args;
 	va_start(args, format);
 
-	// Don't halt thread execution waiting for debug output.
-	auto future = std::async(std::launch::async, [debug_level,function,format,args]()
+	std::wstring level;
+    switch (debug_level)
+    {
+    case dbg_level_error:
+		level = L"[ERROR]";
+		break;
+    case dbg_level_warning:
+		level = L"[WARNING]";
+		break;
+    case dbg_level_info:
+		level = L"[INFO]";
+		break;
+    case dbg_level_all:
+		level = L"[ALL]";
+		break;
+    }
+
+	const std::wstring combined = level + L"[" + string_to_wide_string(function) + L"]" + format;
+
+	// Len + terminating character
+	const auto len = _vscwprintf(combined.c_str(), args) + 1;
+	const auto buffer = std::unique_ptr<WCHAR>(new WCHAR[len]);
+
+	const auto chars_written = vswprintf_s(buffer.get(), len, combined.c_str(), args);
+	if (chars_written > 0)
 	{
-		std::wstring level;
-        switch (debug_level)
-        {
-        case dbg_level_error:
-			level = L"[ERROR]";
-			break;
-        case dbg_level_warning:
-			level = L"[WARNING]";
-			break;
-        case dbg_level_info:
-			level = L"[INFO]";
-			break;
-        case dbg_level_all:
-			level = L"[ALL]";
-			break;
-        }
-
-		const std::wstring combined = level + L"[" + string_to_wide_string(function) + L"]" + format;
-
-		// Len + terminating character
-		const auto len = _vscwprintf(combined.c_str(), args) + 1;
-		const auto buffer = std::unique_ptr<WCHAR>(new WCHAR[len]);
-
-		const auto chars_written = vswprintf_s(buffer.get(), len, combined.c_str(), args);
-		if (chars_written > 0)
-		{
-			OutputDebugString(buffer.get());
-		}
-	});
+		OutputDebugString(buffer.get());
+	}
 
 	va_end(args);
 }

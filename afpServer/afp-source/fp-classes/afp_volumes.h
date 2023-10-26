@@ -31,6 +31,10 @@ public:
     ~afp_volumes();
 
     static afp_volumes* current();
+    static void shutdown();
+
+    // The server is shutting down. Here's our opportunity to cleanup.
+    void instance_shutdown();
 
     // The volume indexer thread will traverse the entire volume's tree
     // and add its contents to the index for that volume. This occurs

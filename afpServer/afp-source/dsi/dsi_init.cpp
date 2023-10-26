@@ -128,6 +128,8 @@ namespace dsi
 		server_running = false;
 
 		closesocket(listen_socket);
+
+		afp_volumes::shutdown();
 	}
 
 	void dsi_attention_thread()
