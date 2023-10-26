@@ -369,7 +369,7 @@ bool afp_volumes::map_name_to_id(const std::wstring& share_name, UINT16* id)
     return false;
 }
 
-int afp_volumes::active_volumes(std::vector<std::shared_ptr<afp_volume>>* volumes_out)
+UINT8 afp_volumes::active_volumes(std::vector<std::shared_ptr<afp_volume>>* volumes_out)
 {
     std::lock_guard guard(volumes_mutex_);
 
@@ -388,7 +388,7 @@ int afp_volumes::active_volumes(std::vector<std::shared_ptr<afp_volume>>* volume
         return false;
     });
 
-    return it;
+    return static_cast<UINT8>(it);
 }
 
 void afp_volumes::dirty_volumes(std::vector<std::shared_ptr<afp_volume>>* dirty_volumes)

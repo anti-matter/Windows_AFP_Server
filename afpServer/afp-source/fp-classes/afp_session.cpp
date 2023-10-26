@@ -4,7 +4,6 @@
 #include "auto_lock.h"
 #include "afp_open_file.h"
 #include "afp_volumes.h"
-#include "dsi/dsi_connections.h"
 
 extern std::unique_ptr<afp_volumes> g_volumes;
 
@@ -39,28 +38,33 @@ afp_session::afp_session(dsi::dsi_connection* dsi_session)
 
 afp_session::~afp_session()
 {
-    EnterCriticalSection(&m_mutex_);
+    DeleteCriticalSection(&m_mutex_);
+}
+
+
+void afp_session::shutdown()
+{
+    //EnterCriticalSection(&m_mutex_);
 
     std::ranges::for_each(m_open_desks_, [=, this](const std::unique_ptr<OPEN_DESKTOP>& dt)
-    {
-        close_desk(dt->dtRefNum);
-    });
+        {
+            close_desk(dt->dtRefNum);
+        });
 
     std::ranges::for_each(m_afp_open_files_, [=, this](const std::unique_ptr<afp_open_file>& of)
-    {
-        if (of != nullptr)
         {
-            close_file(of->get_file_ref_num());
-        }
-    });
+            if (of != nullptr)
+            {
+                close_file(of->get_file_ref_num());
+            }
+        });
 
     std::ranges::for_each(m_open_volumes_, [=, this](const std::shared_ptr<afp_volume>& ov)
-    {
-        close_volume(ov->get_volume_id());
-    });
+        {
+            close_volume(ov->get_volume_id());
+        });
 
-    LeaveCriticalSection(&m_mutex_);
-    DeleteCriticalSection(&m_mutex_);
+    //LeaveCriticalSection(&m_mutex_);
 }
 
 

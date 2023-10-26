@@ -33,13 +33,7 @@ afp_file_index::afp_file_index()
  *		None
  */
 
-afp_file_index::~afp_file_index()
-{
-	DBGWRITE(dbg_level_info, L"Waiting for ref count before delete\n");
-	ASSERT(0); //Remove if you ever hit this
-
-	Sleep(500);
-}
+afp_file_index::~afp_file_index() = default;
 
 
 /*

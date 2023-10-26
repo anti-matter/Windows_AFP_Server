@@ -35,9 +35,9 @@ namespace dsi
 
 	dsi_connection::~dsi_connection()
 	{
-		kill_connection();
-		closesocket(socket_);
+		afp_session_->shutdown();
 
+		kill_connection();
 		DBGWRITE(dbg_level_info, L"dsi_connection closed.\n");
 	}
 
@@ -425,6 +425,8 @@ namespace dsi
 		header.push_num<UINT32>(0);
 
 		last_tickle_ = GetTickCount64();
+
+		DBG_DUMP_BUFFER(reply_buffer, data_size + dsi_header_size);
 
 		send_(reply_buffer, data_size + dsi_header_size);
 	}

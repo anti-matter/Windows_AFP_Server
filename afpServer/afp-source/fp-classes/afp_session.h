@@ -13,6 +13,8 @@ public:
     explicit afp_session(dsi::dsi_connection* dsi_session);
 	~afp_session();
 
+	void shutdown();
+
 	void associate_open_file(afp_open_file* open_file);
 	AFPERROR close_file(int16 file_reference);
 	afp_open_file* find_open_file(int16 file_reference);

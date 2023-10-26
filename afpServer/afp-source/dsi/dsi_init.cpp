@@ -119,16 +119,12 @@ namespace dsi
 
 	void dsi_shutdown()
 	{
-		// The server is shutting down. First thing to do is send_
-		// an attention message to all connected clients informing
-		// them of the closure.
-		active_connections.broadcast_attention(dsi_attention_server_shutdown);
-
 		// Signal listening thread to stop looping.
 		server_running = false;
 
 		closesocket(listen_socket);
 
+		active_connections.close_all();
 		afp_volumes::shutdown();
 	}
 

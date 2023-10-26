@@ -40,15 +40,26 @@ namespace dsi
 		const auto itr = std::ranges::remove_if(connections_, [&](const std::unique_ptr<dsi_connection>& c)
         {
             return c->get_connection_id() == connection_id;
-        }).begin();
-
-		if (itr != connections_.end())
-		{
-			connections_.erase(itr, connections_.end());
-		}
+        });
 	}
 
-	void dsi_connections::periodic_thread()
+    void dsi_connections::close_all()
+    {
+		// The server is shutting down. First thing to do is send_
+        // an attention message to all connected clients informing
+        // them of the closure.
+		broadcast_attention(dsi_attention_server_shutdown);
+
+		std::lock_guard guard(connections_mutex_);
+
+		const auto itr = std::ranges::remove_if(connections_, [&](const std::unique_ptr<dsi_connection>& c)
+		{
+		    c->kill_connection();
+			return true;
+		});
+	}
+
+    void dsi_connections::periodic_thread()
 	{
 		std::lock_guard guard(connections_mutex_);
 

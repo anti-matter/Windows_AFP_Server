@@ -136,7 +136,7 @@ namespace dsi
 		UINT32 connection_id_;
 		UINT32 attention_quantum_size_;
 		std::unique_ptr<char[]> receive_buffer_;
-		bool continue_receive_;
+		std::atomic_bool continue_receive_;
 		bool dsi_session_open_;
 
 		std::unique_ptr<afp_session> afp_session_;

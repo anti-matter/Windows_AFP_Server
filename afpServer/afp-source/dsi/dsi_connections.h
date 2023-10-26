@@ -30,6 +30,9 @@ namespace dsi
 		void track_connection(std::unique_ptr<dsi_connection>& connection);
 		void stop_tracking(UINT32 connection_id);
 
+		// Server is shutting down.
+		void close_all();
+
 		void periodic_thread();
 
 		afp_session* find_afp_session_with_id(const char* afp_id, const UINT32 id_size);
