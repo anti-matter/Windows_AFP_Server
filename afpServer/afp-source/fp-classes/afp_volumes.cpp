@@ -278,6 +278,10 @@ void afp_volumes::index_queue_thread()
                 break;
 
             case task_index_complete:
+                auto flags = element->volume->get_internal_flags();
+                flags |= flag_volume_indexing_complete;
+                element->volume->set_internal_flags(flags);
+
                 EventWriteAFPServerEvt_VolIndexingComplete(element->volume->get_share_name().c_str());
                 SendMessage(HWND_BROADCAST, AFPWM_INDEXING_COMPLETE, NULL, NULL);
                 DBGWRITE(dbg_level_info, L"Indexing complete for volume: %s\n", element->volume->get_share_name().c_str());
