@@ -41,6 +41,8 @@ namespace dsi
         {
             return c->get_connection_id() == connection_id;
         });
+
+		connections_.erase(itr.begin(), itr.end());
 	}
 
     void dsi_connections::close_all()
@@ -57,6 +59,8 @@ namespace dsi
 		    c->kill_connection();
 			return true;
 		});
+
+		connections_.erase(itr.begin(), itr.end());
 	}
 
     void dsi_connections::periodic_thread()

@@ -743,7 +743,6 @@ AFPERROR FPLogout(
 
 		connection->set_user_token(nullptr);
 		connection->set_session_authenticated(false);
-		connection->free_afp_session();
 
 		// Notify the administrator of the client logoff the system.
 		EventWriteAFPServerEvt_ClientLogoff(connection->get_user_name().c_str());

@@ -78,20 +78,13 @@ namespace dsi
 
 		void dsi_send_server_status(std::unique_ptr<char[]> reply_buffer);
 		void dsi_open_session(std::unique_ptr<char[]> reply_buffer);
-		void dsi_close_session(std::unique_ptr<char[]> reply_buffer);
+		void dsi_close_session(const std::unique_ptr<char[]>& reply_buffer);
 		void dsi_process_command(std::unique_ptr<char[]> reply_buffer, UINT8 dsi_cmd, UINT8 afp_cmd);
 
 		UINT16 adjust_client_request_id(UINT16 id_from_client);
-		UINT16 get_next_request_id()
-		{
-			server_request_id_ = server_request_id_ == dsi_max_request_id
-				? 0
-				: server_request_id_++;  // NOLINT(clang-diagnostic-unsequenced)
+		UINT16 get_next_request_id();
 
-			return server_request_id_;
-		}
-
-		void send_(const char* buffer, INT32 send_size);
+        void send_(const char* buffer, INT32 send_size);
 		void send_reply(char* reply_buffer, UINT8 dsi_command, INT32 afp_error, INT32 data_size);
 		void send_request(char* buffer, UINT8 dsi_command, INT32 afp_data_size);
 		void send_tickle();
@@ -128,8 +121,6 @@ namespace dsi
 		void free_extended_logon_info() { free(extended_logon_info_); extended_logon_info_ = nullptr; }
 
 		afp_session* get_afp_session() const;
-        void make_afp_session();
-        void free_afp_session();
 
     private:
 		SOCKET socket_;
@@ -141,8 +132,8 @@ namespace dsi
 
 		std::unique_ptr<afp_session> afp_session_;
 
-		UINT16 client_request_id_;
-		UINT16 server_request_id_;
+		std::atomic_uint16_t client_request_id_;
+		std::atomic_uint16_t server_request_id_;
 
 		ULONGLONG last_tickle_;
 

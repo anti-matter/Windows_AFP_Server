@@ -59,7 +59,6 @@ AFPERROR afp_imp_user_logon(
 	afp_adjust_privilege(const_cast<wchar_t*>(SE_IMPERSONATE_NAME), TRUE, dupe_handle);
 
 	connection->set_session_authenticated(true);
-	connection->make_afp_session();
 
 	DBGWRITE(dbg_level_info, L"Login for user %s successfull!\n", user_name.c_str());
 

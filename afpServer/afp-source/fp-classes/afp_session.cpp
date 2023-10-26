@@ -38,18 +38,15 @@ afp_session::afp_session(dsi::dsi_connection* dsi_session)
 
 afp_session::~afp_session()
 {
-    DeleteCriticalSection(&m_mutex_);
-}
+    EnterCriticalSection(&m_mutex_);
 
-
-void afp_session::shutdown()
-{
-    //EnterCriticalSection(&m_mutex_);
-
-    std::ranges::for_each(m_open_desks_, [=, this](const std::unique_ptr<OPEN_DESKTOP>& dt)
-        {
-            close_desk(dt->dtRefNum);
-        });
+    if (!m_open_desks_.empty())
+    {
+        std::ranges::for_each(m_open_desks_, [=, this](const std::unique_ptr<OPEN_DESKTOP>& dt)
+            {
+                close_desk(dt->dtRefNum);
+            });
+    }
 
     std::ranges::for_each(m_afp_open_files_, [=, this](const std::unique_ptr<afp_open_file>& of)
         {
@@ -64,7 +61,8 @@ void afp_session::shutdown()
             close_volume(ov->get_volume_id());
         });
 
-    //LeaveCriticalSection(&m_mutex_);
+    LeaveCriticalSection(&m_mutex_);
+    DeleteCriticalSection(&m_mutex_);
 }
 
 

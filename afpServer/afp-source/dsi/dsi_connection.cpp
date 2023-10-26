@@ -30,18 +30,16 @@ namespace dsi
 	{
 		DBGWRITE(dbg_level_info, L"Connection (%d) accepted\n", connection_id_);
 
+		afp_session_ = std::make_unique<afp_session>(this);
 		receive_buffer_ = std::make_unique<char[]>(RECV_BUFFER_SIZE);
 	}
 
 	dsi_connection::~dsi_connection()
 	{
-		afp_session_->shutdown();
-
-		kill_connection();
 		DBGWRITE(dbg_level_info, L"dsi_connection closed.\n");
 	}
 
-	void dsi_connection::connection_thread()
+    void dsi_connection::connection_thread()
 	{
 		const auto connection_id = connection_id_;
 
@@ -297,7 +295,7 @@ namespace dsi
 		dsi_session_open_ = true;
 	}
 
-    void dsi_connection::dsi_close_session(std::unique_ptr<char[]> reply_buffer)
+    void dsi_connection::dsi_close_session(const std::unique_ptr<char[]>& reply_buffer)
 	{
 		DBGWRITE(dbg_level_info, L"DSI close sesssion command received.\n");
 
@@ -360,11 +358,20 @@ namespace dsi
 			client_request_id_ = id_from_client;
 		}
 		else {
-			client_request_id_++;
+			++client_request_id_;
 		}
 
 		return client_request_id_;
 	}
+
+    UINT16 dsi_connection::get_next_request_id()
+    {
+        server_request_id_ = server_request_id_ == dsi_max_request_id
+                                 ? 0
+                                 : server_request_id_++;
+
+        return server_request_id_;
+    }
 
     void dsi_connection::send_(const char* buffer, const INT32 send_size)
     {
@@ -508,15 +515,5 @@ namespace dsi
     afp_session* dsi_connection::get_afp_session() const
 	{
 	    return afp_session_.get();
-	}
-
-    void dsi_connection::make_afp_session()
-    {
-		afp_session_ = std::make_unique<afp_session>(this);
-    }
-
-    void dsi_connection::free_afp_session()
-	{
-	    afp_session_ = nullptr;
 	}
 }
