@@ -6,7 +6,7 @@
 #include "afpfileio.h"
 #include "afp_open_file.h"
 
-#define BAD_LENGTH_64	0xFFFFFFFFFFFFFFFF  // NOLINT(modernize-macro-to-enum)
+#define BAD_LENGTH_64	MAXLONGLONG // 0xFFFFFFFFFFFFFFFF  // NOLINT(modernize-macro-to-enum)
 #define BAD_LENGTH_32	0xFFFFFFFF  // NOLINT(modernize-macro-to-enum)
 
 enum
@@ -40,7 +40,7 @@ AFPERROR FPRemoveExtAttribute(
     IN dsi::dsi_connection* connection
 );
 
-uint64 GetStreamLen(
+LONGLONG GetStreamLen(
     IN PWCHAR pathname,
     IN PWCHAR streamName
 );

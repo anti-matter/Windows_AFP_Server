@@ -288,7 +288,7 @@ AFPERROR AFPGetObjectParms(
         {
             dataSize64.LowPart = GetCompressedFileSize(afpEntry->sz_path.c_str(), (LPDWORD)&dataSize64.HighPart);
 
-            if ((dataSize64.LowPart == INVALID_FILE_SIZE) && (GetLastError() != NO_ERROR))
+            if (dataSize64.LowPart == INVALID_FILE_SIZE && GetLastError() != NO_ERROR)
             {
                 dataSize64.LowPart = 0;
                 DBGWRITE(dbg_level_info, L"[FDP]GetCompressedFileSize() failed! (%d)\n", GetLastError());

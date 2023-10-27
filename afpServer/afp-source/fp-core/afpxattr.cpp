@@ -706,7 +706,7 @@ AFPERROR FPRemoveExtAttribute(
  * Returns: size or BAD_LENGTH_64 if failed
  */
 
-uint64 GetStreamLen(
+LONGLONG GetStreamLen(
     IN PWCHAR pathname,
     IN PWCHAR streamName
 )

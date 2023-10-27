@@ -387,7 +387,7 @@ AFPERROR afp_open_file::file_seek(
  * Returns: size or BAD_LENGTH_64 if failed
  */
 
-uint64 afp_open_file::get_stream_length(const PWCHAR stream_name)
+LONGLONG afp_open_file::get_stream_length(const PWCHAR stream_name)
 {
 	if (stream_name != nullptr)
 	{

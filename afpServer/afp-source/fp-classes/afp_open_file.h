@@ -26,7 +26,7 @@ public:
 
 	~afp_open_file();
 
-	AFPERROR afp_open_file_fork(PWCHAR stream_name = nullptr, DWORD afp_creation_disposition = OPEN_EXISTING);
+	AFPERROR afp_open_file_fork(PWCHAR stream_name = nullptr, DWORD afp_creation_disposition = OPEN_ALWAYS);
 	AFPERROR close_file_fork();
 	AFPERROR read_fork(
 		afp_net_buffer& afp_reply,
@@ -49,7 +49,7 @@ public:
 
 	bool is_fork_open() const { return m_file_handle_ != INVALID_HANDLE_VALUE; }
 
-	uint64 get_stream_length(PWCHAR stream_name = nullptr);
+	LONGLONG get_stream_length(PWCHAR stream_name = nullptr);
 	AFPERROR get_stream_list(std::vector<afp_attr_info>& streams);
 
 	HANDLE get_file_handle() const { return m_file_handle_; }

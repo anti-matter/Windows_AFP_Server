@@ -133,6 +133,8 @@ AFPERROR FPGetFileDirParms(
         return (afpObjectNotFound);
     }
 
+    DBGWRITE(dbg_level_info, L"Getting parms for: %s\n", afp_entry->sz_path.c_str());
+
     if (!GetFileAttributesEx(afp_entry->sz_path.c_str(), GetFileExInfoStandard, &win_attributes))
     {
         return afpObjectNotFound;

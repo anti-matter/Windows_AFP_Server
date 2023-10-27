@@ -148,8 +148,8 @@ namespace dsi
 		const auto dsi_flags = header.pull_num<INT8>();
 		const auto dsi_command = header.pull_num<INT8>();
 		const auto dsi_request_id = header.pull_num<UINT16>();
-		//const auto dsi_data_offset = header.pull_num<UINT32>();
-		//const auto dsi_data_length = header.pull_num<UINT32>();
+		const auto dsi_data_offset = header.pull_num<UINT32>();
+		const auto dsi_data_length = header.pull_num<UINT32>();
 
 		last_tickle_ = GetTickCount64();
 
@@ -458,6 +458,8 @@ namespace dsi
     void dsi_connection::send_tickle()
 	{
         char reply_buffer[dsi_header_size] = {};
+
+		DBGWRITE(dbg_level_info, L"Sending tickle to connection (%d)\n", connection_id_);
 
 		send_request(reply_buffer, dsi_cmd_tickle, 0);
 		last_tickle_ = GetTickCount64();
