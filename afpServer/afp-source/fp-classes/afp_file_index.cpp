@@ -103,7 +103,7 @@ void afp_file_index::check_waiters(const std::filesystem::path& path)
 	}
 }
 
-UINT32 afp_file_index::wait_for_entry(const std::filesystem::path& path)
+afp_index* afp_file_index::wait_for_entry(const std::filesystem::path& path)
 {
     const auto wait_data = std::make_shared<index_wait_for_add_data>();
 	wait_data->event = CreateEvent(nullptr, TRUE, FALSE, nullptr);
@@ -115,7 +115,7 @@ UINT32 afp_file_index::wait_for_entry(const std::filesystem::path& path)
 	if (result != WAIT_OBJECT_0)
 	{
 		DBGWRITE(dbg_level_error, L"Waiting for entry add timed out: %s\n", path.c_str());
-		return 0;
+		return nullptr;
 	}
 
 	DBGWRITE(dbg_level_info, L"Waiting for entry signaled success.\n");
@@ -124,10 +124,10 @@ UINT32 afp_file_index::wait_for_entry(const std::filesystem::path& path)
 	if (entry == nullptr)
 	{
 		DBGWRITE(dbg_level_error, L"Waiting for entry not found: %s\n", path.c_str());
-		return 0;
+		return nullptr;
 	}
 
-	return entry->object_id;
+	return entry;
 }
 
 /*

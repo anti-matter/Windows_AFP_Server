@@ -482,7 +482,20 @@ AFPERROR FPCreateFile(
     {
         afp_error = NO_ERROR;
 
-        afp_volumes::current()->find(afp_volume_id)->get_index()->wait_for_entry(win_path);
+        //const auto new_entry = afp_volumes::current()->find(afp_volume_id)->get_index()->wait_for_entry(win_path);
+        const auto new_entry = afp_volume_info->get_index()->add_entry(
+            afp_dir_id,
+            afp_pathname,
+            win_path,
+            false,
+            nullptr);
+
+        if (new_entry != nullptr)
+        {
+            AFPCheckForAndAddFinderInfoStream(new_entry);
+            AFPCheckForAndCreateFinderRsrcStream(new_entry);
+            AFPAddCharMapToIndexEntry(new_entry, char_map);
+        }
 
         //// Add the new file to the afp index for tracking purposes.
         //afp_entry = AFPIndexAddEntry(

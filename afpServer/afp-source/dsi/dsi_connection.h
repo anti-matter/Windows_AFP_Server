@@ -74,18 +74,18 @@ namespace dsi
 
 		void connection_thread();
 		void receive();
-		void process_dsi_packet();
+		void process_dsi_packet(char* receive_buffer);
 
-		void dsi_send_server_status(std::unique_ptr<char[]> reply_buffer);
-		void dsi_open_session(std::unique_ptr<char[]> reply_buffer);
-		void dsi_close_session(const std::unique_ptr<char[]>& reply_buffer);
-		void dsi_process_command(std::unique_ptr<char[]> reply_buffer, UINT8 dsi_cmd, UINT8 afp_cmd);
+		void dsi_send_server_status(char* receive_buffer, char* reply_buffer, UINT16 client_request_id);
+		void dsi_open_session(char* receive_buffer, char* reply_buffer, UINT16 client_request_id);
+		void dsi_close_session(char* reply_buffer, UINT16 client_request_id);
+		void dsi_process_command(char* receive_buffer, char* reply_buffer, UINT8 dsi_cmd, UINT16 client_request_id, UINT8 afp_cmd);
 
 		UINT16 adjust_client_request_id(UINT16 id_from_client);
 		UINT16 get_next_request_id();
 
         void send_(const char* buffer, INT32 send_size);
-		void send_reply(char* reply_buffer, UINT8 dsi_command, INT32 afp_error, INT32 data_size);
+		void send_reply(char* reply_buffer, UINT8 dsi_command, UINT16 client_request_id, INT32 afp_error, INT32 data_size);
 		void send_request(char* buffer, UINT8 dsi_command, INT32 afp_data_size);
 		void send_tickle();
 		void send_attention(UINT16 code);
@@ -126,7 +126,6 @@ namespace dsi
 		SOCKET socket_;
 		UINT32 connection_id_;
 		UINT32 attention_quantum_size_;
-		std::unique_ptr<char[]> receive_buffer_;
 		std::atomic_bool continue_receive_;
 		bool dsi_session_open_;
 

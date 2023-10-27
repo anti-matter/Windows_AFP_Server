@@ -51,7 +51,7 @@ public:
 		UINT32* p_new_dir_id = nullptr
 	);
 
-	UINT32 wait_for_entry(const std::filesystem::path& path);
+	afp_index* wait_for_entry(const std::filesystem::path& path);
 
 	afp_index* get_entry(uint32 object_id);
 

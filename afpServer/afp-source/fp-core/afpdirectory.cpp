@@ -678,7 +678,8 @@ AFPERROR FPCreateDir(
 
     if (AFP_SUCCESS(afp_error))
     {
-        afp_dir_id = afp_volume->get_index()->wait_for_entry(win_path);
+        const auto new_entry = afp_volume->get_index()->wait_for_entry(win_path);
+        afp_dir_id = new_entry != nullptr ? new_entry->object_id : 0;
         afp_volume->set_is_dirty();
 
         // Now build the reply block to send_ back to the client.

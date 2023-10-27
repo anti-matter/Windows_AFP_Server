@@ -31,7 +31,6 @@ namespace dsi
 		DBGWRITE(dbg_level_info, L"Connection (%d) accepted\n", connection_id_);
 
 		afp_session_ = std::make_unique<afp_session>(this);
-		receive_buffer_ = std::make_unique<char[]>(RECV_BUFFER_SIZE);
 	}
 
 	dsi_connection::~dsi_connection()
@@ -43,8 +42,10 @@ namespace dsi
 	{
 		const auto connection_id = connection_id_;
 
-		// Loop thread to handle received packets.
-		receive();
+		while(continue_receive_)
+		{
+			receive();
+		}
 
 		// We remove from tracking here, which will delete this instance, so
 		// that the thread has an opportunity to terminate gracefully.
@@ -55,45 +56,41 @@ namespace dsi
 
 	void dsi_connection::receive()
 	{
-		if (receive_buffer_ == nullptr)
+		UINT16 bytes_in_buffer = 0;
+		auto receive_buffer = std::make_unique<char[]>(RECV_BUFFER_SIZE);
+
+	    do
 		{
-			DBGWRITE(dbg_level_error, L"Connection not properly initialized.\n");
-			ASSERT(0);
-
-			return;
-		}
-
-		while(continue_receive_)
-		{
-			UINT16 bytes_in_buffer = 0;
-
 			const auto bytes_received = recv(
 				socket_,
-				receive_buffer_.get(),
+				&receive_buffer[bytes_in_buffer],
 				RECV_BUFFER_SIZE - bytes_in_buffer,
 				0);
 
+			DBGWRITE(dbg_level_info, L"Bytes received: %d\n", bytes_received);
+
 			if (bytes_received == 0)
 			{
-				// Connection is closing
+				DBGWRITE(dbg_level_info, L"0 bytes received, killing connection..\n");
 				kill_connection();
 				break;
 			}
-			else if (bytes_received <= 0)
-			{
-				DBGWRITE(dbg_level_error, L"Error from recv(): %d)\n", WSAGetLastError());
-				continue;
-			}
 
-			bytes_in_buffer += static_cast<UINT16>(bytes_received);
+            if (bytes_received < 0)
+            {
+                DBGWRITE(dbg_level_error, L"Error from recv(): %d)\n", WSAGetLastError());
+                continue;
+            }
+
+            bytes_in_buffer += static_cast<UINT16>(bytes_received);
 
 			if (bytes_in_buffer < dsi_header_size)
 			{
 				// We didn't get a full DSI header, go get more bits.
-				continue;
+				continue; 
 			}
 
-			ULONG afp_data_length = ntohl(*reinterpret_cast<ULONG*>(&receive_buffer_[dsi_offset_data_len]));
+			ULONG afp_data_length = ntohl(*reinterpret_cast<ULONG*>(&receive_buffer[dsi_offset_data_len]));
 
 			if (bytes_in_buffer < dsi_header_size + afp_data_length)
 			{
@@ -104,11 +101,12 @@ namespace dsi
 			do
 			{
 				// We have the entire DSI header and AFP payload.
-				process_dsi_packet();
+				process_dsi_packet(receive_buffer.get());
 
 				// Check for connection closure.
 				if (!continue_receive_)
 				{
+					bytes_in_buffer = 0;
 					break;
 				}
 
@@ -116,21 +114,20 @@ namespace dsi
 				if (bytes_in_buffer > dsi_header_size + afp_data_length)
 				{
 					// Move the bits to the top of the receive buffer.
-
 					bytes_in_buffer -= static_cast<UINT16>(dsi_header_size + afp_data_length);
 
 					DBGWRITE(dbg_level_info, L"Processing overflow bytes!!! (%d)\n", bytes_in_buffer);
 
 					memcpy(
-						receive_buffer_.get(),
-						receive_buffer_.get() + (dsi_header_size + afp_data_length),
+						receive_buffer.get(),
+						&receive_buffer[dsi_header_size + afp_data_length],
 						bytes_in_buffer);
 
 					// If we already have a dsi header, see if we already
 					// have the entire afp packet.
 					if (bytes_in_buffer >= dsi_header_size)
 					{
-						afp_data_length = ntohl(*reinterpret_cast<ULONG*>(&receive_buffer_[dsi_offset_data_len]));
+						afp_data_length = ntohl(*reinterpret_cast<ULONG*>(&receive_buffer[dsi_offset_data_len]));
 					}
 				}
 				else
@@ -138,18 +135,22 @@ namespace dsi
 					bytes_in_buffer = 0;
 				}
 			} while (bytes_in_buffer >= dsi_header_size + afp_data_length);
-		}
+
+            // If bytes_in_buffer is >0, then we have a partial read from
+            // the next request.
+			ASSERT(bytes_in_buffer == 0);
+		} while (continue_receive_ && bytes_in_buffer > 0);
 	}
 
-	void dsi_connection::process_dsi_packet()
+	void dsi_connection::process_dsi_packet(char* receive_buffer)
 	{
 		// Extract the DSI header parameters.
-		afp_net_buffer header(&receive_buffer_[0], dsi_header_size);
+		afp_net_buffer header(receive_buffer, dsi_header_size);
 		const auto dsi_flags = header.pull_num<INT8>();
 		const auto dsi_command = header.pull_num<INT8>();
 		const auto dsi_request_id = header.pull_num<UINT16>();
-		const auto dsi_data_offset = header.pull_num<UINT32>();
-		const auto dsi_data_length = header.pull_num<UINT32>();
+		//const auto dsi_data_offset = header.pull_num<UINT32>();
+		//const auto dsi_data_length = header.pull_num<UINT32>();
 
 		last_tickle_ = GetTickCount64();
 
@@ -169,7 +170,8 @@ namespace dsi
 					kill_connection();
 					return;
 				}
-				client_request_id_ = dsi_request_id;
+
+				const auto client_request_id = dsi_request_id;
 
 				std::unique_ptr<char[]> reply_buffer;
 
@@ -192,7 +194,7 @@ namespace dsi
 					// error to the caller.
 					if (dsi_command != dsi_cmd_tickle)
 					{
-						send_reply(reply_buffer.get(), dsi_command, afpParmErr, 0);
+						send_reply(reply_buffer.get(), dsi_command, client_request_id, afpParmErr, 0);
 						ASSERT(0);
 					}
 
@@ -202,26 +204,30 @@ namespace dsi
 				switch (dsi_command)
 				{
 				case dsi_cmd_open_session:
-					dsi_open_session(std::move(reply_buffer));
+					dsi_open_session(receive_buffer, reply_buffer.get(), client_request_id);
 					break;
 
 				case dsi_cmd_close_session:
-					dsi_close_session(std::move(reply_buffer));
+					dsi_close_session(reply_buffer.get(), client_request_id);
 					break;
 
 				case dsi_cmd_command:
-					dsi_process_command(std::move(reply_buffer), dsi_cmd_command, receive_buffer_[dsi_offset_data_start]);
+					dsi_process_command(receive_buffer, reply_buffer.get(), dsi_cmd_command, client_request_id, receive_buffer[dsi_offset_data_start]);
 					break;
 
 				case dsi_cmd_get_status:
-					dsi_send_server_status(std::move(reply_buffer));
+					dsi_send_server_status(receive_buffer, reply_buffer.get(), client_request_id);
+					break;
+
+				case dsi_cmd_tickle:
 					break;
 
 				case dsi_cmd_write:
-					dsi_process_command(std::move(reply_buffer), dsi_cmd_write, receive_buffer_[dsi_offset_data_start]);
+					dsi_process_command(receive_buffer, reply_buffer.get(), dsi_cmd_write, client_request_id, receive_buffer[dsi_offset_data_start]);
 					break;
 
 				default:
+					ASSERT(0);
 					break;
 				}
 			}
@@ -241,18 +247,19 @@ namespace dsi
 		}
 	}
 
-	void dsi_connection::dsi_send_server_status(std::unique_ptr<char[]> reply_buffer)
+	void dsi_connection::dsi_send_server_status(char* receive_buffer, char* reply_buffer, UINT16 client_request_id)
 	{
 		DBGWRITE(dbg_level_info, L"DSI get status command received.\n");
 
-		afp_net_buffer req_buffer(&receive_buffer_[dsi_offset_data_start], dsi_server_request_quantum_size);
+		afp_net_buffer req_buffer(&receive_buffer[dsi_offset_data_start], dsi_server_request_quantum_size);
 		afp_net_buffer rep_buffer(&reply_buffer[dsi_offset_data_start], dsi_server_request_quantum_size);
 
 		const auto afp_error = FPGetSrvrInfo(req_buffer, rep_buffer, this);
 
 		send_reply(
-			reply_buffer.get(),
+			reply_buffer,
 			dsi_cmd_get_status,
+			client_request_id,
 			afp_error,
 			rep_buffer.get_data_length());
 
@@ -261,11 +268,11 @@ namespace dsi
 		kill_connection();
 	}
 
-	void dsi_connection::dsi_open_session(std::unique_ptr<char[]> reply_buffer)
+	void dsi_connection::dsi_open_session(char* receive_buffer, char* reply_buffer, UINT16 client_request_id)
 	{
 		DBGWRITE(dbg_level_info, L"DSI open session command received (cid: %d).\n", connection_id_);
 
-		afp_net_buffer request(&receive_buffer_[dsi_offset_data_start], dsi_server_request_quantum_size);
+		afp_net_buffer request(&receive_buffer[dsi_offset_data_start], dsi_server_request_quantum_size);
 		const auto option = request.pull_num<INT8>();
 		const auto option_size = request.pull_num<INT8>();
 
@@ -287,34 +294,36 @@ namespace dsi
 		reply.push_num<UINT32>(replay_cache_size);
 
 		send_reply(
-			reply_buffer.get(),
+			reply_buffer,
 			dsi_cmd_open_session,
+			client_request_id,
 			AFP_OK,
 			reply.get_data_length());
 
 		dsi_session_open_ = true;
 	}
 
-    void dsi_connection::dsi_close_session(const std::unique_ptr<char[]>& reply_buffer)
+    void dsi_connection::dsi_close_session(char* reply_buffer, UINT16 client_request_id)
 	{
 		DBGWRITE(dbg_level_info, L"DSI close sesssion command received.\n");
 
 		dsi_session_open_ = false;
 
 		send_reply(
-			reply_buffer.get(),
+			reply_buffer,
 			dsi_cmd_close_session,
+			client_request_id,
 			AFP_OK,
 			0);
 
 		kill_connection();
 	}
 
-	void dsi_connection::dsi_process_command(std::unique_ptr<char[]> reply_buffer, const UINT8 dsi_cmd, const UINT8 afp_cmd)
+	void dsi_connection::dsi_process_command(char* receive_buffer, char* reply_buffer, UINT8 dsi_cmd, UINT16 client_request_id, UINT8 afp_cmd)
 	{
 		// Get a wrapper for the AFP request payload.
-		afp_net_buffer request(&receive_buffer_[dsi_offset_data_start], dsi_server_request_quantum_size);
-		request.set_dsi_data_offset(ntohl(*reinterpret_cast<UINT32*>(&receive_buffer_[dsi_offset_data_offset])));
+		afp_net_buffer request(&receive_buffer[dsi_offset_data_start], dsi_server_request_quantum_size);
+		request.set_dsi_data_offset(ntohl(*reinterpret_cast<UINT32*>(&receive_buffer[dsi_offset_data_offset])));
 
 		// Get a wrapper for the AFP reply payload.
 		afp_net_buffer reply(&reply_buffer[dsi_offset_data_start], dsi_server_request_quantum_size);
@@ -322,6 +331,11 @@ namespace dsi
 		if (afp_cmd != 192)
 		{
 			DBGWRITE(dbg_level_info, L"Processing AFP cmd: %d\n", afp_cmd);
+
+			if (afp_cmd == 11)
+			{
+				DBGWRITE(dbg_level_info, L"Flush fork...\n");
+			}
 		}
 
 		const auto afp_error = fp_dispatch_command(request, reply, this);
@@ -332,11 +346,13 @@ namespace dsi
 		if (AFP_FAILED(afp_error))
 		{
 			DBGWRITE(dbg_level_error, L"AFP error: %d\n", afp_error);
+
 		}
 
 		send_reply(
-			reply_buffer.get(),
+			reply_buffer,
 			dsi_cmd,
+			client_request_id,
 			afp_error,
 			static_cast<INT32>(data_size)
 		);
@@ -376,7 +392,7 @@ namespace dsi
     void dsi_connection::send_(const char* buffer, const INT32 send_size)
     {
 		// Can only send_ one at a time.
-		//std::lock_guard<std::mutex> guard(send_mutex_);
+		std::lock_guard<std::mutex> guard(send_mutex_);
 
 		UINT32 offset = 0;
 		INT32 bytes_sent;
@@ -420,20 +436,19 @@ namespace dsi
 	void dsi_connection::send_reply(
 		char* reply_buffer,
 		const UINT8 dsi_command,
+		const UINT16 client_request_id,
 		const INT32 afp_error,
 		const INT32 data_size)
 	{
 		afp_net_buffer header(reply_buffer, dsi_header_size + data_size);
 		header.push_num<UINT8>(dsi_reply_flag);
 		header.push_num<UINT8>(dsi_command);
-		header.push_num<UINT16>(client_request_id_);
+		header.push_num<UINT16>(client_request_id);
 		header.push_num<INT32>(afp_error);
 		header.push_num<UINT32>(data_size);
 		header.push_num<UINT32>(0);
 
 		last_tickle_ = GetTickCount64();
-
-		DBG_DUMP_BUFFER(reply_buffer, data_size + dsi_header_size);
 
 		send_(reply_buffer, data_size + dsi_header_size);
 	}
@@ -505,10 +520,11 @@ namespace dsi
 
 		// Call recv() to ensure socket is shutdown before closing.
 		int bytes_received;
+        const auto receive_buffer = std::make_unique<char[]>(RECV_BUFFER_SIZE);
 
 		do
 		{
-			bytes_received = recv(socket_, receive_buffer_.get(), RECV_BUFFER_SIZE, 0);
+			bytes_received = recv(socket_, receive_buffer.get(), RECV_BUFFER_SIZE, 0);
 		} while (bytes_received > 0);
 
 		closesocket(socket_);
