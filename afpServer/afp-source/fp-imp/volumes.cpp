@@ -7,7 +7,6 @@
 #include "afphelp.h"
 #include "volumes.h"
 #include "fdparms.h"
-#include "afpnotify.h"
 #include "afp_net_buffer.h"
 #include "afp_registry.h"
 #include "afp_volumes.h"

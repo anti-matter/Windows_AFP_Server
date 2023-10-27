@@ -6,7 +6,7 @@
 
 #include "stdafx.h"
 
-#include "afpnotify.h"
+#include "change_notify.h"
 #include "afpdebug.h"
 #include "afphelp.h"
 #include "afp.h"
