@@ -16,6 +16,8 @@ afp_volume::afp_volume(std::wstring share_name, std::filesystem::path share_path
     , notify_event_(nullptr)
 {
     index_ = std::make_unique<afp_file_index>();
+    notify_ = std::make_unique<change_notify>(id_);
+
     make_desktop_database();
 }
 

@@ -456,6 +456,8 @@ AFPERROR FPCreateFile(
         return afpAccessDenied;
     }
 
+    afp_volume_info->notify_ignore_path(win_path);
+
     // Call the Win32 API that creates the file for us on this filesystem.
     const auto h_file = CreateFile(
         win_path,
@@ -482,7 +484,6 @@ AFPERROR FPCreateFile(
     {
         afp_error = NO_ERROR;
 
-        //const auto new_entry = afp_volumes::current()->find(afp_volume_id)->get_index()->wait_for_entry(win_path);
         const auto new_entry = afp_volume_info->get_index()->add_entry(
             afp_dir_id,
             afp_pathname,

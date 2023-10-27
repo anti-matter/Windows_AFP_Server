@@ -612,7 +612,7 @@ AFPERROR FPCreateDir(
     const auto afp_path_type = afp_request.pull_num<INT8>();
     const auto afp_session = connection->get_afp_session();
 
-    std::shared_ptr<afp_volume> afp_volume = afp_session->find_open_volume(afp_volume_id);
+    const std::shared_ptr<afp_volume> afp_volume = afp_session->find_open_volume(afp_volume_id);
     if (afp_volume == nullptr)
     {
         DBGWRITE(dbg_level_info, L"Bad volume ID in FPCreateDir!\n");
@@ -670,6 +670,8 @@ AFPERROR FPCreateDir(
         return afpAccessDenied;
     }
 
+    afp_volume->notify_ignore_path(win_path);
+
     afp_error = CreateDirectory(win_path, nullptr)
 	                ? AFP_OK
 	                : afp_map_win_error_to_afp(GetLastError(), afpMiscErr);
@@ -678,8 +680,13 @@ AFPERROR FPCreateDir(
 
     if (AFP_SUCCESS(afp_error))
     {
-        const auto new_entry = afp_volume->get_index()->wait_for_entry(win_path);
-        afp_dir_id = new_entry != nullptr ? new_entry->object_id : 0;
+        afp_volume->get_index()->add_entry(
+            afp_dir_id,
+            afp_pathname,
+            win_path,
+            false,
+            &afp_dir_id);
+
         afp_volume->set_is_dirty();
 
         // Now build the reply block to send_ back to the client.
@@ -742,7 +749,7 @@ AFPERROR FPDelete(
         return afpParmErr;
     }
 
-    std::shared_ptr<afp_volume> afp_volume_info = connection->get_afp_session()->find_open_volume(afp_volume_id);
+    const std::shared_ptr<afp_volume> afp_volume_info = connection->get_afp_session()->find_open_volume(afp_volume_id);
     if (afp_volume_info == nullptr)
     {
         DBGWRITE(dbg_level_info, L"Bad volume ID! (%d)\n", afp_volume_id);
@@ -1062,7 +1069,7 @@ AFPERROR FPMoveAndRename(
         win_dst_path = afp_dst_entry->sz_path / afp_src_entry->sz_object_name;
     }
 
-    std::shared_ptr<afp_volume> volume_info = afp_volumes::current()->find(afp_volume_id);
+    const std::shared_ptr<afp_volume> volume_info = afp_volumes::current()->find(afp_volume_id);
 
     DBGWRITE(dbg_level_info, L"Renaming to new path = %s\n", win_dst_path.c_str());
 

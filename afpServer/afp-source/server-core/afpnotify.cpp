@@ -11,6 +11,7 @@
 #include "afphelp.h"
 #include "afp.h"
 #include "afp_volumes.h"
+#include "afp_volume.h"
 #include "volumes.h"
 #include "fdparms.h"
 #include "fpinfo.h"
@@ -18,13 +19,29 @@
 constexpr UINT32 change_notify_result_buffer_size = 64 * 1024;
 
 extern bool server_running;
-extern std::unique_ptr<afp_volumes> g_volumes;
 
-void afp_notify_thread(
-    IN const std::shared_ptr<afp_volume>& param
-)
+change_notify::change_notify(const UINT16 volume_id) : volume_id_(volume_id)
 {
-    auto volume = param;
+    std::thread change_notify_thread(&change_notify::afp_notify_thread, this);
+    change_notify_thread.detach();
+}
+
+void change_notify::ignore_path(const std::filesystem::path& path)
+{
+    std::unique_lock lock(ignore_paths_mutex_);
+    ignore_paths_.push_back(path);
+}
+
+void change_notify::afp_notify_thread()
+{
+    std::shared_ptr<afp_volume> volume;
+    do
+    {
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        volume = afp_volumes::current()->find(volume_id_);
+
+    } while (volume == nullptr);
+
     const auto h_directory = CreateFile(
         volume->get_share_path().c_str(),
         FILE_LIST_DIRECTORY,
@@ -66,12 +83,11 @@ void afp_notify_thread(
     CloseHandle(h_directory);
 
     DBGWRITE(dbg_level_info, L"Notify thread gone for %s\n", volume->get_share_name().c_str());
-    return;
 }
 
 
-void afp_read_dir_changes(
-    IN std::shared_ptr<afp_volume>& volume,
+void change_notify::afp_read_dir_changes(
+    IN const std::shared_ptr<afp_volume>& volume,
     IN const HANDLE h_directory,
     IN const PBYTE result_buffer
 )
@@ -214,7 +230,7 @@ void afp_read_dir_changes(
 }
 
 
-void afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_notify_info, const std::shared_ptr<afp_volume>& volume)
+void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_notify_info, const std::shared_ptr<afp_volume>& volume)
 {
     WCHAR new_item_pathname[MAX_PATH] = {};
     WCHAR new_item_name[MAX_PATH];
@@ -250,7 +266,7 @@ void afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_notify_info, cons
     // don't need to do anything.
     if (volume->find(kRootDirID, new_item_pathname) != nullptr)
     {
-        DBGWRITE(dbg_level_all, L"Object already exists in index\n");
+        DBGWRITE(dbg_level_all, L"Object already exists in index: %s\n", new_item_pathname);
         return;
     }
 
@@ -264,6 +280,22 @@ void afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_notify_info, cons
         DBGWRITE(dbg_level_info, L"Item not found on disk!\n");
         return;
     }
+
+    std::unique_lock lock(ignore_paths_mutex_);
+
+    // See if we've been told to ignore this path.
+    if (const auto it = std::ranges::find_if(ignore_paths_, [=](const std::filesystem::path& p)
+    {
+        return new_full_path == p;
+    }); it != ignore_paths_.end())
+    {
+        DBGWRITE(dbg_level_info, L"Ignoring path for change-notify-add: %s.\n", it->c_str());
+
+        ignore_paths_.erase(it);
+        return;
+    }
+
+    lock.unlock();
 
     // Finally, add the new file object into the afp index.
     UINT32 new_object_id;
@@ -288,7 +320,7 @@ void afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_notify_info, cons
     {
         // If the item is a directory, we add all of its contents
         // to the volume index as well.
-        g_volumes->index_queue_task(task_index_directory, volume, new_object_id, new_item_path);
+        afp_volumes::current()->index_queue_task(task_index_directory, volume, new_object_id, new_item_path);
     }
     else
     {
@@ -302,7 +334,7 @@ void afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_notify_info, cons
 }
 
 
-void afp_change_notify_remove(
+void change_notify::afp_change_notify_remove(
     IN const FILE_NOTIFY_INFORMATION* file_notify_info,
     IN const std::shared_ptr<afp_volume>& volume
 )

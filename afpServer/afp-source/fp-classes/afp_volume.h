@@ -2,6 +2,7 @@
 #include <mutex>
 #include <filesystem>
 
+#include "afpnotify.h"
 #include "afp_file_index.h"
 #include "desktop_database.h"
 
@@ -55,6 +56,8 @@ public:
 
     [[nodiscard]] desktop_database* get_desktop() const { return desktop_.get(); }
 
+    void notify_ignore_path(const std::filesystem::path& path) const { notify_->ignore_path(path); }
+
 private:
     UINT16 id_;
 
@@ -72,6 +75,7 @@ private:
 
     // Each volume has its own directory and file index.
     std::unique_ptr<afp_file_index> index_;
+    std::unique_ptr<change_notify> notify_;
 
     // Desktop array/index associated with this volume.
     std::unique_ptr<desktop_database> desktop_;

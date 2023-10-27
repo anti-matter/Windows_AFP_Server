@@ -153,6 +153,7 @@ afp_index* afp_file_index::get_entry(const uint32 object_id)
 	{
 		return it->get();
 	}
+
 	DBGWRITE(
 		dbg_level_info,
 		L"Failed to find objectID! (%d)\n", object_id);

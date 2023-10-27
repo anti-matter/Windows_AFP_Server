@@ -7,7 +7,6 @@
 
 #include "fpinfo.h"
 #include "afpdebug.h"
-#include "afpnotify.h"
 #include "afpServer.h"
 #include "afp_registry.h"
 #include "fdparms.h"
@@ -138,9 +137,6 @@ void afp_volumes::add_volume(const std::wstring& share_name, std::filesystem::pa
 
         std::lock_guard guard(volumes_mutex_);
         volumes_.push_back(new_volume);
-
-        //std::thread change_notify_thread(afp_notify_thread, new_volume);
-        //change_notify_thread.detach();
     }
 }
 
