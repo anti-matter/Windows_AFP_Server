@@ -17,6 +17,10 @@ public:
     // being made.
     void ignore_path(const std::filesystem::path& path);
 
+    // Check if the supplied path is in the ignore path list. If so,
+    // it is erased and this method returns true, false otherwise.
+    bool check_and_remove_ignore_path(const std::filesystem::path& path);
+
     void afp_notify_thread();
 
     void afp_read_dir_changes(

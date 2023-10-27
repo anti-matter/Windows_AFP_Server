@@ -32,6 +32,24 @@ void change_notify::ignore_path(const std::filesystem::path& path)
     ignore_paths_.push_back(path);
 }
 
+bool change_notify::check_and_remove_ignore_path(const std::filesystem::path& path)
+{
+    std::unique_lock lock(ignore_paths_mutex_);
+
+    if (const auto it = std::ranges::find_if(ignore_paths_, [=](const std::filesystem::path& p)
+        {
+            return path == p;
+        }); it != ignore_paths_.end())
+    {
+        DBGWRITE(dbg_level_info, L"Ignoring path for change-notify-add: %s.\n", it->c_str());
+
+        ignore_paths_.erase(it);
+        return true;
+    }
+
+    return false;
+}
+
 void change_notify::afp_notify_thread()
 {
     std::shared_ptr<afp_volume> volume;
@@ -262,16 +280,16 @@ void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_no
 
     DBGWRITE(dbg_level_info, L"Parent dir path = %s\n", parent_entry->sz_path.c_str());
 
+    // Build full path to the new item.
+    const std::filesystem::path new_full_path = parent_entry->sz_path / new_item_path;
+
     // See if there is already an index entry for this object. If so, then we
     // don't need to do anything.
     if (volume->find(kRootDirID, new_item_pathname) != nullptr)
     {
-        DBGWRITE(dbg_level_all, L"Object already exists in index: %s\n", new_item_pathname);
+        DBGWRITE(dbg_level_all, L"Object already exists in index: %s\n", new_full_path.c_str());
         return;
     }
-
-    // Build full path to the new item.
-    const std::filesystem::path new_full_path = parent_entry->sz_path / new_item_path;
 
     // Get the file attributes for the new file object. We use these to
     // determine if the object is a file or directory.
@@ -281,21 +299,10 @@ void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_no
         return;
     }
 
-    std::unique_lock lock(ignore_paths_mutex_);
-
-    // See if we've been told to ignore this path.
-    if (const auto it = std::ranges::find_if(ignore_paths_, [=](const std::filesystem::path& p)
+    if (check_and_remove_ignore_path(new_full_path))
     {
-        return new_full_path == p;
-    }); it != ignore_paths_.end())
-    {
-        DBGWRITE(dbg_level_info, L"Ignoring path for change-notify-add: %s.\n", it->c_str());
-
-        ignore_paths_.erase(it);
         return;
     }
-
-    lock.unlock();
 
     // Finally, add the new file object into the afp index.
     UINT32 new_object_id;
