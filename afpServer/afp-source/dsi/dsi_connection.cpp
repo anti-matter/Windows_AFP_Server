@@ -30,6 +30,7 @@ namespace dsi
 	{
 		DBGWRITE(dbg_level_info, L"Connection (%d) accepted\n", connection_id_);
 
+		receive_buffer_ = std::make_unique<char[]>(RECV_BUFFER_SIZE);
 		afp_session_ = std::make_unique<afp_session>(this);
 	}
 
@@ -57,17 +58,14 @@ namespace dsi
 	void dsi_connection::receive()
 	{
 		UINT16 bytes_in_buffer = 0;
-		auto receive_buffer = std::make_unique<char[]>(RECV_BUFFER_SIZE);
 
 	    do
 		{
 			const auto bytes_received = recv(
 				socket_,
-				&receive_buffer[bytes_in_buffer],
+				&receive_buffer_[bytes_in_buffer],
 				RECV_BUFFER_SIZE - bytes_in_buffer,
 				0);
-
-			DBGWRITE(dbg_level_info, L"Bytes received: %d\n", bytes_received);
 
 			if (bytes_received == 0)
 			{
@@ -90,7 +88,7 @@ namespace dsi
 				continue; 
 			}
 
-			ULONG afp_data_length = ntohl(*reinterpret_cast<ULONG*>(&receive_buffer[dsi_offset_data_len]));
+			ULONG afp_data_length = ntohl(*reinterpret_cast<ULONG*>(&receive_buffer_[dsi_offset_data_len]));
 
 			if (bytes_in_buffer < dsi_header_size + afp_data_length)
 			{
@@ -101,7 +99,7 @@ namespace dsi
 			do
 			{
 				// We have the entire DSI header and AFP payload.
-				process_dsi_packet(receive_buffer.get());
+				process_dsi_packet(receive_buffer_.get());
 
 				// Check for connection closure.
 				if (!continue_receive_)
@@ -119,15 +117,15 @@ namespace dsi
 					DBGWRITE(dbg_level_info, L"Processing overflow bytes!!! (%d)\n", bytes_in_buffer);
 
 					memcpy(
-						receive_buffer.get(),
-						&receive_buffer[dsi_header_size + afp_data_length],
+						receive_buffer_.get(),
+						&receive_buffer_[dsi_header_size + afp_data_length],
 						bytes_in_buffer);
 
 					// If we already have a dsi header, see if we already
 					// have the entire afp packet.
 					if (bytes_in_buffer >= dsi_header_size)
 					{
-						afp_data_length = ntohl(*reinterpret_cast<ULONG*>(&receive_buffer[dsi_offset_data_len]));
+						afp_data_length = ntohl(*reinterpret_cast<ULONG*>(&receive_buffer_[dsi_offset_data_len]));
 					}
 				}
 				else
@@ -138,7 +136,6 @@ namespace dsi
 
             // If bytes_in_buffer is >0, then we have a partial read from
             // the next request.
-			ASSERT(bytes_in_buffer == 0);
 		} while (continue_receive_ && bytes_in_buffer > 0);
 	}
 
@@ -289,9 +286,9 @@ namespace dsi
 		reply.push_num<UINT32>(dsi_server_request_quantum_size);
 
 		//Include the replay cache size option
-		reply.push_num<UINT8>(server_replay_cache_size);
-		reply.push_num<UINT8>(sizeof(int32));
-		reply.push_num<UINT32>(replay_cache_size);
+		//reply.push_num<UINT8>(server_replay_cache_size);
+		//reply.push_num<UINT8>(sizeof(int32));
+		//reply.push_num<UINT32>(replay_cache_size);
 
 		send_reply(
 			reply_buffer,

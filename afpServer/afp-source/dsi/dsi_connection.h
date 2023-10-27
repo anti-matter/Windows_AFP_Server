@@ -54,8 +54,8 @@ constexpr UINT16 dsi_max_request_id = 65535;
 constexpr UINT32 dsi_server_request_quantum_size = MAXSHORT - dsi_header_size;
 constexpr UINT32 replay_cache_size = 32;
 
-#define RECV_BUFFER_SIZE (MAXSHORT)
-#define SEND_BUFFER_SIZE (MAXSHORT)
+#define RECV_BUFFER_SIZE (MAXWORD)
+#define SEND_BUFFER_SIZE (MAXWORD)
 
 constexpr UINT32 tickle_time = (1000 * 15);
 
@@ -129,6 +129,7 @@ namespace dsi
 		std::atomic_bool continue_receive_;
 		bool dsi_session_open_;
 
+		std::unique_ptr<char[]> receive_buffer_;
 		std::unique_ptr<afp_session> afp_session_;
 
 		std::atomic_uint16_t client_request_id_;

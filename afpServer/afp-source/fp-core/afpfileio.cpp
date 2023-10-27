@@ -497,29 +497,6 @@ AFPERROR FPCreateFile(
             AFPAddCharMapToIndexEntry(new_entry, char_map);
         }
 
-        //// Add the new file to the afp index for tracking purposes.
-        //afp_entry = AFPIndexAddEntry(
-        //    afp_volume_info,
-        //    afp_volume_id,
-        //    afp_dir_id,
-        //    afp_pathname,
-        //    win_path,
-        //    false,
-        //    nullptr
-        //);
-
-        //if (afp_entry != nullptr)
-        //{
-        //    // Now make sure that our NTFS streams are created so we have
-        //    // a FInfo and resource forks.
-        //    AFPCheckForAndAddFinderInfoStream(afp_entry);
-        //    AFPCheckForAndCreateFinderRsrcStream(afp_entry);
-
-        //    // Copy the charmap that contains the Mac-Windows mapping for
-        //    // characters to the entries mapping table.
-        //    AFPAddCharMapToIndexEntry(afp_entry, char_map);
-        //}
-
         afp_volume_info->set_is_dirty();
 
         CloseHandle(h_file);
