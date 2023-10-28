@@ -1,11 +1,10 @@
 #pragma once
 #include <mutex>
 #include <filesystem>
-
 #include "afp_file_index.h"
-#include "desktop_database.h"
 
 class change_notify;
+class afp_desktop;
 
 constexpr UINT8 max_volume_levels_deep = 128;
 constexpr UINT8 max_volumes = MAXBYTE;
@@ -25,8 +24,6 @@ class afp_volume
 public:
     afp_volume(std::wstring share_name, std::filesystem::path share_path, UINT16 volume_id, BYTE afp_flags, UINT32 internal_flags);
     ~afp_volume();
-
-    void make_desktop_database();
 
     [[nodiscard]] afp_index* find(const std::wstring& full_path) const { return index_->find(full_path); }
     [[nodiscard]] afp_index* find(const DWORD directory_id, const std::wstring& path) const { return index_->find(directory_id, path); }
@@ -55,7 +52,7 @@ public:
     [[nodiscard]] HANDLE get_notify_handle() const { return notify_event_; }
     void set_notify_handle(const HANDLE handle) { notify_event_ = handle; }
 
-    [[nodiscard]] desktop_database* get_desktop() const { return desktop_.get(); }
+    [[nodiscard]] afp_desktop* get_desktop() const { return desktop_.get(); }
 
     void notify_ignore_path(const std::filesystem::path& path) const;
 
@@ -80,7 +77,7 @@ private:
     HANDLE notify_event_;
 
     // Desktop array/index associated with this volume.
-    std::unique_ptr<desktop_database> desktop_;
+    std::unique_ptr<afp_desktop> desktop_;
     std::mutex volumes_mutex_;
 };
 

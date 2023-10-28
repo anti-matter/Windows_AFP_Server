@@ -48,7 +48,7 @@ private:
 
     std::vector<std::unique_ptr<afp_open_file>> m_afp_open_files_;
 	std::vector<std::shared_ptr<afp_volume>> m_open_volumes_;
-	std::vector<std::unique_ptr<OPEN_DESKTOP>> m_open_desks_;
+	std::vector<std::shared_ptr<afp_desktop>> m_open_desks_;
 
 	// These are used so the AFP client can reference this session in
 	// the event of a client crash or disconnection.
