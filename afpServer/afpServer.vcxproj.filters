@@ -56,9 +56,6 @@
     <ClCompile Include="afp-source\fp-imp\afpdhxlogin.cpp">
       <Filter>Source Files\fp-imp</Filter>
     </ClCompile>
-    <ClCompile Include="afp-source\fp-imp\desktop.cpp">
-      <Filter>Source Files\fp-imp</Filter>
-    </ClCompile>
     <ClCompile Include="afp-source\fp-imp\fdparms.cpp">
       <Filter>Source Files\fp-imp</Filter>
     </ClCompile>
@@ -246,9 +243,6 @@
     </ClInclude>
     <ClInclude Include="afp-source\fp-core\afpdispatch.h">
       <Filter>Source Files\fp-core</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\fp-imp\desktop.h">
-      <Filter>Source Files\fp-imp</Filter>
     </ClInclude>
     <ClInclude Include="afp-source\fp-classes\afp_desk_item.h">
       <Filter>Source Files\fp-classes</Filter>

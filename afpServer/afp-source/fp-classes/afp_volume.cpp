@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "afp_volume.h"
+#include "afp_desktop.h"
 #include "change_notify.h"
 
 afp_volume::afp_volume(std::wstring share_name, std::filesystem::path share_path, const UINT16 volume_id, const BYTE afp_flags, const UINT32 internal_flags)

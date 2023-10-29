@@ -41,14 +41,6 @@ afp_session::~afp_session()
 {
     EnterCriticalSection(&m_mutex_);
 
-    if (!m_open_desks_.empty())
-    {
-        std::ranges::for_each(m_open_desks_, [=, this](const std::unique_ptr<OPEN_DESKTOP>& dt)
-            {
-                close_desk(dt->dtRefNum);
-            });
-    }
-
     std::ranges::for_each(m_afp_open_files_, [=, this](const std::unique_ptr<afp_open_file>& of)
         {
             if (of != nullptr)
@@ -286,20 +278,16 @@ std::shared_ptr<afp_volume> afp_session::find_open_volume(const uint16 volume_id
  * Returns: AFP error code.
  */
 
-AFPERROR afp_session::open_desk(const uint16 volume_id, uint16* desktop_ref_num)
+UINT16 afp_session::open_desk(const uint16 volume_id)
 {
-    auto new_open_desk = std::make_unique<OPEN_DESKTOP>();
-    const auto afp_error = AFPOpenDeskTopDB(volume_id, new_open_desk.get());
-
-    if (AFP_SUCCESS(afp_error))
+    const auto open_volume = find_open_volume(volume_id);
+    if (open_volume == nullptr)
     {
-        auto_lock lock(&m_mutex_);
-
-        *desktop_ref_num = new_open_desk->dtRefNum;
-        m_open_desks_.push_back(std::move(new_open_desk));
+        return 0;
     }
 
-    return afp_error;
+    m_open_desks_.push_back(volume_id);
+    return volume_id;
 }
 
 
@@ -316,16 +304,8 @@ AFPERROR afp_session::close_desk(const uint16 desk_ref_num)
 {
     auto_lock lock(&m_mutex_);
 
-    const auto it =
-        std::ranges::find_if(m_open_desks_, [=](const std::unique_ptr<OPEN_DESKTOP>& odt)
-        {
-            return odt->dtRefNum == desk_ref_num;
-        });
-
-    if (it != m_open_desks_.end())
+    if (const auto it = std::ranges::find(m_open_desks_, desk_ref_num); it != m_open_desks_.end())
     {
-        AFPCloseDeskTopDB(it->get());
-
         m_open_desks_.erase(it);
         return AFP_OK;
     }
@@ -335,7 +315,7 @@ AFPERROR afp_session::close_desk(const uint16 desk_ref_num)
 
 
 /*
- * find_desk_file()
+ * get_desktop()
  *
  * Description:
  *		Returns a pointer to the OPEN_DESKTOP associated with the
@@ -344,22 +324,17 @@ AFPERROR afp_session::close_desk(const uint16 desk_ref_num)
  * Returns: AFP error code.
  */
 
-OPEN_DESKTOP* afp_session::find_desk_file(const uint16 desk_ref_num)
+afp_desktop* afp_session::get_desktop(const uint16 desk_ref_num)
 {
     auto_lock lock(&m_mutex_);
 
-    const auto it =
-        std::ranges::find_if(m_open_desks_, [=](const std::unique_ptr<OPEN_DESKTOP>& odt)
-        {
-            return odt->dtRefNum == desk_ref_num;
-        });
-
-    if (it != m_open_desks_.end())
+    const auto open_volume = find_open_volume(desk_ref_num);
+    if (open_volume == nullptr)
     {
-        return it->get();
+        return nullptr;
     }
 
-    return nullptr;
+    return open_volume->get_desktop();
 }
 
 

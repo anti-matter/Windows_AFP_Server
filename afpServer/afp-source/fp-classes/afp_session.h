@@ -2,7 +2,6 @@
 
 #include "volumes.h"
 #include "afphelp.h"
-#include "desktop.h"
 #include "dsi/dsi_connection.h"
 
 class afp_open_file;
@@ -13,8 +12,6 @@ public:
     explicit afp_session(dsi::dsi_connection* dsi_session);
 	~afp_session();
 
-	void shutdown();
-
 	void associate_open_file(afp_open_file* open_file);
 	AFPERROR close_file(int16 file_reference);
 	afp_open_file* find_open_file(int16 file_reference);
@@ -24,9 +21,9 @@ public:
 	std::shared_ptr<afp_volume> find_open_volume(uint16 volume_id);
 	BOOL session_has_volume_open(uint16 inVolumeID) { return find_open_volume(inVolumeID) != nullptr; }
 
-	AFPERROR open_desk(uint16 volume_id, uint16* desktop_ref_num);
+	UINT16 open_desk(uint16 volume_id);
 	AFPERROR close_desk(uint16 desk_ref_num);
-	OPEN_DESKTOP* find_desk_file(uint16 desk_ref_num);
+	afp_desktop* get_desktop(uint16 desk_ref_num);
 
 	uint32 get_token() const { return m_token_; }
 
@@ -48,7 +45,7 @@ private:
 
     std::vector<std::unique_ptr<afp_open_file>> m_afp_open_files_;
 	std::vector<std::shared_ptr<afp_volume>> m_open_volumes_;
-	std::vector<std::shared_ptr<afp_desktop>> m_open_desks_;
+	std::vector<UINT16> m_open_desks_;
 
 	// These are used so the AFP client can reference this session in
 	// the event of a client crash or disconnection.

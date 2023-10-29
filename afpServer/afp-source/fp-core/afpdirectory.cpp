@@ -2,6 +2,8 @@
 // ReSharper disable CppParameterMayBeConstPtrOrRef
 #include "StdAfx.h"
 #include "afpdirectory.h"
+
+#include "afp_desktop.h"
 #include "afp_session.h"
 #include "afp_volumes.h"
 #include "fdparms.h"
@@ -317,7 +319,7 @@ AFPERROR FPEnumerate(
 
         // We don't include some files (like the desktop db) since they
         // are server specific and the macs shouldn't see or edit them.
-        if (!lstrcmp(afp_entry->sz_object_name.c_str(), DESKTOP_FILE_NAME))
+        if (!lstrcmp(afp_entry->sz_object_name.c_str(), desktop_file_name.c_str()))
         {
             continue;
         }

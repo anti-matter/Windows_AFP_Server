@@ -49,31 +49,6 @@ struct afp_desk_item
     {
     }
 
-    afp_desk_item(
-        const desk_item_types item_type,
-        const FILE_TYPE file_type,
-        const FILE_CREATOR file_creator,
-        const UINT32 tag,
-        const UINT32 dir_id,
-        const UINT8 icon_type,
-        const UINT16 data_size,
-        const INT8 path_type,
-        const WCHAR* path_name,
-        const char* data
-    ) : item_type(item_type)
-        , file_type(file_type)
-        , file_creator(file_creator)
-        , tag(tag)
-        , dir_id(dir_id)
-        , icon_type(icon_type)
-        , data_size(data_size)
-        , path_type(path_type)
-        , data{}
-    {
-        wcscpy_s(this->path_name, sizeof(this->path_name), path_name);
-        memcpy_s(this->data, sizeof(this->data), data, data_size);
-    }
-
     desk_item_types item_type;
 
     FILE_TYPE file_type;
@@ -88,13 +63,32 @@ struct afp_desk_item
     WCHAR path_name[MAX_AFP_NAME];
     char data[max_desktop_data_size];
 
+#pragma warning (push)
+#pragma warning(disable: 6386)
     bool operator==(const afp_desk_item* item) const
     {
         return
             std::tie(item_type, file_type, file_creator, tag, dir_id, icon_type, data_size, path_type) ==
             std::tie(item->item_type, item->file_type, item->file_creator, item->tag, item->dir_id, item->icon_type,
                      item->data_size, item->path_type) &&
-            wcscmp(path_name, item->path_name) == 0 &&
-            memcmp(data, item->data, data_size) == 0;
+            wcscmp(this->path_name, item->path_name) == 0 &&
+            memcmp(this->data, item->data, data_size) == 0;
     }
+
+    afp_desk_item* operator=(const afp_desk_item* item)  // NOLINT(misc-unconventional-assign-operator)
+    {
+        this->item_type = item->item_type;
+        this->file_type = item->file_type;
+        this->file_creator = item->file_creator;
+        this->tag = item->tag;
+        this->dir_id = item->dir_id;
+        this->icon_type = item->icon_type;
+        this->data_size = item->data_size;
+        this->path_type = item->path_type;
+        wcscpy_s(this->path_name, sizeof(this->path_name), item->path_name);
+        memcpy_s(this->data, sizeof(data), item->data, item->data_size);
+
+        return this;
+    }
+#pragma warning (pop)
 };

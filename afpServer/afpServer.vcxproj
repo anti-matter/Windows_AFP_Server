@@ -178,7 +178,6 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
     <ClCompile Include="afp-source\fp-core\afpvolumes.cpp" />
     <ClCompile Include="afp-source\fp-core\afpxattr.cpp" />
     <ClCompile Include="afp-source\fp-imp\afpdhxlogin.cpp" />
-    <ClCompile Include="afp-source\fp-imp\desktop.cpp" />
     <ClCompile Include="afp-source\fp-imp\fdparms.cpp" />
     <ClCompile Include="afp-source\fp-imp\fpinfo.cpp" />
     <ClCompile Include="afp-source\fp-imp\logonimp.cpp" />
@@ -230,7 +229,6 @@ copy /y $(SystemDrive)\OpenSSL-Win32\libssl-1_1.dll "$(OutDir)"</Command>
     <ClInclude Include="afp-source\fp-core\afpvolumes.h" />
     <ClInclude Include="afp-source\fp-core\afpxattr.h" />
     <ClInclude Include="afp-source\fp-imp\afpdhxlogin.h" />
-    <ClInclude Include="afp-source\fp-imp\desktop.h" />
     <ClInclude Include="afp-source\fp-imp\fdparms.h" />
     <ClInclude Include="afp-source\fp-imp\logonimp.h" />
     <ClInclude Include="afp-source\fp-imp\volumes.h" />

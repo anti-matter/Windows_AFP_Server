@@ -4,7 +4,6 @@
 #include "afp_file_index.h"
 #include "afp_net_buffer.h"
 #include "afp_volume.h"
-#include "desktop_database.h"
 
 DWORD
 AFPAddNewVolumeFromUI(
