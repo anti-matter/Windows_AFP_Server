@@ -206,11 +206,9 @@ AFPERROR FPEnumerate(
 {
     WCHAR afp_pathname[MAX_AFP_PATH];
     int16 afp_act_count = 0;
-    int8 afp_attributes = 0;
     int16 afp_objects_found = 0;
     int32 afp_start_index;
-    int32 afp_max_reply_size;
-    afp_index* afp_target_entry = nullptr;
+    size_t afp_max_reply_size;
 
     WIN32_FILE_ATTRIBUTE_DATA win_attributes;
 
@@ -284,176 +282,149 @@ AFPERROR FPEnumerate(
 
     // Retrieve the index entry of the directory pointed to by the AFP path.
     // We use it's dirID to determine which files we'll return in the enum.
-    afp_error = AFPIndexFindEntryWithPath(afp_volume_info, afp_dir_id, afp_pathname, &afp_target_entry);
-    if (AFP_FAILED(afp_error))
+    const auto afp_target_entry = afp_volume_info->find(afp_dir_id, afp_pathname);
+    if (afp_target_entry == nullptr)
     {
-        DBGWRITE(dbg_level_info, L"Failed to get index entry (vID = %d, dirID = %d, name = %s)\n",
-                 afp_vol_id,
-                 afp_dir_id,
-                 afp_pathname
-        );
-
-        return afp_error;
+        DBGWRITE(dbg_level_info, L"Failed to get index entry (dirID = %d, name = %s)\n", afp_dir_id, afp_pathname);
+        return afpObjectNotFound;
     }
 
     // Create a temporary index array to hold all the offspring for the
     // target directory.
-    std::vector<afp_index*>* afp_temp_index;
+    std::vector<afp_index*>* offspring;
 
     // Now populate the temp array with the offspring in the target dir.
-    afp_volume_info->get_index()->get_offspring(afp_target_entry->object_id, &afp_temp_index);
-    if (afp_temp_index->empty())
+    afp_volume_info->get_index()->get_offspring(afp_target_entry->object_id, &offspring);
+    if (offspring->empty())
     {
         return afpObjectNotFound;
     }
 
-    // Go through the entire index and find entries that have the dirID as their parent.
-    for (auto it = afp_temp_index->begin(); it < afp_temp_index->end(); ++it)
+    constexpr UINT16 temp_buffer_size = 4096;
+    const auto temp_buffer = std::make_unique<char[]>(1024);
+    if (temp_buffer == nullptr)
     {
-        afp_index* afp_entry = *it;
+        return afpMiscErr;
+    }
 
-#ifdef _DEBUG
-        if ((afp_entry->par_id == afp_target_entry->object_id) && (GetFileAttributesEx(
-            afp_entry->sz_path.c_str(), GetFileExInfoStandard, &win_attributes) == 0))
+    // Go through the entire index and find entries that have the dirID as their parent.
+    const auto it = std::ranges::for_each(offspring->begin(), offspring->end(), [&](afp_index* index_item)
+    {
+        // If we've gotten as much data as the client requested, then exit this beast.
+        if (afp_act_count >= afp_req_count || static_cast<size_t>(afp_reply.get_data_length()) >= afp_max_reply_size)
         {
-            DBGWRITE(dbg_level_info, L"GetFileAttributesEx() failed (%d)\n", GetLastError());
-            DBGWRITE(dbg_level_info, L"File = %s\n", afp_entry->sz_path.c_str());
+            return;
         }
-#endif
 
         // We don't include some files (like the desktop db) since they
         // are server specific and the macs shouldn't see or edit them.
-        if (!lstrcmp(afp_entry->sz_object_name.c_str(), desktop_file_name.c_str()))
+        if (!lstrcmp(index_item->sz_object_name.c_str(), desktop_file_name.c_str()))
         {
-            continue;
+            return;
         }
 
-        if (GetFileAttributesEx(afp_entry->sz_path.c_str(), GetFileExInfoStandard, &win_attributes))
+        if (GetFileAttributesEx(index_item->sz_path.c_str(), GetFileExInfoStandard, &win_attributes) == 0)
         {
-            char temp_buffer[1024] = {};
-            afp_net_buffer parameter_buffer(temp_buffer, sizeof(temp_buffer));
-
-            afp_objects_found++;
-            if (afp_objects_found < afp_start_index)
-            {
-                continue;
-            }
-
-            DBGWRITE(dbg_level_all, L"Enumerating %s\n", afp_entry->sz_object_name.c_str());
-
-            const bool afp_is_directory = (afp_entry->flags & flag_index_is_dir);
-
-            if (afp_dir_bitmap == kFPDirNone && afp_is_directory ||
-                afp_file_bitmap == kFPFileNone && !afp_is_directory)
-            {
-                continue;
-            }
-
-            parameter_buffer.rewind();
-            afp_attributes = 0;
-
-            afp_error = AFPGetObjectParms(
-                parameter_buffer,
-                (afp_is_directory) ? afp_dir_bitmap : afp_file_bitmap,
-                afp_vol_id,
-                afp_dir_id,
-                connection,
-                afp_entry,
-                win_attributes
-            );
-
-            if (afp_is_directory)
-            {
-                afp_attributes |= static_cast<INT8>(kFileDirIsDir);
-            }
-
-            if (AFP_SUCCESS(afp_error))
-            {
-                UINT8* struct_len = nullptr;
-                INT16* ext_struct_len = nullptr;
-
-                // Check to make sure there is enough room in the buffer to add the
-                // file/dir information.
-                size_t size_required = parameter_buffer.get_data_length() + afp_reply.get_data_length();
-
-                // There are items after the file dirs parms that are added to the buffer,
-                // so we add a little extra to be safe.
-                size_required += (4);
-
-                // afp_max_reply_size is the maximum size our return buffer can be.
-                if (size_required >= static_cast<size_t>(afp_max_reply_size))
-                {
-                    DBGWRITE(dbg_level_all, L"Breaking out, size required too big!\n");
-                    break;
-                }
-
-                // Make sure we didn't get bigger then our reply buffer can handle.
-                if (size_required > afp_reply.get_buffer_size())
-                {
-                    // This should never happen (yeah right). In case it does, just
-                    // bail from here.
-                    DBGWRITE(dbg_level_all, L"Breaking out, reply buffer too small!\n");
-                    break;
-                }
-
-                afp_act_count++;
-
-                // The first byte (or word for AFP3.x) contains the struct len.
-                if (afp_command > afpEnumerate)
-                {
-                    ext_struct_len = reinterpret_cast<INT16*>(afp_reply.get_current_pos_ptr());
-                    afp_reply.advance_pos_ptr(sizeof(int16));
-                }
-                else
-                {
-                    struct_len = reinterpret_cast<UINT8*>(afp_reply.get_current_pos_ptr());
-                    afp_reply.advance_pos_ptr(sizeof(int8));
-                }
-
-                afp_reply.push_int8(afp_attributes);
-
-                if (afp_command > afpEnumerate)
-                {
-                    afp_reply.push_int8(0);
-                }
-
-                afp_reply.push_raw_data(parameter_buffer.get_buffer(),
-                                        static_cast<int16>(parameter_buffer.get_data_length()));
-
-                // Set the structure length byte in the buffer. The extra bytes are
-                // for the first parms in the structure (structLen, attributes and padding).
-                auto len = static_cast<UINT16>(parameter_buffer.get_data_length() + (afp_command > afpEnumerate ? 4 : 2));
-
-                // This entry must end on an even boundary.
-                if (len % 2)
-                {
-                    afp_reply.push_num<UINT8>(0);
-                    len++;
-                }
-
-                // AFP3.x uses a word to describe the struct length vs. a byte
-                if (afp_command > afpEnumerate)
-                {
-                    *ext_struct_len = static_cast<INT16>(htons(len));
-                }
-                else
-                {
-                    *struct_len = static_cast<INT8>(len);
-                }
-            }
-            else
-            {
-                DBGWRITE(dbg_level_info, L"Error finding parms for object\n");
-            }
-
-            // If we've gotten as much data as the client requested, then
-            // exit this beast.
-            if (afp_act_count >= afp_req_count || afp_reply.get_data_length() >= afp_max_reply_size)
-            {
-                break;
-            }
+            DBGWRITE(dbg_level_error, L"File does not exist on disk: %s\n", index_item->sz_path.c_str());
+            return;
         }
-    }
+
+        afp_net_buffer parameter_buffer(temp_buffer.get(), temp_buffer_size);
+
+        afp_objects_found++;
+        if (afp_objects_found < afp_start_index)
+        {
+            return;
+        }
+
+        DBGWRITE(dbg_level_all, L"Enumerating, dir id: %d, path: %s\n", afp_dir_id, index_item->sz_object_name.c_str());
+
+        const bool afp_is_directory = index_item->flags & flag_index_is_dir;
+        if (afp_dir_bitmap == kFPDirNone && afp_is_directory || afp_file_bitmap == kFPFileNone && !afp_is_directory)
+        {
+            return;
+        }
+
+        UINT8 afp_attributes = 0;
+        if (afp_is_directory)
+        {
+            afp_attributes |= kFileDirIsDir;
+        }
+
+        afp_error = AFPGetObjectParms(
+            parameter_buffer,
+            afp_is_directory ? afp_dir_bitmap : afp_file_bitmap,
+            afp_vol_id,
+            afp_dir_id,
+            connection,
+            index_item,
+            win_attributes);
+
+        if (AFP_FAILED(afp_error))
+        {
+            DBGWRITE(dbg_level_error, L"AFPGetObjectParms() failed: %s\n", index_item->sz_path.c_str());
+            return;
+        }
+
+        UINT8* struct_len = nullptr;
+        UINT16* ext_struct_len = nullptr;
+
+        // Check to make sure there is enough room in the buffer to add the
+        // file/dir information. There are items after the file dirs parms that are
+        // added to the buffer, so we add a little extra to be safe.
+        const size_t size_required = parameter_buffer.get_data_length() + afp_reply.get_data_length() + sizeof(UINT32);
+
+        // afp_max_reply_size is the maximum size our return buffer can be.
+        if (size_required >= afp_max_reply_size || size_required > afp_reply.get_buffer_size())
+        {
+            DBGWRITE(dbg_level_warning, L"Breaking out, size required too big!\n");
+            return;
+        }
+
+        afp_act_count++;
+
+        // The first byte (or word for AFP3.x) contains the struct len.
+        if (afp_command > afpEnumerate)
+        {
+            ext_struct_len = reinterpret_cast<UINT16*>(afp_reply.get_current_pos_ptr());
+            afp_reply.advance_pos_ptr(sizeof(UINT16));
+        }
+        else
+        {
+            struct_len = reinterpret_cast<UINT8*>(afp_reply.get_current_pos_ptr());
+            afp_reply.advance_pos_ptr(sizeof(UINT8));
+        }
+
+        afp_reply.push_num(afp_attributes);
+
+        if (afp_command > afpEnumerate)
+        {
+            afp_reply.push_int8(0);
+        }
+
+        afp_reply.push_raw_data(parameter_buffer.get_buffer(), static_cast<size_t>(parameter_buffer.get_data_length()));
+
+        // Set the structure length byte in the buffer. The extra bytes are
+        // for the first params in the structure (structLen, attributes and padding).
+        auto len = static_cast<UINT16>(parameter_buffer.get_data_length() + (afp_command > afpEnumerate ? 4 : 2));
+
+        // This entry must end on an even boundary.
+        if (len % 2)
+        {
+            afp_reply.push_num<UINT8>(0);
+            len++;
+        }
+
+        // AFP3.x uses a word to describe the struct length vs. a byte
+        if (afp_command > afpEnumerate)
+        {
+            *ext_struct_len = htons(len);
+        }
+        else
+        {
+            *struct_len = static_cast<UINT8>(len);
+        }
+    });
 
     // Set the actual number of objects found and in the buffer.
     *afp_act_count_spot = static_cast<INT16>(htons(afp_act_count));
@@ -461,9 +432,9 @@ AFPERROR FPEnumerate(
     DBGWRITE(dbg_level_all, L"afpActCount = %d\n", afp_act_count);
     DBGWRITE(dbg_level_all, L"Returning: %d\n", (afp_act_count == 0) ? afpObjectNotFound : AFP_OK);
 
-    delete afp_temp_index;
+    delete offspring;
 
-    return ((afp_act_count == 0) ? afpObjectNotFound : AFP_OK);
+    return (afp_act_count == 0 ? afpObjectNotFound : AFP_OK);
 }
 
 
@@ -979,12 +950,9 @@ AFPERROR FPMoveAndRename(
     UNREFERENCED_PARAMETER(afp_reply);
 
     WCHAR afp_pathname[MAX_AFP_PATH];
-    WCHAR afp_new_pathname[MAX_AFP_NAME];
     //WCHAR win_dst_path[MAX_PATH];
     AFPCHARMAP dest_char_map[MAX_DIR_NAME];
     AFPCHARMAP new_char_map[MAX_DIR_NAME];
-    afp_index* afp_src_entry;
-    afp_index* afp_dst_entry;
 
     WIN32_FILE_ATTRIBUTE_DATA win_attributes;
 
@@ -997,37 +965,37 @@ AFPERROR FPMoveAndRename(
     const auto afp_dst_dir_id = afp_request.pull_num<UINT32>();
     auto afp_path_type = afp_request.pull_num<INT8>();
 
-    if (!connection->get_afp_session()->session_has_volume_open(afp_volume_id))
+    const auto volume = connection->get_afp_session()->find_open_volume(afp_volume_id);
+    if (volume == nullptr)
     {
         return afpParmErr;
     }
 
-    AFPERROR afp_error = AFPVolumeWriteAccessCheck(afp_volume_id);
-    if (AFP_FAILED(afp_error))
+    if (volume->get_internal_flags() & flag_volume_readonly)
     {
-        return afp_error;
+        return afpVolLocked;
     }
 
     //*****************
     //Beging by getting the source file/dir entry.
     //*****************
 
-    afp_error = afp_request.get_pascal_string(afp_pathname, sizeof(afp_pathname), true, afp_path_type);
+    auto afp_error = afp_request.get_pascal_string(afp_pathname, sizeof(afp_pathname), true, afp_path_type);
     if (AFP_FAILED(afp_error))
     {
         return afp_error;
     }
 
-    afp_error = AFPIndexFindEntryWithVolIDAndPath(afp_volume_id, afp_src_dir_id, afp_pathname, &afp_src_entry);
-    if (AFP_FAILED(afp_error))
+    const auto afp_src_entry = volume->find(afp_src_dir_id, afp_pathname);
+    if (afp_src_entry == nullptr)
     {
-        DBGWRITE(dbg_level_info, L"Src Index entry not found!\n");
-        return afp_error;
+        DBGWRITE(dbg_level_error, L"Src Index entry not found!\n");
+        return afpObjectNotFound;
     }
 
     if (!GetFileAttributesEx(afp_src_entry->sz_path.c_str(), GetFileExInfoStandard, &win_attributes))
     {
-        DBGWRITE(dbg_level_info, L"Could not get attributes on src entry!\n");
+        DBGWRITE(dbg_level_error, L"Could not get attributes on src entry: %s\n", afp_src_entry->sz_path.c_str());
         return afpObjectNotFound;
     }
 
@@ -1049,18 +1017,20 @@ AFPERROR FPMoveAndRename(
         return afp_error;
     }
 
-    afp_error = AFPIndexFindEntryWithVolIDAndPath(afp_volume_id, afp_dst_dir_id, afp_pathname, &afp_dst_entry);
-    if (AFP_FAILED(afp_error))
+    const auto afp_dst_entry = volume->find(afp_dst_dir_id, afp_pathname);
+    if (afp_dst_entry == nullptr)
     {
         DBGWRITE(dbg_level_info, L"Dst dir Index entry not found!\n");
         return afp_error;
     }
 
     afp_path_type = afp_request.pull_num<INT8>();
+
+    WCHAR afp_new_pathname[MAX_AFP_NAME]{};
     afp_error = afp_request.get_pascal_string(afp_new_pathname, sizeof(afp_new_pathname), true, afp_path_type, new_char_map);
     if (AFP_FAILED(afp_error))
     {
-        return afp_error;
+        return afpObjectNotFound;
     }
 
     // Build the correct path to the newly moved and/or renamed object.
@@ -1075,14 +1045,14 @@ AFPERROR FPMoveAndRename(
         win_dst_path = afp_dst_entry->sz_path / afp_src_entry->sz_object_name;
     }
 
-    const std::shared_ptr<afp_volume> volume_info = afp_volumes::current()->find(afp_volume_id);
-
     DBGWRITE(dbg_level_info, L"Renaming to new path = %s\n", win_dst_path.c_str());
 
     if (!afp_impersonate_user(connection->get_user_token()))
     {
         return afpAccessDenied;
     }
+
+    volume->notify_ignore_path(win_dst_path);
 
     if (!MoveFile(afp_src_entry->sz_path.c_str(), win_dst_path.c_str()))
     {
@@ -1093,7 +1063,8 @@ AFPERROR FPMoveAndRename(
 
     afp_revert_to_self(connection->get_user_token());
 
-    volume_info->set_is_dirty();
+    volume->update_entry(afp_src_entry, afp_dst_entry, nullptr);
+    volume->set_is_dirty();
 
     return afp_error;
 }
@@ -1118,11 +1089,9 @@ AFPERROR FPRename(
     UNREFERENCED_PARAMETER(afp_reply);
 
     WCHAR afp_pathname[MAX_AFP_PATH]{};
-    WCHAR win_path[MAX_PATH]{};
     AFPCHARMAP new_char_map[MAX_DIR_NAME]{};
-    afp_index* afp_entry = nullptr;
 
-    DBGWRITE(dbg_level_all, L"[afp:FPRename]Enter\n");
+    DBGWRITE(dbg_level_all, L"Enter\n");
 
     afp_request.advance_pos_ptr(sizeof(int16));
 
@@ -1130,28 +1099,28 @@ AFPERROR FPRename(
     const auto afp_dir_id = afp_request.pull_num<UINT32>();
     auto afp_path_type = afp_request.pull_num<INT8>();
 
-    if (!connection->get_afp_session()->session_has_volume_open(afp_volume_id))
+    const auto volume = connection->get_afp_session()->find_open_volume(afp_volume_id);
+    if (volume == nullptr)
     {
         return afpParmErr;
     }
 
-    AFPERROR afp_error = AFPVolumeWriteAccessCheck(afp_volume_id);
+    if (volume->get_internal_flags() & flag_volume_readonly)
+    {
+        return afpVolLocked;
+    }
+
+    auto afp_error = afp_request.get_pascal_string(afp_pathname, sizeof(afp_pathname), true, afp_path_type);
     if (AFP_FAILED(afp_error))
     {
         return afp_error;
     }
 
-    afp_error = afp_request.get_pascal_string(afp_pathname, sizeof(afp_pathname), true, afp_path_type);
-    if (AFP_FAILED(afp_error))
+    const auto afp_entry = volume->find(afp_dir_id, afp_pathname);
+    if (afp_entry == nullptr)
     {
-        return afp_error;
-    }
-
-    afp_error = AFPIndexFindEntryWithVolIDAndPath(afp_volume_id, afp_dir_id, afp_pathname, &afp_entry);
-    if (AFP_FAILED(afp_error))
-    {
-        DBGWRITE(dbg_level_info, L"[afp:FPRename]Dst entry not found! (%s)\n", afp_pathname);
-        return afp_error;
+        DBGWRITE(dbg_level_info, L"Dst entry not found! (%s)\n", afp_pathname);
+        return afpObjectNotFound;
     }
 
     WIN32_FILE_ATTRIBUTE_DATA win_attributes;
@@ -1169,26 +1138,26 @@ AFPERROR FPRename(
     }
 
     afp_path_type = afp_request.pull_num<INT8>();
-    afp_error = afp_request.get_pascal_string(afp_pathname, sizeof(afp_pathname), true, afp_path_type, new_char_map);
-    if (AFP_FAILED(afp_error) || (lstrlen(afp_pathname) == 0))
+
+    WCHAR new_name[MAX_AFP_PATH];
+    afp_error = afp_request.get_pascal_string(new_name, sizeof(new_name), true, afp_path_type, new_char_map);
+    if (AFP_FAILED(afp_error) || (lstrlen(new_name) == 0))
     {
         return afp_error;
     }
 
-    // ReSharper disable once CppFunctionResultShouldBeUsed
-    StringCbPrintf(win_path, sizeof(win_path), TEXT("%s\\%s"), static_cast<afp_index*>(afp_entry->par_entry)->sz_path.c_str(),
-                   afp_pathname);
+    const std::filesystem::path win_path = afp_entry->par_entry->sz_path / new_name;
 
-    DBGWRITE(dbg_level_info, L"Renaming to new path = %s\n", win_path);
-
-    const std::shared_ptr<afp_volume> volumeInfo = afp_volumes::current()->find(afp_volume_id);
+    DBGWRITE(dbg_level_info, L"Renaming to new path = %s\n", win_path.c_str());
 
     if (!afp_impersonate_user(connection->get_user_token()))
     {
         return afpAccessDenied;
     }
 
-    if (!MoveFile(afp_entry->sz_path.c_str(), win_path))
+    volume->notify_ignore_path(win_path);
+
+    if (!MoveFile(afp_entry->sz_path.c_str(), win_path.c_str()))
     {
         DBGWRITE(dbg_level_info, L"MoveFile() failed! (%d)\n", GetLastError());
         afp_error = afp_map_win_error_to_afp(GetLastError(), afpParmErr);
@@ -1196,7 +1165,8 @@ AFPERROR FPRename(
 
     afp_revert_to_self(connection->get_user_token());
 
-    volumeInfo->set_is_dirty();
+    volume->update_entry(afp_entry, afp_entry->par_entry, new_name);
+    volume->set_is_dirty();
 
     return afp_error;
 }

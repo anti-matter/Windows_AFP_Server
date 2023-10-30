@@ -34,15 +34,23 @@ namespace dsi
 		connections_.push_back(std::move(connection));
 	}
 
-	void dsi_connections::stop_tracking(UINT32 connection_id)
+	void dsi_connections::stop_tracking(const UINT32 connection_id)
 	{
 		std::lock_guard guard(connections_mutex_);
-		const auto itr = std::ranges::remove_if(connections_, [&](const std::unique_ptr<dsi_connection>& c)
+		const auto itr = std::ranges::find_if(connections_, [&](const std::unique_ptr<dsi_connection>& c)
         {
             return c->get_connection_id() == connection_id;
         });
 
-		connections_.erase(itr.begin(), itr.end());
+		if (itr != connections_.end())
+		{
+			DBGWRITE(dbg_level_info, L"Stopping tracking of connection: %d\n", itr->get()->get_connection_id());
+
+			connections_.erase(itr);
+			return;
+		}
+
+		DBGWRITE(dbg_level_error, L"Cannot stop connection %d, not tracking.\n", connection_id);
 	}
 
     void dsi_connections::close_all()
@@ -69,7 +77,7 @@ namespace dsi
 	{
 		while (connection_running_)
 		{
-			std::unique_lock lock(connections_mutex_);
+			//std::unique_lock lock(connections_mutex_);
 
 			for (const auto& connection : connections_)
 			{
@@ -81,7 +89,7 @@ namespace dsi
 
 				if (connection->client_lost())
 				{
-					lock.unlock();
+					//lock.unlock();
 
 					connection->kill_connection();
 					stop_tracking(connection->get_connection_id());

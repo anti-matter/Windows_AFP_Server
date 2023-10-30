@@ -203,6 +203,12 @@ void change_notify::afp_read_dir_changes(
         case FILE_ACTION_RENAMED_NEW_NAME:
             lstrcpyn(file_name, p_info->FileName, static_cast<int>(p_info->FileNameLength));
 
+            if (check_and_remove_ignore_path(file_name))
+            {
+                DBGWRITE(dbg_level_info, L"Ignoring rename for: %s\n", file_name);
+                break;
+            }
+
             DBGWRITE(dbg_level_all, L"File renamed, new name = %s\n", file_name);
 
             if (index_entry != nullptr)

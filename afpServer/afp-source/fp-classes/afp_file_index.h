@@ -20,16 +20,16 @@ enum
 // This is a structure to keep track of a single directory or file.
 // We use this to map AFP dirID's to windows directories and file
 // ID's to files.
-typedef struct
+struct afp_index
 {
 	DWORD par_id;
-	PVOID par_entry;
+	afp_index* par_entry;
 	DWORD object_id;
 	std::wstring sz_object_name;
 	std::filesystem::path sz_path;
 	WORD flags;
 	DWORD path_hash;
-} afp_index;
+};
 
 struct index_wait_for_add_data
 {
@@ -66,7 +66,7 @@ public:
 	afp_index* find(const std::wstring& full_path);
 	afp_index* find(DWORD directory_id, const std::wstring& path);
 
-	uint32 get_offspring(uint32 par_id, std::vector<afp_index*>** new_index = nullptr);
+	uint32 get_offspring(uint32 par_id, std::vector<afp_index*>** offspring = nullptr);
 
 	uint32 next_id() { return m_next_id_++; }
 
@@ -77,7 +77,7 @@ public:
 private:
 	void check_waiters(const std::filesystem::path& path);
 
-	std::mutex mutex_;
+	std::recursive_mutex mutex_;
 	std::vector<std::unique_ptr<afp_index>> m_index_;
 
 	uint32 m_next_id_;

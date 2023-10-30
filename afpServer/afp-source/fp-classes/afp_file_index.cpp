@@ -268,7 +268,7 @@ void afp_file_index::update_entry(afp_index* entry, afp_index* new_parent, const
 	entry->path_hash = std::hash<std::wstring>{}(entry->sz_path);
 
 	// Only if the object moved do we update the parent id and entry
-	if (entry->par_entry != new_parent)
+	if (entry->par_entry->object_id != new_parent->object_id)
 	{
 		entry->par_id = new_parent->object_id;
 		entry->par_entry = new_parent;
@@ -390,19 +390,17 @@ afp_index* afp_file_index::find(const std::wstring& full_path)
 
 afp_index* afp_file_index::find(const DWORD directory_id, const std::wstring& path)
 {
-	std::unique_lock lock(mutex_);
+	std::lock_guard guard(mutex_);
 
     if (const auto it = std::ranges::find_if(m_index_, [=](const std::unique_ptr<afp_index>& i)
     {
-			return i->object_id == directory_id;
+		return i->object_id == directory_id;
     }); it != m_index_.end())
 	{
 		if (path.empty())
 		{
 			return it->get();
 		}
-
-		lock.unlock();
 
         const std::filesystem::path temp_path = it->get()->sz_path / path;
 		return find(temp_path);
@@ -426,7 +424,7 @@ afp_index* afp_file_index::find(const DWORD directory_id, const std::wstring& pa
  *		afp_file_index*
  */
 
-uint32 afp_file_index::get_offspring(const uint32 par_id, std::vector<afp_index*>** new_index)
+uint32 afp_file_index::get_offspring(const uint32 par_id, std::vector<afp_index*>** offspring)
 {
 	const auto sub_index = new std::vector<afp_index*>();
 
@@ -441,9 +439,9 @@ uint32 afp_file_index::get_offspring(const uint32 par_id, std::vector<afp_index*
 		sub_index->push_back(it->get());
 	}
 
-	if (new_index != nullptr)
+	if (offspring != nullptr)
 	{
-		*new_index = sub_index;
+		*offspring = sub_index;
 		return sub_index->size();
 	}
 

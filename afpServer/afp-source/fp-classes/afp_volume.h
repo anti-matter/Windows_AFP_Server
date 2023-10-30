@@ -25,8 +25,10 @@ public:
     afp_volume(std::wstring share_name, std::filesystem::path share_path, UINT16 volume_id, BYTE afp_flags, UINT32 internal_flags);
     ~afp_volume();
 
+    // Convenient accessors for common index operations.
     [[nodiscard]] afp_index* find(const std::wstring& full_path) const { return index_->find(full_path); }
     [[nodiscard]] afp_index* find(const DWORD directory_id, const std::wstring& path) const { return index_->find(directory_id, path); }
+    void update_entry(afp_index* entry, afp_index* new_parent, const PWCHAR new_name) const { index_->update_entry(entry, new_parent, new_name); }
 
     [[nodiscard]] afp_file_index* get_index() const { return index_.get(); }
 

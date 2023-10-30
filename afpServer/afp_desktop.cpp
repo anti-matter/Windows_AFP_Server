@@ -12,7 +12,7 @@ afp_desktop::afp_desktop(afp_volume* volume) : volume_id_(volume->get_volume_id(
     // If this fails, it's okay, it will be generated later.
     load_from_file();
 }
-
+ 
 afp_desktop::~afp_desktop()
 {
     //export_to_file();
