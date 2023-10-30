@@ -354,6 +354,7 @@ std::shared_ptr<afp_volume> afp_volumes::find(const UINT16 id)
     return nullptr;
 }
 
+
 bool afp_volumes::map_name_to_id(const std::wstring& share_name, UINT16* id)
 {
     const auto volume = find(share_name);
@@ -365,6 +366,7 @@ bool afp_volumes::map_name_to_id(const std::wstring& share_name, UINT16* id)
 
     return false;
 }
+
 
 UINT8 afp_volumes::active_volumes(std::vector<std::shared_ptr<afp_volume>>* volumes_out)
 {
@@ -387,6 +389,7 @@ UINT8 afp_volumes::active_volumes(std::vector<std::shared_ptr<afp_volume>>* volu
 
     return static_cast<UINT8>(it);
 }
+
 
 void afp_volumes::dirty_volumes(std::vector<std::shared_ptr<afp_volume>>* dirty_volumes)
 {

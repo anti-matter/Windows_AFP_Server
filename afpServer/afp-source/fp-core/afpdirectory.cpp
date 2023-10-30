@@ -241,7 +241,7 @@ AFPERROR FPEnumerate(
         break;
 
     default:
-        return (afpParmErr);
+        return afpParmErr;
     }
 
     const auto afp_path_type = afp_request.pull_num<INT8>();
@@ -302,6 +302,10 @@ AFPERROR FPEnumerate(
 
     // Now populate the temp array with the offspring in the target dir.
     afp_volume_info->get_index()->get_offspring(afp_target_entry->object_id, &afp_temp_index);
+    if (afp_temp_index->empty())
+    {
+        return afpObjectNotFound;
+    }
 
     // Go through the entire index and find entries that have the dirID as their parent.
     for (auto it = afp_temp_index->begin(); it < afp_temp_index->end(); ++it)
@@ -1113,9 +1117,9 @@ AFPERROR FPRename(
 {
     UNREFERENCED_PARAMETER(afp_reply);
 
-    WCHAR afp_pathname[MAX_AFP_PATH];
-    WCHAR win_path[MAX_PATH];
-    AFPCHARMAP new_char_map[MAX_DIR_NAME];
+    WCHAR afp_pathname[MAX_AFP_PATH]{};
+    WCHAR win_path[MAX_PATH]{};
+    AFPCHARMAP new_char_map[MAX_DIR_NAME]{};
     afp_index* afp_entry = nullptr;
 
     DBGWRITE(dbg_level_all, L"[afp:FPRename]Enter\n");
@@ -1158,7 +1162,7 @@ AFPERROR FPRename(
     }
 
     const auto afp_attributes = AFPWinToAFPAttributes(win_attributes.dwFileAttributes, nullptr);
-    if (afp_attributes & (kFileRenameInhibit))
+    if (afp_attributes & kFileRenameInhibit)
     {
         DBGWRITE(dbg_level_info, L"Cannot rename, object locked!\n");
         return afpObjectLocked;

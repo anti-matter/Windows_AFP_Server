@@ -5,9 +5,8 @@
 #include "afp_volumes.h"
 
 
-afp_desktop::afp_desktop(const UINT16 volume_id) : volume_id_(volume_id)
+afp_desktop::afp_desktop(afp_volume* volume) : volume_id_(volume->get_volume_id())
 {
-    const auto volume = afp_volumes::current()->find(volume_id);
     desktop_file_path_ = volume->get_share_path() / desktop_file_name;
 
     // If this fails, it's okay, it will be generated later.
@@ -16,14 +15,14 @@ afp_desktop::afp_desktop(const UINT16 volume_id) : volume_id_(volume_id)
 
 afp_desktop::~afp_desktop()
 {
-    export_to_file();
+    //export_to_file();
 }
 
 UINT32 afp_desktop::load_from_file()
 {
     std::lock_guard guard(desk_items_mutex_);
 
-    if (exists(desktop_file_path_))
+    if (!exists(desktop_file_path_))
     {
         return desktop_file_not_found;
     }
@@ -41,6 +40,13 @@ UINT32 afp_desktop::load_from_file()
     {
         DBGWRITE(dbg_level_error, L"Failed to read desktop file version!\n", errno);
         return desktop_file_error;
+    }
+
+    DBGWRITE(dbg_level_info, L"Desktop file version: %d", version);
+
+    if (version < desktop_file_version)
+    {
+        return 0;
     }
 
     std::vector<std::unique_ptr<afp_desk_item>>::size_type item_count;
@@ -125,6 +131,7 @@ void afp_desktop::add(const afp_desk_item* item)
 void afp_desktop::add(std::unique_ptr<afp_desk_item>& item)
 {
     std::lock_guard guard(desk_items_mutex_);
+    DUMP_ITEM(item.get(), true);
     desk_items_.push_back(std::move(item));
 }
 

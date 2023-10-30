@@ -84,7 +84,7 @@ afp_index* afp_file_index::add_entry(
 		*p_new_dir_id = result->object_id;
 	}
 
-	check_waiters(result->sz_path);
+	//check_waiters(result->sz_path);
 
 	return result;
 }
@@ -472,6 +472,8 @@ void afp_file_index::dump_index()
 	for (auto it = m_index_.begin(); it < m_index_.end(); ++it)
 	{
 		const auto entry = it->get();
+
+		DBGWRITE(dbg_level_all, L"Parent id: %d\n", entry->par_id);
 
 		DBGWRITE(dbg_level_info,
 		         L"ID = %d parID = %d\tPath = %s\n", entry->object_id, entry->par_id, entry->sz_path.c_str());

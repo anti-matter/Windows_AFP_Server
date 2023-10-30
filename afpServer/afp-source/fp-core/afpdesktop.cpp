@@ -314,7 +314,8 @@ AFPERROR FPAddComment(
 		return afpObjectNotFound;
 	}
 
-	DBGWRITE(dbg_level_info, L"Adding comment, pathname=%s, comment=%s\n", desk_item.path_name, desk_item.data);
+	const auto wide_name = string_to_wide_string(desk_item.data);
+	DBGWRITE(dbg_level_info, L"Adding comment, pathname=%s, comment=%s\n", desk_item.path_name, wide_name.c_str());
 
 	desktop->add(&desk_item);
 

@@ -58,6 +58,8 @@ constexpr UINT32 replay_cache_size = 32;
 #define SEND_BUFFER_SIZE (MAXWORD)
 
 constexpr UINT32 tickle_time = (1000 * 15);
+constexpr UINT32 client_lost_idle = (1000 * 120);
+constexpr UINT32 client_lost_sleeping = (1000 * 60 * 60 * 24);
 
 class afp_session;
 

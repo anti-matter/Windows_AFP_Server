@@ -40,49 +40,36 @@ AFPERROR FPGetSrvrParms(
 	
 	if (!connection->get_is_session_authenticated())
 	{
-		//
-		//Not authenticated, prevent access.
-		//
+		// Not authenticated, prevent access.
 		return (afpAccessDenied);
 	}
 
-	//
-	//Get the Windows system time for the first part of our buffer.
-	//
+	// Get the Windows system time for the first part of our buffer.
 	GetSystemTime(&sys_time);
 	SystemTimeToFileTime(&sys_time, &file_time);
 
-	//
-	//Convert the Windows system time to local AFP time.
-	//
+	// Convert the Windows system time to local AFP time.
 	const auto afp_time = afp_windows_to_mac_time(&file_time);
 
-	//
-	//Stuff in the AFP server time value.
-	//
+	// Stuff in the AFP server time value.
 	afp_reply.push_num(afp_time);
 
-	//
-	//Stuff in the number of volumes our server has shared.
-	//
+	// Stuff in the number of volumes our server has shared.
 	afp_reply.push_num(afp_num_volumes_active);
 
-	//
-	//Stuff in all the volume names and their flags.
-	//
-	for (auto it = afp_volume_list.begin(); it < afp_volume_list.end(); ++it)
+	// Stuff in all the volume names and their flags.
+	for (const auto& volume : afp_volume_list)
 	{
-        const auto afp_volume_info = it->get();
-		if (!(afp_volume_info->get_internal_flags() & flag_volume_indexing_complete))
+		if (!(volume->get_internal_flags() & flag_volume_indexing_complete))
 		{
 			// Not done indexing, can't show this one now.
 			continue;
 		}
 
-		DBGWRITE(dbg_level_all, L"Stuffing volume: %s\n", afp_volume_info->get_share_name().c_str());
+		DBGWRITE(dbg_level_all, L"Stuffing volume: %s\n", volume->get_share_name().c_str());
 
-		afp_reply.push_num(afp_volume_info->get_afp_flags());
-		afp_reply.push_pascal_string(afp_volume_info->get_share_name());
+		afp_reply.push_num(volume->get_afp_flags());
+		afp_reply.push_pascal_string(volume->get_share_name());
 	}
 
 	return AFP_OK;

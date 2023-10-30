@@ -22,7 +22,7 @@ class afp_desktop
 public:
     // A desktop file is associated with a specific volume. A volume
     // can have only one.
-    afp_desktop(const UINT16 volume_id);
+    afp_desktop(afp_volume* volume);
 
     // Most important thing done here is to update the desktop.db on disk.
     ~afp_desktop();
@@ -55,6 +55,6 @@ private:
 
 #ifdef _DEBUG
     void dump_db();
-    static void dump_item(afp_desk_item* item, bool include_data = false);
+    static void dump_item(afp_desk_item* item, bool include_data = true);
 #endif
 };

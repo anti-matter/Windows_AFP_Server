@@ -5,20 +5,7 @@
 
 namespace dsi
 {
-	#define AFP_TICKLE_TIME				(1000*15)
-	#define AFP_CLIENT_LOST				(1000*120)
-	#define AFP_CLIENT_LOST_SLEEPING	(1000*60*60*24)
-	#define RECV_POSTED					1
-	#define SEND_POSTED					2
-	#define ARBI_POSTED					3
-	#define POST_SEND					1
-	#define POST_RECV					2
-	#define NO_ACTION					0
-	#define SEND_BUF_SIZE				MAXWORD
-	#define OVER_BUF_SIZE				4096
-	#define	RECV_BUF_SIZE				MAXWORD
-	#define DATA_BUF_SIZE				(RECV_BUF_SIZE+DSI_HEADER_SIZE)
-	#define SCAVENGE_THREAD_SLEEP		5000 //scavenger scavenges every 5 seconds
+	constexpr LONGLONG periodic_thread_sleep_seconds = 5;
 
 	// Class that manages all dsi connections that are open.
 	class dsi_connections  // NOLINT(cppcoreguidelines-special-member-functions)
@@ -43,7 +30,8 @@ namespace dsi
 
 	private:
 		std::vector<std::unique_ptr<dsi_connection>> connections_;
-		std::mutex connections_mutex_;
+		std::recursive_mutex connections_mutex_;
+		std::atomic_bool connection_running_;
 	};
 }
 

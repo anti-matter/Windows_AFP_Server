@@ -187,7 +187,7 @@ namespace dsi
 					(dsi_command != dsi_cmd_open_session && dsi_command != dsi_cmd_get_status))
 				{
 					// If we are in a weird situation and we received a tickle here,
-					// we must consider that we don't have a return buffer to send_ an
+					// we must consider that we don't have a return buffer to send an
 					// error to the caller.
 					if (dsi_command != dsi_cmd_tickle)
 					{
@@ -325,17 +325,14 @@ namespace dsi
 		// Get a wrapper for the AFP reply payload.
 		afp_net_buffer reply(&reply_buffer[dsi_offset_data_start], dsi_server_request_quantum_size);
 
-		if (afp_cmd != 192)
-		{
-			DBGWRITE(dbg_level_info, L"Processing AFP cmd: %d\n", afp_cmd);
+        DBGWRITE(dbg_level_info, L"Processing AFP cmd: %d\n", afp_cmd);
 
-			if (afp_cmd == 11)
-			{
-				DBGWRITE(dbg_level_info, L"Flush fork...\n");
-			}
-		}
+        if (afp_cmd == 11)
+        {
+            DBGWRITE(dbg_level_info, L"Flush fork...\n");
+        }
 
-		const auto afp_error = fp_dispatch_command(request, reply, this);
+        const auto afp_error = fp_dispatch_command(request, reply, this);
 		const auto data_size = afp_cmd == afpRead || afp_cmd == afpReadExt
 			? reply.get_dsi_return_value()
 			: reply.get_data_length();
@@ -491,7 +488,7 @@ namespace dsi
 
     bool dsi_connection::client_lost() const
 	{
-		if (GetTickCount64() - last_tickle_ > AFP_CLIENT_LOST)
+		if (GetTickCount64() - last_tickle_ > client_lost_idle)
 		{
 			if (!client_sleeping_)
 			{

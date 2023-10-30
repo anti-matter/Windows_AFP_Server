@@ -12,7 +12,7 @@ namespace dsi
 {
 	bool connections_initialized = false;
 
-	dsi_connections::dsi_connections()
+	dsi_connections::dsi_connections() : connection_running_(true)
 	{
 		if (connections_initialized)
 		{
@@ -47,6 +47,8 @@ namespace dsi
 
     void dsi_connections::close_all()
     {
+		connection_running_ = false;
+
 		// The server is shutting down. First thing to do is send_
         // an attention message to all connected clients informing
         // them of the closure.
@@ -65,21 +67,28 @@ namespace dsi
 
     void dsi_connections::periodic_thread()
 	{
-		std::lock_guard guard(connections_mutex_);
-
-		for (const auto& connection : connections_)
+		while (connection_running_)
 		{
-			// Check if we need to tickle the client.
-			if (connection->tickle_required())
+			std::unique_lock lock(connections_mutex_);
+
+			for (const auto& connection : connections_)
 			{
-				connection->send_tickle();
+				// Check if we need to tickle the client.
+				if (connection->tickle_required())
+				{
+					connection->send_tickle();
+				}
+
+				if (connection->client_lost())
+				{
+					lock.unlock();
+
+					connection->kill_connection();
+					stop_tracking(connection->get_connection_id());
+				}
 			}
 
-			if (connection->client_lost())
-			{
-				connection->kill_connection();
-				stop_tracking(connection->get_connection_id());
-			}
+			std::this_thread::sleep_for(std::chrono::seconds(periodic_thread_sleep_seconds));
 		}
 	}
 

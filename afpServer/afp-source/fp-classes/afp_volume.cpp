@@ -19,11 +19,12 @@ afp_volume::afp_volume(std::wstring share_name, std::filesystem::path share_path
 {
     index_ = std::make_unique<afp_file_index>();
     notify_ = std::make_unique<change_notify>(id_);
-    desktop_ = std::make_unique<afp_desktop>(id_);
+    desktop_ = std::make_unique<afp_desktop>(this);
 }
 
 afp_volume::~afp_volume()
 {
+    desktop_->export_to_file();
     SetEvent(notify_event_);
 }
 
