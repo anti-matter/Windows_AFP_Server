@@ -244,9 +244,10 @@ AFPERROR FPEnumerate(
     }
 
     const auto afp_path_type = afp_request.pull_num<INT8>();
-
     const auto afp_session = connection->get_afp_session();
-    if (!afp_session->session_has_volume_open(afp_vol_id))
+
+    const auto afp_volume_info = afp_session->find_open_volume(afp_vol_id);
+    if (afp_volume_info == nullptr)
     {
         DBGWRITE(dbg_level_info, L"Volume not opened!\n");
         return afpParmErr;
@@ -258,7 +259,7 @@ AFPERROR FPEnumerate(
         return afp_error;
     }
 
-    DBGWRITE(dbg_level_info, L"Enumerating: %s\n", afp_pathname);
+    DBGWRITE(dbg_level_info, L"Enumerating root dir id: %d, path: %s\n", afp_dir_id, afp_pathname);
 
     // We don't support the following bitmaps, so we clear them.
     if (connection->get_afp_version() < afpVersion30)
@@ -278,8 +279,6 @@ AFPERROR FPEnumerate(
     // be inserted into the buffer.
     auto* afp_act_count_spot = reinterpret_cast<INT16*>(afp_reply.get_current_pos_ptr());
     afp_reply.advance_pos_ptr(sizeof(INT16));
-
-    const std::shared_ptr<afp_volume> afp_volume_info = afp_session->find_open_volume(afp_vol_id);
 
     // Retrieve the index entry of the directory pointed to by the AFP path.
     // We use it's dirID to determine which files we'll return in the enum.
@@ -314,7 +313,7 @@ AFPERROR FPEnumerate(
     const auto it = std::ranges::for_each(offspring.begin(), offspring.end(), [&](afp_index* index_item)
     {
         // If we've gotten as much data as the client requested, then exit this beast.
-        if (afp_act_count >= afp_req_count || static_cast<size_t>(afp_reply.get_data_length()) >= afp_max_reply_size)
+        if (afp_act_count >= afp_req_count || afp_reply.get_data_length() >= afp_max_reply_size)
         {
             return;
         }
@@ -340,7 +339,7 @@ AFPERROR FPEnumerate(
             return;
         }
 
-        DBGWRITE(dbg_level_all, L"Enumerating, dir id: %d, path: %s\n", afp_dir_id, index_item->sz_object_name.c_str());
+        DBGWRITE(dbg_level_all, L"Enumerating, dir id: %d, pathname: %s\n", afp_dir_id, index_item->sz_object_name.c_str());
 
         const bool afp_is_directory = index_item->flags & flag_index_is_dir;
         if (afp_dir_bitmap == kFPDirNone && afp_is_directory || afp_file_bitmap == kFPFileNone && !afp_is_directory)
@@ -751,7 +750,7 @@ AFPERROR FPDelete(
         return afpAccessDenied;
     }
 
-    std::unique_lock<std::mutex> lock(volume->get_change_notify()->change_notify_mutex());
+    notify_suspend suspend(volume.get());
 
     DBGWRITE(dbg_level_info, L"Deleting item at path: %s\n", afp_entry->sz_path.c_str());
 
@@ -938,8 +937,8 @@ AFPERROR FPCopyFile(
         return afpAccessDenied;
     }
 
-    std::unique_lock<std::mutex> lock1(afp_session->find_open_volume(afp_src_vol_id)->get_change_notify()->change_notify_mutex());
-    std::unique_lock<std::mutex> lock2(afp_session->find_open_volume(afp_dst_vol_id)->get_change_notify()->change_notify_mutex());
+    notify_suspend suspend1(afp_session->find_open_volume(afp_src_vol_id).get());
+    notify_suspend suspend2(afp_session->find_open_volume(afp_dst_vol_id).get());
 
     const BOOL copy_succeeded = CopyFile(afp_src_entry->sz_path.c_str(), new_win_path, true);
     if (!copy_succeeded)
@@ -1075,7 +1074,7 @@ AFPERROR FPMoveAndRename(
         return afpAccessDenied;
     }
 
-    std::unique_lock<std::mutex> lock(volume->get_change_notify()->change_notify_mutex());
+    notify_suspend suspend(volume.get());
 
     if (!MoveFile(afp_src_entry->sz_path.c_str(), win_dst_path.c_str()))
     {
@@ -1178,7 +1177,7 @@ AFPERROR FPRename(
         return afpAccessDenied;
     }
 
-    std::unique_lock<std::mutex> lock(volume->get_change_notify()->change_notify_mutex());
+    notify_suspend suspend(volume.get());
 
     if (!MoveFile(afp_entry->sz_path.c_str(), win_path.c_str()))
     {

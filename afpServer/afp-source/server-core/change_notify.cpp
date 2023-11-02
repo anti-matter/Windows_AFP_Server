@@ -127,6 +127,7 @@ void change_notify::afp_read_dir_changes(
 
     if (!GetOverlappedResult(h_directory, &notify_overlapped_, &bytes_returned, FALSE) || notify_suspended_)
     {
+        DBGWRITE(dbg_level_info, L"Notify thread suspended, or error (%d)\n", GetLastError());
         return;
     }
 
@@ -146,8 +147,6 @@ void change_notify::afp_read_dir_changes(
     // We have a successful change notify. Flip through the array of
     // changes and take appropriate action depending on the change.
     DBGWRITE(dbg_level_all, L"Change notify data received!! (%d bytes)\n", bytes_returned);
-
-    std::unique_lock lock(change_notify_mutex_);
 
     do
     {

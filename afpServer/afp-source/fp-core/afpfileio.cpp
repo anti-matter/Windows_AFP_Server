@@ -458,7 +458,7 @@ AFPERROR FPCreateFile(
         return afpAccessDenied;
     }
 
-    std::unique_lock<std::mutex> lock(volume->get_change_notify()->change_notify_mutex());
+    notify_suspend suspend(volume.get());
 
     // Call the Win32 API that creates the file for us on this filesystem.
     const auto h_file = CreateFile(

@@ -43,15 +43,15 @@ public:
         notify_suspended_ = false;
     }
 
-    [[nodiscard]] std::reference_wrapper<std::mutex> change_notify_mutex() { return std::ref(change_notify_mutex_); }
-
 private:
     UINT16 volume_id_;
-    std::mutex change_notify_mutex_;
     std::atomic_bool notify_suspended_;
     OVERLAPPED notify_overlapped_;
 };
 
+
+// Convenience class for suspending the notify thread, so that the thread
+// will resume when this class is destructed.
 class notify_suspend  // NOLINT(cppcoreguidelines-special-member-functions)
 {
 public:
