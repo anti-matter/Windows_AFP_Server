@@ -15,7 +15,7 @@ std::unique_ptr<afp_volumes> g_volumes = std::make_unique<afp_volumes>();
 const std::wstring parent_directory_name = L"Parent";
 
 afp_volumes::afp_volumes()
-    : next_volume_id_(MAXWORD)
+    : next_volume_id_(MAXSHORT)
     , index_queue_running_(true)
 {
     index_event_ = CreateEvent(nullptr, TRUE, TRUE, nullptr);
@@ -140,7 +140,7 @@ void afp_volumes::add_volume(const std::wstring& share_name, std::filesystem::pa
     }
 }
 
-void afp_volumes::remove_volume(const UINT16 id)
+void afp_volumes::remove_volume(const INT16 id)
 {
     const auto volume = find(id);
     if (volume == nullptr)
@@ -337,7 +337,7 @@ std::shared_ptr<afp_volume> afp_volumes::find(const std::wstring& name)
 }
 
 
-std::shared_ptr<afp_volume> afp_volumes::find(const UINT16 id)
+std::shared_ptr<afp_volume> afp_volumes::find(const INT16 id)
 {
     std::lock_guard guard(volumes_mutex_);
 

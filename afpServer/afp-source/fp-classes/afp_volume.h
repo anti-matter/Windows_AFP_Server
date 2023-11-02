@@ -56,7 +56,7 @@ public:
     [[nodiscard]] change_notify* get_change_notify() const { return notify_.get(); }
 
 private:
-    UINT16 id_;
+    INT16 id_;
 
     std::wstring share_name_;
     std::filesystem::path share_path_;

@@ -11,8 +11,8 @@ class afp_net_buffer // NOLINT(cppcoreguidelines-special-member-functions)
 public:
 	afp_net_buffer(_In_ char* afp_buffer, _In_ size_t cb_buffer);
 
-	AFPERROR get_pascal_string(unichar* string, UINT16 cb_string, bool is_path = false, INT8 path_type = kLongNames,
-	                   AFPCHARMAPARRAY char_map = nullptr);
+	AFPERROR get_pascal_string(unichar* string, const UINT16 cb_string, const bool is_path = false, const UINT8 path_type = kLongNames,
+                               AFPCHARMAPARRAY char_map = nullptr);
 
 	std::wstring get_pascal_string();
 	AFPERROR get_pascal_string(char* string, UINT16 cb_string, INT16* s_len = nullptr);

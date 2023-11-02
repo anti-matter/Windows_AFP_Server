@@ -46,7 +46,7 @@ public:
     void add_volume(const std::wstring& share_name, std::filesystem::path& share_path, UINT32 flags);
 
     // Safely removes a volume from our list.
-    void remove_volume(const UINT16 id);
+    void remove_volume(const INT16 id);
 
     // Removes all volumes for our tracking list which will cause each
     // of them to be destructed.
@@ -66,7 +66,7 @@ public:
     void index_queue_task(index_queue_tasks task, const std::shared_ptr<afp_volume>& volume, UINT32 item_id, std::filesystem::path& path);
 
     std::shared_ptr<afp_volume> find(const std::wstring& name);
-    std::shared_ptr<afp_volume> find(UINT16 id);
+    std::shared_ptr<afp_volume> find(const INT16 id);
 
     bool map_name_to_id(const std::wstring& share_name, UINT16* id);
 
@@ -78,7 +78,7 @@ public:
     void dirty_volumes(std::vector<std::shared_ptr<afp_volume>>* dirty_volumes);
 
 private:
-    UINT16 next_volume_id_;
+    INT16 next_volume_id_;
 
     // Array of shared volumes.
     std::vector<std::shared_ptr<afp_volume>> volumes_;

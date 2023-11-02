@@ -1,6 +1,5 @@
 #pragma once
 #include <filesystem>
-#include <mutex>
 
 #include "afp_volume.h"
 
@@ -19,7 +18,7 @@ public:
     void afp_read_dir_changes(
         IN const std::shared_ptr<afp_volume>& volume,
         IN HANDLE h_directory,
-        IN PBYTE result_buffer
+        IN PBYTE result_buffer 
     );
 
     static void afp_change_notify_add(

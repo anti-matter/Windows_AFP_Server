@@ -84,8 +84,7 @@ afp_index* afp_file_index::add_entry(
 		*p_new_dir_id = result->object_id;
 	}
 
-	//dump_entry(result);
-	dump_index();
+	dump_entry(result);
 
 	return result;
 }

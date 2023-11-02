@@ -26,7 +26,7 @@ AFPERROR afp_net_buffer::get_pascal_string(
 	unichar* string,
 	const UINT16 cb_string,
 	const bool is_path,
-	const INT8 path_type,
+	const UINT8 path_type,
 	AFPCHARMAPARRAY char_map
 )
 {

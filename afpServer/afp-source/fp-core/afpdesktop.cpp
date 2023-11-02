@@ -273,11 +273,11 @@ AFPERROR FPAddComment(
 	desk_item.path_type = afp_request.pull_num<INT8>();
 
     const auto afp_error = afp_request.get_pascal_string(
-		desk_item.path_name,
-		sizeof(desk_item.path_name), 
-		true,
-		desk_item.path_type,
-		nullptr);
+        desk_item.path_name,
+        sizeof(desk_item.path_name), 
+        true,
+        desk_item.path_type,
+        nullptr);
 
 	if (afp_error != AFP_OK)
 	{

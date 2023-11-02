@@ -206,22 +206,22 @@ AFPERROR FPEnumerate(
 )
 {
     WCHAR afp_pathname[MAX_AFP_PATH];
-    UINT16 afp_act_count = 0;
-    UINT16 afp_objects_found = 0;
-    UINT32 afp_start_index;
+    INT16 afp_act_count = 0;
+    INT16 afp_objects_found = 0;
+    INT32 afp_start_index;
     size_t afp_max_reply_size;
 
     WIN32_FILE_ATTRIBUTE_DATA win_attributes;
 
     DBGWRITE(dbg_level_all, L"Enter...\n");
 
-    const int8 afp_command = afp_request.pull_num<INT8>();
-    afp_request.advance_pos_ptr(sizeof(INT8));
+    const auto afp_command = afp_request.pull_num<UINT8>();
+    afp_request.advance_pos_ptr(sizeof(UINT8));
 
-    const auto afp_vol_id = afp_request.pull_num<UINT16>();
-    const auto afp_dir_id = afp_request.pull_num<UINT32>();
-    auto afp_file_bitmap = afp_request.pull_num<UINT16>();
-    auto afp_dir_bitmap = afp_request.pull_num<UINT16>();
+    const auto afp_vol_id = afp_request.pull_num<INT16>();
+    const auto afp_dir_id = afp_request.pull_num<INT32>();
+    auto afp_file_bitmap = afp_request.pull_num<INT16>();
+    auto afp_dir_bitmap = afp_request.pull_num<INT16>();
     const auto afp_req_count = afp_request.pull_num<INT16>();
 
     // In AFP3.1 we may get the new Ext2 call which allows for a
@@ -243,9 +243,9 @@ AFPERROR FPEnumerate(
         return afpParmErr;
     }
 
-    const auto afp_path_type = afp_request.pull_num<INT8>();
-    const auto afp_session = connection->get_afp_session();
+    const auto afp_path_type = afp_request.pull_num<UINT8>();
 
+    const auto afp_session = connection->get_afp_session();
     const auto afp_volume_info = afp_session->find_open_volume(afp_vol_id);
     if (afp_volume_info == nullptr)
     {
@@ -259,7 +259,8 @@ AFPERROR FPEnumerate(
         return afp_error;
     }
 
-    DBGWRITE(dbg_level_info, L"Enumerating root dir id: %d, path: %s\n", afp_dir_id, afp_pathname);
+    DBGWRITE(dbg_level_info, L"Enumerating directory: %d, path: %s\n", afp_dir_id, afp_pathname);
+    DBGWRITE(dbg_level_all, L"Start index: %d\n", afp_start_index);
 
     // We don't support the following bitmaps, so we clear them.
     if (connection->get_afp_version() < afpVersion30)
@@ -281,7 +282,6 @@ AFPERROR FPEnumerate(
     afp_reply.advance_pos_ptr(sizeof(INT16));
 
     // Retrieve the index entry of the directory pointed to by the AFP path.
-    // We use it's dirID to determine which files we'll return in the enum.
     const auto afp_target_entry = afp_volume_info->find(afp_dir_id, afp_pathname);
     if (afp_target_entry == nullptr)
     {
@@ -341,21 +341,22 @@ AFPERROR FPEnumerate(
 
         DBGWRITE(dbg_level_all, L"Enumerating, dir id: %d, pathname: %s\n", afp_dir_id, index_item->sz_object_name.c_str());
 
-        const bool afp_is_directory = index_item->flags & flag_index_is_dir;
-        if (afp_dir_bitmap == kFPDirNone && afp_is_directory || afp_file_bitmap == kFPFileNone && !afp_is_directory)
+        const bool is_directory = index_item->flags & flag_index_is_dir;
+        if (afp_dir_bitmap == kFPDirNone && is_directory || afp_file_bitmap == kFPFileNone && !is_directory)
         {
             return;
         }
 
         UINT8 afp_attributes = 0;
-        if (afp_is_directory)
+        if (is_directory)
         {
+            DBGWRITE(dbg_level_all, L"Is directory: %s\n", is_directory ? L"TRUE" : L"FALSE");
             afp_attributes |= kFileDirIsDir;
         }
 
         afp_error = AFPGetObjectParms(
             parameter_buffer,
-            afp_is_directory ? afp_dir_bitmap : afp_file_bitmap,
+            is_directory ? afp_dir_bitmap : afp_file_bitmap,
             afp_vol_id,
             afp_dir_id,
             connection,
@@ -398,15 +399,12 @@ AFPERROR FPEnumerate(
         }
 
         afp_reply.push_num(afp_attributes);
-
         if (afp_command > afpEnumerate)
         {
             afp_reply.push_int8(0);
         }
 
         afp_reply.push_raw_data(parameter_buffer.get_buffer(), parameter_buffer.get_data_length());
-
-        DBG_DUMP_BUFFER(afp_reply.get_buffer(), afp_reply.get_data_length());
 
         // Set the structure length byte in the buffer. The extra bytes are
         // for the first params in the structure (structLen, attributes and padding).
@@ -663,7 +661,7 @@ AFPERROR FPCreateDir(
             afp_dir_id,
             afp_pathname,
             win_path,
-            false,
+            true,
             &afp_dir_id);
 
         AFPCheckForAndAddFinderInfoStream(new_dir_entry, nullptr, false);
