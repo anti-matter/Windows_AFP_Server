@@ -230,7 +230,7 @@ AFPERROR AFPGetObjectParms(
             const auto offspring = static_cast<UINT16>(g_volumes
                 ->find(afpVolumeID)
                 ->get_index()
-                ->get_offspring(afpEntry->object_id, nullptr));
+                ->get_offspring(afpEntry->object_id));
             afpReply.push_num<UINT16>(offspring);
         }
 

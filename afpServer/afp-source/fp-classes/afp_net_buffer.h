@@ -39,7 +39,7 @@ public:
 	AFPERROR push_int32(INT32 value);
 	AFPERROR push_int64(INT64 value);
 
-	INT32 get_data_length() const;
+	size_t get_data_length() const;
 
 	void add_parameter_offset(INT16 offset, INT16 value);
 
@@ -159,7 +159,7 @@ T afp_net_buffer::get_num() const
 
 __pragma(warning(pop))
 
-inline INT32 afp_net_buffer::get_data_length() const
+inline size_t afp_net_buffer::get_data_length() const
 {
 	return mCurrentPos - mBuffer;
 }

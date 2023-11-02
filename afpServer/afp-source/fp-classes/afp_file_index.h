@@ -51,8 +51,6 @@ public:
 		UINT32* p_new_dir_id = nullptr
 	);
 
-	afp_index* wait_for_entry(const std::filesystem::path& path);
-
 	afp_index* get_entry(uint32 object_id);
 
 	void remove_entry(const afp_index* entry, bool delete_directory_sub_tree = false);
@@ -66,17 +64,19 @@ public:
 	afp_index* find(const std::wstring& full_path);
 	afp_index* find(DWORD directory_id, const std::wstring& path);
 
-	uint32 get_offspring(uint32 par_id, std::vector<afp_index*>** offspring = nullptr);
+	UINT32 get_offspring(UINT32 par_id, std::vector<afp_index*>& offspring);
+	UINT32 get_offspring(UINT32 par_id);
 
 	uint32 next_id() { return m_next_id_++; }
 
+	[[nodiscard]] std::reference_wrapper<std::recursive_mutex> get_mutex() { return std::ref(mutex_); }
+
 #ifdef _DEBUG
 	void dump_index();
+    static void dump_entry(const afp_index* entry);
 #endif
 
 private:
-	void check_waiters(const std::filesystem::path& path);
-
 	std::recursive_mutex mutex_;
 	std::vector<std::unique_ptr<afp_index>> m_index_;
 

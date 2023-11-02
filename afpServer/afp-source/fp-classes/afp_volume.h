@@ -51,12 +51,9 @@ public:
     [[nodiscard]]UINT32 get_internal_flags() const { return internal_flags_; }
     [[nodiscard]] BYTE get_afp_flags() const { return afp_flags_; }
 
-    [[nodiscard]] HANDLE get_notify_handle() const { return notify_event_; }
-    void set_notify_handle(const HANDLE handle) { notify_event_ = handle; }
-
     [[nodiscard]] afp_desktop* get_desktop() const { return desktop_.get(); }
 
-    void notify_ignore_path(const std::filesystem::path& path) const;
+    [[nodiscard]] change_notify* get_change_notify() const { return notify_.get(); }
 
 private:
     UINT16 id_;
@@ -76,7 +73,6 @@ private:
     // Each volume has its own directory and file index.
     std::unique_ptr<afp_file_index> index_;
     std::unique_ptr<change_notify> notify_;
-    HANDLE notify_event_;
 
     // Desktop array/index associated with this volume.
     std::unique_ptr<afp_desktop> desktop_;

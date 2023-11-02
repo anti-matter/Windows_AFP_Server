@@ -333,7 +333,7 @@ DWORD afp_get_directory_rights(
 					//Needed to move this check here for Vista since admins don't get
 					//owner access information anymore.
 					//
-					if (is_user_admin(token))
+					//if (is_user_admin(token))
 					{
 						*afp_rights |= kAccess_Owner;
 					}

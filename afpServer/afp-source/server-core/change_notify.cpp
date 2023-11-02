@@ -20,34 +20,10 @@ constexpr UINT32 change_notify_result_buffer_size = 64 * 1024;
 
 extern bool server_running;
 
-change_notify::change_notify(const UINT16 volume_id) : volume_id_(volume_id)
+change_notify::change_notify(const UINT16 volume_id) : volume_id_(volume_id), notify_suspended_(false)
 {
     std::thread change_notify_thread(&change_notify::afp_notify_thread, this);
     change_notify_thread.detach();
-}
-
-void change_notify::ignore_path(const std::filesystem::path& path)
-{
-    std::unique_lock lock(ignore_paths_mutex_);
-    ignore_paths_.push_back(path);
-}
-
-bool change_notify::check_and_remove_ignore_path(const std::filesystem::path& path)
-{
-    std::unique_lock lock(ignore_paths_mutex_);
-
-    if (const auto it = std::ranges::find_if(ignore_paths_, [=](const std::filesystem::path& p)
-        {
-            return path == p;
-        }); it != ignore_paths_.end())
-    {
-        DBGWRITE(dbg_level_info, L"Ignoring path for change-notify-add: %s.\n", it->c_str());
-
-        ignore_paths_.erase(it);
-        return true;
-    }
-
-    return false;
 }
 
 void change_notify::afp_notify_thread()
@@ -92,12 +68,26 @@ void change_notify::afp_notify_thread()
         return;
     }
 
+    notify_overlapped_.hEvent = CreateEvent(nullptr, FALSE, TRUE, nullptr);
+    if (notify_overlapped_.hEvent == nullptr)
+    {
+        ASSERT(0);
+        return;
+    }
+
     while (server_running && volume->get_internal_flags() & flag_volume_shared)
     {
+        if (notify_suspended_)
+        {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+            continue;
+        }
+
         afp_read_dir_changes(volume, h_directory, result_buffer.get());
         ZeroMemory(result_buffer.get(), change_notify_result_buffer_size);
     }
 
+    CloseHandle(notify_overlapped_.hEvent);
     CloseHandle(h_directory);
 
     DBGWRITE(dbg_level_info, L"Notify thread gone for %s\n", volume->get_share_name().c_str());
@@ -112,16 +102,6 @@ void change_notify::afp_read_dir_changes(
 {
     constexpr DWORD notify_filter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME;
     DWORD bytes_returned = 0;
-    OVERLAPPED overlapped;
-
-    overlapped.hEvent = CreateEvent(nullptr, FALSE, TRUE, nullptr);
-    if (overlapped.hEvent == nullptr)
-    {
-        ASSERT(0);
-        return;
-    }
-
-    volume->set_notify_handle(overlapped.hEvent);
 
     // This call will put the thread into a wait state until an change
     // happens to our directory.
@@ -131,24 +111,23 @@ void change_notify::afp_read_dir_changes(
         change_notify_result_buffer_size,
         TRUE,
         notify_filter,
-        &bytes_returned,
-        &overlapped,
+        nullptr,
+        &notify_overlapped_,
         nullptr))
     {
         DBGWRITE(dbg_level_info, L"ReadDirectoryChangesW() failed! (%d)\n", GetLastError());
+        ASSERT(0);
         return;
     }
 
-    while (!GetOverlappedResult(h_directory, &overlapped, &bytes_returned, FALSE))
+    if (const auto result = WaitForSingleObject(notify_overlapped_.hEvent, INFINITE); result != WAIT_OBJECT_0)
     {
-        if (GetLastError() != ERROR_IO_INCOMPLETE || !server_running ||
-            !(volume->get_internal_flags() & flag_volume_shared))
-        {
-            CloseHandle(overlapped.hEvent);
-            return;
-        }
+        return;
+    }
 
-        Sleep(5);
+    if (!GetOverlappedResult(h_directory, &notify_overlapped_, &bytes_returned, FALSE) || notify_suspended_)
+    {
+        return;
     }
 
     // If the number of bytes transferred is 0, then the buffer we gave to
@@ -158,8 +137,6 @@ void change_notify::afp_read_dir_changes(
     if (bytes_returned == 0)
     {
         DBGWRITE(dbg_level_info, L"0 bytes transferred in change! (%s)\n", volume->get_share_path().c_str());
-
-        CloseHandle(overlapped.hEvent);
         return;
     }
 
@@ -169,7 +146,8 @@ void change_notify::afp_read_dir_changes(
     // We have a successful change notify. Flip through the array of
     // changes and take appropriate action depending on the change.
     DBGWRITE(dbg_level_all, L"Change notify data received!! (%d bytes)\n", bytes_returned);
-    DBGWRITE(dbg_level_all, L"NextEntryOffset = %d\n", p_info->NextEntryOffset);
+
+    std::unique_lock lock(change_notify_mutex_);
 
     do
     {
@@ -203,12 +181,6 @@ void change_notify::afp_read_dir_changes(
         case FILE_ACTION_RENAMED_NEW_NAME:
             lstrcpyn(file_name, p_info->FileName, static_cast<int>(p_info->FileNameLength));
 
-            if (check_and_remove_ignore_path(file_name))
-            {
-                DBGWRITE(dbg_level_info, L"Ignoring rename for: %s\n", file_name);
-                break;
-            }
-
             DBGWRITE(dbg_level_all, L"File renamed, new name = %s\n", file_name);
 
             if (index_entry != nullptr)
@@ -238,19 +210,15 @@ void change_notify::afp_read_dir_changes(
             break;
         }
 
+        DBGWRITE(dbg_level_all, L"NextEntryOffset = %d\n", p_info->NextEntryOffset);
+
         if (p_info->NextEntryOffset == 0)
         {
             break;
         }
 
         p_info = reinterpret_cast<FILE_NOTIFY_INFORMATION*>(reinterpret_cast<PBYTE>(p_info) + p_info->NextEntryOffset);
-    }
-    while (TRUE);
-
-    if (overlapped.hEvent != nullptr)
-    {
-        CloseHandle(overlapped.hEvent);
-    }
+    } while (TRUE);
 }
 
 
@@ -302,11 +270,6 @@ void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_no
     if (!GetFileAttributesEx(new_full_path.c_str(), GetFileExInfoStandard, &attribute_data))
     {
         DBGWRITE(dbg_level_info, L"Item not found on disk!\n");
-        return;
-    }
-
-    if (check_and_remove_ignore_path(new_full_path))
-    {
         return;
     }
 

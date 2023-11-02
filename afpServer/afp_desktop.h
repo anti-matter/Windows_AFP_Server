@@ -8,7 +8,7 @@ const std::wstring desktop_file_name = L"afp_desktop.db";
 constexpr BYTE desktop_file_version = 1;
 
 #ifdef _DEBUG
-#define DUMP_ITEM(i) dump_item(i)
+#define DUMP_ITEM(i) dump_item(i, true)
 #else
 #define DUMP_ITEM(i)
 #endif

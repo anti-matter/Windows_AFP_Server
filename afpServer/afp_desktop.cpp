@@ -13,10 +13,7 @@ afp_desktop::afp_desktop(afp_volume* volume) : volume_id_(volume->get_volume_id(
     load_from_file();
 }
  
-afp_desktop::~afp_desktop()
-{
-    //export_to_file();
-}
+afp_desktop::~afp_desktop() = default;
 
 UINT32 afp_desktop::load_from_file()
 {
@@ -131,7 +128,7 @@ void afp_desktop::add(const afp_desk_item* item)
 void afp_desktop::add(std::unique_ptr<afp_desk_item>& item)
 {
     std::lock_guard guard(desk_items_mutex_);
-    DUMP_ITEM(item.get(), true);
+    DUMP_ITEM(item.get());
     desk_items_.push_back(std::move(item));
 }
 

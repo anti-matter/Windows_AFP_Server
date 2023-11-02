@@ -4,6 +4,7 @@
 #include "afpfileio.h"
 #include "afp_open_file.h"
 #include "afp_volumes.h"
+#include "change_notify.h"
 #include "fdparms.h"
 #include "fpinfo.h"
 
@@ -391,7 +392,8 @@ AFPERROR FPCreateFile(
 
     // The client must have previously opened the volume we are creating
     // the file on.
-    if (!afp_session->session_has_volume_open(afp_volume_id))
+    const auto volume = afp_session->find_open_volume(afp_volume_id);
+    if (volume == nullptr)
     {
         // The volume has not been opened, we need to return error.
         return afpParmErr;
@@ -456,7 +458,7 @@ AFPERROR FPCreateFile(
         return afpAccessDenied;
     }
 
-    afp_volume_info->notify_ignore_path(win_path);
+    std::unique_lock<std::mutex> lock(volume->get_change_notify()->change_notify_mutex());
 
     // Call the Win32 API that creates the file for us on this filesystem.
     const auto h_file = CreateFile(

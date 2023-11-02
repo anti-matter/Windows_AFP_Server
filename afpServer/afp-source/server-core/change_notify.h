@@ -2,6 +2,8 @@
 #include <filesystem>
 #include <mutex>
 
+#include "afp_volume.h"
+
 class afp_volume;
 
 // This class implements the change notification mechanism that updates
@@ -12,15 +14,6 @@ class change_notify
 public:
     explicit change_notify(UINT16 volume_id);
 
-    // When the server is making changes on the filesystem, we don't
-    // want the change notify mechanism to collide with changes
-    // being made.
-    void ignore_path(const std::filesystem::path& path);
-
-    // Check if the supplied path is in the ignore path list. If so,
-    // it is erased and this method returns true, false otherwise.
-    bool check_and_remove_ignore_path(const std::filesystem::path& path);
-
     void afp_notify_thread();
 
     void afp_read_dir_changes(
@@ -29,7 +22,7 @@ public:
         IN PBYTE result_buffer
     );
 
-    void afp_change_notify_add(
+    static void afp_change_notify_add(
         IN const FILE_NOTIFY_INFORMATION* file_notify_info,
         IN const std::shared_ptr<afp_volume>& volume
     );
@@ -39,9 +32,39 @@ public:
         IN const std::shared_ptr<afp_volume>& volume
     );
 
+    void suspend()
+    {
+        notify_suspended_ = true;
+        SetEvent(notify_overlapped_.hEvent);
+    }
+
+    void resume()
+    {
+        notify_suspended_ = false;
+    }
+
+    [[nodiscard]] std::reference_wrapper<std::mutex> change_notify_mutex() { return std::ref(change_notify_mutex_); }
+
 private:
     UINT16 volume_id_;
+    std::mutex change_notify_mutex_;
+    std::atomic_bool notify_suspended_;
+    OVERLAPPED notify_overlapped_;
+};
 
-    std::vector<std::filesystem::path> ignore_paths_;
-    std::mutex ignore_paths_mutex_;
+class notify_suspend  // NOLINT(cppcoreguidelines-special-member-functions)
+{
+public:
+    explicit notify_suspend(const afp_volume* volume) : notify_(volume->get_change_notify())
+    {
+        notify_->suspend();
+    }
+
+    ~notify_suspend()
+    {
+        notify_->resume();
+    }
+
+private:
+    change_notify* notify_;
 };

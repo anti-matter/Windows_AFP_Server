@@ -84,50 +84,10 @@ afp_index* afp_file_index::add_entry(
 		*p_new_dir_id = result->object_id;
 	}
 
-	//check_waiters(result->sz_path);
+	//dump_entry(result);
+	dump_index();
 
 	return result;
-}
-
-void afp_file_index::check_waiters(const std::filesystem::path& path)
-{
-	const auto it = std::ranges::find_if(waiting_for_add_, [=](const std::shared_ptr<index_wait_for_add_data>& wait_data)
-		{
-			return wait_data->object_path == path;
-		});
-
-	if (it != waiting_for_add_.end())
-	{
-		SetEvent(it->get()->event);
-		waiting_for_add_.erase(it);
-	}
-}
-
-afp_index* afp_file_index::wait_for_entry(const std::filesystem::path& path)
-{
-    const auto wait_data = std::make_shared<index_wait_for_add_data>();
-	wait_data->event = CreateEvent(nullptr, TRUE, FALSE, nullptr);
-	wait_data->object_path = path;
-
-	waiting_for_add_.push_back(wait_data);
-
-	const auto result = WaitForSingleObject(wait_data->event, 10000);
-	if (result != WAIT_OBJECT_0)
-	{
-		DBGWRITE(dbg_level_error, L"Waiting for entry add timed out: %s\n", path.c_str());
-		return nullptr;
-	}
-
-	DBGWRITE(dbg_level_info, L"Waiting for entry signaled success.\n");
-
-	const auto entry = find(path);
-	if (entry == nullptr)
-	{
-		DBGWRITE(dbg_level_error, L"Waiting for entry not found: %s\n", path.c_str());
-		return nullptr;
-	}
-
-	return entry;
 }
 
 /*
@@ -201,7 +161,7 @@ void afp_file_index::remove_entry(const uint32 object_id, const bool delete_dire
 	{
 		DBGWRITE(
 			dbg_level_info,
-			L"Failed to find objectID! (%d)\n", object_id);
+			L"Failed to find objectID to remove! (%d)\n", object_id);
 
 		ASSERT(0);
 		return;
@@ -409,46 +369,27 @@ afp_index* afp_file_index::find(const DWORD directory_id, const std::wstring& pa
 	return nullptr;
 }
 
-
-/*
- *	get_offspring()
- *
- *	Description
- *		Returns a new std::vector<> that contains only the offspring
- *		for a particular directory.
- *
- *		newIndex must already be allocated by caller but can be null if
- *		you just want the count.
- *
- *	Returns
- *		afp_file_index*
- */
-
-uint32 afp_file_index::get_offspring(const uint32 par_id, std::vector<afp_index*>** offspring)
+UINT32 afp_file_index::get_offspring(const UINT32 par_id, std::vector<afp_index*>& offspring)
 {
-	const auto sub_index = new std::vector<afp_index*>();
-
 	std::lock_guard guard(mutex_);
 
 	for (auto it = m_index_.begin(); it < m_index_.end(); ++it)
 	{
-		const auto entry = it->get();
-		if (entry->par_id != par_id)
-			continue;
+        if (const auto entry = it->get(); entry->par_id != par_id)
+        {
+            continue;
+        }
 
-		sub_index->push_back(it->get());
+		offspring.push_back(it->get());
 	}
 
-	if (offspring != nullptr)
-	{
-		*offspring = sub_index;
-		return sub_index->size();
-	}
+    return offspring.size();
+}
 
-	const uint32 count = sub_index->size();
-	delete sub_index;
-
-	return count;
+UINT32 afp_file_index::get_offspring(const UINT32 par_id)
+{
+	std::vector<afp_index*> offspring;
+	return get_offspring(par_id, offspring);
 }
 
 
@@ -470,11 +411,20 @@ void afp_file_index::dump_index()
 	for (auto it = m_index_.begin(); it < m_index_.end(); ++it)
 	{
 		const auto entry = it->get();
-
-		DBGWRITE(dbg_level_all, L"Parent id: %d\n", entry->par_id);
-
-		DBGWRITE(dbg_level_info,
-		         L"ID = %d parID = %d\tPath = %s\n", entry->object_id, entry->par_id, entry->sz_path.c_str());
+		dump_entry(entry);
 	}
 }
+
+void afp_file_index::dump_entry(const afp_index* entry)
+{
+    constexpr auto dbg_level = dbg_level_info;
+
+	DBGWRITE(dbg_level, L"Dumping entry for: %s\n", entry->sz_path.c_str());
+	DBGWRITE(dbg_level, L"Par id:      %d\n", entry->par_id);
+	DBGWRITE(dbg_level, L"Object id:   %d\n", entry->object_id);
+	DBGWRITE(dbg_level, L"Object name: %s\n", entry->sz_object_name.c_str());
+	DBGWRITE(dbg_level, L"Flags:       %d\n", entry->flags);
+	DBGWRITE(dbg_level, L"Hash:        %lu\n", entry->path_hash);
+}
+
 #endif

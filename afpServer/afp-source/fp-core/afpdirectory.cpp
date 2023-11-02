@@ -6,6 +6,7 @@
 #include "afp_desktop.h"
 #include "afp_session.h"
 #include "afp_volumes.h"
+#include "change_notify.h"
 #include "fdparms.h"
 #include "fpinfo.h"
 
@@ -205,9 +206,9 @@ AFPERROR FPEnumerate(
 )
 {
     WCHAR afp_pathname[MAX_AFP_PATH];
-    int16 afp_act_count = 0;
-    int16 afp_objects_found = 0;
-    int32 afp_start_index;
+    UINT16 afp_act_count = 0;
+    UINT16 afp_objects_found = 0;
+    UINT32 afp_start_index;
     size_t afp_max_reply_size;
 
     WIN32_FILE_ATTRIBUTE_DATA win_attributes;
@@ -291,24 +292,26 @@ AFPERROR FPEnumerate(
 
     // Create a temporary index array to hold all the offspring for the
     // target directory.
-    std::vector<afp_index*>* offspring;
+    std::vector<afp_index*> offspring;
 
     // Now populate the temp array with the offspring in the target dir.
-    afp_volume_info->get_index()->get_offspring(afp_target_entry->object_id, &offspring);
-    if (offspring->empty())
+    afp_volume_info->get_index()->get_offspring(afp_target_entry->object_id, offspring);
+    if (offspring.empty())
     {
         return afpObjectNotFound;
     }
 
     constexpr UINT16 temp_buffer_size = 4096;
-    const auto temp_buffer = std::make_unique<char[]>(1024);
+    const auto temp_buffer = std::make_unique<char[]>(temp_buffer_size);
     if (temp_buffer == nullptr)
     {
         return afpMiscErr;
     }
 
+    std::unique_lock<std::recursive_mutex> lock(afp_volume_info->get_index()->get_mutex());
+
     // Go through the entire index and find entries that have the dirID as their parent.
-    const auto it = std::ranges::for_each(offspring->begin(), offspring->end(), [&](afp_index* index_item)
+    const auto it = std::ranges::for_each(offspring.begin(), offspring.end(), [&](afp_index* index_item)
     {
         // If we've gotten as much data as the client requested, then exit this beast.
         if (afp_act_count >= afp_req_count || static_cast<size_t>(afp_reply.get_data_length()) >= afp_max_reply_size)
@@ -402,7 +405,9 @@ AFPERROR FPEnumerate(
             afp_reply.push_int8(0);
         }
 
-        afp_reply.push_raw_data(parameter_buffer.get_buffer(), static_cast<size_t>(parameter_buffer.get_data_length()));
+        afp_reply.push_raw_data(parameter_buffer.get_buffer(), parameter_buffer.get_data_length());
+
+        DBG_DUMP_BUFFER(afp_reply.get_buffer(), afp_reply.get_data_length());
 
         // Set the structure length byte in the buffer. The extra bytes are
         // for the first params in the structure (structLen, attributes and padding).
@@ -431,8 +436,6 @@ AFPERROR FPEnumerate(
 
     DBGWRITE(dbg_level_all, L"afpActCount = %d\n", afp_act_count);
     DBGWRITE(dbg_level_all, L"Returning: %d\n", (afp_act_count == 0) ? afpObjectNotFound : AFP_OK);
-
-    delete offspring;
 
     return (afp_act_count == 0 ? afpObjectNotFound : AFP_OK);
 }
@@ -647,7 +650,7 @@ AFPERROR FPCreateDir(
         return afpAccessDenied;
     }
 
-    afp_volume->notify_ignore_path(win_path);
+    notify_suspend suspend(afp_volume.get());
 
     afp_error = CreateDirectory(win_path, nullptr)
 	                ? AFP_OK
@@ -657,12 +660,14 @@ AFPERROR FPCreateDir(
 
     if (AFP_SUCCESS(afp_error))
     {
-        afp_volume->get_index()->add_entry(
+        const auto new_dir_entry = afp_volume->get_index()->add_entry(
             afp_dir_id,
             afp_pathname,
             win_path,
             false,
             &afp_dir_id);
+
+        AFPCheckForAndAddFinderInfoStream(new_dir_entry, nullptr, false);
 
         afp_volume->set_is_dirty();
 
@@ -703,7 +708,8 @@ AFPERROR FPDelete(
     const auto afp_dir_id = afp_request.pull_num<UINT32>();
     const auto afp_path_type = afp_request.pull_num<INT8>();
 
-    if (!connection->get_afp_session()->session_has_volume_open(afp_volume_id))
+    const auto volume = connection->get_afp_session()->find_open_volume(afp_volume_id);
+    if (volume == nullptr)
     {
         return afpParmErr;
     }
@@ -742,8 +748,12 @@ AFPERROR FPDelete(
 
     if (!afp_impersonate_user(connection->get_user_token()))
     {
-        return (afpAccessDenied);
+        return afpAccessDenied;
     }
+
+    std::unique_lock<std::mutex> lock(volume->get_change_notify()->change_notify_mutex());
+
+    DBGWRITE(dbg_level_info, L"Deleting item at path: %s\n", afp_entry->sz_path.c_str());
 
     // We take 2 different approaches to deleting the object based on whether it's
     // a directory or a file.
@@ -759,6 +769,10 @@ AFPERROR FPDelete(
 
             afp_error = afp_map_win_error_to_afp(GetLastError(), afpParmErr);
         }
+        else
+        {
+            volume->get_index()->remove_entry(afp_entry, true);
+        }
     }
     else
     {
@@ -772,9 +786,15 @@ AFPERROR FPDelete(
 
             afp_error = afp_map_win_error_to_afp(GetLastError(), afpParmErr);
         }
+        else
+        {
+            volume->get_index()->remove_entry(afp_entry);
+        }
     }
 
     afp_revert_to_self(connection->get_user_token());
+
+    DBGWRITE(dbg_level_all, L"FPDelete returning: %d\n", afp_error);
 
     return afp_error;
 }
@@ -918,6 +938,9 @@ AFPERROR FPCopyFile(
         return afpAccessDenied;
     }
 
+    std::unique_lock<std::mutex> lock1(afp_session->find_open_volume(afp_src_vol_id)->get_change_notify()->change_notify_mutex());
+    std::unique_lock<std::mutex> lock2(afp_session->find_open_volume(afp_dst_vol_id)->get_change_notify()->change_notify_mutex());
+
     const BOOL copy_succeeded = CopyFile(afp_src_entry->sz_path.c_str(), new_win_path, true);
     if (!copy_succeeded)
     {
@@ -1052,7 +1075,7 @@ AFPERROR FPMoveAndRename(
         return afpAccessDenied;
     }
 
-    volume->notify_ignore_path(win_dst_path);
+    std::unique_lock<std::mutex> lock(volume->get_change_notify()->change_notify_mutex());
 
     if (!MoveFile(afp_src_entry->sz_path.c_str(), win_dst_path.c_str()))
     {
@@ -1155,7 +1178,7 @@ AFPERROR FPRename(
         return afpAccessDenied;
     }
 
-    volume->notify_ignore_path(win_path);
+    std::unique_lock<std::mutex> lock(volume->get_change_notify()->change_notify_mutex());
 
     if (!MoveFile(afp_entry->sz_path.c_str(), win_path.c_str()))
     {
