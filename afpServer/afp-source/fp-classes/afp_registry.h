@@ -99,7 +99,7 @@ public:
 	DWORD get_volume_password(
 		IN const WCHAR* sz_share_name,
 		IN DWORD cb_password,
-		OUT PassWord* sz_password
+		OUT afp_clear_text_password* sz_password
 	);
 	DWORD set_volume_password(
 		IN WCHAR* sz_share_name,

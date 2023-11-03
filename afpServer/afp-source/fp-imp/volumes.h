@@ -51,7 +51,7 @@ AFPVolumeWriteAccessCheck(
 AFPERROR
 AFPCheckVolumePassword(
     IN WORD volume_id,
-    IN const PassWord* password
+    IN const afp_clear_text_password* password
 );
 
 #ifdef _DEBUG

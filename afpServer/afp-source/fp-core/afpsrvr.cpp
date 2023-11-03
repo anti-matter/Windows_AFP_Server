@@ -126,11 +126,11 @@ AFPERROR FPGetSrvrInfo(
 	//
 	//Set the machine type string and offset
 	//
-	afp_reply.add_parameter_offset(SRVRINFO_OFFSET_MACHTYPE, static_cast<int16>(afp_reply.get_data_length()));
+	afp_reply.add_parameter_offset(offset_machine_type, static_cast<int16>(afp_reply.get_data_length()));
 	afp_reply.push_pascal_string(UAM_NONE_STR);
 
 	//AFP versions
-	afp_reply.add_parameter_offset(SRVRINFO_OFFSET_AFPVERSCOUNT, static_cast<int16>(afp_reply.get_data_length()));
+	afp_reply.add_parameter_offset(offset_afp_version_count, static_cast<int16>(afp_reply.get_data_length()));
 	afp_reply.push_int8(AFP_VERSION_COUNT);
 	afp_reply.push_pascal_string(AFP_22_VERSION_STR);
 #ifdef AFP_VERSION_30
@@ -140,7 +140,7 @@ AFPERROR FPGetSrvrInfo(
 #endif
 
 	//UAMs supported
-	afp_reply.add_parameter_offset(SRVRINFO_OFFSET_UAMCOUNT, static_cast<int16>(afp_reply.get_data_length()));
+	afp_reply.add_parameter_offset(offset_uam_count, static_cast<int16>(afp_reply.get_data_length()));
 
 	//
 	//If we only allow encrypted logon (e.g. no clear text), then we

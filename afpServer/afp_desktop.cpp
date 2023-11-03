@@ -130,7 +130,6 @@ void afp_desktop::add(const afp_desk_item* item)
 void afp_desktop::add(std::unique_ptr<afp_desk_item>& item)
 {
     std::lock_guard guard(desk_items_mutex_);
-    DUMP_ITEM(item.get());
     desk_items_.push_back(std::move(item));
 }
 
@@ -252,14 +251,14 @@ void afp_desktop::dump_db()
 
 void afp_desktop::dump_item(afp_desk_item* item, bool include_data)
 {
-    DBGWRITE(dbg_level_info, L"item_type:    %d\n", item->item_type);
-    DBGWRITE(dbg_level_info, L"file_type:    %d\n", item->file_type);
-    DBGWRITE(dbg_level_info, L"file_creator: %d\n", item->file_creator);
-    DBGWRITE(dbg_level_info, L"tag:          %d\n", item->tag);
-    DBGWRITE(dbg_level_info, L"dir_id:       %d\n", item->dir_id);
-    DBGWRITE(dbg_level_info, L"icon_type:    %d\n", item->icon_type);
-    DBGWRITE(dbg_level_info, L"data_size:    %d\n", item->data_size);
-    DBGWRITE(dbg_level_info, L"path_name:    %s\n", item->path_name);
+    DBGWRITE(dbg_level_all, L"item_type:    %d\n", item->item_type);
+    DBGWRITE(dbg_level_all, L"file_type:    %d\n", item->file_type);
+    DBGWRITE(dbg_level_all, L"file_creator: %d\n", item->file_creator);
+    DBGWRITE(dbg_level_all, L"tag:          %d\n", item->tag);
+    DBGWRITE(dbg_level_all, L"dir_id:       %d\n", item->dir_id);
+    DBGWRITE(dbg_level_all, L"icon_type:    %d\n", item->icon_type);
+    DBGWRITE(dbg_level_all, L"data_size:    %d\n", item->data_size);
+    DBGWRITE(dbg_level_all, L"path_name:    %s\n", item->path_name);
 
     if (include_data)
     {

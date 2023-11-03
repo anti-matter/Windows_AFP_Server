@@ -14,23 +14,23 @@ BOOL AFPCheckForAndAddFinderInfoStream(
 
 AFPERROR AFPGetFinderInfo(
     IN afp_index* pEntry,
-    OUT PFINDER_INFO pInfo
+    OUT afp_finder_info* pInfo
 );
 
 AFPERROR AFPGetFinderInfoEx(
     IN afp_index* pEntry,
-    OUT LPEXTENDED_FINDER_INFO pInfo
+    OUT afp_extended_finder_info* pInfo
 );
 
 AFPERROR AFPSetFinderInfo(
     IN afp_index* pEntry,
-    IN PFINDER_INFO pInfo,
+    IN afp_finder_info* pInfo,
     IN BOOL fCreateAlways = false
 );
 
 AFPERROR AFPSetFinderInfoEx(
     IN afp_index* pEntry,
-    IN LPEXTENDED_FINDER_INFO pInfo,
+    IN afp_extended_finder_info* pInfo,
     IN BOOL fCreateAlways = false
 );
 

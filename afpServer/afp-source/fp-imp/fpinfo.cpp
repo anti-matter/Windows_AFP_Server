@@ -19,7 +19,7 @@ BOOL AFPCheckForAndAddFinderInfoStream(
     IN BOOL fMakeInvisible
 )
 {
-    EXTENDED_FINDER_INFO finderInfo;
+    afp_extended_finder_info finderInfo;
 
     if (AFP_FAILED(AFPGetFinderInfoEx(pEntry, &finderInfo)))
     {
@@ -29,18 +29,18 @@ BOOL AFPCheckForAndAddFinderInfoStream(
 
         if (dwAttributes != 0xFFFFFFFF && dwAttributes & FILE_ATTRIBUTE_HIDDEN || fMakeInvisible)
         {
-            finderInfo.fInfo.fdFlags |= kFDInvisible;
+            finderInfo.finder_info.fd_flags |= kFDInvisible;
         }
 
-        finderInfo.fInfo.fdLocation.x = 20;
-        finderInfo.fInfo.fdLocation.y = 20;
+        finderInfo.finder_info.fd_location.x = 20;
+        finderInfo.finder_info.fd_location.y = 20;
 
         //
         //Copy the charMap into the extended finder info structure.
         //
         if (pCharmap != nullptr)
         {
-            RtlCopyMemory(&finderInfo.charMap, pCharmap, sizeof(AFPCHARMAPARRAY));
+            RtlCopyMemory(&finderInfo.char_map, pCharmap, sizeof(AFPCHARMAPARRAY));
         }
 
         //
@@ -67,16 +67,16 @@ BOOL AFPCheckForAndAddFinderInfoStream(
 
 AFPERROR AFPGetFinderInfo(
     IN afp_index* pEntry,
-    OUT PFINDER_INFO pInfo
+    OUT afp_finder_info* pInfo
 )
 {
-    EXTENDED_FINDER_INFO infoEx;
+    afp_extended_finder_info infoEx;
 
     const auto afp_error = AFPGetFinderInfoEx(pEntry, &infoEx);
 
     if (AFP_SUCCESS(afp_error))
     {
-        RtlCopyMemory(pInfo, &infoEx, sizeof(FINDER_INFO));
+        RtlCopyMemory(pInfo, &infoEx, sizeof(afp_finder_info));
     }
 
     return (afp_error);
@@ -97,7 +97,7 @@ AFPERROR AFPGetFinderInfo(
 
 AFPERROR AFPGetFinderInfoEx(
     IN afp_index* pEntry,
-    OUT LPEXTENDED_FINDER_INFO pInfo
+    OUT afp_extended_finder_info* pInfo
 )
 {
     DWORD dwError = NO_ERROR;
@@ -134,7 +134,7 @@ AFPERROR AFPGetFinderInfoEx(
     //
     //Write out the finder info.
     //
-    if (!ReadFile(hFile, pInfo, sizeof(EXTENDED_FINDER_INFO), &dwBytesRead, nullptr))
+    if (!ReadFile(hFile, pInfo, sizeof(afp_extended_finder_info), &dwBytesRead, nullptr))
     {
         //
         //Failure, get the error code and get out of here.
@@ -162,16 +162,16 @@ AFPERROR AFPGetFinderInfoEx(
 
 AFPERROR AFPSetFinderInfo(
     IN afp_index* pEntry,
-    IN PFINDER_INFO pInfo,
+    IN afp_finder_info* pInfo,
     IN BOOL fCreateAlways
 )
 {
-    EXTENDED_FINDER_INFO infoEx;
+    afp_extended_finder_info infoEx;
 
     if (fCreateAlways)
     {
-        memset(&infoEx, 0, sizeof(EXTENDED_FINDER_INFO));
-        RtlCopyMemory(&infoEx, pInfo, sizeof(FINDER_INFO));
+        memset(&infoEx, 0, sizeof(afp_extended_finder_info));
+        RtlCopyMemory(&infoEx, pInfo, sizeof(afp_finder_info));
     }
     else
     {
@@ -179,7 +179,7 @@ AFPERROR AFPSetFinderInfo(
 
         if (AFP_SUCCESS(afp_error))
         {
-            RtlCopyMemory(&infoEx, pInfo, sizeof(FINDER_INFO));
+            RtlCopyMemory(&infoEx, pInfo, sizeof(afp_finder_info));
         }
     }
 
@@ -199,7 +199,7 @@ AFPERROR AFPSetFinderInfo(
 
 AFPERROR AFPSetFinderInfoEx(
     IN afp_index* pEntry,
-    IN LPEXTENDED_FINDER_INFO pInfo,
+    IN afp_extended_finder_info* pInfo,
     IN BOOL fCreateAlways
 )
 {
@@ -269,7 +269,7 @@ AFPERROR AFPSetFinderInfoEx(
         //
         //Write out the finder info.
         //
-        if (!WriteFile(hFile, pInfo, sizeof(EXTENDED_FINDER_INFO), &dwBytesWritten, nullptr))
+        if (!WriteFile(hFile, pInfo, sizeof(afp_extended_finder_info), &dwBytesWritten, nullptr))
         {
             //
             //Failure, get the error code and get out of here.
@@ -280,10 +280,10 @@ AFPERROR AFPSetFinderInfoEx(
             dwError = afp_map_win_error_to_afp(dwError, afpMiscErr);
         }
 
-        ASSERT(dwBytesWritten == sizeof(EXTENDED_FINDER_INFO));
+        ASSERT(dwBytesWritten == sizeof(afp_extended_finder_info));
         DBGWRITE(dbg_level_all, L"FinderInfo updated successfully for %s.\n", szPath);
 
-        if (pInfo->charMap[0].wKeyCode != 0)
+        if (pInfo->char_map[0].wKeyCode != 0)
         {
             pEntry->flags |= flag_index_has_charmap;
         }
@@ -314,13 +314,13 @@ AFPERROR AFPUpdateEntryCharMap(
     IN AFPCHARMAPARRAY pCharmap
 )
 {
-    EXTENDED_FINDER_INFO infoEx;
+    afp_extended_finder_info infoEx;
 
     auto afpError = AFPGetFinderInfoEx(pEntry, &infoEx);
 
     if (AFP_SUCCESS(afpError))
     {
-        RtlCopyMemory(&infoEx.charMap, pCharmap, sizeof(AFPCHARMAPARRAY));
+        RtlCopyMemory(&infoEx.char_map, pCharmap, sizeof(AFPCHARMAPARRAY));
 
         afpError = AFPSetFinderInfoEx(pEntry, &infoEx);
     }
@@ -372,18 +372,18 @@ AFPERROR AFPGetCharMapForIndexEntry(
     OUT AFPCHARMAPARRAY pCharmap
 )
 {
-    EXTENDED_FINDER_INFO infoEx;
+    afp_extended_finder_info infoEx;
     AFPERROR afpError = AFP_OK;
 
     if (pEntry->flags & flag_index_has_charmap)
     {
-        memset(&infoEx, 0, sizeof(EXTENDED_FINDER_INFO));
+        memset(&infoEx, 0, sizeof(afp_extended_finder_info));
 
         afpError = AFPGetFinderInfoEx(pEntry, &infoEx);
 
         if (AFP_SUCCESS(afpError))
         {
-            memcpy(pCharmap, &infoEx.charMap, sizeof(AFPCHARMAPARRAY));
+            memcpy(pCharmap, &infoEx.char_map, sizeof(AFPCHARMAPARRAY));
         }
     }
 
@@ -406,11 +406,11 @@ BOOL AFPCheckForCharMap(
     IN afp_index* pEntry
 )
 {
-    EXTENDED_FINDER_INFO infoEx;
+    afp_extended_finder_info infoEx;
 
     if (AFP_SUCCESS(AFPGetFinderInfoEx(pEntry, &infoEx)))
     {
-        if (infoEx.charMap[0].wKeyCode != 0)
+        if (infoEx.char_map[0].wKeyCode != 0)
         {
             pEntry->flags |= flag_index_has_charmap;
             return true;

@@ -12,7 +12,7 @@
 #include "dsi/dsi_connections.h"
 
 
-WCHAR g_server_message[AFP_MSG_MAXLEN + 1];
+WCHAR g_server_message[message_max_length + 1];
 BOOL g_allow_guests = TRUE;
 DWORD g_max_sessions = 0;
 BOOL g_force_encrypted_logon = FALSE;
@@ -857,7 +857,7 @@ AFPERROR FPGetSrvrMsg(
 {
 	UNREFERENCED_PARAMETER(connection);
 
-	unichar message[AFP_MSG_MAXLEN + 1];
+	unichar message[message_max_length + 1];
 	afp_registry the_registry;
 
 	afp_request.advance_pos_ptr(sizeof(int16));
@@ -867,13 +867,13 @@ AFPERROR FPGetSrvrMsg(
 
 	switch (afp_message_type)
 	{
-	case AFP_MSG_LOGINTYPE:
+	case message_login_type:
 		DBGWRITE(dbg_level_info, L"Message type = Logon\n");
 
 		the_registry.get_logon_message(message);
 		break;
 
-	case AFP_MSG_SERVERTYPE:
+	case message_server_type:
 		DBGWRITE(dbg_level_info, L"Message type = Server\n");
 
 		// ReSharper disable once CppFunctionResultShouldBeUsed

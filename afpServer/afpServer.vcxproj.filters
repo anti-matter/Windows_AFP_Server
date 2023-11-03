@@ -47,9 +47,6 @@
     <ClCompile Include="afp-source\fp-core\afpuser.cpp">
       <Filter>Source Files\fp-core</Filter>
     </ClCompile>
-    <ClCompile Include="afp-source\fp-core\afpvolumes.cpp">
-      <Filter>Source Files\fp-core</Filter>
-    </ClCompile>
     <ClCompile Include="afp-source\fp-core\afpxattr.cpp">
       <Filter>Source Files\fp-core</Filter>
     </ClCompile>
@@ -133,6 +130,9 @@
     </ClCompile>
     <ClCompile Include="afp_desktop.cpp">
       <Filter>Source Files\fp-classes</Filter>
+    </ClCompile>
+    <ClCompile Include="afp-source\fp-core\afpvolumes.cpp">
+      <Filter>Source Files\fp-imp</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

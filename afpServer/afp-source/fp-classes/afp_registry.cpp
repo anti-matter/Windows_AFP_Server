@@ -228,11 +228,11 @@ afp_registry::next_volume(
 					sz_pass,
 					static_cast<int>(dw_data_size),
 					sz_ansi_password,
-					sizeof(PassWord),
+					sizeof(afp_clear_text_password),
 					"!",
 					&f_used_default);
 
-				strcpy_s(sz_password, sizeof(PassWord), sz_ansi_password);
+				strcpy_s(sz_password, sizeof(afp_clear_text_password), sz_ansi_password);
 			}
 		}
 		else
@@ -399,7 +399,7 @@ afp_registry::get_logon_message(
 
 	open_base_key();
 
-	dw_data_size = (AFP_MSG_MAXLEN * sizeof(TCHAR)) + sizeof(TCHAR);
+	dw_data_size = (message_max_length * sizeof(TCHAR)) + sizeof(TCHAR);
 	DWORD dw_error = RegQueryValueEx(m_base_key_, AFPREG_BASE_LOGONMSG, nullptr,
 	                                 &dw_type, reinterpret_cast<LPBYTE>(sz_logon_message), &dw_data_size);
 
@@ -654,7 +654,7 @@ DWORD
 afp_registry::get_volume_password(
 	IN const WCHAR* sz_share_name,
 	IN const DWORD cb_password,
-	OUT PassWord* sz_password
+	OUT afp_clear_text_password* sz_password
 )
 {
 	TCHAR sz_password_w[32];
@@ -687,7 +687,7 @@ afp_registry::get_volume_password(
 			}
 			else
 			{
-				memset(sz_password, 0, sizeof(PassWord));
+				memset(sz_password, 0, sizeof(afp_clear_text_password));
 				memcpy(sz_password, sz_pass, strlen(sz_pass));
 
 				dw_error = NO_ERROR;

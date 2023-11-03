@@ -10,15 +10,13 @@
 
 #include "winerror.h"
 
-extern std::unique_ptr<afp_volumes> g_volumes;
-
 
 size_t afp_get_parms_buffer_size_required(
-    IN const PFILEDIRPARMS file_dir_parms
+    IN const afp_file_dir_parameters* file_dir_parms
 )
 {
     size_t w_size = 0;
-    WORD bitmap = (file_dir_parms->bFDPAttributes & kFileDirIsDir) ? file_dir_parms->wDirBitmap : file_dir_parms->wFileBitmap;
+    WORD bitmap = file_dir_parms->attributes & kFileDirIsDir ? file_dir_parms->dir_bitmap : file_dir_parms->file_bitmap;
 
     static BYTE fd_parms_sizes[] = {
         sizeof(WORD), //Attributes
@@ -26,7 +24,7 @@ size_t afp_get_parms_buffer_size_required(
         sizeof(LONG), //Creation date
         sizeof(LONG), //Mod date
         sizeof(LONG), //Backup date
-        sizeof(FINDER_INFO), //Finder info
+        sizeof(afp_finder_info), //Finder info
         sizeof(WORD) + sizeof(BYTE), //Long name offset
         sizeof(WORD) + sizeof(BYTE), //Short name offset
         sizeof(DWORD), //File/Dir ID
@@ -39,15 +37,15 @@ size_t afp_get_parms_buffer_size_required(
 
     if (bitmap & kFPLongName)
     {
-        w_size += strlen(file_dir_parms->parms.fp.longName);
+        w_size += strlen(file_dir_parms->parameters.fp.long_name);
     }
 
     if (bitmap & kFPShortName)
     {
-        w_size += strlen(file_dir_parms->parms.fp.shortName);
+        w_size += strlen(file_dir_parms->parameters.fp.short_name);
     }
 
-    if ((file_dir_parms->bFDPAttributes & kFileDirIsDir) && (bitmap & kFPDirOffCount))
+    if (file_dir_parms->attributes & kFileDirIsDir && bitmap & kFPDirOffCount)
     {
         w_size -= sizeof(WORD);
     }
@@ -184,23 +182,23 @@ AFPERROR afp_get_object_parms(
 
     if (bitmap & kFPFinderInfo)
     {
-        FINDER_INFO finder_info;
+        afp_finder_info finder_info;
 
-        RtlZeroMemory(&finder_info, sizeof(FINDER_INFO));
+        RtlZeroMemory(&finder_info, sizeof(afp_finder_info));
 
         if (AFP_SUCCESS(AFPGetFinderInfo(entry, &finder_info)))
         {
             if (win_attributes.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN)
             {
-                finder_info.fdFlags |= kFDInvisible;
+                finder_info.fd_flags |= kFDInvisible;
             }
 
-            finder_info.fdFlags = htons(finder_info.fdFlags);
-            finder_info.fdLocation.x = static_cast<SHORT>(htons(finder_info.fdLocation.x));
-            finder_info.fdLocation.y = static_cast<SHORT>(htons(finder_info.fdLocation.y));
-            finder_info.fdFldr = static_cast<SHORT>(htons(finder_info.fdFldr));
+            finder_info.fd_flags = htons(finder_info.fd_flags);
+            finder_info.fd_location.x = static_cast<SHORT>(htons(finder_info.fd_location.x));
+            finder_info.fd_location.y = static_cast<SHORT>(htons(finder_info.fd_location.y));
+            finder_info.fd_fldr = static_cast<SHORT>(htons(finder_info.fd_fldr));
 
-            reply.push_raw_data(&finder_info, sizeof(FINDER_INFO));
+            reply.push_raw_data(&finder_info, sizeof(afp_finder_info));
         }
     }
 
@@ -427,15 +425,15 @@ AFPERROR AFPSetFileDirParms(
 
     if (wBitmap & kFPFinderInfo)
     {
-        FINDER_INFO fInfo;
+        afp_finder_info fInfo;
 
-        RtlCopyMemory(&fInfo, pTemp, sizeof(FINDER_INFO));
-        pTemp += sizeof(FINDER_INFO);
+        RtlCopyMemory(&fInfo, pTemp, sizeof(afp_finder_info));
+        pTemp += sizeof(afp_finder_info);
 
-        fInfo.fdFlags = ntohs(fInfo.fdFlags);
-        fInfo.fdLocation.x = static_cast<SHORT>(ntohs(fInfo.fdLocation.x));
-        fInfo.fdLocation.y = static_cast<SHORT>(ntohs(fInfo.fdLocation.y));
-        fInfo.fdFldr = static_cast<SHORT>(ntohs(fInfo.fdFldr));
+        fInfo.fd_flags = ntohs(fInfo.fd_flags);
+        fInfo.fd_location.x = static_cast<SHORT>(ntohs(fInfo.fd_location.x));
+        fInfo.fd_location.y = static_cast<SHORT>(ntohs(fInfo.fd_location.y));
+        fInfo.fd_fldr = static_cast<SHORT>(ntohs(fInfo.fd_fldr));
 
         AFPSetFinderInfo(pEntry, &fInfo, FALSE);
     }

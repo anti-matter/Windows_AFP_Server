@@ -409,17 +409,17 @@ AFPVolumeWriteAccessCheck(
 AFPERROR
 AFPCheckVolumePassword(
     IN WORD volume_id,
-    IN const PassWord* password
+    IN const afp_clear_text_password* password
 )
 {
     afp_registry registry;
-    PassWord password_from_registry;
+    afp_clear_text_password password_from_registry;
 
     if (const auto volume = g_volumes->find(volume_id); volume != nullptr)
     {
-        if (registry.get_volume_password(volume->get_share_name().c_str(), sizeof(PassWord), &password_from_registry) == NO_ERROR)
+        if (registry.get_volume_password(volume->get_share_name().c_str(), sizeof(afp_clear_text_password), &password_from_registry) == NO_ERROR)
         {
-            if (memcmp(password, password_from_registry, sizeof(PassWord)) != 0)
+            if (memcmp(password, password_from_registry, sizeof(afp_clear_text_password)) != 0)
             {
                 return afpAccessDenied;
             }

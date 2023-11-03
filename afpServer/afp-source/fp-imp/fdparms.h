@@ -5,7 +5,7 @@
 #include "dsi/dsi_connection.h"
 
 size_t afp_get_parms_buffer_size_required(
-    IN PFILEDIRPARMS file_dir_parms
+    IN afp_file_dir_parameters* file_dir_parms
 );
 
 AFPERROR AFPMapAFPToWindowsPath(
@@ -50,7 +50,7 @@ WORD AFPWinToAFPAttributes(
     OUT PWORD pwAFPAttributes
 );
 
-#ifdef DBG
+#ifdef _DEBUG
 void AFPExtractDirParms(
 		IN PBYTE		pParms,		//Points to actual start of data
 		IN WORD			wBitMap

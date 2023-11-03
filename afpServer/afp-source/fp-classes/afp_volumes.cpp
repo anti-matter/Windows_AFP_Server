@@ -55,7 +55,7 @@ void afp_volumes::volume_indexer()
 
         do
         {
-            PassWord password;
+            afp_clear_text_password password;
             WCHAR share_path[MAX_PATH];
             WCHAR share_name[33];
             DWORD flags;

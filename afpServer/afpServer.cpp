@@ -114,13 +114,13 @@ void FillLogonMessageBox(
     IN HWND hDlg
 )
 {
-    TCHAR szMessage[AFP_MSG_MAXLEN + sizeof(TCHAR)];
+    TCHAR szMessage[message_max_length + sizeof(TCHAR)];
     afp_registry theRegistry;
 
     //
-    //Tell the edit box to only allow AFP_MSG_MAXLEN characters
+    //Tell the edit box to only allow message_max_length characters
     //
-    SendDlgItemMessage(hDlg, IDC_LOGIN_MSG, EM_LIMITTEXT, AFP_MSG_MAXLEN, 0);
+    SendDlgItemMessage(hDlg, IDC_LOGIN_MSG, EM_LIMITTEXT, message_max_length, 0);
 
     if (theRegistry.get_logon_message(szMessage) == NO_ERROR)
     {
@@ -128,7 +128,7 @@ void FillLogonMessageBox(
         //Set our current logon message in the edit field.
         //
         SendDlgItemMessage(hDlg, IDC_LOGIN_MSG, WM_SETTEXT,
-                           AFP_MSG_MAXLEN, (LPARAM)szMessage);
+                           message_max_length, (LPARAM)szMessage);
     }
 }
 
@@ -310,14 +310,14 @@ void SaveLogonMessage(
     IN HWND hDlg
 )
 {
-    TCHAR szMessage[AFP_MSG_MAXLEN + sizeof(TCHAR)];
+    TCHAR szMessage[message_max_length + sizeof(TCHAR)];
     afp_registry theRegistry;
 
     //
     //Set our current logon message in the edit field.
     //
     SendDlgItemMessage(hDlg, IDC_LOGIN_MSG, WM_GETTEXT,
-                       AFP_MSG_MAXLEN, (LPARAM)szMessage);
+                       message_max_length, (LPARAM)szMessage);
 
     theRegistry.save_logon_message(szMessage);
 }
@@ -336,7 +336,7 @@ void FillVolumeListBox(
     TCHAR szShareName[64] = {0};
     TCHAR szTemp[64] = {0};
     TCHAR szSharePath[MAX_PATH] = {0};
-    PassWord szPassword = {0};
+    afp_clear_text_password szPassword = {0};
     WCHAR firstPassword[16] = {0};
     DWORD volFlags = 0;
     DWORD firstFlags = 0;

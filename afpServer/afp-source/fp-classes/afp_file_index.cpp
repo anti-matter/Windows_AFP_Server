@@ -1,7 +1,6 @@
 #include "StdAfx.h"
 #include <algorithm>
 
-#include "afp.h"
 #include "afpdebug.h"
 #include "afp_file_index.h"
 
@@ -83,8 +82,6 @@ afp_index* afp_file_index::add_entry(
 	{
 		*p_new_dir_id = result->object_id;
 	}
-
-	dump_entry(result);
 
 	return result;
 }
@@ -170,33 +167,19 @@ void afp_file_index::remove_entry(const uint32 object_id, const bool delete_dire
 
 	m_index_.erase(it);
 
-	//
-	//If the entry is a directory, then that means we have to delete all entries
-	//in the index that are sub-files/folders to this directory.
-	//
+	// If the entry is a directory, then that means we have to delete all entries
+	// in the index that are sub-files/folders to this directory.
 	if (is_directory && delete_directory_sub_tree)
 	{
 		// Find elements in the vector who's parent dir id is the same
 		// as the object we just removed.
 
-		for (auto sub_it = m_index_.begin(); sub_it < m_index_.end(); ++sub_it)
+		std::vector<afp_index*> offspring;
+        if (get_offspring(object_id, offspring) > 0)
 		{
-			const auto element = sub_it->get();
-
-			if (element->par_id != object_id)
-				continue;
-
-			// We use a worker thread to remove the indexes so we don't spend
-			// too much time here blocking the thread.
-
-			const auto p_worker_element = static_cast<PAFP_WORKER_ELEMENT>(DBG_ALLOC(sizeof(AFP_WORKER_ELEMENT)));
-			if (p_worker_element != nullptr)
+			for (const auto item : offspring)
 			{
-				p_worker_element->pParam1 = this;
-				p_worker_element->pParam2 = element;
-				p_worker_element->dwWorkerFunction = AFP_WORKER_DELETE_INDEX_ENTRY;
-
-				//AFPWorkerAddElementToWorkerQueue(p_worker_element);
+				remove_entry(item, true);
 			}
 		}
 	}
@@ -416,7 +399,7 @@ void afp_file_index::dump_index()
 
 void afp_file_index::dump_entry(const afp_index* entry)
 {
-    constexpr auto dbg_level = dbg_level_info;
+    constexpr auto dbg_level = dbg_level_all;
 
 	DBGWRITE(dbg_level, L"Dumping entry for: %s\n", entry->sz_path.c_str());
 	DBGWRITE(dbg_level, L"Par id:      %d\n", entry->par_id);

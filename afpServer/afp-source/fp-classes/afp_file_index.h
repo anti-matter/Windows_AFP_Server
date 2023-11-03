@@ -4,9 +4,7 @@
 
 constexpr int32 hash_multiplier = 1024;
 
-//
-//These flags are used to keep state of file objects in the index.
-//
+// These flags are used to keep state of file objects in the index.
 enum
 {
 	flag_index_is_dir = 0x01,
@@ -22,6 +20,15 @@ enum
 // ID's to files.
 struct afp_index
 {
+	afp_index()
+	    : par_id(0)
+	    , par_entry(nullptr)
+	    , object_id(0)
+	    , flags(0)
+	    , path_hash(0)
+	{
+	}
+
 	DWORD par_id;
 	afp_index* par_entry;
 	DWORD object_id;
@@ -29,12 +36,6 @@ struct afp_index
 	std::filesystem::path sz_path;
 	WORD flags;
 	DWORD path_hash;
-};
-
-struct index_wait_for_add_data
-{
-	HANDLE event;
-	std::filesystem::path object_path;
 };
 
 class afp_file_index  // NOLINT(cppcoreguidelines-special-member-functions)
@@ -81,6 +82,4 @@ private:
 	std::vector<std::unique_ptr<afp_index>> m_index_;
 
 	uint32 m_next_id_;
-
-	std::vector<std::shared_ptr<index_wait_for_add_data>> waiting_for_add_;
 };
