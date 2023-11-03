@@ -22,8 +22,10 @@ enum volume_flags
 class afp_volume
 {
 public:
-    afp_volume(std::wstring share_name, std::filesystem::path share_path, UINT16 volume_id, BYTE afp_flags, UINT32 internal_flags);
+    afp_volume(std::wstring share_name, std::filesystem::path share_path, INT16 volume_id, BYTE afp_flags, UINT32 internal_flags);
     ~afp_volume();
+
+    void stop_sharing();
 
     // Convenient accessors for common index operations.
     [[nodiscard]] afp_index* find(const std::wstring& full_path) const { return index_->find(full_path); }

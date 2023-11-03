@@ -664,11 +664,11 @@ AFPERROR FPCreateDir(
             true,
             &afp_dir_id);
 
-        AFPCheckForAndAddFinderInfoStream(new_dir_entry, nullptr, false);
+        AFPCheckForAndAddFinderInfoStream(new_dir_entry, char_map, false);
 
         afp_volume->set_is_dirty();
 
-        // Now build the reply block to send_ back to the client.
+        // Now build the reply block to send back to the client.
         afp_reply.push_num(afp_dir_id);
     }
 

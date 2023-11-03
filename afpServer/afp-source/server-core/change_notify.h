@@ -3,6 +3,8 @@
 
 #include "afp_volume.h"
 
+constexpr UINT32 change_notify_result_buffer_size = 64 * 1024;
+
 class afp_volume;
 
 // This class implements the change notification mechanism that updates
@@ -11,7 +13,7 @@ class afp_volume;
 class change_notify
 {
 public:
-    explicit change_notify(UINT16 volume_id);
+    explicit change_notify(INT16 volume_id);
 
     void afp_notify_thread();
 
@@ -39,13 +41,16 @@ public:
 
     void resume()
     {
+        RtlZeroMemory(result_buffer_.get(), change_notify_result_buffer_size);
         notify_suspended_ = false;
     }
 
 private:
-    UINT16 volume_id_;
+    INT16 volume_id_;
     std::atomic_bool notify_suspended_;
     OVERLAPPED notify_overlapped_;
+
+    std::unique_ptr<BYTE[]> result_buffer_;
 };
 
 

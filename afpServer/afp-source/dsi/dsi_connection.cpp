@@ -258,7 +258,7 @@ namespace dsi
 			dsi_cmd_get_status,
 			client_request_id,
 			afp_error,
-			rep_buffer.get_data_length());
+			static_cast<INT32>(rep_buffer.get_data_length()));
 
 		// Per the AFP spec, we close the connection immediately following
 		// the GetStatus call.
@@ -295,7 +295,7 @@ namespace dsi
 			dsi_cmd_open_session,
 			client_request_id,
 			AFP_OK,
-			reply.get_data_length());
+			static_cast<INT32>(reply.get_data_length()));
 
 		dsi_session_open_ = true;
 	}
@@ -340,7 +340,6 @@ namespace dsi
 		if (AFP_FAILED(afp_error))
 		{
 			DBGWRITE(dbg_level_error, L"AFP error: %d\n", afp_error);
-
 		}
 
 		send_reply(
@@ -348,8 +347,7 @@ namespace dsi
 			dsi_cmd,
 			client_request_id,
 			afp_error,
-			static_cast<INT32>(data_size)
-		);
+			static_cast<INT32>(data_size));
 
 		if (!session_authenticated_ && afp_error != afpAuthContinue)
 		{

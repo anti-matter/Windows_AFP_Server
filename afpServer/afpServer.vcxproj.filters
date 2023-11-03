@@ -250,6 +250,9 @@
     <ClInclude Include="afp_desktop.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
+    <ClInclude Include="afp-source\fp-imp\fpinfo.h">
+      <Filter>Source Files\fp-imp</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="afpServer.exe.manifest">

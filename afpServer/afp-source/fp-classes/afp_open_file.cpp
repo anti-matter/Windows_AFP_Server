@@ -231,17 +231,17 @@ AFPERROR afp_open_file::read_fork(
 
 	//We have to make sure our buffer is big enough for
 	//the read operation.
-	if (afp_reply.get_buffer_size() < static_cast<size_t>(dsi_header_size + afp_req_count))
+	if (afp_reply.get_buffer_size() < static_cast<size_t>(afp_req_count))
 	{
-		//Our buffer is too small, adjust the amount to read.
-		afp_req_count = afp_reply.get_buffer_size() - dsi_header_size;
-
 		DBGWRITE(
 			dbg_level_warning,
 			L"Buffer too small! (needed=%d, have=%d)\n",
-			(dsi_header_size +afp_req_count),
+			afp_req_count,
 			afp_reply.get_buffer_size()
 		);
+
+	    //Our buffer is too small, adjust the amount to read.
+		afp_req_count = afp_reply.get_buffer_size();
 	}
 
 	//Get the 64bit offset into a LI structure.

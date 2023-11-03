@@ -3,7 +3,7 @@
 #include "afp_desktop.h"
 #include "change_notify.h"
 
-afp_volume::afp_volume(std::wstring share_name, std::filesystem::path share_path, const UINT16 volume_id, const BYTE afp_flags, const UINT32 internal_flags)
+afp_volume::afp_volume(std::wstring share_name, std::filesystem::path share_path, const INT16 volume_id, const BYTE afp_flags, const UINT32 internal_flags)
     : id_(volume_id)
     , share_name_(std::move(share_name))
     , share_path_(std::move(share_path))
@@ -21,8 +21,14 @@ afp_volume::afp_volume(std::wstring share_name, std::filesystem::path share_path
     desktop_ = std::make_unique<afp_desktop>(this);
 }
 
-afp_volume::~afp_volume()
+afp_volume::~afp_volume() = default;
+
+void afp_volume::stop_sharing()
 {
+    auto flags = get_internal_flags();
+    flags &= ~flag_volume_shared;
+    set_internal_flags(flags);
+
     notify_->suspend();
     desktop_->export_to_file();
 }

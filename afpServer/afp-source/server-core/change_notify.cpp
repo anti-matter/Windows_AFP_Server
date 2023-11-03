@@ -16,12 +16,12 @@
 #include "fdparms.h"
 #include "fpinfo.h"
 
-constexpr UINT32 change_notify_result_buffer_size = 64 * 1024;
-
 extern bool server_running;
 
-change_notify::change_notify(const UINT16 volume_id) : volume_id_(volume_id), notify_suspended_(false)
+change_notify::change_notify(const INT16 volume_id) : volume_id_(volume_id), notify_suspended_(false)
 {
+    result_buffer_ = std::make_unique<BYTE[]>(change_notify_result_buffer_size);
+
     std::thread change_notify_thread(&change_notify::afp_notify_thread, this);
     change_notify_thread.detach();
 }
@@ -55,19 +55,6 @@ void change_notify::afp_notify_thread()
         return;
     }
 
-    // Create the buffer that will hold the return data from the notify call.
-    const auto result_buffer = std::make_unique<BYTE[]>(change_notify_result_buffer_size);
-    if (result_buffer == nullptr)
-    {
-        DBGWRITE(dbg_level_info,
-                 L"Error allocating result buffer for %s (%d)\n",
-                 volume->get_share_path().c_str(),
-                 GetLastError());
-
-        CloseHandle(h_directory);
-        return;
-    }
-
     notify_overlapped_.hEvent = CreateEvent(nullptr, FALSE, TRUE, nullptr);
     if (notify_overlapped_.hEvent == nullptr)
     {
@@ -83,8 +70,8 @@ void change_notify::afp_notify_thread()
             continue;
         }
 
-        afp_read_dir_changes(volume, h_directory, result_buffer.get());
-        ZeroMemory(result_buffer.get(), change_notify_result_buffer_size);
+        afp_read_dir_changes(volume, h_directory, result_buffer_.get());
+        ZeroMemory(result_buffer_.get(), change_notify_result_buffer_size);
     }
 
     CloseHandle(notify_overlapped_.hEvent);
@@ -223,8 +210,8 @@ void change_notify::afp_read_dir_changes(
 
 void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_notify_info, const std::shared_ptr<afp_volume>& volume)
 {
-    WCHAR new_item_pathname[MAX_PATH] = {};
-    WCHAR new_item_name[MAX_PATH];
+    WCHAR new_item_pathname[MAX_PATH]{};
+    WCHAR new_item_name[MAX_PATH]{};
     WIN32_FILE_ATTRIBUTE_DATA attribute_data;
 
     lstrcpyn(new_item_pathname, file_notify_info->FileName, static_cast<int>(file_notify_info->FileNameLength));

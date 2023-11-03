@@ -495,9 +495,8 @@ AFPERROR FPCreateFile(
 
         if (new_entry != nullptr)
         {
-            AFPCheckForAndAddFinderInfoStream(new_entry);
+            AFPCheckForAndAddFinderInfoStream(new_entry, char_map);
             AFPCheckForAndCreateFinderRsrcStream(new_entry);
-            AFPAddCharMapToIndexEntry(new_entry, char_map);
         }
 
         afp_volume_info->set_is_dirty();
@@ -742,7 +741,7 @@ AFPERROR FPRead(
     // in the DSI Header's data size field.
     afp_reply.set_dsi_return_value(afp_act_count);
 
-    DBGWRITE(dbg_level_all, L"Returning error %d and count %d\n", afp_error, afp_act_count);
+    DBGWRITE(dbg_level_all, L"Returning error: %d, act count: %d\n", afp_error, afp_act_count);
 
     return afp_error;
 }

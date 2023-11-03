@@ -163,9 +163,7 @@ void afp_volumes::remove_all_volumes()
 {
     std::ranges::for_each(volumes_, [](const std::shared_ptr<afp_volume>& volume)
         {
-            auto flags = volume->get_internal_flags();
-            flags &= ~flag_volume_shared;
-            volume->set_internal_flags(flags);
+            volume->stop_sharing();
         });
 
     volumes_.clear();

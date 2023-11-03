@@ -39,7 +39,7 @@ UINT32 afp_desktop::load_from_file()
         return desktop_file_error;
     }
 
-    DBGWRITE(dbg_level_info, L"Desktop file version: %d", version);
+    DBGWRITE(dbg_level_info, L"Desktop file version: %d\n", version);
 
     if (version < desktop_file_version)
     {
@@ -95,12 +95,12 @@ UINT32 afp_desktop::export_to_file()
     UINT32 return_written = 0;
     const auto size = desk_items_.size();
     written = fwrite(&size, sizeof(size), 1, file);
-    if (written == sizeof(size))
+    if (written == 1)
     {
         for (auto it = desk_items_.begin(); it < desk_items_.end(); ++it)
         {
             const auto wrote = fwrite(it->get(), sizeof(afp_desk_item), 1, file);
-            if (wrote != sizeof(afp_desk_item))
+            if (wrote == 0)
             {
                 DBGWRITE(dbg_level_warning, L"Failed to write desktop entry! (%d)\n", errno);
                 break;
@@ -109,6 +109,8 @@ UINT32 afp_desktop::export_to_file()
             return_written++;
         }
     }
+
+    DBGWRITE(dbg_level_all, L"Desktop exported %d items to the desktop file.\n", return_written);
 
     fclose(file); // NOLINT(cert-err33-c)
 
@@ -177,7 +179,6 @@ afp_desk_item* afp_desktop::find(const afp_desk_item* match_item, const UINT16 s
                         std::tie(i->file_creator, i->file_type, i->icon_type, i->data_size))
                     {
                         DBGWRITE(dbg_level_all, L"Found icon entry:\n");
-                        DUMP_ITEM(i.get());
                         return true;
                     }
 
@@ -211,8 +212,6 @@ afp_desk_item* afp_desktop::find(const afp_desk_item* match_item, const UINT16 s
                 if (i->file_creator == match_item->file_creator && index == search_index)
                 {
                     DBGWRITE(dbg_level_all, L"Found APPL for: %s\n", i->path_name);
-                    DUMP_ITEM(i.get());
-
                     return true;
                 }
 
@@ -222,7 +221,6 @@ afp_desk_item* afp_desktop::find(const afp_desk_item* match_item, const UINT16 s
             if (match_item->dir_id == i->dir_id && lstrcmp(match_item->path_name, i->path_name))
             {
                 DBGWRITE(dbg_level_all, L"Found comment:\n");
-                DUMP_ITEM(i.get());
             }
             break;
         case entry_type_reserved:
