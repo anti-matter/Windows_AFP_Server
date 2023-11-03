@@ -1,4 +1,6 @@
 #include "StdAfx.h"
+#include <winerror.h>
+
 #include "afp.h"
 #include "afpdebug.h"
 #include "afphelp.h"
@@ -8,60 +10,6 @@
 #include "afp_open_file.h"
 #include "afp_volumes.h"
 
-#include "winerror.h"
-
-
-size_t afp_get_parms_buffer_size_required(
-    IN const afp_file_dir_parameters* file_dir_parms
-)
-{
-    size_t w_size = 0;
-    WORD bitmap = file_dir_parms->attributes & kFileDirIsDir ? file_dir_parms->dir_bitmap : file_dir_parms->file_bitmap;
-
-    static BYTE fd_parms_sizes[] = {
-        sizeof(WORD), //Attributes
-        sizeof(DWORD), //Parent DirID
-        sizeof(LONG), //Creation date
-        sizeof(LONG), //Mod date
-        sizeof(LONG), //Backup date
-        sizeof(afp_finder_info), //Finder info
-        sizeof(WORD) + sizeof(BYTE), //Long name offset
-        sizeof(WORD) + sizeof(BYTE), //Short name offset
-        sizeof(DWORD), //File/Dir ID
-        sizeof(DWORD), //Data fork len/offspring count
-        sizeof(DWORD), //Res fork len/owner id
-        sizeof(DWORD), //Group id
-        sizeof(DWORD), //Access rights
-        PRODOS_LEN //ProDOS info
-    };
-
-    if (bitmap & kFPLongName)
-    {
-        w_size += strlen(file_dir_parms->parameters.fp.long_name);
-    }
-
-    if (bitmap & kFPShortName)
-    {
-        w_size += strlen(file_dir_parms->parameters.fp.short_name);
-    }
-
-    if (file_dir_parms->attributes & kFileDirIsDir && bitmap & kFPDirOffCount)
-    {
-        w_size -= sizeof(WORD);
-    }
-
-    for (WORD i = 0; bitmap; i++)
-    {
-        if (bitmap & 1)
-        {
-            w_size += static_cast<WORD>(fd_parms_sizes[i]);
-        }
-
-        bitmap >>= 1;
-    }
-
-    return w_size;
-}
 
 void afp_check_for_and_create_rsrc_stream(
     IN const afp_index* index_entry
@@ -82,8 +30,7 @@ void afp_check_for_and_create_rsrc_stream(
         nullptr
     ); h_file == INVALID_HANDLE_VALUE)
     {
-        const auto error = GetLastError();
-        if (error == ERROR_FILE_NOT_FOUND)
+        if (const auto error = GetLastError(); error == ERROR_FILE_NOT_FOUND)
         {
             h_file = CreateFile(
                 res_path.c_str(),
@@ -106,7 +53,7 @@ void afp_check_for_and_create_rsrc_stream(
             }
             else
             {
-                DBGWRITE(dbg_level_info,
+                DBGWRITE(dbg_level_error,
                     L"Failed to create resource stream for %s! (%d)\n",
                     res_path.c_str(),
                     GetLastError()
@@ -139,9 +86,7 @@ AFPERROR afp_get_object_parms(
 
     if (bitmap & kFPFileAttributes)
     {
-        UINT16 attributes = 0;
-
-        AFPWinToAFPAttributes(win_attributes.dwFileAttributes, &attributes);
+        auto attributes = win_to_afp_attributes(win_attributes.dwFileAttributes);
 
         // For files, there are a couple flags that Windows doesn't have.
         if ((win_attributes.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0)
@@ -184,9 +129,7 @@ AFPERROR afp_get_object_parms(
     {
         afp_finder_info finder_info;
 
-        RtlZeroMemory(&finder_info, sizeof(afp_finder_info));
-
-        if (AFP_SUCCESS(AFPGetFinderInfo(entry, &finder_info)))
+        if (AFP_SUCCESS(get_finder_info(entry, &finder_info)))
         {
             if (win_attributes.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN)
             {
@@ -250,7 +193,7 @@ AFPERROR afp_get_object_parms(
                 dsi_session->get_user_token(),
                 const_cast<wchar_t*>(entry->sz_path.c_str()),
                 user_name,
-                (lstrlen(domain_name) > 0) ? domain_name : nullptr,
+                lstrlen(domain_name) > 0 ? domain_name : nullptr,
                 &rights
             );
 
@@ -332,7 +275,7 @@ AFPERROR afp_get_object_parms(
         }
     }
 
-    if ((bitmap & kFPLongName) || (bitmap & kFPUnicodeName))
+    if (bitmap & kFPLongName || bitmap & kFPUnicodeName)
     {
         AFPGetCharMapForIndexEntry(entry, char_map);
 
@@ -352,160 +295,129 @@ AFPERROR afp_get_object_parms(
     return AFP_OK;
 }
 
-//---------------------------------------------------------------------
-// AFPSetFileDirParms()
-//---------------------------------------------------------------------
-// Worker for the FPSetFileDirParms API. The caller is responsible
-// for verifying the bitmap.
-//
-AFPERROR AFPSetFileDirParms(
-    IN WORD wBitmap,
-    IN afp_index* pEntry,
-    IN PCHAR pParms,
-    IN DWORD dwFileAttributes
+AFPERROR afp_set_file_dir_parms(
+    IN const WORD bitmap,
+    IN const DWORD file_attributes,
+    IN afp_index* index_entry,
+    IN afp_net_buffer& request
 )
 {
-    PCHAR pTemp = pParms;
-    DWORD dwError = NO_ERROR;
-    ULONG lwCreateDate = 0;
-    ULONG lwModDate = 0;
-    ULONG lwBackupDate = 0;
-    DWORD dwAttributes = dwFileAttributes;
-    WORD wAFPAttributes = 0;
-
-    //
-    //Change the file's attributes, we only allow some to be
-    //changed as per the spec.
-    //
-    if (wBitmap & kFPFileAttributes)
+    // Change the file's attributes, we only allow some to be
+    // changed as per the spec.
+    if (bitmap & kFPFileAttributes)
     {
-        EXTRACT_WORD(pTemp, wAFPAttributes);
+        DWORD win_attributes = file_attributes;
 
-        if (wAFPAttributes & kFileSetClearFlag)
+        if (const auto afp_attributes = request.pull_num<UINT16>(); afp_attributes & kFileSetClearFlag)
         {
-            if (wAFPAttributes & kFileInvisible)
-                dwAttributes |= FILE_ATTRIBUTE_HIDDEN;
-            if (wAFPAttributes & kFileSystem)
-                dwAttributes |= FILE_ATTRIBUTE_SYSTEM;
-            if (wAFPAttributes & (kFileReadOnly | kFileReadOnly | kFileDeleteInhibit))
-                dwAttributes |= FILE_ATTRIBUTE_READONLY;
-            if (wAFPAttributes & kFileNeedsBackup)
-                dwAttributes |= FILE_ATTRIBUTE_ARCHIVE;
+            if (afp_attributes & kFileInvisible)
+                win_attributes |= FILE_ATTRIBUTE_HIDDEN;
+            if (afp_attributes & kFileSystem)
+                win_attributes |= FILE_ATTRIBUTE_SYSTEM;
+            if (afp_attributes & (kFileReadOnly | kFileDeleteInhibit))
+                win_attributes |= FILE_ATTRIBUTE_READONLY;
+            if (afp_attributes & kFileNeedsBackup)
+                win_attributes |= FILE_ATTRIBUTE_ARCHIVE;
         }
         else
         {
-            if (wAFPAttributes & kFileInvisible)
-                dwAttributes &= ~FILE_ATTRIBUTE_HIDDEN;
-            if (wAFPAttributes & kFileSystem)
-                dwAttributes &= ~FILE_ATTRIBUTE_SYSTEM;
-            if (wAFPAttributes & (kFileReadOnly | kFileReadOnly | kFileDeleteInhibit))
-                dwAttributes &= ~FILE_ATTRIBUTE_READONLY;
-            if (wAFPAttributes & kFileNeedsBackup)
-                dwAttributes &= ~FILE_ATTRIBUTE_ARCHIVE;
+            if (afp_attributes & kFileInvisible)
+                win_attributes &= ~FILE_ATTRIBUTE_HIDDEN;
+            if (afp_attributes & kFileSystem)
+                win_attributes &= ~FILE_ATTRIBUTE_SYSTEM;
+            if (afp_attributes & (kFileReadOnly | kFileDeleteInhibit))
+                win_attributes &= ~FILE_ATTRIBUTE_READONLY;
+            if (afp_attributes & kFileNeedsBackup)
+                win_attributes &= ~FILE_ATTRIBUTE_ARCHIVE;
         }
 
-        if (!SetFileAttributes(pEntry->sz_path.c_str(), dwAttributes))
+        if (!SetFileAttributes(index_entry->sz_path.c_str(), win_attributes))
         {
-            dwError = GetLastError();
-            DBGWRITE(dbg_level_info, L"[FDP]SetFileAttributes() failed! (%d)\n", dwError);
+            const DWORD win_error = GetLastError();
+            DBGWRITE(dbg_level_info, L"SetFileAttributes() failed! (%d)\n", win_error);
 
-            return (afp_map_win_error_to_afp(dwError, static_cast<DWORD>(afpMiscErr)));
+            return (afp_map_win_error_to_afp(win_error, afpMiscErr));
         }
     }
 
-    if (wBitmap & (kFPCreateDate | kFPModDate | kFPBackupDate))
+    ULONG create_date = 0;
+    ULONG mod_date = 0;
+
+    if (bitmap & (kFPCreateDate | kFPModDate | kFPBackupDate))
     {
-        if (wBitmap & kFPCreateDate)
-            EXTRACT_LONG(pTemp, lwCreateDate)
-        if (wBitmap & kFPModDate)
-            EXTRACT_LONG(pTemp, lwModDate)
-        if (wBitmap & kFPBackupDate)
-            EXTRACT_LONG(pTemp, lwBackupDate)
-    }
-
-    if (wBitmap & kFPFinderInfo)
-    {
-        afp_finder_info fInfo;
-
-        RtlCopyMemory(&fInfo, pTemp, sizeof(afp_finder_info));
-        pTemp += sizeof(afp_finder_info);
-
-        fInfo.fd_flags = ntohs(fInfo.fd_flags);
-        fInfo.fd_location.x = static_cast<SHORT>(ntohs(fInfo.fd_location.x));
-        fInfo.fd_location.y = static_cast<SHORT>(ntohs(fInfo.fd_location.y));
-        fInfo.fd_fldr = static_cast<SHORT>(ntohs(fInfo.fd_fldr));
-
-        AFPSetFinderInfo(pEntry, &fInfo, FALSE);
-    }
-
-    if (wBitmap & kFPProDos)
-    {
-    }
-
-    //
-    //Now handle the dir specific cases.
-    //
-    if (dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-    {
-        if (wBitmap & kFPDirOwnerID)
+        if (bitmap & kFPCreateDate)
         {
+            create_date = request.pull_num<UINT32>();
         }
+        if (bitmap & kFPModDate)
+        {
+            mod_date = request.pull_num<UINT32>();
+        }
+        if (bitmap & kFPBackupDate)
+        {
+            request.pull_num<UINT32>();
+        }
+    }
 
-        if (wBitmap & kFPDirGroupID)
+    if (bitmap & kFPFinderInfo)
+    {
+        afp_finder_info finder_info;
+        request.pull_raw_data(&finder_info, sizeof(finder_info));
+
+        finder_info.fd_flags = ntohs(finder_info.fd_flags);
+        finder_info.fd_location.x = static_cast<SHORT>(ntohs(finder_info.fd_location.x));
+        finder_info.fd_location.y = static_cast<SHORT>(ntohs(finder_info.fd_location.y));
+        finder_info.fd_fldr = static_cast<SHORT>(ntohs(finder_info.fd_fldr));
+
+        set_finder_info(index_entry, &finder_info, FALSE);
+    }
+
+    if (file_attributes & FILE_ATTRIBUTE_DIRECTORY)
+    {
+        if (bitmap & kFPDirOwnerID)
         {
         }
 
-        if (wBitmap & kFPDirAccess)
+        if (bitmap & kFPDirGroupID)
+        {
+        }
+
+        if (bitmap & kFPDirAccess)
         {
         }
     }
 
-    //
-    //We wait till the very end to do this since many things above will
-    //change the modification date of an object.
-    //
-    if (wBitmap & (kFPCreateDate | kFPModDate | kFPBackupDate))
+    // We wait till the very end to do this since many things above will
+    // change the modification date of an object.
+    if (bitmap & (kFPCreateDate | kFPModDate | kFPBackupDate))
     {
-        AFPSetFileTime(
-            const_cast<wchar_t*>(pEntry->sz_path.c_str()),
-            (dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? TRUE : FALSE,
-            (lwCreateDate == 0) ? nullptr : &lwCreateDate,
-            (lwModDate == 0) ? nullptr : &lwModDate,
-            (lwBackupDate == 0) ? nullptr : &lwBackupDate
+        afp_set_file_time(
+            index_entry->sz_path.c_str(),
+            file_attributes & FILE_ATTRIBUTE_DIRECTORY ? TRUE : FALSE,
+            create_date,
+            mod_date
         );
     }
 
     return (NO_ERROR);
 }
 
-//---------------------------------------------------------------------
-// AFPSetFileTime()
-//---------------------------------------------------------------------
-// Set the time fields of a file.
-//
-AFPERROR AFPSetFileTime(
-    IN PTCHAR pWindowspath,
-    IN BOOL fIsDirectory,
-    IN PULONG plwCreation,
-    IN PULONG plwModification,
-    IN PULONG plwBackup
+AFPERROR afp_set_file_time(
+    IN const WCHAR* windows_path,
+    IN const BOOL is_directory,
+    IN const UINT32 creation,
+    IN const UINT32 modification
 )
 {
-    auto hFile = INVALID_HANDLE_VALUE;
-    DWORD dwError = NO_ERROR;
-    PFILETIME pCreation = nullptr;
-    PFILETIME pMod = nullptr;
-    PFILETIME pBackup = nullptr;
-    FILETIME creation, mod, backup;
+    HANDLE h_file;
+    FILETIME ft_creation, ft_mod;
 
-    //
-    //To set the file time, we have to have a handle to
-    //the file object. This sucks.
-    //
-    if (fIsDirectory)
+    // To set the file time, we have to have a handle to
+    // the file object.
+    if (is_directory)
     {
-        hFile = CreateFile(
-            pWindowspath,
+        h_file = CreateFile(
+            windows_path,
             FILE_GENERIC_WRITE,
             FILE_SHARE_READ | FILE_SHARE_DELETE,
             nullptr,
@@ -515,8 +427,8 @@ AFPERROR AFPSetFileTime(
     }
     else
     {
-        hFile = CreateFile(
-            pWindowspath,
+        h_file = CreateFile(
+            windows_path,
             GENERIC_WRITE,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             nullptr,
@@ -526,189 +438,54 @@ AFPERROR AFPSetFileTime(
         );
     }
 
-    if (hFile == INVALID_HANDLE_VALUE)
+    if (h_file == INVALID_HANDLE_VALUE)
     {
-        dwError = GetLastError();
+        const auto win_error = GetLastError();
+        DBGWRITE(dbg_level_error,
+                 L"CreatFile() failed in AFPSetFileTime! (%d)\n", win_error);
 
-        DBGWRITE(dbg_level_info,
-                 L"[FDP]CreatFile() failed in AFPSetFileTime! (%d)\n", dwError);
+        return win_error == ERROR_FILE_NOT_FOUND ? afpObjectNotFound : afpMiscErr;
+    }
 
-        switch (dwError)
+    // Convert all the mac times to FILETIME structures.
+    if (creation != 0)
+    {
+        afp_mac_to_windows_time(creation, &ft_creation);
+        if (!SetFileTime(h_file, &ft_creation, nullptr, nullptr))
         {
-        case ERROR_FILE_NOT_FOUND:
-            return (afpObjectNotFound);
-            break;
-
-        default:
-            return (afpMiscErr);
+            DBGWRITE(dbg_level_error, L"SetFileTime() failed setting creation date. (%d)\n", GetLastError());
+        }
+    }
+    if (modification != 0)
+    {
+        afp_mac_to_windows_time(modification, &ft_mod);
+        if (!SetFileTime(h_file, nullptr, &ft_mod, nullptr))
+        {
+            DBGWRITE(dbg_level_error, L"SetFileTime() failed setting modification date. (%d)\n", GetLastError());
         }
     }
 
-    //
-    //Convert all the mac times to FILETIME structures.
-    //
-    if (plwCreation != nullptr)
-    {
-        afp_mac_to_windows_time(*plwCreation, &creation);
-        pCreation = &creation;
-    }
-    if (plwModification != nullptr)
-    {
-        afp_mac_to_windows_time(*plwModification, &mod);
-        pMod = &mod;
-    }
-    if (plwBackup != nullptr)
-    {
-        afp_mac_to_windows_time(*plwBackup, &backup);
-        pBackup = &backup;
-    }
+    CloseHandle(h_file);
 
-    //
-    //Make the windows API call that does the dirty deed.
-    //
-    if (!SetFileTime(hFile, pCreation, nullptr, pMod))
-    {
-        DBGWRITE(dbg_level_info,
-                 L"[FDP]SetFileTime() failed! (%d)\n", GetLastError());
-
-        dwError = static_cast<DWORD>(afpMiscErr);
-    }
-
-    CloseHandle(hFile);
-    return (dwError);
+    return AFP_OK;
 }
 
-//---------------------------------------------------------------------
-// AFPWinToAFPAttributes()
-//---------------------------------------------------------------------
-// Convert windows to AFP attributes.
-//
-WORD AFPWinToAFPAttributes(
-    IN DWORD dwWinAttributes,
-    OUT PWORD pwAFPAttributes
+WORD win_to_afp_attributes(
+    IN const DWORD win_attributes
 )
 {
-    WORD wAFPAttribs = 0;
+    WORD attributes = 0;
 
-    if (dwWinAttributes & FILE_ATTRIBUTE_HIDDEN)
-        wAFPAttribs |= kFileInvisible;
-    if (dwWinAttributes & FILE_ATTRIBUTE_SYSTEM)
-        wAFPAttribs |= kFileSystem;
-    if (dwWinAttributes & FILE_ATTRIBUTE_READONLY)
-        wAFPAttribs |= (kFileReadOnly | kFileDeleteInhibit | kFileRenameInhibit);
-    if (dwWinAttributes & FILE_ATTRIBUTE_ARCHIVE)
-        wAFPAttribs |= kFileNeedsBackup;
-    if (dwWinAttributes & FILE_ATTRIBUTE_SYSTEM)
-        wAFPAttribs |= kFileSystem;
+    if (win_attributes & FILE_ATTRIBUTE_HIDDEN)
+        attributes |= kFileInvisible;
+    if (win_attributes & FILE_ATTRIBUTE_SYSTEM)
+        attributes |= kFileSystem;
+    if (win_attributes & FILE_ATTRIBUTE_READONLY)
+        attributes |= (kFileReadOnly | kFileDeleteInhibit | kFileRenameInhibit);
+    if (win_attributes & FILE_ATTRIBUTE_ARCHIVE)
+        attributes |= kFileNeedsBackup;
+    if (win_attributes & FILE_ATTRIBUTE_SYSTEM)
+        attributes |= kFileSystem;
 
-    if (pwAFPAttributes != nullptr)
-    {
-        *pwAFPAttributes = wAFPAttribs;
-    }
-
-    return (wAFPAttribs);
+    return attributes;
 }
-
-#ifdef _DEBUG
-// ---------------------------------------------------------------------------
-// AFPExtractDirParms()
-// ---------------------------------------------------------------------------
-// Extracts requested dir information from the FPFileDirParms reply block.
-void AFPExtractDirParms(
-    IN PBYTE pParms, //Points to actual start of data
-    IN WORD wBitMap
-)
-{
-    PBYTE UNALIGNED pTemp;
-    PBYTE UNALIGNED pTemp2;
-    PBYTE UNALIGNED pInputParms;
-    BYTE wLen;
-    CHAR name[MAX_PATH];
-    DWORD dwTemp;
-    WORD wTemp;
-
-    pTemp = pParms;
-    pInputParms = pParms;
-
-    if (wBitMap & kFPDirAttribute)
-    {
-        EXTRACT_WORD(pTemp, wTemp);
-        DBGWRITE(dbg_level_info, L"[FDP]attributes = %d\n", wTemp);
-    }
-    if (wBitMap & kFPDirParentID)
-    {
-        EXTRACT_LONG(pTemp, dwTemp);
-        DBGWRITE(dbg_level_info, L"[FDP]parent id = %d\n", dwTemp);
-    }
-    if (wBitMap & kFPDirCreateDate)
-    {
-        EXTRACT_LONG(pTemp, dwTemp);
-        DBGWRITE(dbg_level_info, L"[FDP]dir create date = %d\n", dwTemp);
-    }
-    if (wBitMap & kFPDirModDate)
-    {
-        EXTRACT_LONG(pTemp, dwTemp);
-        DBGWRITE(dbg_level_info, L"[FDP]dir mod date = %d\n", dwTemp);
-    }
-    if (wBitMap & kFPDirBackupDate)
-    {
-        EXTRACT_LONG(pTemp, dwTemp);
-        DBGWRITE(dbg_level_info, L"[FDP]dir backup date = %d\n", dwTemp);
-    }
-    if (wBitMap & kFPDirFinderInfo)
-    {
-        DBGWRITE(dbg_level_info, L"[FDP]FinderInfo:\n");
-        hex_dump_buffer((PCHAR)pTemp, FINDERINFO_LEN);
-        pTemp += FINDERINFO_LEN;
-    }
-    if (wBitMap & kFPDirLongName)
-    {
-        RtlZeroMemory(name, MAX_PATH);
-
-        pTemp2 = pInputParms + ntohs(*(WORD UNALIGNED *)pTemp);
-        wLen = *(pTemp2++);
-
-        strncpy_s(name, sizeof(name), (PCHAR)pTemp2, wLen);
-        pTemp += sizeof(WORD);
-
-        DBGWRITE(dbg_level_info, L"[FDP]dir long name = %s\n", name);
-    }
-    if (wBitMap & kFPDirShortName)
-    {
-        RtlZeroMemory(name, MAX_PATH);
-
-        pTemp2 = pInputParms + ntohs(*(WORD UNALIGNED *)pTemp);
-        wLen = *(pTemp2++);
-
-        strncpy_s(name, sizeof(name), (PCHAR)pTemp2, wLen);
-        pTemp += sizeof(WORD);
-
-        DBGWRITE(dbg_level_info, L"[FDP]dir short name = %s\n", name);
-    }
-    if (wBitMap & kFPDirID)
-    {
-        EXTRACT_LONG(pTemp, dwTemp);
-        DBGWRITE(dbg_level_info, L"[FDP]dir id = %d\n", dwTemp);
-    }
-    if (wBitMap & kFPDirOffCount)
-    {
-        EXTRACT_WORD(pTemp, wTemp);
-        DBGWRITE(dbg_level_info, L"[FDP]dir offspring = %d\n", wTemp);
-    }
-    if (wBitMap & kFPDirOwnerID)
-    {
-        EXTRACT_LONG(pTemp, dwTemp);
-        DBGWRITE(dbg_level_info, L"[FDP]dir owner ID = %d\n", dwTemp);
-    }
-    if (wBitMap & kFPDirGroupID)
-    {
-        EXTRACT_LONG(pTemp, dwTemp);
-        DBGWRITE(dbg_level_info, L"[FDP]dir group ID = %d\n", dwTemp);
-    }
-    if (wBitMap & kFPDirAccess)
-    {
-        EXTRACT_LONG(pTemp, dwTemp);
-        DBGWRITE(dbg_level_info, L"[FDP]dir access = %x\n", dwTemp);
-    }
-}
-#endif

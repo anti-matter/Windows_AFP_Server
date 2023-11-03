@@ -561,55 +561,7 @@ enum afp_directory_attribute_flags
     kFileDirIsDir = 0x80
 };
 
-struct directory_parameters
-{
-    WORD attributes;
-    DWORD parent_dir_id;
-    ULONG create_date;
-    ULONG mod_date;
-    ULONG backup_date;
-    BYTE finder_info[FINDERINFO_LEN];
-    CHAR long_name[MAX_AFP_NAME];
-    CHAR short_name[MAX_AFP_SHORT_NAME];
-    DWORD dir_id;
-    WORD offspring;
-    DWORD owner_id;
-    DWORD group_id;
-    DWORD access_rights;
-    BYTE pro_dos_info[PRODOS_LEN];
-};
-
-struct afp_file_parameters
-{
-    WORD attributes;
-    DWORD parent_dir_id;
-    ULONG create_date;
-    ULONG mod_date;
-    ULONG backup_date;
-    BYTE finder_info[FINDERINFO_LEN];
-    CHAR long_name[MAX_AFP_NAME];
-    CHAR short_name[MAX_AFP_SHORT_NAME];
-    DWORD file_num;
-    DWORD data_fork_length;
-    DWORD resource_fork_length;
-    BYTE pro_dos_info[PRODOS_LEN];
-};
-
-struct afp_file_dir_parameters
-{
-    WORD file_bitmap;
-    WORD dir_bitmap;
-    BYTE attributes;
-    WORD volume_id;
-    DWORD dir_id;
-    WIN32_FILE_ATTRIBUTE_DATA win_attributes;
-
-    union
-    {
-        afp_file_parameters fp;
-        directory_parameters dp;
-    } parameters;
-};
+#pragma pack(push,1)
 
 struct mac_point
 {
@@ -619,6 +571,16 @@ struct mac_point
 
 struct afp_finder_info
 {
+    afp_finder_info()
+        : fd_type{}
+        , fd_creator{}
+        , fd_flags(0)
+        , fd_location{}
+        , fd_fldr(0)
+        , fd_finder_data{}
+    {
+    }
+
     CHAR fd_type[4];
     CHAR fd_creator[4];
     WORD fd_flags;
@@ -627,17 +589,30 @@ struct afp_finder_info
     CHAR fd_finder_data[16];
 };
 
+constexpr BYTE extended_finder_info_version = 1;
+
 // This is the extended FinderInfo that we use to store
 // data per file/dir specific to this file server.
 struct afp_extended_finder_info
 {
+    afp_extended_finder_info()
+        : version(extended_finder_info_version)
+        , char_map{}
+        , reserved(0)
+        , reserved2(0)
+    {
+    }
+
     afp_finder_info finder_info;
 
+    BYTE version;
     AFPCHARMAPARRAY char_map;
 
     DWORD reserved;
     DWORD reserved2;
 };
+
+#pragma pack(pop)
 
 // ReSharper disable CppInconsistentNaming
 enum afp_finder_flags

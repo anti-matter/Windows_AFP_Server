@@ -495,7 +495,7 @@ AFPERROR FPCreateFile(
 
         if (new_entry != nullptr)
         {
-            AFPCheckForAndAddFinderInfoStream(new_entry, char_map);
+            create_finder_info_stream(new_entry, char_map);
             afp_check_for_and_create_rsrc_stream(new_entry);
         }
 

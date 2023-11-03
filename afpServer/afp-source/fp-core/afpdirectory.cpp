@@ -548,12 +548,11 @@ AFPERROR FPSetFileDirParms(
         return afpObjectNotFound;
     }
 
-    afp_error = AFPSetFileDirParms(
+    afp_error = afp_set_file_dir_parms(
         afp_bitmap,
+        win_attributes.dwFileAttributes,
         afp_entry,
-        afp_request.get_current_pos_ptr(),
-        win_attributes.dwFileAttributes
-    );
+        afp_request);
 
     return afp_error;
 }
@@ -664,7 +663,7 @@ AFPERROR FPCreateDir(
             true,
             &afp_dir_id);
 
-        AFPCheckForAndAddFinderInfoStream(new_dir_entry, char_map, false);
+        create_finder_info_stream(new_dir_entry, char_map, false);
 
         afp_volume->set_is_dirty();
 
@@ -1018,7 +1017,7 @@ AFPERROR FPMoveAndRename(
         return afpObjectNotFound;
     }
 
-    const auto afp_attributes = AFPWinToAFPAttributes(win_attributes.dwFileAttributes, nullptr);
+    const auto afp_attributes = win_to_afp_attributes(win_attributes.dwFileAttributes);
     if (afp_attributes & (kFileDeleteInhibit | kFileRenameInhibit))
     {
         DBGWRITE(dbg_level_info, L"Cannot rename, object locked!\n");
@@ -1149,7 +1148,7 @@ AFPERROR FPRename(
         return afpObjectNotFound;
     }
 
-    const auto afp_attributes = AFPWinToAFPAttributes(win_attributes.dwFileAttributes, nullptr);
+    const auto afp_attributes = win_to_afp_attributes(win_attributes.dwFileAttributes);
     if (afp_attributes & kFileRenameInhibit)
     {
         DBGWRITE(dbg_level_info, L"Cannot rename, object locked!\n");

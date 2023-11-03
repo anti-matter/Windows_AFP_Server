@@ -276,7 +276,7 @@ void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_no
 
     // Add the finder info stream to the file or directory if
     // it doesn't already exist.
-    AFPCheckForAndAddFinderInfoStream(new_entry);
+    create_finder_info_stream(new_entry);
 
     if (attribute_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
     {

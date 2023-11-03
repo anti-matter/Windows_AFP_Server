@@ -3,35 +3,35 @@
 #include "afp.h"
 #include "volumes.h"
 
-#define AFP_INFO_STREAM_NAME	TEXT("AFP_AfpInfo")
+inline const WCHAR* afp_info_stream_name(L"AFP_AfpInfo");
 
 
-BOOL AFPCheckForAndAddFinderInfoStream(
-    IN afp_index* pEntry,
-    IN AFPCHARMAPARRAY pCharmap = nullptr,
-    IN BOOL fMakeInvisible = false
+BOOL create_finder_info_stream(
+    IN afp_index* entry,
+    IN AFPCHARMAPARRAY char_map = nullptr,
+    IN bool make_invisible = false
 );
 
-AFPERROR AFPGetFinderInfo(
-    IN afp_index* pEntry,
-    OUT afp_finder_info* pInfo
+AFPERROR get_finder_info(
+    IN afp_index* entry,
+    OUT afp_finder_info* finder_info
 );
 
-AFPERROR AFPGetFinderInfoEx(
-    IN afp_index* pEntry,
-    OUT afp_extended_finder_info* pInfo
+AFPERROR get_finder_info_ex(
+    IN afp_index* entry,
+    OUT afp_extended_finder_info* extended_finder_info
 );
 
-AFPERROR AFPSetFinderInfo(
-    IN afp_index* pEntry,
-    IN afp_finder_info* pInfo,
-    IN BOOL fCreateAlways = false
+AFPERROR set_finder_info(
+    IN afp_index* entry,
+    IN const afp_finder_info* finder_info,
+    IN bool create_always = false
 );
 
-AFPERROR AFPSetFinderInfoEx(
-    IN afp_index* pEntry,
-    IN afp_extended_finder_info* pInfo,
-    IN BOOL fCreateAlways = false
+AFPERROR set_finder_info_ex(
+    IN afp_index* entry,
+    IN const afp_extended_finder_info* extended_finder_info,
+    IN bool create_always = false
 );
 
 AFPERROR AFPUpdateEntryCharMap(

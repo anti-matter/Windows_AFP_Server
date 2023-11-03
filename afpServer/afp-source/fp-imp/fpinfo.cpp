@@ -3,51 +3,35 @@
 #include "afpxattr.h"
 
 
-/*
- * AFPCheckForAndAddFinderInfoStream()
- *
- * Description:
- *		See if the file object has a file info stream and add
- *		it if not.
- *
- * Returns: TRUE if stream already existed
- */
-
-BOOL AFPCheckForAndAddFinderInfoStream(
-    IN afp_index* pEntry,
-    IN AFPCHARMAPARRAY pCharmap,
-    IN BOOL fMakeInvisible
+BOOL create_finder_info_stream(
+    IN afp_index* entry,
+    IN AFPCHARMAPARRAY char_map,
+    IN bool make_invisible
 )
 {
-    afp_extended_finder_info finderInfo;
+    afp_extended_finder_info finder_info_ex;
 
-    if (AFP_FAILED(AFPGetFinderInfoEx(pEntry, &finderInfo)))
+    if (AFP_FAILED(get_finder_info_ex(entry, &finder_info_ex)))
     {
-        memset(&finderInfo, 0, sizeof(finderInfo));
+        const auto attributes = GetFileAttributes(entry->sz_path.c_str());
 
-        const auto dwAttributes = GetFileAttributes(pEntry->sz_path.c_str());
-
-        if (dwAttributes != 0xFFFFFFFF && dwAttributes & FILE_ATTRIBUTE_HIDDEN || fMakeInvisible)
+        if (attributes != 0xFFFFFFFF && attributes & FILE_ATTRIBUTE_HIDDEN || make_invisible)
         {
-            finderInfo.finder_info.fd_flags |= kFDInvisible;
+            finder_info_ex.finder_info.fd_flags |= kFDInvisible;
         }
 
-        finderInfo.finder_info.fd_location.x = 20;
-        finderInfo.finder_info.fd_location.y = 20;
+        finder_info_ex.finder_info.fd_location.x = 20;
+        finder_info_ex.finder_info.fd_location.y = 20;
 
-        //
-        //Copy the charMap into the extended finder info structure.
-        //
-        if (pCharmap != nullptr)
+        // Copy the charMap into the extended finder info structure.
+        if (char_map != nullptr)
         {
-            RtlCopyMemory(&finderInfo.char_map, pCharmap, sizeof(AFPCHARMAPARRAY));
+            RtlCopyMemory(&finder_info_ex.char_map, char_map, sizeof(AFPCHARMAPARRAY));
         }
 
-        //
-        //If an item didn't have a finder info stream before, set the
-        //defaults and add one now.
-        //
-        AFPSetFinderInfoEx(pEntry, &finderInfo, true);
+        // If an item didn't have a finder info stream before, set the
+        // defaults and add one now.
+        set_finder_info_ex(entry, &finder_info_ex, true);
 
         return false;
     }
@@ -56,65 +40,39 @@ BOOL AFPCheckForAndAddFinderInfoStream(
 }
 
 
-/*
- * AFPGetFinderInfo()
- *
- * Description:
- *		Returns the FINDER_INFO from the file stream.
- *
- * Returns: AFPERROR
- */
-
-AFPERROR AFPGetFinderInfo(
-    IN afp_index* pEntry,
-    OUT afp_finder_info* pInfo
+AFPERROR get_finder_info(
+    IN afp_index* entry,
+    OUT afp_finder_info* finder_info
 )
 {
-    afp_extended_finder_info infoEx;
+    afp_extended_finder_info extended_finder_info;
 
-    const auto afp_error = AFPGetFinderInfoEx(pEntry, &infoEx);
-
+    const auto afp_error = get_finder_info_ex(entry, &extended_finder_info);
     if (AFP_SUCCESS(afp_error))
     {
-        RtlCopyMemory(pInfo, &infoEx, sizeof(afp_finder_info));
+        *finder_info = extended_finder_info.finder_info;
     }
 
-    return (afp_error);
+    return afp_error;
 }
 
 
-/*
- * AFPGetFinderInfoEx()
- *
- * Description:
- *		Returns the FINDER_INFO from the file stream plus the
- *		extra data we store at the end of the block. We use
- *		the finfo stream to also store character map data which
- *		is used to map non-windows characters.
- *
- * Returns: AFPERROR
- */
-
-AFPERROR AFPGetFinderInfoEx(
-    IN afp_index* pEntry,
-    OUT afp_extended_finder_info* pInfo
+AFPERROR get_finder_info_ex(
+    IN afp_index* entry,
+    OUT afp_extended_finder_info* extended_finder_info
 )
 {
-    DWORD dwError = NO_ERROR;
-    DWORD dwBytesRead;
-    TCHAR szPath[MAX_PATH];
+    DWORD dw_error = NO_ERROR;
+    DWORD dw_bytes_read;
 
-    //
-    //First, build the path to the finder info stream.
-    //
-    ASSERT(!pEntry->sz_path.empty());
-    StringCbPrintf(szPath, sizeof(szPath), TEXT("%s:%s"), pEntry->sz_path.c_str(), AFP_INFO_STREAM_NAME);
+    ASSERT(!entry->sz_path.empty());
 
-    //
-    //Now open the AFP_Info stream to write to it.
-    //
-    const auto hFile = CreateFile(
-        szPath,
+    std::filesystem::path path = entry->sz_path;
+    path.concat(":");
+    path.concat(afp_info_stream_name);
+
+    const auto h_file = CreateFile(
+        path.c_str(),
         GENERIC_READ,
         FILE_SHARE_READ | FILE_SHARE_WRITE,
         nullptr,
@@ -123,179 +81,151 @@ AFPERROR AFPGetFinderInfoEx(
         nullptr
     );
 
-    if (hFile == INVALID_HANDLE_VALUE)
+    if (h_file == INVALID_HANDLE_VALUE)
     {
-        dwError = GetLastError();
-        DBGWRITE(dbg_level_all, L"[fpinfo]CreatFile() failed in AFPGetFinderInfo! (%d) (%s)\n", dwError, szPath);
+        dw_error = GetLastError();
+        DBGWRITE(dbg_level_error, L"CreatFile() failed in get_finder_info_ex! (%d) (%s)\n", dw_error, path.c_str());
 
-        return afp_map_win_error_to_afp(dwError, afpMiscErr);
+        return afp_map_win_error_to_afp(dw_error, afpMiscErr);
     }
 
-    //
-    //Write out the finder info.
-    //
-    if (!ReadFile(hFile, pInfo, sizeof(afp_extended_finder_info), &dwBytesRead, nullptr))
+    if (!ReadFile(h_file, extended_finder_info, sizeof(afp_extended_finder_info), &dw_bytes_read, nullptr))
     {
-        //
-        //Failure, get the error code and get out of here.
-        //
-        dwError = GetLastError();
-        DBGWRITE(dbg_level_info, L"[fpinfo]ReadFile() failed! (%d)\n", dwError);
+        dw_error = GetLastError();
+        DBGWRITE(dbg_level_info, L"[fpinfo]ReadFile() failed! (%d)\n", dw_error);
 
-        dwError = afp_map_win_error_to_afp(dwError, afpMiscErr);
+        dw_error = afp_map_win_error_to_afp(dw_error, afpMiscErr);
     }
 
-    CloseHandle(hFile);
+    if (extended_finder_info->version != extended_finder_info_version)
+    {
+        // Clear everything out and start over (with the extended portion).
+        afp_extended_finder_info new_info;
+        new_info.finder_info = extended_finder_info->finder_info;
 
-    return afp_map_win_error_to_afp(dwError, afpMiscErr);
+        set_finder_info_ex(entry, &new_info, true);
+
+        *extended_finder_info = new_info;
+    }
+
+    CloseHandle(h_file);
+
+    return afp_map_win_error_to_afp(dw_error, afpMiscErr);
 }
 
 
-/*
- * AFPSetFinderInfo()
- *
- * Description:
- *		Store FINDER_INFO data in the finfo stream.
- *
- * Returns: AFPERROR
- */
-
-AFPERROR AFPSetFinderInfo(
-    IN afp_index* pEntry,
-    IN afp_finder_info* pInfo,
-    IN BOOL fCreateAlways
+AFPERROR set_finder_info(
+    IN afp_index* entry,
+    IN const afp_finder_info* finder_info,
+    IN const bool create_always
 )
 {
-    afp_extended_finder_info infoEx;
+    afp_extended_finder_info extended_finder_info;
 
-    if (fCreateAlways)
+    if (create_always)
     {
-        memset(&infoEx, 0, sizeof(afp_extended_finder_info));
-        RtlCopyMemory(&infoEx, pInfo, sizeof(afp_finder_info));
+        extended_finder_info.finder_info = *finder_info;
     }
     else
     {
-        const auto afp_error = AFPGetFinderInfoEx(pEntry, &infoEx);
-
+        const auto afp_error = get_finder_info_ex(entry, &extended_finder_info);
         if (AFP_SUCCESS(afp_error))
         {
-            RtlCopyMemory(&infoEx, pInfo, sizeof(afp_finder_info));
+            extended_finder_info.finder_info = *finder_info;
         }
     }
 
-    return AFPSetFinderInfoEx(pEntry, &infoEx, fCreateAlways);
+    return set_finder_info_ex(entry, &extended_finder_info, create_always);
 }
 
 
-/*
- * AFPSetFinderInfoEx()
- *
- * Description:
- *		Store FINDER_INFO data in the finfo stream plus extended
- *		data used by the file server.
- *
- * Returns: AFPERROR
- */
-
-AFPERROR AFPSetFinderInfoEx(
-    IN afp_index* pEntry,
-    IN afp_extended_finder_info* pInfo,
-    IN BOOL fCreateAlways
+AFPERROR set_finder_info_ex(
+    IN afp_index* entry,
+    IN const afp_extended_finder_info* extended_finder_info,
+    IN const bool create_always
 )
 {
-    HANDLE hFile;
-    DWORD dwError = NO_ERROR;
-    DWORD dwBytesWritten = 0;
-    TCHAR szPath[MAX_PATH];
+    HANDLE h_file;
+    DWORD dw_error = NO_ERROR;
+    DWORD bytes_written = 0;
 
-    ASSERT(pEntry != NULL);
-    ASSERT(pEntry->sz_path.string().length() > 0);
+    ASSERT(entry != NULL);
+    ASSERT(entry->sz_path.string().length() > 0);
 
-    //
-    //First, build the path to the finder info stream.
-    //
-    StringCbPrintf(szPath, sizeof(szPath), TEXT("%s:%s"), pEntry->sz_path.c_str(), AFP_INFO_STREAM_NAME);
+    std::filesystem::path path = entry->sz_path;
+    path.concat(":");
+    path.concat(afp_info_stream_name);
 
     for (;;)
     {
         //
         //Now open the AFP_Info stream to write to it.
         //
-        hFile = CreateFile(
-            szPath,
+        h_file = CreateFile(
+            path.c_str(),
             GENERIC_WRITE,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             nullptr,
-            fCreateAlways ? OPEN_ALWAYS : OPEN_EXISTING,
+            create_always ? OPEN_ALWAYS : OPEN_EXISTING,
             FILE_ATTRIBUTE_NORMAL,
             nullptr
         );
 
-        if (hFile == INVALID_HANDLE_VALUE)
+        if (h_file == INVALID_HANDLE_VALUE)
         {
-            dwError = GetLastError();
+            dw_error = GetLastError();
 
-            //
-            //Sometimes we have to wait for a copy operation to complete before we can
-            //open and muck with the file. This occurs mainly during copy operations performed
-            //on the windows machine.
-            //
-            if (dwError == ERROR_SHARING_VIOLATION)
+            // Sometimes we have to wait for a copy operation to complete before we can
+            // open and muck with the file. This occurs mainly during copy operations performed
+            // on the windows machine.
+            if (dw_error == ERROR_SHARING_VIOLATION)
             {
                 DBGWRITE(dbg_level_info, L"Sleeping for 500ms for notify wait!\n");
 
                 Sleep(500);
 
-                //
-                //Reset the error code so we won't fail out below.
-                //
-                dwError = NO_ERROR;
+                dw_error = NO_ERROR;
                 continue;
             }
 
-            DBGWRITE(dbg_level_info,
+            DBGWRITE(dbg_level_error,
                      L"CreatFile() failed! (%d) (%s)\n",
-                     dwError,
-                     szPath);
+                     dw_error,
+                     path.c_str());
 
-            dwError = afp_map_win_error_to_afp(dwError, afpMiscErr);
+            dw_error = afp_map_win_error_to_afp(dw_error, afpMiscErr);
         }
 
         break;
     }
 
-    if (dwError == NO_ERROR)
+    if (dw_error == NO_ERROR)
     {
-        //
-        //Write out the finder info.
-        //
-        if (!WriteFile(hFile, pInfo, sizeof(afp_extended_finder_info), &dwBytesWritten, nullptr))
+        if (!WriteFile(h_file, extended_finder_info, sizeof(afp_extended_finder_info), &bytes_written, nullptr))
         {
-            //
-            //Failure, get the error code and get out of here.
-            //
-            dwError = GetLastError();
-            DBGWRITE(dbg_level_info, L"WriteFile() failed! (%d)\n", dwError);
-
-            dwError = afp_map_win_error_to_afp(dwError, afpMiscErr);
+            dw_error = GetLastError();
+            DBGWRITE(dbg_level_error, L"WriteFile() failed! (%d) (%s)\n", dw_error, path.c_str());
         }
 
-        ASSERT(dwBytesWritten == sizeof(afp_extended_finder_info));
-        DBGWRITE(dbg_level_all, L"FinderInfo updated successfully for %s.\n", szPath);
-
-        if (pInfo->char_map[0].wKeyCode != 0)
+        if (dw_error == NO_ERROR)
         {
-            pEntry->flags |= flag_index_has_charmap;
-        }
-        else
-        {
-            pEntry->flags &= ~flag_index_has_charmap;
+            ASSERT(bytes_written == sizeof(afp_extended_finder_info));
+            DBGWRITE(dbg_level_all, L"FinderInfo updated successfully for %s.\n", path.c_str());
+
+            if (extended_finder_info->char_map[0].wKeyCode != 0)
+            {
+                entry->flags |= flag_index_has_charmap;
+            }
+            else
+            {
+                entry->flags &= ~flag_index_has_charmap;
+            }
         }
 
-        CloseHandle(hFile);
+        CloseHandle(h_file);
     }
 
-    return afp_map_win_error_to_afp(dwError, afpMiscErr);
+    return afp_map_win_error_to_afp(dw_error, afpMiscErr);
 }
 
 
@@ -316,13 +246,13 @@ AFPERROR AFPUpdateEntryCharMap(
 {
     afp_extended_finder_info infoEx;
 
-    auto afpError = AFPGetFinderInfoEx(pEntry, &infoEx);
+    auto afpError = get_finder_info_ex(pEntry, &infoEx);
 
     if (AFP_SUCCESS(afpError))
     {
         RtlCopyMemory(&infoEx.char_map, pCharmap, sizeof(AFPCHARMAPARRAY));
 
-        afpError = AFPSetFinderInfoEx(pEntry, &infoEx);
+        afpError = set_finder_info_ex(pEntry, &infoEx);
     }
 
     return afpError;
@@ -377,9 +307,7 @@ AFPERROR AFPGetCharMapForIndexEntry(
 
     if (pEntry->flags & flag_index_has_charmap)
     {
-        memset(&infoEx, 0, sizeof(afp_extended_finder_info));
-
-        afpError = AFPGetFinderInfoEx(pEntry, &infoEx);
+        afpError = get_finder_info_ex(pEntry, &infoEx);
 
         if (AFP_SUCCESS(afpError))
         {
@@ -408,7 +336,7 @@ BOOL AFPCheckForCharMap(
 {
     afp_extended_finder_info infoEx;
 
-    if (AFP_SUCCESS(AFPGetFinderInfoEx(pEntry, &infoEx)))
+    if (AFP_SUCCESS(get_finder_info_ex(pEntry, &infoEx)))
     {
         if (infoEx.char_map[0].wKeyCode != 0)
         {

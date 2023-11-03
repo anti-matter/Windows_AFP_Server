@@ -497,7 +497,7 @@ AFPERROR FPListExtAttribute(
                     //don't want to send_ streams the server owns back to the client (e.g.
                     //the resource or info streams).
                     //
-                    if ((!lstrcmp(afpAttrInfo.stream_name, AFP_INFO_STREAM_NAME)) ||
+                    if ((!lstrcmp(afpAttrInfo.stream_name, afp_info_stream_name)) ||
                         (!lstrcmp(afpAttrInfo.stream_name, AFP_RESOURCE_FORK_NAME_PLAIN)))
                     {
                         continue;

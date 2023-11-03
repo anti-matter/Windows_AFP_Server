@@ -102,11 +102,11 @@ void afp_volumes::add_volume(const std::wstring& share_name, std::filesystem::pa
     const auto root_index = new_index->add_entry(kParentOfRoot, share_name, share_path, true);
 
     // Create the Afp_AfpInfo stream that holds FinderInfo for the root dir.
-    AFPCheckForAndAddFinderInfoStream(root_index);
+    create_finder_info_stream(root_index);
 
     std::filesystem::path create_path = share_path;
     create_path.concat(":");
-    create_path.concat(AFP_INFO_STREAM_NAME);
+    create_path.concat(afp_info_stream_name);
 
     const HANDLE h_file = CreateFile(
         create_path.c_str(),
@@ -218,7 +218,7 @@ bool afp_volumes::index_build(std::filesystem::path& share_path, const UINT32  p
         // Now that we have our index entry, we need to get the char mapping
         // table for mac characters that didn't map to windows chars. Only
         // copy the mapping if the stream existed before we created it.
-        if (AFPCheckForAndAddFinderInfoStream(entry))
+        if (create_finder_info_stream(entry))
         {
             AFPCheckForCharMap(entry);
         }

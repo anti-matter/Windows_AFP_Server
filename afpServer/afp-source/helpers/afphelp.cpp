@@ -234,7 +234,8 @@ PSID afp_get_sid_for_user(
  *	Return Value: error code
  */
 DWORD afp_get_directory_rights(
-	IN const HANDLE token, //login token
+    // ReSharper disable once CppParameterNeverUsed
+    IN const HANDLE token, //login token
 	IN const PWCHAR p_dir_win_path, //directory to check
 	IN const PWCHAR p_user_name,
 	IN const PWCHAR p_domain_name,
@@ -792,19 +793,17 @@ BOOL afp_adjust_privilege(
 
 	if (!LookupPrivilegeValue(nullptr, privilege, &luid))
 	{
-		DBGWRITE(dbg_level_info, L"[SEC]LookupPrivilegeValue() failed for %s! (%d)\n", privilege, GetLastError());
+		DBGWRITE(dbg_level_error, L"LookupPrivilegeValue() failed for %s! (%d)\n", privilege, GetLastError());
 		return FALSE;
 	}
 
-	//
-	//If hToken was not supplied, then we get the token for the
-	//currently running thread.
-	//
+	// If hToken was not supplied, then we get the token for the
+	// currently running thread.
 	if (h_token == INVALID_HANDLE_VALUE)
 	{
 		if (!open_current_token(&token))
 		{
-			DBGWRITE(dbg_level_info, L"[SEC]OpenCurrentToken() failed! (%d)\n", GetLastError());
+			DBGWRITE(dbg_level_error, L"OpenCurrentToken() failed! (%d)\n", GetLastError());
 			return FALSE;
 		}
 	}
@@ -830,14 +829,14 @@ BOOL afp_adjust_privilege(
 	{
 		const DWORD error = GetLastError();
 
-		DBGWRITE(dbg_level_info, L"[SEC]AdjustTokenPrivileges() failed! (%d)\n", error);
+		DBGWRITE(dbg_level_error, L"AdjustTokenPrivileges() failed! (%d)\n", error);
 
 		//
 		//If we have an invalid handle, we don't want to make a call on
 		//it at this stage or we'll die. Only close if we created the token
 		//handle locally.
 		//
-		if ((error != ERROR_INVALID_HANDLE) && (h_token == INVALID_HANDLE_VALUE))
+		if (error != ERROR_INVALID_HANDLE && h_token == INVALID_HANDLE_VALUE)
 		{
 			CloseHandle(token);
 		}
@@ -845,12 +844,10 @@ BOOL afp_adjust_privilege(
 		return FALSE;
 	}
 
-	DBGWRITE(dbg_level_all, L"[SEC]AdjustTokenPrivileges() succeeded for %s\n", privilege);
+	DBGWRITE(dbg_level_all, L"AdjustTokenPrivileges() succeeded for %s\n", privilege);
 
-	//
-	//We only want to close the Token handle if we created it
-	//locally with OpenCurrentToken().
-	//
+	// We only want to close the Token handle if we created it
+	// locally with OpenCurrentToken().
 	if (h_token == INVALID_HANDLE_VALUE)
 	{
 		CloseHandle(token);
@@ -871,21 +868,16 @@ BOOL afp_adjust_account_right(
 	LSA_UNICODE_STRING user_rights;
 	auto policy_handle = INVALID_HANDLE_VALUE;
 
-	//
-	//First open a policy object for the local system.
-	//
+	// First open a policy object for the local system.
 	ZeroMemory(&object_attributes, sizeof(object_attributes));
 
 	auto status = LsaOpenPolicy(nullptr, &object_attributes, POLICY_LOOKUP_NAMES | POLICY_CREATE_ACCOUNT, &policy_handle);
-
 	if (status == ERROR_SUCCESS)
 	{
 		const PSID account_sid = nullptr;
 		ZeroMemory(&user_rights, sizeof(user_rights));
 
-		//
-		//Build the LSA unicode string structure
-		//
+		// Build the LSA unicode string structure
 		user_rights.Length = static_cast<USHORT>(lstrlen(privileges));
 		user_rights.MaximumLength = cb_privileges;
 		user_rights.Buffer = privileges;
@@ -902,14 +894,14 @@ BOOL afp_adjust_account_right(
 
 		if (status != ERROR_SUCCESS)
 		{
-			DBGWRITE(dbg_level_info, L"[SEC:AFPAdjustAccountRight]LsaAddAccountRights() failed %lu\n",
+			DBGWRITE(dbg_level_info, L"LsaAddAccountRights() failed %lu\n",
 			         LsaNtStatusToWinError(status));
 			return FALSE;
 		}
 	}
 	else
 	{
-		DBGWRITE(dbg_level_info, L"[SEC:AFPAdjustAccountRight]LsaOpenPolicy() failed %lu\n",
+		DBGWRITE(dbg_level_info, L"LsaOpenPolicy() failed %lu\n",
 		         LsaNtStatusToWinError(status));
 		return FALSE;
 	}
@@ -946,8 +938,10 @@ BOOL afp_impersonate_user(
 	if (success)
 	{
 		success = ImpersonateLoggedOnUser(h_user_token);
-
-		DBGWRITE(dbg_level_all, L"[SEC:AFPImpersonateUser]Impersonation succeeded:  %s\n", (success) ? L"YES" : L"NO");
+		if (!success)
+        {
+            DBGWRITE(dbg_level_error, L"Impersonation failed\n");
+        }
 	}
 
 	return success;
@@ -992,7 +986,7 @@ PWCHAR afp_mac_to_windows_string(
 	{
 		const auto error = GetLastError();
 
-		DBGWRITE(dbg_level_info, L"[HELP]MultiByteToWideChar() failed in AFPMacToWindowsString()! (%d)\n", error);
+		DBGWRITE(dbg_level_error, L"MultiByteToWideChar() failed in AFPMacToWindowsString()! (%d)\n", error);
 		return nullptr;
 	}
 

@@ -13,7 +13,7 @@ enum dbg_level
 	dbg_level_all
 };
 
-constexpr dbg_level current_debug_level = dbg_level_all;
+constexpr dbg_level current_debug_level = dbg_level_info;
 
 #define DBG_ALLOC(dwSize)		dbg_alloc(dwSize, __LINE__, __FILE__)
 #define DBG_FREE(ptr)			dbg_free((PBYTE)(ptr)); \
