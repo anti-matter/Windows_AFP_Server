@@ -5,7 +5,6 @@
 #include "fdparms.h"
 #include "fpinfo.h"
 #include "afpxattr.h"
-#include "afp_session.h"
 #include "afp_open_file.h"
 #include "afp_volumes.h"
 
@@ -14,21 +13,14 @@
 extern std::unique_ptr<afp_volumes> g_volumes;
 
 
-//---------------------------------------------------------------------
-// AFPGetParmsBufferSize()
-//---------------------------------------------------------------------
-// Returns how big a buffer is needed to pack all the requested
-// parameters.
-//
-size_t AFPGetParmsBufferSizeRequired(
-    IN PFILEDIRPARMS pFdp
+size_t afp_get_parms_buffer_size_required(
+    IN const PFILEDIRPARMS file_dir_parms
 )
 {
-    WORD i;
-    size_t wSize = 0;
-    WORD wBitmap = (pFdp->bFDPAttributes & kFileDirIsDir) ? pFdp->wDirBitmap : pFdp->wFileBitmap;
+    size_t w_size = 0;
+    WORD bitmap = (file_dir_parms->bFDPAttributes & kFileDirIsDir) ? file_dir_parms->wDirBitmap : file_dir_parms->wFileBitmap;
 
-    static BYTE fdParmSizes[14] = {
+    static BYTE fd_parms_sizes[] = {
         sizeof(WORD), //Attributes
         sizeof(DWORD), //Parent DirID
         sizeof(LONG), //Creation date
@@ -45,41 +37,35 @@ size_t AFPGetParmsBufferSizeRequired(
         PRODOS_LEN //ProDOS info
     };
 
-    if (wBitmap & kFPLongName)
+    if (bitmap & kFPLongName)
     {
-        wSize += strlen(pFdp->parms.fp.longName);
+        w_size += strlen(file_dir_parms->parms.fp.longName);
     }
 
-    if (wBitmap & kFPShortName)
+    if (bitmap & kFPShortName)
     {
-        wSize += strlen(pFdp->parms.fp.shortName);
+        w_size += strlen(file_dir_parms->parms.fp.shortName);
     }
 
-    if ((pFdp->bFDPAttributes & kFileDirIsDir) && (wBitmap & kFPDirOffCount))
+    if ((file_dir_parms->bFDPAttributes & kFileDirIsDir) && (bitmap & kFPDirOffCount))
     {
-        wSize -= sizeof(WORD);
+        w_size -= sizeof(WORD);
     }
 
-    for (i = 0; wBitmap; i++)
+    for (WORD i = 0; bitmap; i++)
     {
-        if (wBitmap & 1)
+        if (bitmap & 1)
         {
-            wSize += static_cast<WORD>(fdParmSizes[i]);
+            w_size += static_cast<WORD>(fd_parms_sizes[i]);
         }
 
-        wBitmap >>= 1;
+        bitmap >>= 1;
     }
 
-    return (wSize);
+    return w_size;
 }
 
-//---------------------------------------------------------------------
-// AFPCheckForAndCreateFinderRsrcStream)
-//---------------------------------------------------------------------
-// Check to see if a file object has a resource stream. If not, add
-// it using defaults.
-//
-void AFPCheckForAndCreateFinderRsrcStream(
+void afp_check_for_and_create_rsrc_stream(
     IN const afp_index* index_entry
 )
 {
@@ -88,7 +74,7 @@ void AFPCheckForAndCreateFinderRsrcStream(
     res_path.concat(AFP_RESOURCE_FORK_NAME);
 
 
-    HANDLE hFile = CreateFile(
+    if (HANDLE h_file = CreateFile(
         res_path.c_str(),
         GENERIC_READ | GENERIC_WRITE,
         0,
@@ -96,14 +82,12 @@ void AFPCheckForAndCreateFinderRsrcStream(
         OPEN_EXISTING,
         FILE_ATTRIBUTE_NORMAL,
         nullptr
-    );
-
-    if (hFile == INVALID_HANDLE_VALUE)
+    ); h_file == INVALID_HANDLE_VALUE)
     {
         const auto error = GetLastError();
         if (error == ERROR_FILE_NOT_FOUND)
         {
-            hFile = CreateFile(
+            h_file = CreateFile(
                 res_path.c_str(),
                 GENERIC_READ | GENERIC_WRITE,
                 0,
@@ -113,14 +97,14 @@ void AFPCheckForAndCreateFinderRsrcStream(
                 nullptr
             );
 
-            if (hFile != INVALID_HANDLE_VALUE)
+            if (h_file != INVALID_HANDLE_VALUE)
             {
                 DBGWRITE(dbg_level_all,
                     L"Successfully created new resource stream (%s)\n",
                     res_path.c_str()
                 );
 
-                CloseHandle(hFile);
+                CloseHandle(h_file);
             }
             else
             {
@@ -134,246 +118,240 @@ void AFPCheckForAndCreateFinderRsrcStream(
     }
     else
     {
-        CloseHandle(hFile);
+        CloseHandle(h_file);
     }
 }
 
-//---------------------------------------------------------------------
-// AFPGetObjectParms()
-//---------------------------------------------------------------------
-// Fill in the parms of a file or dir for a file/dir parms call.
-//
-AFPERROR AFPGetObjectParms(
-    IN afp_net_buffer& afpReply,
-    IN uint16 afpBitmap,
-    IN uint16 afpVolumeID,
-    IN UINT32 afpDirID,
-    IN const dsi::dsi_connection* afpSession,
-    IN afp_index* afpEntry,
-    IN WIN32_FILE_ATTRIBUTE_DATA winAttributes
+AFPERROR afp_get_object_parms(
+    IN afp_net_buffer& reply,
+    IN const UINT16 bitmap,
+    IN const INT16 volume_id,
+    IN const UINT32 dir_id,
+    IN const dsi::dsi_connection* dsi_session,
+    IN afp_index* entry,
+    IN WIN32_FILE_ATTRIBUTE_DATA win_attributes
 )
 {
-    AFPCHARMAPARRAY charMap = {0};
-    LARGE_INTEGER dataSize64 = {0};
-    LARGE_INTEGER rsrcSize64 = {0};
-    uint16* longNameOffset = nullptr;
-    uint16* uniNameOffset = nullptr;
-    char* pParmsStart = afpReply.get_current_pos_ptr();
+    AFPCHARMAPARRAY char_map{};
+    LARGE_INTEGER data_size64{};
+    LARGE_INTEGER rsrc_size64{};
+    UINT16* long_name_offset = nullptr;
+    UINT16* uni_name_offset = nullptr;
+    const char* parms_start = reply.get_current_pos_ptr();
 
-    if (afpBitmap & kFPFileAttributes)
+    if (bitmap & kFPFileAttributes)
     {
-        uint16 afpAttributes = 0;
+        UINT16 attributes = 0;
 
-        AFPWinToAFPAttributes(winAttributes.dwFileAttributes, &afpAttributes);
+        AFPWinToAFPAttributes(win_attributes.dwFileAttributes, &attributes);
 
-        //
-        //For files, there are a couple flags that Windows doesn't have.
-        //
-        if ((winAttributes.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0)
+        // For files, there are a couple flags that Windows doesn't have.
+        if ((win_attributes.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0)
         {
-            if (afpEntry->flags & flag_index_resource_fork_open)
+            if (entry->flags & flag_index_resource_fork_open)
             {
-                afpAttributes |= kFileRsrcForkOpen;
+                attributes |= kFileRsrcForkOpen;
             }
 
-            if (afpEntry->flags & flag_index_data_fork_open)
+            if (entry->flags & flag_index_data_fork_open)
             {
-                afpAttributes |= kFileDataForkOpen;
+                attributes |= kFileDataForkOpen;
             }
         }
 
-        afpReply.push_num<UINT16>(afpAttributes);
+        reply.push_num<UINT16>(attributes);
     }
 
-    if (afpBitmap & kFPParentID) afpReply.push_num<UINT32>(afpEntry->par_id);
-    if (afpBitmap & kFPCreateDate) afpReply.push_num<UINT32>(afp_windows_to_mac_time(&winAttributes.ftCreationTime));
-    if (afpBitmap & kFPModDate) afpReply.push_num<UINT32>(afp_windows_to_mac_time(&winAttributes.ftLastWriteTime));
-    if (afpBitmap & kFPBackupDate) afpReply.push_num<UINT32>(0x80000000);
-
-    if (afpBitmap & kFPFinderInfo)
+    if (bitmap & kFPParentID)
     {
-        FINDER_INFO finderInfo;
+        reply.push_num<UINT32>(entry->par_id);
+    }
 
-        RtlZeroMemory(&finderInfo, sizeof(FINDER_INFO));
+    if (bitmap & kFPCreateDate)
+    {
+        reply.push_num<UINT32>(afp_windows_to_mac_time(&win_attributes.ftCreationTime));
+    }
 
-        if (AFP_SUCCESS(AFPGetFinderInfo(afpEntry, &finderInfo)))
+    if (bitmap & kFPModDate)
+    {
+        reply.push_num<UINT32>(afp_windows_to_mac_time(&win_attributes.ftLastWriteTime));
+    }
+
+    if (bitmap & kFPBackupDate)
+    {
+        reply.push_num<UINT32>(0x80000000);
+    }
+
+    if (bitmap & kFPFinderInfo)
+    {
+        FINDER_INFO finder_info;
+
+        RtlZeroMemory(&finder_info, sizeof(FINDER_INFO));
+
+        if (AFP_SUCCESS(AFPGetFinderInfo(entry, &finder_info)))
         {
-            if (winAttributes.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN)
+            if (win_attributes.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN)
             {
-                finderInfo.fdFlags |= kFDInvisible;
+                finder_info.fdFlags |= kFDInvisible;
             }
 
-            finderInfo.fdFlags = htons(finderInfo.fdFlags);
-            finderInfo.fdLocation.x = htons(finderInfo.fdLocation.x);
-            finderInfo.fdLocation.y = htons(finderInfo.fdLocation.y);
-            finderInfo.fdFldr = htons(finderInfo.fdFldr);
+            finder_info.fdFlags = htons(finder_info.fdFlags);
+            finder_info.fdLocation.x = static_cast<SHORT>(htons(finder_info.fdLocation.x));
+            finder_info.fdLocation.y = static_cast<SHORT>(htons(finder_info.fdLocation.y));
+            finder_info.fdFldr = static_cast<SHORT>(htons(finder_info.fdFldr));
 
-            afpReply.push_raw_data(&finderInfo, sizeof(FINDER_INFO));
+            reply.push_raw_data(&finder_info, sizeof(FINDER_INFO));
         }
     }
 
-    if (afpBitmap & kFPLongName)
+    if (bitmap & kFPLongName)
     {
-        longNameOffset = (uint16*)afpReply.get_current_pos_ptr();
-        afpReply.advance_pos_ptr(sizeof(int16));
+        long_name_offset = reply.get_ptr_offset<UINT16>();
     }
 
-    if (afpBitmap & kFPFileNum) afpReply.push_num<UINT32>(afpEntry->object_id);
-
-    //
-    //The maps are a little different here for file and directories.
-    //
-    if (winAttributes.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+    if (bitmap & kFPFileNum)
     {
-        if (afpBitmap & kFPDirOffCount)
+        reply.push_num(entry->object_id);
+    }
+
+    // The maps are a little different here for file and directories.
+    if (win_attributes.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+    {
+        if (bitmap & kFPDirOffCount)
         {
-            const auto offspring = static_cast<UINT16>(g_volumes
-                ->find(afpVolumeID)
+            const auto offspring = static_cast<UINT16>(afp_volumes::current()
+                ->find(volume_id)
                 ->get_index()
-                ->get_offspring(afpEntry->object_id));
-            afpReply.push_num<UINT16>(offspring);
+                ->get_offspring(entry->object_id));
+            reply.push_num<UINT16>(offspring);
         }
 
-        if (afpBitmap & (kFPDirOwnerID | kFPDirGroupID))
+        if (bitmap & (kFPDirOwnerID | kFPDirGroupID))
         {
-            DWORD dwOwnerID = 0;
-            DWORD dwGroupID = 0;
-
-            //AFPGetDirectoryOwnerAndGroupID(afpEntry->szPath, &dwOwnerID, &dwGroupID);
-
-            if (afpBitmap & kFPDirOwnerID)
+            if (bitmap & kFPDirOwnerID)
             {
-                afpReply.push_num<UINT32>(dwOwnerID);
+                constexpr DWORD owner_id = 0;
+                reply.push_num<UINT32>(owner_id);
             }
 
-            if (afpBitmap & kFPDirGroupID)
+            if (bitmap & kFPDirGroupID)
             {
-                afpReply.push_num<UINT32>(dwGroupID);
+                constexpr DWORD group_id = 0;
+                reply.push_num<UINT32>(group_id);
             }
         }
 
-        if (afpBitmap & kFPDirAccess)
+        if (bitmap & kFPDirAccess)
         {
-            uint32 afpRights = 0;
+            DWORD rights = 0;
 
-            const auto user_name = _wcsdup(afpSession->get_user_name().c_str());
-            const auto domain_name = _wcsdup(afpSession->get_domain_name().c_str());
+            const auto user_name = _wcsdup(dsi_session->get_user_name().c_str());
+            const auto domain_name = _wcsdup(dsi_session->get_domain_name().c_str());
 
             const auto win_error = afp_get_directory_rights(
-                afpSession->get_user_token(),
-                const_cast<wchar_t*>(afpEntry->sz_path.c_str()),
+                dsi_session->get_user_token(),
+                const_cast<wchar_t*>(entry->sz_path.c_str()),
                 user_name,
                 (lstrlen(domain_name) > 0) ? domain_name : nullptr,
-                &afpRights
+                &rights
             );
 
             if (SUCCEEDED(win_error))
             {
-                afpReply.push_num<UINT32>(afpRights);
+                reply.push_num(rights);
             }
 
             free(user_name);
             free(domain_name);
         }
 
-        if (afpBitmap & kFPUnicodeName)
+        if (bitmap & kFPUnicodeName)
         {
-            uniNameOffset = reinterpret_cast<UINT16*>(afpReply.get_current_pos_ptr());
-            afpReply.advance_pos_ptr(sizeof(UINT16));
+            uni_name_offset = reply.get_ptr_offset<UINT16>();
         }
     }
     else
     {
-        if (afpBitmap & (kFPDFLen | kFPExtDataForkLen))
+        if (bitmap & (kFPDFLen | kFPExtDataForkLen))
         {
-            dataSize64.LowPart = GetCompressedFileSize(afpEntry->sz_path.c_str(), (LPDWORD)&dataSize64.HighPart);
-
-            if (dataSize64.LowPart == INVALID_FILE_SIZE && GetLastError() != NO_ERROR)
+            data_size64.LowPart = GetCompressedFileSize(entry->sz_path.c_str(), reinterpret_cast<LPDWORD>(&data_size64.HighPart));
+            if (data_size64.LowPart == INVALID_FILE_SIZE && GetLastError() != NO_ERROR)
             {
-                dataSize64.LowPart = 0;
-                DBGWRITE(dbg_level_info, L"[FDP]GetCompressedFileSize() failed! (%d)\n", GetLastError());
+                data_size64.LowPart = 0;
+                DBGWRITE(dbg_level_warning, L"[FDP]GetCompressedFileSize() failed! (%d)\n", GetLastError());
             }
             else
             {
-                DBGWRITE(dbg_level_all, L"[FDP]Data fork size =  (%d)\n", dataSize64.LowPart);
+                DBGWRITE(dbg_level_all, L"[FDP]Data fork size =  (%d)\n", data_size64.LowPart);
             }
 
-            if (afpBitmap & kFPDFLen)
+            if (bitmap & kFPDFLen)
             {
-                afpReply.push_num<UINT32>(dataSize64.LowPart);
+                reply.push_num<UINT32>(data_size64.LowPart);
             }
         }
 
-        if (afpBitmap & (kFPRFLen | kFPExtRsrcForkLen))
+        if (bitmap & (kFPRFLen | kFPExtRsrcForkLen))
         {
-            afp_open_file afpFile(afpVolumeID, afpDirID, kReadMode, kAttrFork, afpEntry, afpEntry->sz_path.c_str());
+            afp_open_file afp_file(volume_id, dir_id, kReadMode, kAttrFork, entry, entry->sz_path.c_str());
 
-            rsrcSize64.QuadPart = afpFile.get_stream_length(const_cast<wchar_t*>(AFP_RESOURCE_FORK_NAME_PLAIN));
+            rsrc_size64.QuadPart = afp_file.get_stream_length(const_cast<wchar_t*>(AFP_RESOURCE_FORK_NAME_PLAIN));
 
-            if (rsrcSize64.QuadPart == BAD_LENGTH_64)
+            if (rsrc_size64.QuadPart == BAD_LENGTH_64)
             {
-                //
-                //There was an error getting the file size
-                //
-                DBGWRITE(dbg_level_all, L"[FDP]GetStreamLength() failed! (%d) (%s)\n", GetLastError(),
-                         afpEntry->sz_object_name.c_str());
-                rsrcSize64.QuadPart = 0;
+                DBGWRITE(dbg_level_warning, L"[FDP]GetStreamLength() failed! (%d) (%s)\n", GetLastError(), entry->sz_object_name.c_str());
+                rsrc_size64.QuadPart = 0;
             }
             else
             {
-                DBGWRITE(dbg_level_all, L"[FDP]Resource fork size =  (%d)\n", rsrcSize64.LowPart);
+                DBGWRITE(dbg_level_all, L"[FDP]Resource fork size =  (%d)\n", rsrc_size64.LowPart);
             }
         }
 
-        if (afpBitmap & kFPRFLen)
+        if (bitmap & kFPRFLen)
         {
-            afpReply.push_num<UINT32>(rsrcSize64.LowPart);
+            reply.push_num<UINT32>(rsrc_size64.LowPart);
         }
 
-        if (afpBitmap & kFPExtDataForkLen)
+        if (bitmap & kFPExtDataForkLen)
         {
-            afpReply.push_num<UINT64>(dataSize64.QuadPart);
+            reply.push_num<UINT64>(data_size64.QuadPart);
         }
 
-        if (afpBitmap & kFPUnicodeName)
+        if (bitmap & kFPUnicodeName)
         {
-            uniNameOffset = reinterpret_cast<uint16*>(afpReply.get_current_pos_ptr());
-            afpReply.advance_pos_ptr(sizeof(int16));
+            uni_name_offset = reply.get_ptr_offset<UINT16>();
         }
 
-        if (afpBitmap & kFPExtRsrcForkLen)
+        if (bitmap & kFPExtRsrcForkLen)
         {
-            //
-            //I don't know what the client is doing here, but it needs an
-            //extra 2 bytes inserted here to read the resource fork length
-            //correctly. Is it possible it's looking for the launch limit? The
-            //spec isn't clear.
-            //
-            afpReply.push_num<UINT32>(0);
-
-            afpReply.push_num<UINT64>(rsrcSize64.QuadPart);
+            // Not sure what the client is doing here, but it needs an
+            // extra 2 bytes inserted here to read the resource fork length
+            // correctly. Is it possible it's looking for the launch limit? The
+            // spec isn't clear.
+            reply.push_num<UINT32>(0);
+            reply.push_num<UINT64>(rsrc_size64.QuadPart);
         }
     }
 
-    if ((afpBitmap & kFPLongName) || (afpBitmap & kFPUnicodeName))
+    if ((bitmap & kFPLongName) || (bitmap & kFPUnicodeName))
     {
-        memset(charMap, 0, sizeof(AFPCHARMAPARRAY));
-        AFPGetCharMapForIndexEntry(afpEntry, charMap);
+        AFPGetCharMapForIndexEntry(entry, char_map);
 
-        if (afpBitmap & kFPLongName)
+        if (bitmap & kFPLongName)
         {
-            *longNameOffset = htons(static_cast<uint16>(afpReply.get_current_pos_ptr() - pParmsStart));
-            afpReply.push_pascal_string(afpEntry->sz_object_name, charMap);
+            *long_name_offset = htons(static_cast<uint16>(reply.get_current_pos_ptr() - parms_start));
+            reply.push_pascal_string(entry->sz_object_name, char_map);
         }
 
-        if (afpBitmap & kFPUnicodeName)
+        if (bitmap & kFPUnicodeName)
         {
-            *uniNameOffset = htons(static_cast<uint16>(afpReply.get_current_pos_ptr() - pParmsStart));
-            afpReply.push_unicode_string(afpEntry->sz_object_name, charMap);
+            *uni_name_offset = htons(static_cast<uint16>(reply.get_current_pos_ptr() - parms_start));
+            reply.push_unicode_string(entry->sz_object_name, char_map);
         }
     }
 
-    return (AFP_OK);
+    return AFP_OK;
 }
 
 //---------------------------------------------------------------------

@@ -187,7 +187,7 @@ AFPERROR FPOpenFork(
             afp_reply.push_num(afp_bitmap);
             afp_reply.push_num(afp_new_ref_num);
 
-            afp_error = AFPGetObjectParms(
+            afp_error = afp_get_object_parms(
                 afp_reply,
                 afp_bitmap,
                 afp_volume_id,
@@ -339,7 +339,7 @@ AFPERROR FPGetForkParms(
         GetFileAttributesEx(open_file->get_win_path(), GetFileExInfoStandard, &win_attributes);
 
         // Now that we've opened the file, get the requested parameters.
-        afp_error = AFPGetObjectParms(
+        afp_error = afp_get_object_parms(
             afp_reply,
             afp_bitmap,
             open_file->get_vol_id(),
@@ -496,7 +496,7 @@ AFPERROR FPCreateFile(
         if (new_entry != nullptr)
         {
             AFPCheckForAndAddFinderInfoStream(new_entry, char_map);
-            AFPCheckForAndCreateFinderRsrcStream(new_entry);
+            afp_check_for_and_create_rsrc_stream(new_entry);
         }
 
         afp_volume_info->set_is_dirty();

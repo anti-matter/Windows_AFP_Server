@@ -234,7 +234,7 @@ bool afp_volumes::index_build(std::filesystem::path& share_path, const UINT32  p
             continue;
         }
 
-        AFPCheckForAndCreateFinderRsrcStream(entry);
+        afp_check_for_and_create_rsrc_stream(entry);
 
     } while (FindNextFile(h_find, &find_data));
 

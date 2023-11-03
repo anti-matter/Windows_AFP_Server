@@ -34,6 +34,9 @@ public:
 	template <class T>
 	T get_num() const;
 
+	template <class T>
+	T* get_ptr_offset();
+
 	AFPERROR push_int8(INT8 value);
 	AFPERROR push_int16(INT16 value);
 	AFPERROR push_int32(INT32 value);
@@ -83,6 +86,16 @@ private:
 
 __pragma(warning(push))
 __pragma(warning(disable:4127))
+
+
+template <class T>
+T* afp_net_buffer::get_ptr_offset()
+{
+	T* offset = reinterpret_cast<T*>(get_current_pos_ptr());
+	advance_pos_ptr(sizeof(T));
+
+	return offset;
+}
 
 /*
  * push_num()

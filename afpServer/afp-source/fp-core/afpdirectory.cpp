@@ -63,7 +63,7 @@ AFPERROR FPResolveID(
             return afpObjectNotFound;
         }
 
-        afp_error = AFPGetObjectParms(
+        afp_error = afp_get_object_parms(
             afp_reply,
             afp_bitmap,
             afp_volume_id,
@@ -175,7 +175,7 @@ AFPERROR FPGetFileDirParms(
     // We add a null byte when adding more parameters to separate the stuff.
     afp_reply.push_int8(0);
 
-    afp_error = AFPGetObjectParms(
+    afp_error = afp_get_object_parms(
         afp_reply,
         (win_attributes.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? afp_dir_bitmap : afp_file_bitmap,
         afp_volume_id,
@@ -354,7 +354,7 @@ AFPERROR FPEnumerate(
             afp_attributes |= kFileDirIsDir;
         }
 
-        afp_error = AFPGetObjectParms(
+        afp_error = afp_get_object_parms(
             parameter_buffer,
             is_directory ? afp_dir_bitmap : afp_file_bitmap,
             afp_vol_id,
@@ -935,8 +935,7 @@ AFPERROR FPCopyFile(
         return afpAccessDenied;
     }
 
-    notify_suspend suspend1(afp_session->find_open_volume(afp_src_vol_id).get());
-    notify_suspend suspend2(afp_session->find_open_volume(afp_dst_vol_id).get());
+    notify_suspend suspend(afp_session->find_open_volume(afp_dst_vol_id).get());
 
     const BOOL copy_succeeded = CopyFile(afp_src_entry->sz_path.c_str(), new_win_path, true);
     if (!copy_succeeded)

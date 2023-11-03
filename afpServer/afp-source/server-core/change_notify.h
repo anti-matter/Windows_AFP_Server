@@ -41,7 +41,6 @@ public:
 
     void resume()
     {
-        RtlZeroMemory(result_buffer_.get(), change_notify_result_buffer_size);
         notify_suspended_ = false;
     }
 

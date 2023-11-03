@@ -506,7 +506,7 @@ AFPERROR FPGetAPPL(
 
 	DBGWRITE(dbg_level_all, L"Found APPL entry for: %s\n", file_item->sz_path.c_str());
 
-    const auto afp_error = AFPGetObjectParms(
+    const auto afp_error = afp_get_object_parms(
         afp_reply,
         afp_bitmap,
         desktop->get_volume_id(),

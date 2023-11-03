@@ -287,7 +287,7 @@ void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_no
     else
     {
         // Add the resource streams if necessary for files.
-        AFPCheckForAndCreateFinderRsrcStream(new_entry);
+        afp_check_for_and_create_rsrc_stream(new_entry);
     }
 
     // Mark the volume dirty so it will tell any connected macs
