@@ -273,10 +273,6 @@ void afp_volumes::index_queue_thread()
 
             switch(element->task)
             {
-            case task_delete_index_entry:
-                element->volume->get_index()->remove_entry(element->item_id, true);
-                break;
-
             case task_index_directory:
                 index_build(element->path, element->item_id, element->volume);
                 break;

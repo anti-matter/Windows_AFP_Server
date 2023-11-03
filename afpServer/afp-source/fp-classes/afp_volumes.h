@@ -5,8 +5,7 @@
 
 enum index_queue_tasks : UINT8
 {
-    task_delete_index_entry = 0x01,
-    task_index_directory,
+    task_index_directory = 0,
     task_index_complete
 };
 
@@ -18,13 +17,13 @@ struct index_queue_element
     std::filesystem::path path;
 
     index_queue_element()
-        : task(task_delete_index_entry)
+        : task(task_index_directory)
         , item_id(0)
     {
     }
 };
 
-class afp_volumes
+class afp_volumes  // NOLINT(cppcoreguidelines-special-member-functions)
 {
 public:
     afp_volumes();

@@ -128,9 +128,9 @@ afp_index* afp_file_index::get_entry(const uint32 object_id)
  *		None
  */
 
-void afp_file_index::remove_entry(const afp_index* entry, const bool delete_directory_sub_tree)
+void afp_file_index::remove_entry(const afp_index* entry)
 {
-	remove_entry(entry->object_id, delete_directory_sub_tree);
+	remove_entry(entry->object_id);
 }
 
 
@@ -144,7 +144,7 @@ void afp_file_index::remove_entry(const afp_index* entry, const bool delete_dire
  *		None
  */
 
-void afp_file_index::remove_entry(const uint32 object_id, const bool delete_directory_sub_tree)
+void afp_file_index::remove_entry(const uint32 object_id)
 {
 	std::lock_guard guard(mutex_);
 
@@ -160,29 +160,9 @@ void afp_file_index::remove_entry(const uint32 object_id, const bool delete_dire
 			L"Failed to find objectID to remove! (%d)\n", object_id);
 
 		ASSERT(0);
-		return;
 	}
 
-	const auto is_directory = (it->get()->flags & flag_index_is_dir) != 0;
-
-	m_index_.erase(it);
-
-	// If the entry is a directory, then that means we have to delete all entries
-	// in the index that are sub-files/folders to this directory.
-	if (is_directory && delete_directory_sub_tree)
-	{
-		// Find elements in the vector who's parent dir id is the same
-		// as the object we just removed.
-
-		std::vector<afp_index*> offspring;
-        if (get_offspring(object_id, offspring) > 0)
-		{
-			for (const auto item : offspring)
-			{
-				remove_entry(item, true);
-			}
-		}
-	}
+	// Let the change notify mechanism delete the offspring entries.
 }
 
 

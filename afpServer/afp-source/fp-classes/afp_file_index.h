@@ -54,8 +54,8 @@ public:
 
 	afp_index* get_entry(uint32 object_id);
 
-	void remove_entry(const afp_index* entry, bool delete_directory_sub_tree = false);
-	void remove_entry(uint32 object_id, bool delete_directory_sub_tree = false);
+	void remove_entry(const afp_index* entry);
+	void remove_entry(uint32 object_id);
 
 	void update_entry(afp_index* entry, afp_index* new_parent, PWCHAR new_name);
 

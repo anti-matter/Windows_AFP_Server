@@ -768,7 +768,7 @@ AFPERROR FPDelete(
         }
         else
         {
-            volume->get_index()->remove_entry(afp_entry, true);
+            volume->get_index()->remove_entry(afp_entry);
         }
     }
     else

@@ -332,7 +332,7 @@ void change_notify::afp_change_notify_remove(
 
     // Now, make the call into the index utility routines to actually remove
     // the item from the index list.
-    volume->get_index()->remove_entry(entry, true);
+    volume->get_index()->remove_entry(entry);
 
     // Tell the attention mechanism to notify clients the volume has changed.
     volume->set_is_dirty();
