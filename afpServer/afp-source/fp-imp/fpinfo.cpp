@@ -229,118 +229,77 @@ AFPERROR set_finder_info_ex(
 }
 
 
-/*
- * AFPUpdateEntryCharMap()
- *
- * Description:
- *		Update the charmap for a particular file and write it out
- *		to the info stream.
- *
- * Returns: AFPERROR
- */
-
-AFPERROR AFPUpdateEntryCharMap(
-    IN afp_index* pEntry,
-    IN AFPCHARMAPARRAY pCharmap
+AFPERROR update_entry_char_map(
+    IN afp_index* entry,
+    IN AFPCHARMAPARRAY char_map
 )
 {
-    afp_extended_finder_info infoEx;
+    afp_extended_finder_info extended_finder_info;
 
-    auto afpError = get_finder_info_ex(pEntry, &infoEx);
+    auto afp_error = get_finder_info_ex(entry, &extended_finder_info);
 
-    if (AFP_SUCCESS(afpError))
+    if (AFP_SUCCESS(afp_error))
     {
-        RtlCopyMemory(&infoEx.char_map, pCharmap, sizeof(AFPCHARMAPARRAY));
+        RtlCopyMemory(&extended_finder_info.char_map, char_map, sizeof(AFPCHARMAPARRAY));
 
-        afpError = set_finder_info_ex(pEntry, &infoEx);
+        afp_error = set_finder_info_ex(entry, &extended_finder_info);
     }
 
-    return afpError;
+    return afp_error;
 }
 
 
-/*
- * AFPAddCharMapToIndexEntry()
- *
- * Description:
- *		Adds a charmap to an index entry, note that if a charmap
- *		already exists, this will overwrite it.
- *
- * Returns: AFPERROR
- */
-
-AFPERROR AFPAddCharMapToIndexEntry(
-    IN afp_index* pEntry,
-    IN AFPCHARMAPARRAY pCharmap
+AFPERROR add_char_map_to_index_entry(
+    IN afp_index* entry,
+    IN AFPCHARMAPARRAY char_map
 )
 {
-    if (pCharmap[0].wKeyCode != 0)
+    if (char_map[0].wKeyCode != 0)
     {
-        pEntry->flags |= flag_index_has_charmap;
+        entry->flags |= flag_index_has_charmap;
     }
     else
     {
-        pEntry->flags &= ~flag_index_has_charmap;
+        entry->flags &= ~flag_index_has_charmap;
     }
 
-    return AFPUpdateEntryCharMap(pEntry, pCharmap);
+    return update_entry_char_map(entry, char_map);
 }
 
 
-/*
- * AFPGetCharMapForIndexEntry()
- *
- * Description:
- *		Looks up a charmap for an index entry and returns it
- *		it to the caller.
- *
- * Returns: AFPERROR
- */
-
-AFPERROR AFPGetCharMapForIndexEntry(
-    IN afp_index* pEntry,
-    OUT AFPCHARMAPARRAY pCharmap
+AFPERROR get_char_map_for_index_entry(
+    IN afp_index* entry,
+    OUT AFPCHARMAPARRAY char_map
 )
 {
-    afp_extended_finder_info infoEx;
-    AFPERROR afpError = AFP_OK;
+    afp_extended_finder_info extended_finder_info;
+    AFPERROR afp_error = AFP_OK;
 
-    if (pEntry->flags & flag_index_has_charmap)
+    if (entry->flags & flag_index_has_charmap)
     {
-        afpError = get_finder_info_ex(pEntry, &infoEx);
+        afp_error = get_finder_info_ex(entry, &extended_finder_info);
 
-        if (AFP_SUCCESS(afpError))
+        if (AFP_SUCCESS(afp_error))
         {
-            memcpy(pCharmap, &infoEx.char_map, sizeof(AFPCHARMAPARRAY));
+            memcpy(char_map, &extended_finder_info.char_map, sizeof(AFPCHARMAPARRAY));
         }
     }
 
-    return afpError;
+    return afp_error;
 }
 
 
-/*
- * AFPCheckForCharMap()
- *
- * Description:
- *		Checks to see if a charmap is currently utilized for this
- *		this index entry. If so, it sets the entry's flag to signal
- *		that an entry exists.
- *
- * Returns: AFPERROR
- */
-
-BOOL AFPCheckForCharMap(
-    IN afp_index* pEntry
+bool check_for_char_map(
+    IN afp_index* entry
 )
 {
-    afp_extended_finder_info infoEx;
+    afp_extended_finder_info extended_finder_info;
 
-    if (AFP_SUCCESS(get_finder_info_ex(pEntry, &infoEx)))
+    if (AFP_SUCCESS(get_finder_info_ex(entry, &extended_finder_info)))
     {
-        if (infoEx.char_map[0].wKeyCode != 0)
+        if (extended_finder_info.char_map[0].wKeyCode != 0)
         {
-            pEntry->flags |= flag_index_has_charmap;
+            entry->flags |= flag_index_has_charmap;
             return true;
         }
     }

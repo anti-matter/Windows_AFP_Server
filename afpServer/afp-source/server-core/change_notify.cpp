@@ -185,7 +185,7 @@ void change_notify::afp_read_dir_changes(
                 if ((index_entry->flags & flag_index_has_charmap) == 0)
                 {
                     memset(charmap, 0, sizeof(AFPCHARMAPARRAY));
-                    AFPAddCharMapToIndexEntry(index_entry, charmap);
+                    add_char_map_to_index_entry(index_entry, charmap);
                 }
                 volume->set_is_dirty();
             }

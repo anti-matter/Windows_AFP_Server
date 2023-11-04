@@ -34,21 +34,21 @@ AFPERROR set_finder_info_ex(
     IN bool create_always = false
 );
 
-AFPERROR AFPUpdateEntryCharMap(
-    IN afp_index* pEntry,
-    IN AFPCHARMAPARRAY pCharmap
+AFPERROR update_entry_char_map(
+    IN afp_index* entry,
+    IN AFPCHARMAPARRAY char_map
 );
 
-AFPERROR AFPAddCharMapToIndexEntry(
-    IN afp_index* pEntry,
-    IN AFPCHARMAPARRAY pCharmap
+AFPERROR add_char_map_to_index_entry(
+    IN afp_index* entry,
+    IN AFPCHARMAPARRAY char_map
 );
 
-AFPERROR AFPGetCharMapForIndexEntry(
-    IN afp_index* pEntry,
-    OUT AFPCHARMAPARRAY pCharmap
+AFPERROR get_char_map_for_index_entry(
+    IN afp_index* entry,
+    OUT AFPCHARMAPARRAY char_map
 );
 
-BOOL AFPCheckForCharMap(
-    IN afp_index* pEntry
+bool check_for_char_map(
+    IN afp_index* entry
 );

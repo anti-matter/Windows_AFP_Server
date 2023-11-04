@@ -277,7 +277,7 @@ AFPERROR afp_get_object_parms(
 
     if (bitmap & kFPLongName || bitmap & kFPUnicodeName)
     {
-        AFPGetCharMapForIndexEntry(entry, char_map);
+        get_char_map_for_index_entry(entry, char_map);
 
         if (bitmap & kFPLongName)
         {

@@ -155,14 +155,18 @@ void afp_file_index::remove_entry(const uint32 object_id)
 
 	if (it == m_index_.end())
 	{
+		// This can happen if something is deleted, then the
+		// change notify picks it up and tries to remove
+		// it again.
+
 		DBGWRITE(
-			dbg_level_info,
+			dbg_level_all,
 			L"Failed to find objectID to remove! (%d)\n", object_id);
 
 		ASSERT(0);
 	}
 
-	// Let the change notify mechanism delete the offspring entries.
+	m_index_.erase(it);
 }
 
 

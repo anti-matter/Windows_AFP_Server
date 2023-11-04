@@ -747,8 +747,6 @@ AFPERROR FPDelete(
         return afpAccessDenied;
     }
 
-    notify_suspend suspend(volume.get());
-
     DBGWRITE(dbg_level_info, L"Deleting item at path: %s\n", afp_entry->sz_path.c_str());
 
     // We take 2 different approaches to deleting the object based on whether it's
@@ -781,10 +779,6 @@ AFPERROR FPDelete(
             );
 
             afp_error = afp_map_win_error_to_afp(GetLastError(), afpParmErr);
-        }
-        else
-        {
-            volume->get_index()->remove_entry(afp_entry);
         }
     }
 

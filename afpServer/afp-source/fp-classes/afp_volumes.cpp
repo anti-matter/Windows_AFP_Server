@@ -220,7 +220,7 @@ bool afp_volumes::index_build(std::filesystem::path& share_path, const UINT32  p
         // copy the mapping if the stream existed before we created it.
         if (create_finder_info_stream(entry))
         {
-            AFPCheckForCharMap(entry);
+            check_for_char_map(entry);
         }
 
         if (is_directory)
