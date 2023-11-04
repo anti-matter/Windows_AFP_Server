@@ -600,26 +600,22 @@ AFPERROR FPRemoveExtAttribute(
     //See if the user has the volume open and get a pointer to
     //the volume object.
     //
-    if (!connection->get_afp_session()->session_has_volume_open(afpVolID))
+    const auto volume = connection->get_afp_session()->find_open_volume(afpVolID);
+    if (volume == nullptr)
     {
         DBGWRITE(dbg_level_info, L"[FPRemoveExtAttribute]User does not have volume open!\n");
-        return (afpParmErr);
+        return afpParmErr;
     }
 
-    //
-    //Make sure the volume is not marked read-only.
-    //
-    AFPERROR afpError = AFPVolumeWriteAccessCheck(afpVolID);
-
-    if (AFP_FAILED(afpError))
+    if (volume->is_read_only())
     {
-        return (afpError);
+        return afpVolLocked;
     }
 
     //
     //Get the pathname of the object we're working on.
     //
-    afpError = afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathtype);
+    auto afpError = afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathtype);
 
     if (AFP_FAILED(afpError))
     {

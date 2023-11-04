@@ -329,7 +329,7 @@ AFPERROR AFPIndexFindEntryWithPath(
     WCHAR szTemp[MAX_PATH]{};
 
     *ppEntry = nullptr;
-    auto pEntry = pFileIndex->get_entry(dwSearchID);
+    auto pEntry = pFileIndex->find(dwSearchID);
 
     if (pEntry == nullptr)
     {
@@ -374,29 +374,6 @@ AFPERROR AFPIndexFindEntryWithPath(
     );
 
     return afpObjectNotFound;
-}
-
-
-//---------------------------------------------------------------------
-// AFPVolumeWriteAccessCheck()
-//---------------------------------------------------------------------
-// Returns TRUE if the caller has write access to the volume.
-//
-
-AFPERROR
-AFPVolumeWriteAccessCheck(
-    IN WORD volume_id
-)
-{
-    if (const auto volume = g_volumes->find(volume_id); volume != nullptr)
-    {
-        if (volume->get_internal_flags() & flag_volume_readonly)
-        {
-            return afpVolLocked;
-        }
-    }
-
-    return AFP_OK;
 }
 
 

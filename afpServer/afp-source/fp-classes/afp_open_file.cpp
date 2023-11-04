@@ -2,6 +2,7 @@
 #include <strsafe.h>
 #include "afp_open_file.h"
 #include "afpxattr.h"
+#include "afp_volumes.h"
 
 /*
  * afp_open_file()
@@ -12,8 +13,14 @@
  * Returns: None
  */
 
-afp_open_file::afp_open_file(const uint16 vol_id, const uint32 dir_id, const int16 access_mode, const uint8 fork, afp_index* entry,
-                             const WCHAR* win_path)
+afp_open_file::afp_open_file(
+    const INT16 vol_id,
+    const INT32 dir_id,
+    const INT16 access_mode,
+    const INT8 fork,
+	afp_index* entry,
+	const WCHAR* win_path
+)
 {
 	m_file_handle_ = INVALID_HANDLE_VALUE;
 	m_volume_id_ = vol_id;
@@ -22,6 +29,10 @@ afp_open_file::afp_open_file(const uint16 vol_id, const uint32 dir_id, const int
 	m_fork_ = static_cast<int8>(fork);
 	m_entry_ = entry;
 	m_file_ref_num_ = 0;
+
+	volume_ = afp_volumes::current()->find(vol_id);
+
+	ASSERT(volume_ != nullptr);
 
 	// ReSharper disable once CppFunctionResultShouldBeUsed
 	StringCbCopy(m_windows_path_, sizeof(m_windows_path_), win_path);
@@ -59,7 +70,7 @@ afp_open_file::~afp_open_file()
  * Returns: afpError code
  */
 
-AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD afp_creation_disposition)
+AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD creation_disposition)
 {
 	WCHAR sz_file_path[MAX_PATH];
 	uint32 desired_access = 0;
@@ -73,7 +84,11 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 
 	if (m_access_mode_ & kWriteMode)
 	{
-        // ReSharper disable once CppAssignedValueIsNeverUsed
+		if (volume_->is_read_only())
+		{
+			return afpVolLocked;
+		}
+
         desired_access |= GENERIC_WRITE;
 	}
 
@@ -117,10 +132,10 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 
 	const auto h_file = CreateFile(
 		sz_file_path,
-		GENERIC_READ | GENERIC_WRITE,
+		desired_access,
 		FILE_SHARE_READ | FILE_SHARE_WRITE,
 		nullptr,
-		afp_creation_disposition,
+		creation_disposition,
 		dw_flags_and_attr,
 		nullptr
 	);

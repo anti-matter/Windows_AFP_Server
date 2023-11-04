@@ -471,18 +471,18 @@ AFPERROR FPSetFileDirParms(
     const auto afp_bitmap = afp_request.pull_num<UINT16>();
     const auto afp_path_type = afp_request.pull_num<INT8>();
 
-    if (!connection->get_afp_session()->session_has_volume_open(afp_vol_id))
+    const auto volume = connection->get_afp_session()->find_open_volume(afp_vol_id);
+    if (volume == nullptr)
     {
         return afpParmErr;
     }
 
-    AFPERROR afp_error = AFPVolumeWriteAccessCheck(afp_vol_id);
-    if (AFP_FAILED(afp_error))
+    if (volume->is_read_only())
     {
-        return afp_error;
+        return afpVolLocked;
     }
 
-    afp_error = afp_request.get_pascal_string(afp_pathname, sizeof(afp_pathname), true, afp_path_type);
+    auto afp_error = afp_request.get_pascal_string(afp_pathname, sizeof(afp_pathname), true, afp_path_type);
     if (AFP_FAILED(afp_error))
     {
         return afp_error;
@@ -532,14 +532,14 @@ AFPERROR FPSetFileDirParms(
         return afpCallNotSupported;
     }
 
-    afp_error = AFPIndexFindEntryWithVolIDAndPath(afp_vol_id, afp_dir_id, afp_pathname, &afp_entry);
-    if (AFP_FAILED(afp_error))
+    afp_entry = volume->get_index()->find(afp_dir_id, afp_pathname);
+    if (afp_entry == nullptr)
     {
         DBGWRITE(dbg_level_info,
                  L"Index entry not found in FPSetFileDirParms! (dirID = %d  path = %s)\n",
                  afp_dir_id, afp_pathname);
 
-        return afp_error;
+        return afpObjectNotFound;
     }
 
     if (!GetFileAttributesEx(afp_entry->sz_path.c_str(), GetFileExInfoStandard, &win_attributes))
@@ -576,60 +576,55 @@ AFPERROR FPCreateDir(
 {
     AFPCHARMAPARRAY char_map;
     WCHAR afp_pathname[MAX_AFP_PATH];
-    WCHAR win_path[MAX_PATH];
-    afp_index* afp_entry = nullptr;
 
     DBGWRITE(dbg_level_all, L"FPCreateDir...\n");
 
     afp_request.advance_pos_ptr(sizeof(int16));
 
-    const auto afp_volume_id = afp_request.pull_num<UINT16>();
-    auto afp_dir_id = afp_request.pull_num<UINT32>();
+    const auto volume_id = afp_request.pull_num<UINT16>();
+    auto dir_id = afp_request.pull_num<UINT32>();
     const auto afp_path_type = afp_request.pull_num<INT8>();
-    const auto afp_session = connection->get_afp_session();
+    const auto session = connection->get_afp_session();
 
-    const std::shared_ptr<afp_volume> afp_volume = afp_session->find_open_volume(afp_volume_id);
-    if (afp_volume == nullptr)
+    const std::shared_ptr<afp_volume> volume = session->find_open_volume(volume_id);
+    if (volume == nullptr)
     {
         DBGWRITE(dbg_level_info, L"Bad volume ID in FPCreateDir!\n");
         return afpParmErr;
     }
 
-    // Make sure the volume is not marked read-only.
-    AFPERROR afp_error = AFPVolumeWriteAccessCheck(afp_volume_id);
-    if (AFP_FAILED(afp_error))
+    if (volume->is_read_only())
     {
-        return afp_error;
+        return afpVolLocked;
     }
 
-    afp_error = afp_request.get_pascal_string(afp_pathname, sizeof(afp_pathname), true, afp_path_type, char_map);
+    auto afp_error = afp_request.get_pascal_string(afp_pathname, sizeof(afp_pathname), true, afp_path_type, char_map);
     if (AFP_FAILED(afp_error))
     {
-        DBGWRITE(dbg_level_info, L"GetString failed for path!\n");
+        DBGWRITE(dbg_level_error, L"GetString failed for path!\n");
         return afp_error;
     }
 
     // Pathname cannot be null since it contains the new dir name.
     if (lstrlen(afp_pathname) == 0)
     {
-        DBGWRITE(dbg_level_info, L"No pathname in FPCreateDir!\n");
+        DBGWRITE(dbg_level_error, L"No pathname in FPCreateDir!\n");
         return afpParmErr;
     }
 
     // Get the directory entry for the directory where we are creating
     // the new one.
-    afp_error = AFPIndexFindEntryWithPath(afp_volume, afp_dir_id, nullptr, &afp_entry);
-    if (AFP_FAILED(afp_error))
+    const auto afp_entry = volume->get_index()->find(dir_id);
+    if (afp_entry == nullptr)
     {
-        DBGWRITE(dbg_level_info, L"Path not found in FPCreateDir!\n");
-        return afp_error;
+        DBGWRITE(dbg_level_error, L"Parent directory not found in FPCreateDir!\n");
+        return afpObjectNotFound;
     }
 
     // Build the path to the new directory using the parent directory's entry.
     // ReSharper disable once CppFunctionResultShouldBeUsed
-    StringCbPrintf(win_path, sizeof(win_path), TEXT("%s\\%s"), afp_entry->sz_path.c_str(), afp_pathname);
-
-    if (GetFileAttributes(win_path) != AFP_MAX_DWORD)
+    const std::filesystem::path win_path = afp_entry->sz_path / afp_pathname;
+    if (GetFileAttributes(win_path.c_str()) != INVALID_FILE_ATTRIBUTES)
     {
         return afpObjectExists;
     }
@@ -640,9 +635,9 @@ AFPERROR FPCreateDir(
         return afpAccessDenied;
     }
 
-    notify_suspend suspend(afp_volume.get());
+    notify_suspend suspend(volume.get());
 
-    afp_error = CreateDirectory(win_path, nullptr)
+    afp_error = CreateDirectory(win_path.c_str(), nullptr)
 	                ? AFP_OK
 	                : afp_map_win_error_to_afp(GetLastError(), afpMiscErr);
 
@@ -650,19 +645,19 @@ AFPERROR FPCreateDir(
 
     if (AFP_SUCCESS(afp_error))
     {
-        const auto new_dir_entry = afp_volume->get_index()->add_entry(
-            afp_dir_id,
+        const auto new_dir_entry = volume->get_index()->add_entry(
+            dir_id,
             afp_pathname,
             win_path,
             true,
-            &afp_dir_id);
+            &dir_id);
 
         create_finder_info_stream(new_dir_entry, char_map, false);
 
-        afp_volume->set_is_dirty();
+        volume->set_is_dirty();
 
         // Now build the reply block to send back to the client.
-        afp_reply.push_num(afp_dir_id);
+        afp_reply.push_num(dir_id);
     }
 
     return afp_error;
@@ -688,7 +683,6 @@ AFPERROR FPDelete(
     UNREFERENCED_PARAMETER(afp_reply);
 
     WCHAR afp_pathname[MAX_AFP_PATH];
-    afp_index* afp_entry = nullptr;
 
     DBGWRITE(dbg_level_all, L"Enter\n");
 
@@ -704,13 +698,12 @@ AFPERROR FPDelete(
         return afpParmErr;
     }
 
-    AFPERROR afp_error = AFPVolumeWriteAccessCheck(afp_volume_id);
-    if (AFP_FAILED(afp_error))
+    if (volume->is_read_only())
     {
-        return afp_error;
+        return afpVolLocked;
     }
 
-    afp_error = afp_request.get_pascal_string(afp_pathname, sizeof(afp_pathname), true, afp_path_type);
+    auto afp_error = afp_request.get_pascal_string(afp_pathname, sizeof(afp_pathname), true, afp_path_type);
     if (AFP_FAILED(afp_error))
     {
         return afp_error;
@@ -729,7 +722,7 @@ AFPERROR FPDelete(
         return afpParmErr;
     }
 
-    afp_error = AFPIndexFindEntryWithPath(afp_volume_info, afp_dir_id, afp_pathname, &afp_entry);
+    const auto afp_entry = volume->get_index()->find(afp_dir_id, afp_pathname);
     if (AFP_FAILED(afp_error))
     {
         DBGWRITE(dbg_level_info, L"Index entry not found! (%s)\n", afp_pathname);
@@ -773,6 +766,10 @@ AFPERROR FPDelete(
             );
 
             afp_error = afp_map_win_error_to_afp(GetLastError(), afpParmErr);
+        }
+        else
+        {
+            volume->get_index()->remove_entry(afp_entry);
         }
     }
 
@@ -977,7 +974,7 @@ AFPERROR FPMoveAndRename(
         return afpParmErr;
     }
 
-    if (volume->get_internal_flags() & flag_volume_readonly)
+    if (volume->is_read_only())
     {
         return afpVolLocked;
     }
@@ -1111,7 +1108,7 @@ AFPERROR FPRename(
         return afpParmErr;
     }
 
-    if (volume->get_internal_flags() & flag_volume_readonly)
+    if (volume->is_read_only())
     {
         return afpVolLocked;
     }

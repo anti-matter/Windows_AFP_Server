@@ -149,12 +149,12 @@ afp_open_file* afp_session::find_open_file(const int16 file_reference)
  * Returns: The new file object or nullptr.
  */
 
-afp_open_file* open_file(
+afp_open_file* afp_session::open_file(
     afp_session* session,
-    const uint16 vol_id,
-    const uint32 dir_id,
-    const int16 access_mode,
-    const int8 fork_to_open,
+    const INT16 vol_id,
+    const INT32 dir_id,
+    const INT16 access_mode,
+    const INT8 fork_to_open,
     afp_index* entry,
     const WCHAR* win_path
 )
@@ -171,7 +171,7 @@ afp_open_file* open_file(
     if (new_file == nullptr)
     {
         DBGWRITE(dbg_level_error, L"Failed to allocate new object!\n");
-        return (nullptr);
+        return nullptr;
     }
 
     session->associate_open_file(new_file);

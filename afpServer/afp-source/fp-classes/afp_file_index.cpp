@@ -64,7 +64,7 @@ afp_index* afp_file_index::add_entry(
 	entry->sz_path = p_object_path;
 	entry->object_id = m_next_id_++;
 	entry->par_id = par_id;
-	entry->par_entry = get_entry(par_id);
+	entry->par_entry = find(par_id);
 
 	// We get a hash to the path string so that we can perform faster,
 	// more efficient searches for full paths.
@@ -84,37 +84,6 @@ afp_index* afp_file_index::add_entry(
 	}
 
 	return result;
-}
-
-/*
- *	get_entry()
- *
- *	Description
- *		Get an entry from the array based on its object ID.
- *
- *	Returns
- *		afp_index*
- */
-
-afp_index* afp_file_index::get_entry(const uint32 object_id)
-{
-	std::lock_guard guard(mutex_);
-
-	const auto it = std::ranges::find_if(m_index_, [=](const std::unique_ptr<afp_index>& i)
-    {
-        return object_id == i->object_id;
-    });
-
-	if (it != m_index_.end())
-	{
-		return it->get();
-	}
-
-	DBGWRITE(
-		dbg_level_info,
-		L"Failed to find objectID! (%d)\n", object_id);
-
-	return nullptr;
 }
 
 
@@ -163,7 +132,7 @@ void afp_file_index::remove_entry(const uint32 object_id)
 			dbg_level_all,
 			L"Failed to find objectID to remove! (%d)\n", object_id);
 
-		ASSERT(0);
+		return;
 	}
 
 	m_index_.erase(it);
@@ -283,6 +252,38 @@ size_t afp_file_index::hash_string(const PWCHAR string)
 {
 	const auto hash = std::hash<std::wstring>{}(string);
 	return hash;
+}
+
+
+/*
+ *	find()
+ *
+ *	Description
+ *		Get an entry from the array based on its object ID.
+ *
+ *	Returns
+ *		afp_index*
+ */
+
+afp_index* afp_file_index::find(const uint32 object_id)
+{
+	std::lock_guard guard(mutex_);
+
+	const auto it = std::ranges::find_if(m_index_, [=](const std::unique_ptr<afp_index>& i)
+		{
+			return object_id == i->object_id;
+		});
+
+	if (it != m_index_.end())
+	{
+		return it->get();
+	}
+
+	DBGWRITE(
+		dbg_level_info,
+		L"Failed to find objectID! (%d)\n", object_id);
+
+	return nullptr;
 }
 
 

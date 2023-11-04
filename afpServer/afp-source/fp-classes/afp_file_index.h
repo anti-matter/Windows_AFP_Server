@@ -52,8 +52,6 @@ public:
 		UINT32* p_new_dir_id = nullptr
 	);
 
-	afp_index* get_entry(uint32 object_id);
-
 	void remove_entry(const afp_index* entry);
 	void remove_entry(uint32 object_id);
 
@@ -62,6 +60,7 @@ public:
 	static void update_entry_flags(afp_index* p_entry, uint16 flags);
 	static size_t hash_string(PWCHAR string);
 
+	afp_index* find(uint32 object_id);
 	afp_index* find(const std::wstring& full_path);
 	afp_index* find(DWORD directory_id, const std::wstring& path);
 

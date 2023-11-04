@@ -27,6 +27,8 @@ public:
 
     void stop_sharing();
 
+    [[nodiscard]] bool is_read_only() const { return (internal_flags_ & flag_volume_readonly) != 0; }
+
     // Convenient accessors for common index operations.
     [[nodiscard]] afp_index* find(const std::wstring& full_path) const { return index_->find(full_path); }
     [[nodiscard]] afp_index* find(const DWORD directory_id, const std::wstring& path) const { return index_->find(directory_id, path); }

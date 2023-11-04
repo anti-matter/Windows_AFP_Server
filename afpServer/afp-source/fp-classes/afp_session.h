@@ -12,6 +12,16 @@ public:
     explicit afp_session(dsi::dsi_connection* dsi_session);
 	~afp_session();
 
+	static afp_open_file* open_file(
+		afp_session* session,
+		INT16 vol_id,
+		INT32 dir_id,
+		INT16 access_mode,
+		INT8 fork_to_open,
+		afp_index* entry,
+		const WCHAR* win_path
+	);
+
 	void associate_open_file(afp_open_file* open_file);
 	AFPERROR close_file(int16 file_reference);
 	afp_open_file* find_open_file(int16 file_reference);
@@ -58,12 +68,3 @@ private:
 	dsi::dsi_connection* m_dsi_session_;
 };
 
-afp_open_file* open_file(
-	afp_session* session,
-	uint16 vol_id,
-	uint32 dir_id,
-	int16 access_mode,
-	int8 fork_to_open,
-	afp_index* entry,
-	const WCHAR* win_path
-);
