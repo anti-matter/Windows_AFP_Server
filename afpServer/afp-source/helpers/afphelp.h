@@ -105,11 +105,16 @@ typedef struct
 	WCHAR name[64];
 } afp_user_group_name;
 
+// Returns the SID for the logged in access token
 BOOL afp_get_logon_sid(
 	IN HANDLE h_token,
-	OUT PSID* pp_sid
+	OUT std::shared_ptr<SID>& sid
 );
 
+// This routine returns TRUE if the caller's process
+// is a member of the Administrators local group.Caller is NOT expected to
+// be impersonating anyone and is expected to be able to open their own process
+// and process token.
 BOOL is_user_admin(
 	IN HANDLE token
 );

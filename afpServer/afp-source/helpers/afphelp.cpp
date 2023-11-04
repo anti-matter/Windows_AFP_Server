@@ -53,28 +53,16 @@ std::wstring string_to_wide_string(const std::string& string)
 	return result;
 }
 
-/* 
- * AFPGetLogonSID()
- *
- * Description:
- *	Returns the SID for the logged in access token
- *	
- *	Return Value: 
- *		TRUE - Call succeeded. 
- *		FALSE - Call failed
- */
 BOOL afp_get_logon_sid(
 	IN const HANDLE h_token,
-	OUT PSID* pp_sid
+	OUT std::shared_ptr<SID>& sid
 )
 {
 	auto success = FALSE;
 	DWORD length = 0;
 	std::unique_ptr<TOKEN_GROUPS> ptg;
 
-	//
-	//Get the required buffer size and allocate the TOKEN_GROUPS buffer.
-	//
+	// Get the required buffer size and allocate the TOKEN_GROUPS buffer.
 	if (!GetTokenInformation(h_token, TokenGroups, nullptr, 0, &length))
 	{
 		if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
@@ -86,33 +74,24 @@ BOOL afp_get_logon_sid(
 
 		if (ptg == nullptr)
 		{
-			//
-			//We failed to allocate enough memory for the buffer.
-			//
+			// We failed to allocate enough memory for the buffer.
 			return FALSE;
 		}
 	}
 
 	if (GetTokenInformation(h_token, TokenGroups, ptg.get(), length, &length))
 	{
-		//
-		//Loop through the groups to find the logon SID.
-		//
-
+		// Loop through the groups to find the logon SID.
 		for (DWORD index = 0; index < ptg->GroupCount; index++)
 		{
 			if ((ptg->Groups[index].Attributes & SE_GROUP_LOGON_ID) == SE_GROUP_LOGON_ID)
 			{
 				length = GetLengthSid(ptg->Groups[index].Sid);
-				*pp_sid = DBG_ALLOC(length);
+				sid = std::make_shared<SID>(length);
 
-				if (*pp_sid != nullptr)
+				if (sid != nullptr)
 				{
-					if (!CopySid(length, *pp_sid, ptg->Groups[index].Sid))
-					{
-						DBG_FREE(*pp_sid);
-					}
-					else
+					if (CopySid(length, sid.get(), ptg->Groups[index].Sid))
 					{
 						success = TRUE;
 					}
@@ -124,19 +103,6 @@ BOOL afp_get_logon_sid(
 	return success;
 }
 
-/*
- * IsUserAdmin()
- *
- * Description:
- *	Routine Description: This routine returns TRUE if the caller's process
- *	is a member of the Administrators local group. Caller is NOT expected to
- *	be impersonating anyone and is expected to be able to open their own process 
- *	and process token.
- *	
- *	Return Value: 
- *		TRUE - Caller has Administrators local group. 
- *		FALSE - Caller does not have Administrators local group. --
- */
 BOOL is_user_admin(
 	IN const HANDLE token
 )
