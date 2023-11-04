@@ -595,12 +595,6 @@ AFPERROR FPCreateDir(
         return afpParmErr;
     }
 
-    if (!afp_session->session_has_volume_open(afp_volume_id))
-    {
-        // The volume has not been opened, we need to return error.
-        return afpParmErr;
-    }
-
     // Make sure the volume is not marked read-only.
     AFPERROR afp_error = AFPVolumeWriteAccessCheck(afp_volume_id);
     if (AFP_FAILED(afp_error))

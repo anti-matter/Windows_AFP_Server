@@ -324,26 +324,6 @@ enum
 #define AFP_FAILED(e)           ((e) != AFP_OK)
 
 //
-//How many replacement chars are saved when file names have
-//Mac specific extended chars in them.
-//
-#define MAX_REPLACED_CHARACTERS		MAX_DIR_NAME
-
-//
-//This is a table that will map invalid Mac characters to a known
-//good windows character. This will then be placed back when
-//data is sent back to the Mac.
-//
-typedef struct _AFPCHARMAP
-{
-    WORD wKeyCode; //Keycode of offending character
-    WORD wOffset; //Offset in string where char existed
-} AFPCHARMAP, *LPAFPCHARMAP;
-
-using AFPCHARMAPARRAY = AFPCHARMAP[MAX_REPLACED_CHARACTERS];
-
-
-//
 //This user sturcture is kept by the DSI session. AFP
 //uses it to keep track of open volumes and files on
 //a per-session basis.
@@ -562,6 +542,21 @@ enum afp_directory_attribute_flags
 };
 
 #pragma pack(push,1)
+
+// How many replacement chars are saved when file names have
+// Mac specific extended chars in them.
+#define MAX_REPLACED_CHARACTERS		MAX_DIR_NAME
+
+// This is a table that will map invalid Mac characters to a known
+// good windows character. This will then be placed back when
+// data is sent back to the Mac.
+typedef struct _AFPCHARMAP
+{
+    WORD wKeyCode; //Keycode of offending character
+    WORD wOffset; //Offset in string where char existed
+} AFPCHARMAP;
+
+using AFPCHARMAPARRAY = AFPCHARMAP[MAX_REPLACED_CHARACTERS];
 
 struct mac_point
 {

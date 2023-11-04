@@ -229,11 +229,3 @@ AFPERROR afp_map_win_error_to_afp(
 	IN DWORD win_error,
 	IN AFPERROR default_error
 );
-
-HRESULT afp_extract_string_and_advance_buff_ptr(
-	IN PCHAR* p_buffer,
-	IN PWCHAR p_win_string,
-	IN WORD cch_win_string,
-	IN BOOL f_is_path = true,
-	OPTIONAL LPAFPCHARMAP p_char_map = nullptr
-);
