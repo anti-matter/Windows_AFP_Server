@@ -984,9 +984,7 @@ PWCHAR afp_mac_to_windows_string(
 
 	if (size == 0)
 	{
-		const auto error = GetLastError();
-
-		DBGWRITE(dbg_level_error, L"MultiByteToWideChar() failed in AFPMacToWindowsString()! (%d)\n", error);
+		DBGWRITE(dbg_level_error, L"MultiByteToWideChar() failed in AFPMacToWindowsString()! (%d)\n", GetLastError());
 		return nullptr;
 	}
 
@@ -1118,9 +1116,7 @@ PWCHAR afp_mac_to_windows_path(
 
 	if (size == 0)
 	{
-		const auto error = GetLastError();
-
-		DBGWRITE(dbg_level_info, L"[HELP]MultiByteToWideChar() failed! (%d)\n", error);
+		DBGWRITE(dbg_level_info, L"[HELP]MultiByteToWideChar() failed! (%d)\n", GetLastError());
 		return nullptr;
 	}
 
@@ -1165,8 +1161,8 @@ PCHAR afp_windows_to_mac_path(
 
 	if (size == 0)
 	{
-		const auto error = GetLastError();
-		DBGWRITE(dbg_level_info, L"[HELP]WideCharToMultiByte() failed! (%d)\n", error);
+		DBGWRITE(dbg_level_info, L"[HELP]WideCharToMultiByte() failed! (%d)\n", GetLastError());
+		return p_afp_path;
 	}
 
 	p_afp_path[size] = '\0';

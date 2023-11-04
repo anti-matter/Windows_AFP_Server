@@ -41,7 +41,9 @@ namespace dsi
 
     void dsi_connection::connection_thread()
 	{
-		const auto connection_id = connection_id_;
+#ifdef _DEBUG
+        const auto connection_id = connection_id_;
+#endif
 
 		while(continue_receive_)
 		{

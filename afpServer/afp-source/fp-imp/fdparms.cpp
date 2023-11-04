@@ -71,7 +71,7 @@ AFPERROR afp_get_object_parms(
     IN afp_net_buffer& reply,
     IN const UINT16 bitmap,
     IN const INT16 volume_id,
-    IN const UINT32 dir_id,
+    IN const INT32 dir_id,
     IN const dsi::dsi_connection* dsi_session,
     IN afp_index* entry,
     IN WIN32_FILE_ATTRIBUTE_DATA win_attributes

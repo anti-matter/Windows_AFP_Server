@@ -483,9 +483,9 @@ AFPERROR FPListExtAttribute(
             //them into the reply buffer.
             //
 
-            for (auto afpAttrInfo : streamArray)
+            for (const auto& [stream_size, stream_name] : streamArray)
             {
-                const auto cbStreamName = static_cast<int16>(lstrlen(afpAttrInfo.stream_name));
+                const auto cbStreamName = static_cast<int16>(lstrlen(stream_name));
 
                 //
                 //We're only interested in streams with names (i.e not the main stream)
@@ -497,8 +497,8 @@ AFPERROR FPListExtAttribute(
                     //don't want to send_ streams the server owns back to the client (e.g.
                     //the resource or info streams).
                     //
-                    if ((!lstrcmp(afpAttrInfo.stream_name, afp_info_stream_name)) ||
-                        (!lstrcmp(afpAttrInfo.stream_name, AFP_RESOURCE_FORK_NAME_PLAIN)))
+                    if ((!lstrcmp(stream_name, afp_info_stream_name)) ||
+                        (!lstrcmp(stream_name, AFP_RESOURCE_FORK_NAME_PLAIN)))
                     {
                         continue;
                     }
@@ -515,7 +515,7 @@ AFPERROR FPListExtAttribute(
                                     afpAttrInfo.stream_name);
 
 
-                            if (afp_windows_to_mac_path(afpAttrInfo.stream_name, sizeof(ansi_string), nullptr,
+                            if (afp_windows_to_mac_path(stream_name, sizeof(ansi_string), nullptr,
                                                         ansi_string) != nullptr)
                             {
                                 afpReply.push_raw_data(ansi_string, strlen(ansi_string) + sizeof(char));
