@@ -36,9 +36,8 @@ typedef struct
 } afp_user_group_name;
 
 // Returns the SID for the logged in access token
-BOOL afp_get_logon_sid(
-	IN HANDLE h_token,
-	OUT PSID sid
+std::shared_ptr<PSID> afp_get_logon_sid(
+	IN HANDLE h_token
 );
 
 // This routine returns TRUE if the caller's process

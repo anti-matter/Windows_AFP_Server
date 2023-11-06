@@ -53,14 +53,14 @@ std::wstring string_to_wide_string(const std::string& string)
 	return result;
 }
 
-BOOL afp_get_logon_sid(
-	IN const HANDLE h_token,
-	OUT PSID* sid
+std::shared_ptr<PSID> afp_get_logon_sid(
+	IN const HANDLE h_token
 )
 {
 	auto success = FALSE;
 	DWORD length = 0;
 	std::unique_ptr<TOKEN_GROUPS> ptg;
+	std::shared_ptr<PSID> sid;
 
 	// Get the required buffer size and allocate the TOKEN_GROUPS buffer.
 	if (!GetTokenInformation(h_token, TokenGroups, nullptr, 0, &length))
@@ -86,11 +86,11 @@ BOOL afp_get_logon_sid(
 			if ((ptg->Groups[index].Attributes & SE_GROUP_LOGON_ID) == SE_GROUP_LOGON_ID)
 			{
 				length = GetLengthSid(ptg->Groups[index].Sid);
-				*sid = malloc(length);
+				sid = std::make_shared<PSID>(new char[length]);
 
 				if (sid != nullptr)
 				{
-					if (CopySid(length, *sid, ptg->Groups[index].Sid))
+					if (CopySid(length, sid.get(), ptg->Groups[index].Sid))
 					{
 						success = TRUE;
 					}
@@ -99,7 +99,7 @@ BOOL afp_get_logon_sid(
 		}
 	}
 
-	return success;
+	return sid;
 }
 
 BOOL is_user_admin(

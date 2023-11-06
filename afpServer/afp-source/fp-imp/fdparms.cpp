@@ -218,11 +218,11 @@ AFPERROR afp_get_object_parms(
             if (data_size64.LowPart == INVALID_FILE_SIZE && GetLastError() != NO_ERROR)
             {
                 data_size64.LowPart = 0;
-                DBGWRITE(dbg_level_warning, L"[FDP]GetCompressedFileSize() failed! (%d)\n", GetLastError());
+                DBGWRITE(dbg_level_warning, L"GetCompressedFileSize() failed! (%d)\n", GetLastError());
             }
             else
             {
-                DBGWRITE(dbg_level_all, L"[FDP]Data fork size =  (%d)\n", data_size64.LowPart);
+                DBGWRITE(dbg_level_all, L"Data fork size =  (%d)\n", data_size64.LowPart);
             }
 
             if (bitmap & kFPDFLen)
@@ -233,18 +233,18 @@ AFPERROR afp_get_object_parms(
 
         if (bitmap & (kFPRFLen | kFPExtRsrcForkLen))
         {
-            afp_open_file afp_file(volume_id, dir_id, kReadMode, kAttrFork, entry, entry->sz_path.c_str());
+            afp_open_file afp_file(volume_id, dir_id, kReadMode, static_cast<INT8>(kAttrFork), entry, entry->sz_path.c_str());
 
             rsrc_size64.QuadPart = afp_file.get_stream_length(const_cast<wchar_t*>(AFP_RESOURCE_FORK_NAME_PLAIN));
 
             if (rsrc_size64.QuadPart == BAD_LENGTH_64)
             {
-                DBGWRITE(dbg_level_warning, L"[FDP]GetStreamLength() failed! (%d) (%s)\n", GetLastError(), entry->sz_object_name.c_str());
+                DBGWRITE(dbg_level_warning, L"GetStreamLength() failed! (%d) (%s)\n", GetLastError(), entry->sz_object_name.c_str());
                 rsrc_size64.QuadPart = 0;
             }
             else
             {
-                DBGWRITE(dbg_level_all, L"[FDP]Resource fork size =  (%d)\n", rsrc_size64.LowPart);
+                DBGWRITE(dbg_level_all, L"Resource fork size =  (%d)\n", rsrc_size64.LowPart);
             }
         }
 
@@ -299,7 +299,7 @@ AFPERROR afp_get_object_parms(
 AFPERROR afp_set_file_dir_parms(
     IN const WORD bitmap,
     IN const DWORD file_attributes,
-    IN afp_index* index_entry,
+    IN const afp_index* index_entry,
     IN afp_net_buffer& request
 )
 {
@@ -400,7 +400,7 @@ AFPERROR afp_set_file_dir_parms(
         );
     }
 
-    return (NO_ERROR);
+    return AFP_OK;
 }
 
 AFPERROR afp_set_file_time(

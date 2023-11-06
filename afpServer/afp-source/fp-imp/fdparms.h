@@ -24,7 +24,7 @@ AFPERROR afp_get_object_parms(
 AFPERROR afp_set_file_dir_parms(
     IN WORD bitmap,
     IN DWORD file_attributes,
-    IN afp_index* index_entry,
+    IN const afp_index* index_entry,
     IN afp_net_buffer& request
 );
 
