@@ -32,16 +32,16 @@ AFPERROR DHXLogin(
 )
 {
 	unsigned char iv[] = "CJalbert";
-    const uint8 p[] = {
+    const UINT8 p[] = {
 		0xBA, 0x28, 0x73, 0xDF, 0xB0, 0x60, 0x57, 0xD4,
 		0x3F, 0x20, 0x24, 0x74, 0x4C, 0xEE, 0xE7, 0x5B
 	};
-    constexpr uint8 g = 0x07;
+    constexpr UINT8 g = 0x07;
 	AFPERROR afpError = afpParmErr;
 	DH* dh = NULL;
-	uint8 randbuf[DHX_RANDBUFSIZE];
+	UINT8 randbuf[DHX_RANDBUFSIZE];
 	unsigned char encrypt_buffer[DHX_CRYPTBUFLEN] = {};
-	const uint16 sessid = dhxhash((ULONG_PTR)dsiSession);
+	const UINT16 sessid = dhxhash((ULONG_PTR)dsiSession);
 	BIGNUM* gbn;
 	BIGNUM* pbn;
 	int i;
@@ -171,7 +171,7 @@ AFPERROR DHXLoginContinue(
 	IN afp_net_buffer& afpReply,
 	IN dsi::dsi_connection* dsiSession,
 	IN char* afpPassword,
-	IN int16 afpPasswordLen,
+	IN INT16 afpPasswordLen,
 	IN DHXInfo* dhxInfo
 )
 {
@@ -274,14 +274,14 @@ AFPERROR DHXChangePassword(
 	IN afp_net_buffer& afpReply,
 	IN dsi::dsi_connection* dsiSession,
 	IN char* oldPassword,
-	IN int16 cbOldPassword,
+	IN INT16 cbOldPassword,
 	IN char* newPassword,
-	IN int16 cbNewPassword,
+	IN INT16 cbNewPassword,
 	IN DHXInfo* dhxInfo
 )
 {
 	unsigned char iv[] = "LWallace";
-	int16 sessionID = 0;
+	INT16 sessionID = 0;
 	AFPERROR afpError = afpParmErr;
 	char* tempBuff = afpReply.get_current_pos_ptr(); //user as temporary buffer space
 
@@ -481,10 +481,10 @@ exit:
 void afpGetRandomNumber(
 	IN dsi::dsi_connection* dsiSession,
 	IN char* buf,
-	IN int16 cbBuf
+	IN INT16 cbBuf
 )
 {
-	uint32 result;
+	UINT32 result;
 
 	srand((ULONG_PTR)dsiSession & 0x0000FFFF);
 

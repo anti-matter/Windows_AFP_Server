@@ -32,21 +32,21 @@ public:
 	AFPERROR close_file_fork();
 	AFPERROR read_fork(
 		afp_net_buffer& afp_reply,
-		int64 afp_offset,
-		int64 afp_req_count,
-		uint32* afp_actual_read
+		INT64 afp_offset,
+		INT64 afp_req_count,
+		DWORD* afp_actual_read
 	);
 	AFPERROR write_fork(
 		afp_net_buffer& afp_request,
-		int64 afp_offset,
-		int64 afp_req_count,
+		INT64 afp_offset,
+		INT64 afp_req_count,
 		BOOL afp_from_start,
-		int64* afp_last_byte_written
+		INT64* afp_last_byte_written
 	) const;
 
 	AFPERROR file_seek(
-		int64 marker_distance,
-		uint32 method
+		INT64 marker_distance,
+		UINT32 method
 	) const;
 
 	bool is_fork_open() const { return m_file_handle_ != INVALID_HANDLE_VALUE; }

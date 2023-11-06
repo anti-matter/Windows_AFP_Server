@@ -100,7 +100,7 @@ AFPERROR FPGetFileDirParms(
 )
 {
     WIN32_FILE_ATTRIBUTE_DATA win_attributes;
-    int8 afp_attributes = 0;
+    INT8 afp_attributes = 0;
 
     DBGWRITE(dbg_level_all, L"Enter...\n");
 
@@ -457,7 +457,7 @@ AFPERROR FPSetFileDirParms(
     DBGWRITE(dbg_level_all, L"Enter...\n");
 
     const auto afp_command = afp_request.pull_num<INT8>();
-    afp_request.advance_pos_ptr(sizeof(int8));
+    afp_request.advance_pos_ptr(sizeof(INT8));
 
     const auto afp_vol_id = afp_request.pull_num<UINT16>();
     const auto afp_dir_id = afp_request.pull_num<UINT32>();
@@ -569,7 +569,7 @@ AFPERROR FPCreateDir(
 {
     DBGWRITE(dbg_level_all, L"FPCreateDir...\n");
 
-    afp_request.advance_pos_ptr(sizeof(int16));
+    afp_request.advance_pos_ptr(sizeof(INT16));
 
     const auto volume_id = afp_request.pull_num<INT16>();
     auto dir_id = afp_request.pull_num<INT32>();
@@ -668,7 +668,7 @@ AFPERROR FPDelete(
 
     DBGWRITE(dbg_level_all, L"Enter\n");
 
-    afp_request.advance_pos_ptr(sizeof(int16));
+    afp_request.advance_pos_ptr(sizeof(INT16));
 
     const auto afp_volume_id = afp_request.pull_num<UINT16>();
     const auto afp_dir_id = afp_request.pull_num<UINT32>();
@@ -779,7 +779,7 @@ AFPERROR FPCopyFile(
 
     DBGWRITE(dbg_level_all, L"Enter...\n");
 
-    afp_request.advance_pos_ptr(sizeof(int16));
+    afp_request.advance_pos_ptr(sizeof(INT16));
 
     const auto afp_src_vol_id = afp_request.pull_num<UINT16>();
     const auto afp_src_dir_id = afp_request.pull_num<UINT32>();
@@ -894,7 +894,7 @@ AFPERROR FPMoveAndRename(
 
     DBGWRITE(dbg_level_all, L"Enter\n");
 
-    afp_request.advance_pos_ptr(sizeof(int16));
+    afp_request.advance_pos_ptr(sizeof(INT16));
 
     const auto afp_volume_id = afp_request.pull_num<UINT16>();
     const auto afp_src_dir_id = afp_request.pull_num<UINT32>();
@@ -1028,7 +1028,7 @@ AFPERROR FPRename(
 
     DBGWRITE(dbg_level_all, L"Enter\n");
 
-    afp_request.advance_pos_ptr(sizeof(int16));
+    afp_request.advance_pos_ptr(sizeof(INT16));
 
     const auto afp_volume_id = afp_request.pull_num<UINT16>();
     const auto afp_dir_id = afp_request.pull_num<UINT32>();

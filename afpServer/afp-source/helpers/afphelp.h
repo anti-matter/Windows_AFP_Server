@@ -7,18 +7,6 @@ constexpr auto seconds_per_day = 86400L; // 24*60*60;
 constexpr auto seconds_from_1980_2000 = seconds_per_day * days_from_1980_2000;
 constexpr auto num_100_ns_per_second = 10000000L;
 
-using int32 = LONG;
-using uint32 = DWORD;
-using int16 = SHORT;
-using uint16 = WORD;
-using int8 = char;
-using uint8 = BYTE;
-using uchar = BYTE;
-using unichar = WCHAR;
-using int64 = LONGLONG;
-using uint64 = ULONGLONG;
-using status_t = HRESULT;
-
 std::string wide_string_to_string(const std::wstring & wide_string);
 std::wstring string_to_wide_string(const std::string & string);
 

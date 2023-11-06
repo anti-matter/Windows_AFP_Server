@@ -22,7 +22,7 @@ extern dsi::dsi_connections active_connections;
 
 UINT8 get_afp_version_as_int(const WCHAR* version)
 {
-	int8 result = 0;
+	INT8 result = 0;
 
 	if (!lstrcmp(version, AFP_22_VERSION_STR))
 		result = afpVersion22;
@@ -43,7 +43,7 @@ UINT8 get_afp_version_as_int(const WCHAR* version)
 
 INT8 get_uam_type_as_int(const WCHAR* uam_string)
 {
-	int8 result = -1;
+	INT8 result = -1;
 
 	if (!lstrcmp(uam_string, UAM_NONE_STR))
 		result = afpUAMNone;
@@ -79,14 +79,14 @@ AFPERROR FPGetSessionToken(
 {
 	auto* session = connection->get_afp_session();
 	const afp_session* afp_old_session;
-	int32 afp_id_size = 0;
+	INT32 afp_id_size = 0;
 	std::unique_ptr<char[]> afp_id;
-	uint32 afp_time_stamp = 0;
+	UINT32 afp_time_stamp = 0;
 	const UINT32 afp_token = session->get_token();
 
     DBGWRITE(dbg_level_info, L"Enter...\n");
 
-	afp_request.advance_pos_ptr(sizeof(int16));
+	afp_request.advance_pos_ptr(sizeof(INT16));
 	const auto afp_type = afp_request.pull_num<INT16>();
 
 	if (afp_type != kLoginWithoutID)
@@ -221,7 +221,7 @@ AFPERROR FPDisconnectOldSession(
 	DBGWRITE(dbg_level_info, L"Enter...\n");
 
 	afp_request.advance_pos_ptr(sizeof(UINT16) + sizeof(UINT8));
-	const int32 afp_token_length = afp_request.pull_num<INT32>();
+	const INT32 afp_token_length = afp_request.pull_num<INT32>();
 
 	if (afp_token_length != AFP_SESSION_TOKEN_SIZE)
 	{
@@ -281,7 +281,7 @@ AFPERROR FPLogin(
 	//
 	//The first byte in the buffer is the afp command byte.
 	//
-	const int8 afp_command = afp_request.pull_num<INT8>();
+	const INT8 afp_command = afp_request.pull_num<INT8>();
 
 	if (afp_command == afpLoginExt)
 	{
@@ -549,7 +549,7 @@ AFPERROR FPChangePassword(
 
 	DBGWRITE(dbg_level_info, L"Enter...\n");
 
-	afp_request.advance_pos_ptr(sizeof(int16));
+	afp_request.advance_pos_ptr(sizeof(INT16));
 
 	const auto sz_uam_version = afp_request.pull_string();
 	const auto uam_type = get_uam_type_as_int(sz_uam_version.c_str());
@@ -835,10 +835,10 @@ AFPERROR FPGetSrvrMsg(
 {
 	UNREFERENCED_PARAMETER(connection);
 
-	unichar message[message_max_length + 1];
+	WCHAR message[message_max_length + 1];
 	afp_registry the_registry;
 
-	afp_request.advance_pos_ptr(sizeof(int16));
+	afp_request.advance_pos_ptr(sizeof(INT16));
 
 	const auto afp_message_type = afp_request.pull_num<UINT16>();
 	const auto afp_message_bitmap = afp_request.pull_num<UINT16>();

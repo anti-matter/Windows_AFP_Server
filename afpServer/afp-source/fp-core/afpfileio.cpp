@@ -218,7 +218,7 @@ AFPERROR FPSetForkParms(
     DBGWRITE(dbg_level_all, L"Enter\n");
 
     // The first byte contains the afp command.
-    afp_request.advance_pos_ptr(sizeof(int16));
+    afp_request.advance_pos_ptr(sizeof(INT16));
 
     const auto afp_fork_ref = afp_request.pull_num<INT16>();
     const auto afp_bitmap = afp_request.pull_num<UINT16>();
@@ -287,7 +287,7 @@ AFPERROR FPGetForkParms(
     DBGWRITE(dbg_level_all, L"nter\n");
 
     // The first byte contains the afp command.
-    afp_request.advance_pos_ptr(sizeof(int16));
+    afp_request.advance_pos_ptr(sizeof(INT16));
 
     // Get the parameters for the file we're opening.
     const auto afp_fork_ref = afp_request.pull_num<INT16>();
@@ -358,7 +358,7 @@ AFPERROR FPCreateFile(
     DBGWRITE(dbg_level_all, L"Enter\n");
 
     // First byte is padding.
-    afp_request.advance_pos_ptr(sizeof(int8));
+    afp_request.advance_pos_ptr(sizeof(INT8));
 
     const auto create_flag = afp_request.pull_num<INT8>();
     const auto volume_id = afp_request.pull_num<UINT16>();
@@ -505,14 +505,14 @@ AFPERROR FPByteRangeLock(
     // Determine the size of the file so we can calculate the offset
     // from the end of the file and lock the entire range if
     // necessary.
-    const uint32 afp_file_size = GetFileSize(h_file, nullptr);
+    const UINT32 afp_file_size = GetFileSize(h_file, nullptr);
     afp_error = (afp_file_size == 0xFFFFFFFF) ? afpParmErr : AFP_OK;
 
     if (AFP_SUCCESS(afp_error))
     {
         if (afp_brl_flags & kUnlockFlag)
         {
-            if (afp_length >= static_cast<int32>(0xFFFFFFFF))
+            if (afp_length >= static_cast<INT32>(0xFFFFFFFF))
             {
                 switch (afp_offset)  // NOLINT(hicpp-multiway-paths-covered)
                 {
@@ -619,7 +619,7 @@ AFPERROR FPRead(
     afp_session* afp_session = connection->get_afp_session();
     INT64 afp_offset;
     INT64 afp_req_count;
-    uint32 afp_act_count = 0;
+    DWORD afp_act_count = 0;
 
     DBGWRITE(dbg_level_all, L"Enter\n");
 

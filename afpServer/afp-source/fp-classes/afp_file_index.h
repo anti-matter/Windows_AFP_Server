@@ -2,7 +2,7 @@
 #include <filesystem>
 #include "afphelp.h"
 
-constexpr int32 hash_multiplier = 1024;
+constexpr INT32 hash_multiplier = 1024;
 
 // These flags are used to keep state of file objects in the index.
 enum
@@ -45,7 +45,7 @@ public:
 	~afp_file_index();
 
 	afp_index* add_entry(
-		uint32 par_id,
+		UINT32 par_id,
         const std::wstring& p_object_name,
         const std::filesystem::path& p_object_path,
 		bool is_directory,
@@ -57,7 +57,7 @@ public:
 
 	void update_entry(afp_index* entry, afp_index* new_parent, const std::wstring& new_name);
 
-	static void update_entry_flags(afp_index* p_entry, uint16 flags);
+	static void update_entry_flags(afp_index* p_entry, UINT16 flags);
 	static size_t hash_string(PWCHAR string);
 
 	afp_index* find(INT32 object_id);
@@ -67,7 +67,7 @@ public:
 	UINT32 get_offspring(INT32 par_id, std::vector<afp_index*>& offspring);
 	UINT32 get_offspring(INT32 par_id);
 
-	uint32 next_id() { return m_next_id_++; }
+	UINT32 next_id() { return m_next_id_++; }
 
 	[[nodiscard]] std::reference_wrapper<std::recursive_mutex> get_mutex() { return std::ref(mutex_); }
 
@@ -80,5 +80,5 @@ private:
 	std::recursive_mutex mutex_;
 	std::vector<std::unique_ptr<afp_index>> m_index_;
 
-	uint32 m_next_id_;
+	UINT32 m_next_id_;
 };

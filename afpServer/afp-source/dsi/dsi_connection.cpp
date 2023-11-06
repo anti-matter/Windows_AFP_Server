@@ -289,7 +289,7 @@ namespace dsi
 
 		//Include the replay cache size option
 		//reply.push_num<UINT8>(server_replay_cache_size);
-		//reply.push_num<UINT8>(sizeof(int32));
+		//reply.push_num<UINT8>(sizeof(INT32));
 		//reply.push_num<UINT32>(replay_cache_size);
 
 		send_reply(

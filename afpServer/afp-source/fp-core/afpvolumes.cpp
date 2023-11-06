@@ -92,7 +92,7 @@ AFPERROR FPCloseVol(
 {
     UNREFERENCED_PARAMETER(afp_reply);
 
-    afp_request.advance_pos_ptr(sizeof(int16));
+    afp_request.advance_pos_ptr(sizeof(INT16));
     const auto afp_volume_id = afp_request.pull_num<INT16>();
     const auto afp_session = connection->get_afp_session();
 
@@ -119,7 +119,7 @@ AFPERROR FPFlush(
 {
     UNREFERENCED_PARAMETER(afp_reply);
 
-    afp_request.advance_pos_ptr(sizeof(int16));
+    afp_request.advance_pos_ptr(sizeof(INT16));
     const auto afp_volume_id = afp_request.pull_num<INT16>();
 
     if (!connection->get_afp_session()->session_has_volume_open(afp_volume_id))
@@ -149,7 +149,7 @@ AFPERROR FPGetVolParms(
 {
     DBGWRITE(dbg_level_all, L"FPGetVolParms...\n");
 
-    afp_request.advance_pos_ptr(sizeof(int16));
+    afp_request.advance_pos_ptr(sizeof(INT16));
     const auto afp_volume_id = afp_request.pull_num<INT16>();
 
     // The client must have previously opened the volume we are operating on.

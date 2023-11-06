@@ -191,8 +191,8 @@ AFPERROR AFPGetVolumeParameters(
     // to the volume name.
     if (afp_bitmap & kFPVolNameBit)
     {
-        volume_name_offset = reinterpret_cast<uint16*>(afp_reply.get_current_pos_ptr());
-        afp_reply.advance_pos_ptr(sizeof(int16));
+        volume_name_offset = reinterpret_cast<UINT16*>(afp_reply.get_current_pos_ptr());
+        afp_reply.advance_pos_ptr(sizeof(INT16));
     }
 
     // The following 3 bits will only be set if the caller

@@ -20,7 +20,7 @@ afp_open_file::afp_open_file(
 	m_volume_id_ = vol_id;
 	m_dir_id_ = dir_id;
 	m_access_mode_ = access_mode;
-	m_fork_ = static_cast<int8>(fork);
+	m_fork_ = static_cast<INT8>(fork);
 	m_entry_ = entry;
 	m_file_ref_num_ = 0;
 
@@ -45,8 +45,8 @@ afp_open_file::~afp_open_file()
 AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD creation_disposition)
 {
 	WCHAR sz_file_path[MAX_PATH];
-	uint32 desired_access = 0;
-	int16 afp_flags = flag_index_set_item;
+	UINT32 desired_access = 0;
+	INT16 afp_flags = flag_index_set_item;
 	DWORD dw_flags_and_attr = FILE_ATTRIBUTE_NORMAL;
 
 	if (m_access_mode_ & kReadMode)
@@ -121,7 +121,7 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 	}
 
 	//Get the next available file ref num.
-	static int16 next_file_ref_num = 0;
+	static INT16 next_file_ref_num = 0;
 	m_file_ref_num_ = next_file_ref_num++;
 	m_file_handle_ = h_file;
 
@@ -134,7 +134,7 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 
 AFPERROR afp_open_file::close_file_fork()
 {
-	int16 afp_flags = 0;
+	INT16 afp_flags = 0;
 
 	//First we need to update the flags in the afp_index as to the state of
 	//of this file fork. Note that AFPIndexUpdateEntryFlags() takes care of
@@ -181,9 +181,9 @@ AFPERROR afp_open_file::close_file_fork()
 
 AFPERROR afp_open_file::read_fork(
 	afp_net_buffer& afp_reply,
-	const int64 afp_offset,
-	int64 afp_req_count,
-	uint32* afp_actual_read
+	const INT64 afp_offset,
+	INT64 afp_req_count,
+	DWORD* afp_actual_read
 )
 {
 	OVERLAPPED overlapped;
@@ -225,7 +225,7 @@ AFPERROR afp_open_file::read_fork(
 	const auto success = ReadFile(
 		m_file_handle_,
 		afp_reply.get_current_pos_ptr(),
-		static_cast<uint32>(afp_req_count),
+		static_cast<UINT32>(afp_req_count),
 		afp_actual_read,
 		&overlapped
 	);
@@ -252,10 +252,10 @@ AFPERROR afp_open_file::read_fork(
 
 AFPERROR afp_open_file::write_fork(
 	afp_net_buffer& afp_request,
-	const int64 afp_offset,
-	const int64 afp_req_count,
+	const INT64 afp_offset,
+	const INT64 afp_req_count,
 	const BOOL afp_from_start,
-	int64* afp_last_byte_written
+	INT64* afp_last_byte_written
 ) const
 {
 	// Make sure we have a valid file handle before we do anything.
@@ -273,8 +273,8 @@ AFPERROR afp_open_file::write_fork(
 
 	if (AFP_SUCCESS(afp_error))
 	{
-		uint32 afp_actual = 0;
-		const auto req_count = static_cast<uint32>(afp_req_count);
+		DWORD afp_actual = 0;
+		const auto req_count = static_cast<UINT32>(afp_req_count);
 
 		// Call the Windows API to do all the work for us.
 		const auto success = WriteFile(
@@ -309,8 +309,8 @@ AFPERROR afp_open_file::write_fork(
 
 
 AFPERROR afp_open_file::file_seek(
-	const int64 marker_distance,
-	const uint32 method
+	const INT64 marker_distance,
+	const UINT32 method
 ) const
 {
 	LARGE_INTEGER distance;

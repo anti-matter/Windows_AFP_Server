@@ -28,14 +28,14 @@ AFPERROR FPGetExtAttribute(
     IN dsi::dsi_connection* connection
 )
 {
-    uint32 afpActualRead = 0;
+    DWORD afpActualRead = 0;
 
     DBGWRITE(dbg_level_all, L"Enter...\n");
 
     //
     //Advance beyond command and pad byte
     //
-    afpRequest.advance_pos_ptr(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(INT16));
 
     // ReSharper disable CppDeclaratorNeverUsed
     const auto afpVolID = afpRequest.pull_num<INT16>();
@@ -94,7 +94,7 @@ AFPERROR FPGetExtAttribute(
         //Get the size of the attribute data. Note we don't pass the name of the
         //stream because we already have an open handle to the right stream.
         //
-        const auto afpDataLen = static_cast<uint32>(GetStreamLen(afpEntry->sz_path.c_str(), afpAttrName.c_str()));
+        const auto afpDataLen = static_cast<UINT32>(GetStreamLen(afpEntry->sz_path.c_str(), afpAttrName.c_str()));
         if (afpDataLen != BAD_LENGTH_32)
         {
             //
@@ -222,7 +222,7 @@ AFPERROR FPSetExtAttribute(
     //
     //Advance beyond command and pad byte
     //
-    afpRequest.advance_pos_ptr(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(INT16));
 
     const auto afpVolID = afpRequest.pull_num<INT16>();
     const auto afpDirID = afpRequest.pull_num<INT32>();
@@ -263,7 +263,7 @@ AFPERROR FPSetExtAttribute(
     //
     //The attribute data length we're going to write.
     //
-    const uint32 afpAttrDataLen = afpRequest.pull_num<UINT32>();
+    const UINT32 afpAttrDataLen = afpRequest.pull_num<UINT32>();
 
     //
     //See if the user has the volume open and get a pointer to
@@ -286,7 +286,7 @@ AFPERROR FPSetExtAttribute(
         //We have different errors to check for based on the supplied attribute
         //flags (replace and/or already exists).
         //
-        const auto status = static_cast<uint32>(GetStreamLen(const_cast<wchar_t*>(afpEntry->sz_path.c_str()), afpAttrName.c_str()));
+        const auto status = static_cast<UINT32>(GetStreamLen(const_cast<wchar_t*>(afpEntry->sz_path.c_str()), afpAttrName.c_str()));
 
         if ((status == BAD_LENGTH_32) && (afpBitmap & kXAttrCreate))
         {
@@ -368,14 +368,14 @@ AFPERROR FPListExtAttribute(
     IN dsi::dsi_connection* connection
 )
 {
-    int32 afpDataLen = 0;
+    INT32 afpDataLen = 0;
 
     DBGWRITE(dbg_level_info, L"Enter...\n");
 
     //
     //Advance beyond command and pad byte
     //
-    afpRequest.advance_pos_ptr(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(INT16));
 
     const auto afpVolID = afpRequest.pull_num<INT16>();
     const auto afpDirID = afpRequest.pull_num<INT32>();
@@ -439,8 +439,8 @@ AFPERROR FPListExtAttribute(
             //
             //Save the position of the data len field...
             //
-            auto* saveDL = reinterpret_cast<uint32*>(afpReply.get_current_pos_ptr());
-            afpReply.advance_pos_ptr(sizeof(uint32));
+            auto* saveDL = reinterpret_cast<UINT32*>(afpReply.get_current_pos_ptr());
+            afpReply.advance_pos_ptr(sizeof(UINT32));
 
             //
             //Now get the size of all the name strings and optionally plumb
@@ -449,7 +449,7 @@ AFPERROR FPListExtAttribute(
 
             for (const auto& [stream_size, stream_name] : streamArray)
             {
-                const auto cbStreamName = static_cast<int16>(lstrlen(stream_name));
+                const auto cbStreamName = static_cast<INT16>(lstrlen(stream_name));
 
                 //
                 //We're only interested in streams with names (i.e not the main stream)
@@ -504,7 +504,7 @@ AFPERROR FPListExtAttribute(
             //
             if (afpMaxReplySize == 0)
             {
-                afpDataLen += (sizeof(int16) + sizeof(int32));
+                afpDataLen += (sizeof(INT16) + sizeof(INT32));
             }
 
             //
@@ -543,7 +543,7 @@ AFPERROR FPRemoveExtAttribute(
     //
     //Advance beyond command and pad byte
     //
-    afpRequest.advance_pos_ptr(sizeof(int16));
+    afpRequest.advance_pos_ptr(sizeof(INT16));
 
     const auto afpVolID = afpRequest.pull_num<INT16>();
     const auto afpDirID = afpRequest.pull_num<INT32>();

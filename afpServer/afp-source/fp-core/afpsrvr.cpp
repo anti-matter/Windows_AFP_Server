@@ -194,7 +194,7 @@ AFPERROR FPZzzz(
 
 	DBGWRITE(dbg_level_info, L"[AFP:FpZzzz]Enter...\n");
 
-	afp_request.advance_pos_ptr(sizeof(int16));
+	afp_request.advance_pos_ptr(sizeof(INT16));
 
 	// The flag parameter is a reserved field by
 	// Apple and is ignored now.

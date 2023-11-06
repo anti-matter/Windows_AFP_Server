@@ -46,7 +46,7 @@ afp_file_index::~afp_file_index() = default;
  */
 
 afp_index* afp_file_index::add_entry(
-    const uint32 par_id,
+    const UINT32 par_id,
     const std::wstring& p_object_name,
     const std::filesystem::path& p_object_path,
     const bool is_directory,
@@ -195,7 +195,7 @@ void afp_file_index::update_entry(afp_index* entry, afp_index* new_parent, const
  *		None
  */
 
-void afp_file_index::update_entry_flags(afp_index* p_entry, const uint16 flags)
+void afp_file_index::update_entry_flags(afp_index* p_entry, const UINT16 flags)
 {
 	//
 	//If the "set item" flag is set, then we are setting the flags. Otherwise

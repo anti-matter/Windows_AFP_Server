@@ -30,7 +30,7 @@ AFPERROR FPOpenDT(
 	//
 	//First WORD is afp command and padding byte.
 	//
-	afp_request.advance_pos_ptr(sizeof(int16));
+	afp_request.advance_pos_ptr(sizeof(INT16));
 
 	const auto afp_volume_id = afp_request.pull_num<UINT16>();
 	const auto afp_dt_ref_num = connection->get_afp_session()->open_desk(afp_volume_id);
@@ -64,7 +64,7 @@ AFPERROR FPCloseDT(
 {
 	UNREFERENCED_PARAMETER(afp_reply);
 
-	afp_request.advance_pos_ptr(sizeof(int16));
+	afp_request.advance_pos_ptr(sizeof(INT16));
 
 	const auto afp_dt_ref_num = afp_request.pull_num<UINT16>();
 	const AFPERROR afp_error = connection->get_afp_session()->close_desk(afp_dt_ref_num);
@@ -92,7 +92,7 @@ AFPERROR FPAddIcon(
 	UNREFERENCED_PARAMETER(afp_reply);
 
 	// The first work contains the command and padding byte.
-	afp_request.advance_pos_ptr(sizeof(int16));
+	afp_request.advance_pos_ptr(sizeof(INT16));
 
 	const auto afp_dt_ref_num = afp_request.pull_num<UINT16>();
 
@@ -110,7 +110,7 @@ AFPERROR FPAddIcon(
     icon_entry.icon_type = afp_request.pull_num<INT8>();
 
 	// A padding byte, skip it.
-	afp_request.advance_pos_ptr(sizeof(int8));
+	afp_request.advance_pos_ptr(sizeof(INT8));
 
 	// Get the next 2 parameters; We don't know or care what the tag is and
 	// we get the size of the data we'll be storing.
@@ -266,7 +266,7 @@ AFPERROR FPAddComment(
 
 	DBGWRITE(dbg_level_all, L"Enter\n");
 
-	afp_request.advance_pos_ptr(sizeof(int16));
+	afp_request.advance_pos_ptr(sizeof(INT16));
 
 	const auto afp_dt_ref_num = afp_request.pull_num<INT16>();
 	desk_item.dir_id = afp_request.pull_num<INT32>();
@@ -339,7 +339,7 @@ AFPERROR FPGetComment(
 
 	DBGWRITE(dbg_level_all, L"Enter\n");
 
-	afp_request.advance_pos_ptr(sizeof(int16));
+	afp_request.advance_pos_ptr(sizeof(INT16));
 
 	const auto afp_dt_refnum = afp_request.pull_num<INT16>();
 	search_entry.dir_id = afp_request.pull_num<INT32>();
@@ -463,7 +463,7 @@ AFPERROR FPGetAPPL(
 
 	DBGWRITE(dbg_level_all, L"Enter\n");
 
-	afp_request.advance_pos_ptr(sizeof(int16));
+	afp_request.advance_pos_ptr(sizeof(INT16));
 	const auto afp_dt_refnum = afp_request.pull_num<UINT16>();
 
 	afp_request.pull_raw_data(&search_entry.file_creator, sizeof(FILE_CREATOR));
@@ -541,7 +541,7 @@ AFPERROR FPAddAPPL(
 
 	afp_desk_item new_entry;
 
-	afp_request.advance_pos_ptr(sizeof(int16));
+	afp_request.advance_pos_ptr(sizeof(INT16));
 
 	const auto afp_dt_refnum = afp_request.pull_num<UINT16>();
 
@@ -592,7 +592,7 @@ AFPERROR FPRemoveAPPL(
 
 	afp_desk_item search_entry;
 
-	afp_request.advance_pos_ptr(sizeof(int16));
+	afp_request.advance_pos_ptr(sizeof(INT16));
 
 	const auto afp_dt_refnum = afp_request.pull_num<UINT16>();
 	search_entry.dir_id = afp_request.pull_num<INT32>();

@@ -91,7 +91,7 @@ void afp_session::associate_open_file(afp_open_file* open_file)
  * Returns: None
  */
 
-AFPERROR afp_session::close_file(const int16 file_reference)
+AFPERROR afp_session::close_file(const INT16 file_reference)
 {
     auto_lock lock(&m_mutex_);
 
@@ -121,7 +121,7 @@ AFPERROR afp_session::close_file(const int16 file_reference)
  * Returns: The found file object or nullptr.
  */
 
-afp_open_file* afp_session::find_open_file(const int16 file_reference)
+afp_open_file* afp_session::find_open_file(const INT16 file_reference)
 {
     auto_lock lock(&m_mutex_);
 
@@ -191,7 +191,7 @@ afp_open_file* afp_session::open_file(
  * Returns: AFP error code.
  */
 
-AFPERROR afp_session::open_volume(const uint16 volume_id)
+AFPERROR afp_session::open_volume(const UINT16 volume_id)
 {
     auto_lock lock(&m_mutex_);
     const std::shared_ptr<afp_volume> volume = g_volumes->find(volume_id);
@@ -219,7 +219,7 @@ AFPERROR afp_session::open_volume(const uint16 volume_id)
  * Returns: AFP error code.
  */
 
-AFPERROR afp_session::close_volume(const uint16 volume_id)
+AFPERROR afp_session::close_volume(const UINT16 volume_id)
 {
     auto_lock lock(&m_mutex_);
 
@@ -252,7 +252,7 @@ AFPERROR afp_session::close_volume(const uint16 volume_id)
  * Returns: Ptr to the block or nullptr
  */
 
-std::shared_ptr<afp_volume> afp_session::find_open_volume(const uint16 volume_id)
+std::shared_ptr<afp_volume> afp_session::find_open_volume(const UINT16 volume_id)
 {
     auto_lock lock(&m_mutex_);
 
@@ -280,7 +280,7 @@ std::shared_ptr<afp_volume> afp_session::find_open_volume(const uint16 volume_id
  * Returns: AFP error code.
  */
 
-UINT16 afp_session::open_desk(const uint16 volume_id)
+UINT16 afp_session::open_desk(const UINT16 volume_id)
 {
     const auto open_volume = find_open_volume(volume_id);
     if (open_volume == nullptr)
@@ -302,7 +302,7 @@ UINT16 afp_session::open_desk(const uint16 volume_id)
  * Returns: AFP error code.
  */
 
-AFPERROR afp_session::close_desk(const uint16 desk_ref_num)
+AFPERROR afp_session::close_desk(const UINT16 desk_ref_num)
 {
     auto_lock lock(&m_mutex_);
 
@@ -326,7 +326,7 @@ AFPERROR afp_session::close_desk(const uint16 desk_ref_num)
  * Returns: AFP error code.
  */
 
-afp_desktop* afp_session::get_desktop(const uint16 desk_ref_num)
+afp_desktop* afp_session::get_desktop(const UINT16 desk_ref_num)
 {
     auto_lock lock(&m_mutex_);
 
@@ -349,7 +349,7 @@ afp_desktop* afp_session::get_desktop(const uint16 desk_ref_num)
  * Returns: none
  */
 
-void afp_session::set_session_id(std::unique_ptr<char[]>& id, const uint32 id_size)
+void afp_session::set_session_id(std::unique_ptr<char[]>& id, const UINT32 id_size)
 {
     if (afp_id_ != nullptr)
     {

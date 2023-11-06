@@ -49,7 +49,7 @@ AFPERROR DHXLoginContinue(
 	IN afp_net_buffer& afpReply,
 	IN dsi::dsi_connection* dsiSession,
 	IN char* afpPassword,
-	IN int16 afpPasswordLen,
+	IN INT16 afpPasswordLen,
 	IN DHXInfo* dhxInfo
 );
 
@@ -58,9 +58,9 @@ AFPERROR DHXChangePassword(
 	IN afp_net_buffer& afpReply,
 	IN dsi::dsi_connection* dsiSession,
 	IN char* oldPassword,
-	IN int16 cbOldPassword,
+	IN INT16 cbOldPassword,
 	IN char* newPassword,
-	IN int16 cbNewPassword,
+	IN INT16 cbNewPassword,
 	IN DHXInfo* dhxInfo
 );
 
@@ -72,5 +72,5 @@ AFPERROR DHXCheckRandnum(
 void afpGetRandomNumber(
 	IN dsi::dsi_connection* dsiSession,
 	IN char* buf,
-	IN int16 cbBuf
+	IN INT16 cbBuf
 );
