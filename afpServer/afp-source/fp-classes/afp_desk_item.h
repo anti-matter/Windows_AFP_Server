@@ -55,10 +55,10 @@ struct afp_desk_item
     FILE_CREATOR file_creator;
 
     UINT32 tag;
-    UINT32 dir_id;
+    INT32 dir_id;
     UINT8 icon_type;
     UINT16 data_size;
-    INT8 path_type;
+    UINT8 path_type;
 
     WCHAR path_name[MAX_AFP_NAME];
     char data[max_desktop_data_size];

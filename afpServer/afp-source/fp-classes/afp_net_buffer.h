@@ -1,10 +1,18 @@
 #pragma once
 
+#include <filesystem>
+
 #include "afp.h"
 #include "afpdebug.h"
 #include "afphelp.h"
 #include "byte_swap.h"
 #include "dsi/dsi_connection.h"
+
+const std::wstring win_illegal_path_characters = L"\\/\"?*<>|";
+constexpr wchar_t first_replacement_character = 161;
+constexpr size_t max_pascal_string_length = 255;
+
+typedef std::basic_string<unsigned char> ustring;
 
 class afp_net_buffer // NOLINT(cppcoreguidelines-special-member-functions)
 {
@@ -14,7 +22,23 @@ public:
 	AFPERROR get_pascal_string(unichar* string, const UINT16 cb_string, const bool is_path = false, const UINT8 path_type = kLongNames,
                                AFPCHARMAPARRAY char_map = nullptr);
 
-	std::wstring get_pascal_string();
+	std::wstring pull_path(UINT8 path_type);
+	AFPERROR push_path(UINT8 path_type, const std::wstring& path);
+
+	std::wstring pull_string(UINT8 path_type = kLongNames);
+	void push_string(const std::wstring& str);
+
+    static std::wstring convert_to_windows_path(const std::string& mac_path);
+	static std::string convert_to_mac_path(const std::wstring& win_path);
+
+	std::wstring pull_wide_string();
+
+	template <class T>
+	std::string pull_multi_byte_string();
+
+	template <class T>
+	void push_multi_byte_string(const std::string& mac_string);
+
 	AFPERROR get_pascal_string(char* string, UINT16 cb_string, INT16* s_len = nullptr);
 	AFPERROR get_unicode_string(WCHAR* string, UINT16 cb_string, UINT16* s_len);
 	AFPERROR get_unicode_string(char* string, UINT16 cb_string, INT16* s_len, bool is_path, bool is_afp_name = true);

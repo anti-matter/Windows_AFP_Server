@@ -22,25 +22,24 @@ AFPERROR FPOpenVol(
     IN dsi::dsi_connection* connection
 )
 {
-    unichar afp_volume_name[MAX_VOLNAME_LEN + 1];
     const auto afp_session = connection->get_afp_session();
-    UINT16 afp_volume_id = 0;
+    INT16 afp_volume_id = 0;
     AFPERROR afp_error = AFP_OK;
 
     afp_request.advance_pos_ptr(sizeof(UINT16));
-    const auto afp_bitmap = afp_request.pull_num<UINT16>();
-
-    if (AFP_FAILED(afp_request.get_pascal_string(afp_volume_name, sizeof(afp_volume_name))))
+    const auto afp_bitmap = afp_request.pull_num<INT16>();
+    const auto afp_volume_name = afp_request.pull_path(kLongNames);
+    if (afp_volume_name.empty())
     {
         return afpParmErr;
     }
 
-    DBGWRITE(dbg_level_all, L"Opening volume: %s\n", afp_volume_name);
+    DBGWRITE(dbg_level_all, L"Opening volume: %s\n", afp_volume_name.c_str());
 
     // Get the volume ID for the volume to be opened.
     if (!g_volumes->map_name_to_id(afp_volume_name, &afp_volume_id))
     {
-        DBGWRITE(dbg_level_warning, L"Requested volume doesn't exist! (%s)\n", afp_volume_name);
+        DBGWRITE(dbg_level_warning, L"Requested volume doesn't exist! (%s)\n", afp_volume_name.c_str());
         return afpParmErr;
     }
 

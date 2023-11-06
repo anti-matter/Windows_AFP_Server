@@ -27,125 +27,74 @@
 #define kFromEnd			1
 
 
+// ReSharper disable CppInconsistentNaming
 enum AfpCommand
 {
     afpByteRangeLock = 1,
-    //*
     afpVolClose = 2,
-    //*
     afpDirClose = 3,
     afpForkClose = 4,
-    //*
     afpCopyFile = 5,
-    //*
     afpDirCreate = 6,
-    //*
     afpFileCreate = 7,
-    //*
     afpDelete = 8,
-    //*
     afpEnumerate = 9,
-    //*
     afpFlush = 10,
-    //*
     afpForkFlush = 11,
-    //*
     afpGetDirParms = 12,
-    //*
     afpGetFileParms = 13,
-    //*
     afpGetForkParms = 14,
-    //*
     afpGetSInfo = 15,
-    //*
     afpGetSParms = 16,
-    //*
     afpGetVolParms = 17,
-    //*
     afpLogin = 18,
-    //*
     afpContLogin = 19,
-    //*
     afpLogout = 20,
-    //*
     afpMapID = 21,
-    //*
     afpMapName = 22,
     afpMove = 23,
-    //*
     afpOpenVol = 24,
-    //*
     afpOpenDir = 25,
     afpOpenFork = 26,
-    //*
     afpRead = 27,
-    //*
     afpRename = 28,
-    //*
     afpSetDirParms = 29,
-    //*
     afpSetFileParms = 30,
-    //*
     afpSetForkParms = 31,
-    //*
     afpSetVolParms = 32,
     afpWrite = 33,
-    //*
     afpGetFlDrParms = 34,
-    //*
     afpSetFlDrParms = 35,
-    //*
     afpChangePwd = 36,
     afpGetUserInfo = 37,
     afpGetSrvrMsg = 38,
-    //*
     afpCreateID = 39,
     afpDeleteID = 40,
     afpResolveID = 41,
-    //*
     afpExchangeFiles = 42,
     afpDTOpen = 48,
-    //*
     afpDTClose = 49,
-    //*
     afpGetIcon = 51,
-    //*
     afpGtIcnInfo = 52,
-    //*
     afpAddAPPL = 53,
-    //*
     afpRmvAPPL = 54,
-    //*
     afpGetAPPL = 55,
-    //*
     afpAddCmt = 56,
-    //*
     afpRmvCmt = 57,
-    //*
     afpGetCmt = 58,
-    //*
     afpAddIcon = 192,
-    //*
 
     //AFP3.0
     afpByteRangeLockExt = 59,
     afpReadExt = 60,
-    //*
     afpWriteExt = 61,
-    //*
     afpGetAuthMethods = 62,
     afpLoginExt = 63,
-    //*
     afpGetSessionToken = 64,
-    //*
     afpDisconnectOldSession = 65,
-    //*
     afpEnumerateExt = 66,
-    //*
     afpCatSearchExt = 67,
-    //-
     afpEnumerateExt2 = 68,
-    //*
 
     //AFP3.2
     afpGetExtAttr = 69,
@@ -208,6 +157,7 @@ enum AfpErrorCode
     afpAlreadyMounted = -5062,
     afpSameNodeErr = -5063
 };
+// ReSharper restore CppInconsistentNaming
 
 #define AFP_VERSION_30
 
@@ -313,8 +263,8 @@ enum
 #define NUM_SECS_FROM_1904_TO_2000 	3029529600
 #define LOCAL_TIME(serverTime)		(NUM_SECS_FROM_1904_TO_2000 + serverTime)
 
-#define FIRST_VALID_ANSI_CHAR	20
-#define LAST_VALID_ANSI_CHAR	127
+#define FIRST_VALID_ANSI_CHAR	32
+#define LAST_VALID_ANSI_CHAR	255
 
 //
 //Yes, we succeeded and are OK.
@@ -550,11 +500,11 @@ enum afp_directory_attribute_flags
 // This is a table that will map invalid Mac characters to a known
 // good windows character. This will then be placed back when
 // data is sent back to the Mac.
-typedef struct _AFPCHARMAP
+using AFPCHARMAP = struct _AFPCHARMAP
 {
     WORD wKeyCode; //Keycode of offending character
     WORD wOffset; //Offset in string where char existed
-} AFPCHARMAP;
+};
 
 using AFPCHARMAPARRAY = AFPCHARMAP[MAX_REPLACED_CHARACTERS];
 
@@ -568,11 +518,11 @@ struct afp_finder_info
 {
     afp_finder_info()
         : fd_type{}
-        , fd_creator{}
-        , fd_flags(0)
-        , fd_location{}
-        , fd_fldr(0)
-        , fd_finder_data{}
+          , fd_creator{}
+          , fd_flags(0)
+          , fd_location{}
+          , fd_fldr(0)
+          , fd_finder_data{}
     {
     }
 
@@ -592,9 +542,9 @@ struct afp_extended_finder_info
 {
     afp_extended_finder_info()
         : version(extended_finder_info_version)
-        , char_map{}
-        , reserved(0)
-        , reserved2(0)
+          , char_map{}
+          , reserved(0)
+          , reserved2(0)
     {
     }
 
@@ -675,5 +625,5 @@ enum afp_session_token_types
     kRecon1Refresh = 7,
     kGetKerberosSessionKey = 8
 };
-// ReSharper restore CppInconsistentNaming
 
+// ReSharper restore CppInconsistentNaming

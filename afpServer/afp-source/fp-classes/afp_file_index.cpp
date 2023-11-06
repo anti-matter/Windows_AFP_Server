@@ -113,7 +113,7 @@ void afp_file_index::remove_entry(const afp_index* entry)
  *		None
  */
 
-void afp_file_index::remove_entry(const uint32 object_id)
+void afp_file_index::remove_entry(const INT32 object_id)
 {
 	std::lock_guard guard(mutex_);
 
@@ -139,13 +139,13 @@ void afp_file_index::remove_entry(const uint32 object_id)
 }
 
 
-void afp_file_index::update_entry(afp_index* entry, afp_index* new_parent, const PWCHAR new_name)
+void afp_file_index::update_entry(afp_index* entry, afp_index* new_parent, const std::wstring& new_name)
 {
 	DBGWRITE(
 		dbg_level_info,
 		L"Updating entry:\n\toldName=%s\n\tnewName=%s\n\tnewParID=%d, oldParID=%d\n",
 		entry->sz_object_name.c_str(),
-		new_name,
+		new_name.c_str(),
 		entry->par_id,
 		new_parent->object_id
 	);
@@ -153,7 +153,7 @@ void afp_file_index::update_entry(afp_index* entry, afp_index* new_parent, const
 	std::lock_guard guard(mutex_);
 
 	// First, update the object's name and full path to the new one.
-	if (new_name != nullptr && lstrlen(new_name) > 0)
+	if (!new_name.empty())
 	{
 		entry->sz_object_name = new_name;
 	}
@@ -265,7 +265,7 @@ size_t afp_file_index::hash_string(const PWCHAR string)
  *		afp_index*
  */
 
-afp_index* afp_file_index::find(const uint32 object_id)
+afp_index* afp_file_index::find(const INT32 object_id)
 {
 	std::lock_guard guard(mutex_);
 
@@ -315,7 +315,7 @@ afp_index* afp_file_index::find(const std::wstring& full_path)
 	return it->get();
 }
 
-afp_index* afp_file_index::find(const DWORD directory_id, const std::wstring& path)
+afp_index* afp_file_index::find(const INT32 directory_id, const std::wstring& path)
 {
 	std::lock_guard guard(mutex_);
 
@@ -336,7 +336,7 @@ afp_index* afp_file_index::find(const DWORD directory_id, const std::wstring& pa
 	return nullptr;
 }
 
-UINT32 afp_file_index::get_offspring(const UINT32 par_id, std::vector<afp_index*>& offspring)
+UINT32 afp_file_index::get_offspring(const INT32 par_id, std::vector<afp_index*>& offspring)
 {
 	std::lock_guard guard(mutex_);
 
@@ -353,7 +353,7 @@ UINT32 afp_file_index::get_offspring(const UINT32 par_id, std::vector<afp_index*
     return offspring.size();
 }
 
-UINT32 afp_file_index::get_offspring(const UINT32 par_id)
+UINT32 afp_file_index::get_offspring(const INT32 par_id)
 {
 	std::vector<afp_index*> offspring;
 	return get_offspring(par_id, offspring);

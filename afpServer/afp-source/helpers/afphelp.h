@@ -144,10 +144,8 @@ DWORD afp_get_directory_owner_and_group_id(
 );
 
 void afp_extract_domain_and_user_name(
-	IN PWCHAR p_user_name,
-	IN size_t cb_user_name,
-	OUT PWCHAR p_domain,
-	IN size_t cb_domain
+	OUT std::wstring& user_name,
+	OUT std::wstring& domain_name
 );
 
 ULONG afp_windows_to_mac_time(

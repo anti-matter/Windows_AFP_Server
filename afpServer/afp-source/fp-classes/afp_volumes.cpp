@@ -349,7 +349,7 @@ std::shared_ptr<afp_volume> afp_volumes::find(const INT16 id)
 }
 
 
-bool afp_volumes::map_name_to_id(const std::wstring& share_name, UINT16* id)
+bool afp_volumes::map_name_to_id(const std::wstring& share_name, INT16* id)
 {
     const auto volume = find(share_name);
     if (volume != nullptr)

@@ -329,11 +329,6 @@ namespace dsi
 
         DBGWRITE(dbg_level_info, L"Processing AFP cmd: %d\n", afp_cmd);
 
-        if (afp_cmd == 11)
-        {
-            DBGWRITE(dbg_level_info, L"Flush fork...\n");
-        }
-
         const auto afp_error = fp_dispatch_command(request, reply, this);
 		const auto data_size = afp_cmd == afpRead || afp_cmd == afpReadExt
 			? reply.get_dsi_return_value()

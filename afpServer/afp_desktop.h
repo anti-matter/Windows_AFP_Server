@@ -44,14 +44,14 @@ public:
 
     afp_desk_item* find(const afp_desk_item* match_item, const UINT16 search_index = 0);
 
-    UINT16 get_volume_id() const { return volume_id_; }
+    INT16 get_volume_id() const { return volume_id_; }
 
 private:
     std::recursive_mutex desk_items_mutex_;
     std::vector<std::unique_ptr<afp_desk_item>> desk_items_;
     std::filesystem::path desktop_file_path_;
 
-    UINT16 volume_id_;
+    INT16 volume_id_;
 
 #ifdef _DEBUG
     void dump_db();

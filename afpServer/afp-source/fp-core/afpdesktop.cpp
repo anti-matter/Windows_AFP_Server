@@ -268,21 +268,17 @@ AFPERROR FPAddComment(
 
 	afp_request.advance_pos_ptr(sizeof(int16));
 
-	const auto afp_dt_ref_num = afp_request.pull_num<UINT16>();
-	desk_item.dir_id = afp_request.pull_num<UINT32>();
+	const auto afp_dt_ref_num = afp_request.pull_num<INT16>();
+	desk_item.dir_id = afp_request.pull_num<INT32>();
 	desk_item.path_type = afp_request.pull_num<INT8>();
 
-    const auto afp_error = afp_request.get_pascal_string(
-        desk_item.path_name,
-        sizeof(desk_item.path_name), 
-        true,
-        desk_item.path_type,
-        nullptr);
-
-	if (afp_error != AFP_OK)
+	const auto pathname = afp_request.pull_path(desk_item.path_type);
+	if (pathname.empty())
 	{
-		return (afpParmErr);
+		return afpParmErr;
 	}
+
+	wcscpy_s(desk_item.path_name, pathname.c_str());
 
 	afp_request.advance_if_odd();
 	afp_request.get_pascal_string(desk_item.data, sizeof(desk_item.data));
@@ -345,16 +341,18 @@ AFPERROR FPGetComment(
 
 	afp_request.advance_pos_ptr(sizeof(int16));
 
-	const auto afp_dt_refnum = afp_request.pull_num<UINT16>();
-	search_entry.dir_id = afp_request.pull_num<UINT32>();
+	const auto afp_dt_refnum = afp_request.pull_num<INT16>();
+	search_entry.dir_id = afp_request.pull_num<INT32>();
 	search_entry.path_type = afp_request.pull_num<INT8>();
 	search_entry.item_type = entry_type_comment;
 
-    if (AFP_FAILED(afp_request.get_pascal_string(search_entry.path_name, sizeof(search_entry.path_name), true,
-                                                             search_entry.path_type, nullptr)))
+	const auto pathname = afp_request.pull_path(search_entry.path_type);
+	if (pathname.empty())
 	{
 		return afpParmErr;
 	}
+
+	wcscpy_s(search_entry.path_name, pathname.c_str());
 
 	const auto desktop = connection->get_afp_session()->get_desktop(afp_dt_refnum);
 	if (desktop == nullptr)
@@ -412,18 +410,20 @@ AFPERROR FPRemoveComment(
 
 	afp_desk_item search_entry;
 
-	afp_request.advance_pos_ptr(sizeof(int16));
+	afp_request.advance_pos_ptr(sizeof(INT16));
 
 	const auto afp_dt_refnum = afp_request.pull_num<UINT16>();
-	search_entry.dir_id = afp_request.pull_num<UINT32>();
+	search_entry.dir_id = afp_request.pull_num<INT32>();
 	search_entry.path_type = afp_request.pull_num<INT8>();
 	search_entry.item_type = entry_type_icon;
 
-	if (AFP_FAILED(afp_request.get_pascal_string(search_entry.path_name, sizeof(search_entry.path_name), true,
-		search_entry.path_type, nullptr)))
+	const auto pathname = afp_request.pull_path(search_entry.path_type);
+	if (pathname.empty())
 	{
 		return afpParmErr;
 	}
+
+	wcscpy_s(search_entry.path_name, pathname.c_str());
 
 	const auto desktop = connection->get_afp_session()->get_desktop(afp_dt_refnum);
 	if (desktop == nullptr)
@@ -544,18 +544,20 @@ AFPERROR FPAddAPPL(
 
 	const auto afp_dt_refnum = afp_request.pull_num<UINT16>();
 
-	new_entry.dir_id = afp_request.pull_num<UINT32>();
+	new_entry.dir_id = afp_request.pull_num<INT32>();
 	new_entry.file_creator = afp_request.pull_num<UINT32>();
 	new_entry.tag = afp_request.pull_num<UINT32>();
-	new_entry.path_type = afp_request.pull_num<INT8>();
+	new_entry.path_type = afp_request.pull_num<UINT8>();
 	new_entry.item_type = entry_type_appl;
 	new_entry.data_size = 0;
 
-	if (AFP_FAILED(afp_request.get_pascal_string(new_entry.path_name, sizeof(new_entry.path_name), true, new_entry.path_type,
-		nullptr)))
+	const auto pathname = afp_request.pull_path(new_entry.path_type);
+	if (pathname.empty())
 	{
 		return afpParmErr;
 	}
+
+	wcscpy_s(new_entry.path_name, pathname.c_str());
 
 	const auto desktop = connection->get_afp_session()->get_desktop(afp_dt_refnum);
 	if (desktop == nullptr)
@@ -592,16 +594,18 @@ AFPERROR FPRemoveAPPL(
 	afp_request.advance_pos_ptr(sizeof(int16));
 
 	const auto afp_dt_refnum = afp_request.pull_num<UINT16>();
-	search_entry.dir_id = afp_request.pull_num<UINT32>();
+	search_entry.dir_id = afp_request.pull_num<INT32>();
 	search_entry.file_creator = afp_request.pull_num<UINT32>();
-	search_entry.path_type = afp_request.pull_num<INT8>();
+	search_entry.path_type = afp_request.pull_num<UINT8>();
 	search_entry.item_type = entry_type_appl;
 
-	if (AFP_FAILED(afp_request.get_pascal_string(search_entry.path_name, sizeof(search_entry.path_name), true,
-		search_entry.path_type, nullptr)))
+	const auto pathname = afp_request.pull_path(search_entry.path_type);
+	if (pathname.empty())
 	{
 		return afpParmErr;
 	}
+
+	wcscpy_s(search_entry.path_name, pathname.c_str());
 
 	// Although the spec says to, we don't check to make sure that
 	// the actual application really exists on the volume. Why? Because

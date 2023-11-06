@@ -81,13 +81,10 @@ AFPERROR FPOpenFork(
     IN dsi::dsi_connection* connection
 )
 {
-    unichar afp_pathname[MAX_AFP_PATH];
     afp_session* afp_afp_session = connection->get_afp_session();
-    afp_index* afp_entry = nullptr;
 
     WIN32_FILE_ATTRIBUTE_DATA win_attributes;
 
-    // The first byte contains the afp command.
     afp_request.advance_pos_ptr(sizeof(UINT8));
 
     const INT8 afp_fork = (afp_request.pull_num<INT8>() & kResourceForkBit) ? kRsrcFork : kDataFork;
@@ -97,37 +94,27 @@ AFPERROR FPOpenFork(
     const auto afp_mode = afp_request.pull_num<INT16>();
     const INT8 afp_path_type = afp_request.pull_num<INT8>();
 
-    // The client must have previously opened the volume we are operating on.
-    const auto afp_vol_info = afp_afp_session->find_open_volume(afp_volume_id);
-    if (afp_vol_info == nullptr)
+    const auto volume = afp_afp_session->find_open_volume(afp_volume_id);
+    if (volume == nullptr)
     {
         // The volume has not been opened, we need to return error.
         return afpParmErr;
     }
 
-    // Get the pathname of the object we're working on.
-    AFPERROR afp_error = afp_request.get_pascal_string(afp_pathname, sizeof(afp_pathname), true, afp_path_type);
-
-    if (AFP_FAILED(afp_error))
+    const auto afp_pathname = afp_request.pull_path(afp_path_type);
+    if (afp_pathname.empty())
     {
-        return afp_error;
-    }
-
-    if (lstrlen(afp_pathname) == 0)
-    {
-        DBGWRITE(dbg_level_info, L"Null pathname!\n");
         return afpParmErr;
     }
 
     // Get the index entry pertaining to the file we're opening.
-    afp_error = AFPIndexFindEntryWithPath(afp_vol_info, afp_dir_id, afp_pathname, &afp_entry);
-    if (AFP_FAILED(afp_error))
+    const auto afp_entry = volume->find(afp_dir_id, afp_pathname);
+    if (afp_entry == nullptr)
     {
-        DBGWRITE(dbg_level_info, L"Index entry not found! (%s)\n", afp_pathname);
+        DBGWRITE(dbg_level_info, L"Index entry not found! (%s)\n", afp_pathname.c_str());
         return afpObjectNotFound;
     }
 
-    // Collect attribute data on the file or folder.
     if (!GetFileAttributesEx(afp_entry->sz_path.c_str(), GetFileExInfoStandard, &win_attributes))
     {
         DBGWRITE(dbg_level_info, L"GetFileAttributesEx() failed! (%d)\n", GetLastError());
@@ -136,7 +123,6 @@ AFPERROR FPOpenFork(
         return afpObjectNotFound;
     }
 
-    // Make sure the user doesn't have too many files open already.
     if (afp_afp_session->get_num_files_open() > MAX_AFP_FILES_OPEN)
     {
         DBGWRITE(dbg_level_info, L"****Can't open file, too many open already! (%d)\n",
@@ -154,17 +140,14 @@ AFPERROR FPOpenFork(
         afp_entry->sz_path.c_str()
     );
 
-    afp_error = opened_file == nullptr ? afpMiscErr : AFP_OK;
+    AFPERROR afp_error = opened_file == nullptr ? afpMiscErr : AFP_OK;
     if (AFP_SUCCESS(afp_error))
     {
-        // Impersonate the logged on user for security checks.
         if (!afp_impersonate_user(connection->get_user_token()))
         {
-            // Impersonation failed, don't allow any further operations.
             return afpAccessDenied;
         }
 
-        // Now, actually open the file for access as desired.
         afp_error = opened_file->afp_open_file_fork();
 
         afp_revert_to_self(connection->get_user_token());
@@ -373,7 +356,6 @@ AFPERROR FPCreateFile(
 {
     UNREFERENCED_PARAMETER(afp_reply);
 
-    unichar pathname[MAX_AFP_PATH];
     AFPCHARMAPARRAY char_map;
 
     DBGWRITE(dbg_level_all, L"Enter\n");
@@ -383,7 +365,7 @@ AFPERROR FPCreateFile(
 
     const auto create_flag = afp_request.pull_num<INT8>();
     const auto volume_id = afp_request.pull_num<UINT16>();
-    const auto dir_id = afp_request.pull_num<UINT32>();
+    const auto dir_id = afp_request.pull_num<INT32>();
     const auto path_type = afp_request.pull_num<INT8>();
     const auto session = connection->get_afp_session();
 
@@ -401,42 +383,24 @@ AFPERROR FPCreateFile(
         return afpVolLocked;
     }
 
-    auto afp_error = afp_request.get_pascal_string(
-        pathname,
-        sizeof(pathname),
-        true,
-        path_type,
-        char_map
-    );
-
-    if (AFP_FAILED(afp_error))
+    const auto pathname = afp_request.pull_path(path_type);
+    if (pathname.empty())
     {
-        return afp_error;
-    }
-
-    // Pathname cannot be null since it contains the new file name.
-    if (lstrlen(pathname) == 0)
-    {
-        DBGWRITE(dbg_level_error, L"Null pathname!\n");
         return afpParmErr;
     }
 
-    // Take the path supplied by the Mac client and convert it into a windows path.
-    // The path should start from the directory as pointed to by dirID.
-    const auto afp_entry = volume->get_index()->find(dir_id);
+    const auto afp_entry = volume->find(dir_id);
     if (afp_entry == nullptr)
     {
         // We couldn't find the requested object.
         DBGWRITE(dbg_level_error, L"Path not found in FPCreatFile!\n");
-        return afp_error;
+        return afpObjectNotFound;
     }
 
-    // Create the full path to the new file.
     const std::filesystem::path win_path = afp_entry->sz_path / pathname;
 
     if (!afp_impersonate_user(connection->get_user_token()))
     {
-        // Impersonation failed, don't allow any further operations.
         return afpAccessDenied;
     }
 
@@ -461,31 +425,27 @@ AFPERROR FPCreateFile(
                  GetLastError(),
                  win_path.c_str());
 
-        afp_error = afp_map_win_error_to_afp(GetLastError(), afpParmErr);
+        return afp_map_win_error_to_afp(GetLastError(), afpParmErr);
     }
-    else
+
+    const auto new_entry = volume->get_index()->add_entry(
+        dir_id,
+        pathname,
+        win_path,
+        false,
+        nullptr);
+
+    if (new_entry != nullptr)
     {
-        afp_error = NO_ERROR;
-
-        const auto new_entry = volume->get_index()->add_entry(
-            dir_id,
-            pathname,
-            win_path,
-            false,
-            nullptr);
-
-        if (new_entry != nullptr)
-        {
-            create_finder_info_stream(new_entry, char_map);
-            afp_check_for_and_create_rsrc_stream(new_entry);
-        }
-
-        volume->set_is_dirty();
-
-        CloseHandle(h_file);
+        create_finder_info_stream(new_entry, char_map);
+        afp_check_for_and_create_rsrc_stream(new_entry);
     }
 
-    return afp_error;
+    volume->set_is_dirty();
+
+    CloseHandle(h_file);
+
+    return AFP_OK;
 }
 
 
@@ -527,7 +487,7 @@ AFPERROR FPByteRangeLock(
         break;
 
     default:
-        return (afpParmErr);
+        return afpParmErr;
     }
 
     // Get the handle to the open file fork.
@@ -540,12 +500,8 @@ AFPERROR FPByteRangeLock(
     }
 
     const auto h_file = open_file->get_file_handle();
-
     if (h_file == INVALID_HANDLE_VALUE)
     {
-        //
-        //Bad news, the fork is apparently not open.
-        //
         return afpParmErr;
     }
 
@@ -779,17 +735,9 @@ AFPERROR FPWrite(
         return afp_error;
     }
 
-    const auto volume = afp_volumes::current()->find(open_file->get_vol_id());
-    afp_error = volume == nullptr ? afpParmErr : volume->is_read_only();
-    if (AFP_FAILED(afp_error))
-    {
-        return afp_error;
-    }
-
     const HANDLE user_token = connection->get_user_token();
     if (!afp_impersonate_user(user_token))
     {
-        // Impersonation failed, don't allow any further operations.
         return afpAccessDenied;
     }
 

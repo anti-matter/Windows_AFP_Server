@@ -20,9 +20,9 @@ DWORD AFPAddNewVolumeFromUI(
     IN WCHAR* share_password
 )
 {
-    afp_registry theRegistry;
+    afp_registry the_registry;
 
-    const DWORD dw_error = theRegistry.add_volume(share_name, share_path, share_password);
+    const DWORD dw_error = the_registry.add_volume(share_name, share_path, share_password);
     if (SUCCEEDED(dw_error))
     {
         std::filesystem::path path = share_path;
@@ -58,12 +58,12 @@ DWORD AFPRemoveVolumeFromUI(
 //
 
 AFPERROR AFPGetVolumeParameters(
-    IN const WORD afp_volume_id,
-    IN const WORD afp_bitmap,
+    IN const INT16 afp_volume_id,
+    IN const INT16 afp_bitmap,
     IN afp_net_buffer& afp_reply
 )
 {
-    uint16* volume_name_offset = nullptr;
+    UINT16* volume_name_offset = nullptr;
     const std::shared_ptr<afp_volume> afp_volume = g_volumes->find(afp_volume_id);
     ULARGE_INTEGER free_bytes_available{};
     ULARGE_INTEGER num_bytes_in_disk{};
@@ -120,12 +120,10 @@ AFPERROR AFPGetVolumeParameters(
             sizeof(file_system_name)
         ))
         {
-//#if 0
             if (system_flags & FILE_READ_ONLY_VOLUME || afp_volume->get_internal_flags() & flag_volume_readonly)
             {
                 attributes |= kFPVolReadOnly;
             }
-//#endif
         }
         else if (afp_volume->get_internal_flags() & flag_volume_readonly)
         {
@@ -140,11 +138,26 @@ AFPERROR AFPGetVolumeParameters(
         afp_reply.push_num(attributes);
     }
 
-    if (afp_bitmap & kFPVolSignatureBit) afp_reply.push_num<UINT16>(kFixedDirectoryID);
-    if (afp_bitmap & kFPVolCreateDateBit) afp_reply.push_num(afp_windows_to_mac_time(afp_volume->get_create_date()));
-    if (afp_bitmap & kFPVolModDateBit) afp_reply.push_num(afp_windows_to_mac_time(afp_volume->get_modified_date()));
-    if (afp_bitmap & kFPVolBackupDateBit) afp_reply.push_num(afp_windows_to_mac_time(afp_volume->get_backup_date()));
-    if (afp_bitmap & kFPVolIDBit) afp_reply.push_num(afp_volume->get_volume_id());
+    if (afp_bitmap & kFPVolSignatureBit)
+    {
+        afp_reply.push_num<UINT16>(kFixedDirectoryID);
+    }
+    if (afp_bitmap & kFPVolCreateDateBit)
+    {
+        afp_reply.push_num(afp_windows_to_mac_time(afp_volume->get_create_date()));
+    }
+    if (afp_bitmap & kFPVolModDateBit)
+    {
+        afp_reply.push_num(afp_windows_to_mac_time(afp_volume->get_modified_date()));
+    }
+    if (afp_bitmap & kFPVolBackupDateBit)
+    {
+        afp_reply.push_num(afp_windows_to_mac_time(afp_volume->get_backup_date()));
+    }
+    if (afp_bitmap & kFPVolIDBit)
+    {
+        afp_reply.push_num(afp_volume->get_volume_id());
+    }
 
     if (afp_bitmap & kFPVolBytesFreeBit)
     {
@@ -184,8 +197,14 @@ AFPERROR AFPGetVolumeParameters(
 
     // The following 3 bits will only be set if the caller
     // is using AFP 2.2 or later.
-    if (afp_bitmap & kFPVolExtBytesFree) afp_reply.push_num(num_free_bytes.QuadPart);
-    if (afp_bitmap & kFPVolExtBytesTotal) afp_reply.push_num(num_bytes_in_disk.QuadPart);
+    if (afp_bitmap & kFPVolExtBytesFree)
+    {
+        afp_reply.push_num(num_free_bytes.QuadPart);
+    }
+    if (afp_bitmap & kFPVolExtBytesTotal)
+    {
+        afp_reply.push_num(num_bytes_in_disk.QuadPart);
+    }
 
     if (afp_bitmap & kFPVolBlockSize)
     {
@@ -221,8 +240,8 @@ AFPERROR AFPGetVolumeParameters(
 
     if (afp_bitmap & kFPVolNameBit)
     {
-        *volume_name_offset = htons(static_cast<uint16>(afp_reply.get_data_length()) - sizeof(int16));
-        afp_reply.push_pascal_string(afp_volume->get_share_name());
+        *volume_name_offset = htons(afp_reply.get_data_length() - sizeof(UINT16));
+        afp_reply.push_string(afp_volume->get_share_name());
     }
 
     return AFP_OK;

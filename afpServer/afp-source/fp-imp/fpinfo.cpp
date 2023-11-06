@@ -150,7 +150,7 @@ AFPERROR set_finder_info_ex(
     DWORD bytes_written = 0;
 
     ASSERT(entry != NULL);
-    ASSERT(entry->sz_path.string().length() > 0);
+    ASSERT(!entry->sz_path.empty());
 
     std::filesystem::path path = entry->sz_path;
     path.concat(":");

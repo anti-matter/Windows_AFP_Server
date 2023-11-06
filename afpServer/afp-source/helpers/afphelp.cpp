@@ -588,62 +588,26 @@ DWORD afp_get_directory_owner_and_group_id(
  *	Return Value: none
  */
 void afp_extract_domain_and_user_name(
-	IN const PWCHAR p_user_name,
-	IN const size_t cb_user_name,
-	OUT const PWCHAR p_domain,
-	IN const size_t cb_domain
+	IN std::wstring& user_name,
+	OUT std::wstring& domain_name
 )
 {
 	WCHAR sz_user_name[64];
 
-	if (lstrlen(p_user_name) == 0)
+	if (user_name.empty())
 	{
-		//
-		//Empty string was passed, nothing to do.
-		//
 		return;
 	}
 
-	ZeroMemory(sz_user_name, sizeof(sz_user_name));
-
-	//
-	//First extract the domain name from the big username string.
-	//
-	const WCHAR* p_temp = wcschr(p_user_name, '\\');
-
-	if (p_temp)
+    const std::size_t pos = user_name.find(L'\\');
+	if (pos == std::wstring::npos)
 	{
-		lstrcpyn(
-			p_domain,
-			p_user_name,
-			min((int)cb_domain, (int)((p_temp-p_user_name)+1))
-		);
-	}
-	else
-	{
-		//
-		//No domain name supplied, so zero out the buffer.
-		//
-		ZeroMemory(p_domain, cb_domain);
+		// No domain name, leave everything untouched.
+		return;
 	}
 
-	//
-	//Now get just the username in the username buffer.
-	//
-	lstrcpyn(sz_user_name, p_user_name, sizeof(sz_user_name) / 2);
-
-	p_temp = wcschr(sz_user_name, '\\');
-
-	if (p_temp)
-	{
-		// ReSharper disable once CppFunctionResultShouldBeUsed
-		StringCbCopy(p_user_name, cb_user_name, p_temp + 1);
-	}
-
-	//
-	//Note, if we didn't find a '\' in the username, then we'll just
-	//pass back whatever we got as the user name untouched.
-	//
+	domain_name = user_name.substr(0, pos);
+	user_name = user_name.substr(pos + 1);
 }
 
 ULONG afp_windows_to_mac_time(

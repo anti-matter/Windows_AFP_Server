@@ -512,7 +512,7 @@ AFPERROR FPListExtAttribute(
                             DBGWRITE(
                                 dbg_level_info,
                                 L"[FPListExtAttribute]New attr name added: %s\n",
-                                    afpAttrInfo.stream_name);
+                                    stream_name);
 
 
                             if (afp_windows_to_mac_path(stream_name, sizeof(ansi_string), nullptr,

@@ -277,20 +277,22 @@ AFPERROR afp_get_object_parms(
 
     if (bitmap & kFPLongName || bitmap & kFPUnicodeName)
     {
-        get_char_map_for_index_entry(entry, char_map);
+        //get_char_map_for_index_entry(entry, char_map);
 
         if (bitmap & kFPLongName)
         {
-            *long_name_offset = htons(static_cast<uint16>(reply.get_current_pos_ptr() - parms_start));
-            reply.push_pascal_string(entry->sz_object_name, char_map);
+            *long_name_offset = htons(static_cast<UINT16>(reply.get_current_pos_ptr() - parms_start));
+            reply.push_path(kLongNames, entry->sz_object_name);
         }
 
         if (bitmap & kFPUnicodeName)
         {
-            *uni_name_offset = htons(static_cast<uint16>(reply.get_current_pos_ptr() - parms_start));
-            reply.push_unicode_string(entry->sz_object_name, char_map);
+            *uni_name_offset = htons(static_cast<UINT16>(reply.get_current_pos_ptr() - parms_start));
+            reply.push_path(kUnicodeNames, entry->sz_object_name);
         }
     }
+
+    DBG_DUMP_BUFFER(reply.get_buffer(), 256);
 
     return AFP_OK;
 }

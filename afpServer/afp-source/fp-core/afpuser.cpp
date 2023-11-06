@@ -258,12 +258,6 @@ AFPERROR FPLogin(
 	IN dsi::dsi_connection* connection
 )
 {
-	unichar afp_version[MAX_AFP_VERSION_LEN + 1];
-	unichar afp_uam[MAX_UAM_STRING_LEN + 1];
-	char afp_password[UAM_CLRTXTPWDLEN + 1];
-	unichar afp_password_w[UAM_CLRTXTPWDLEN + 1];
-	unichar sz_user_name[UAM_USERNAMELEN + 1];
-
 	//
 	//Check for maximum logon sessions limit being reached. If it is, we
 	//just return afpAccessDenied.
@@ -295,33 +289,31 @@ AFPERROR FPLogin(
 		afp_request.advance_pos_ptr(sizeof(UINT16)); // afp_flags
 	}
 
-	if (AFP_FAILED(afp_request.get_pascal_string(afp_version, sizeof(afp_version))))
+	const auto afp_version = afp_request.pull_string();
+	if (afp_version.empty())
 	{
-		return (afpParmErr);
-	}
-	if (AFP_FAILED(afp_request.get_pascal_string(afp_uam, sizeof(afp_uam))))
-	{
-		return (afpParmErr);
+		return afpParmErr;
 	}
 
-	DBGWRITE(dbg_level_info, L"AFP Version = %s\n", afp_version);
-	DBGWRITE(dbg_level_info, L"UAM type    = %s\n", afp_uam);
+	const auto afp_uam = afp_request.pull_string();
+	if (afp_uam.empty())
+	{
+		return afpParmErr;
+	}
 
-	//
-	//Get the AFP version passed by the client into a more usable type
-	//
-	const auto afp_version_int = get_afp_version_as_int(afp_version);
+	DBGWRITE(dbg_level_info, L"AFP Version = %s\n", afp_version.c_str());
+	DBGWRITE(dbg_level_info, L"UAM type    = %s\n", afp_uam.c_str());
+
+	// Get the AFP version passed by the client into a more usable type
+	const auto afp_version_int = get_afp_version_as_int(afp_version.c_str());
 	if (afp_version_int == 0)
 	{
 		DBGWRITE(dbg_level_error, L"Bad AFP version, terminating login\n");
 		return afpBadUAM;
 	}
 
-	//
-	//Get the UAM version passed by the client into a more usable type
-	//
-	 
-	const auto afp_uam_type = get_uam_type_as_int(afp_uam);
+	// Get the UAM version passed by the client into a more usable type
+	const auto afp_uam_type = get_uam_type_as_int(afp_uam.c_str());
 	if (afp_uam_type == -1)
 	{
 		DBGWRITE(dbg_level_error, L"Bad UAM type, terminating login\n");
@@ -331,41 +323,41 @@ AFPERROR FPLogin(
 	connection->set_afp_version(afp_version_int);
 	connection->set_uam_type(afp_uam_type);
 
-	RtlZeroMemory(afp_password, sizeof(afp_password));
+	std::wstring sz_user_name;
+	std::wstring sz_domain_name;
 
 	// Every UAM other then guest requires the user name, so retrieve it now.
 	if (afp_uam_type != afpUAMNone)
 	{
-		unichar sz_domain_name[MAX_DOMAIN_NAME_LEN + 1];
 		if (afp_command == afpLoginExt)
 		{
-			unichar sz_pathname[MAX_AFP_PATH];
-			auto afp_path_type = afp_request.pull_num<INT8>();
-			if (AFP_FAILED(afp_request.get_pascal_string(sz_user_name, sizeof(sz_user_name), false, afp_path_type)))
+			auto afp_path_type = afp_request.pull_num<UINT8>();
+			sz_user_name = afp_request.pull_string(afp_path_type);
+			if (sz_user_name.empty())
 			{
 				DBGWRITE(dbg_level_error, L"Failed to retrieve user name, terminating login\n");
 				return afpParmErr;
 			}
 
-			afp_path_type = afp_request.pull_num<INT8>();
-			afp_request.get_pascal_string(sz_pathname, sizeof(sz_pathname), false, afp_path_type);
-			DBGWRITE(dbg_level_info, L"pathname: %s\n", sz_pathname);
+			afp_path_type = afp_request.pull_num<UINT8>();
+			const auto sz_pathname = afp_request.pull_string(afp_path_type);
+
+			DBGWRITE(dbg_level_info, L"pathname: %s\n", sz_pathname.c_str());
 		}
 		else
 		{
-			afp_request.get_pascal_string(sz_user_name, sizeof(sz_user_name));
+			sz_user_name = afp_request.pull_string();
+			if (sz_user_name.empty())
+			{
+				return afpParmErr;
+			}
 		}
 
 		// Extract the domain name (if there is one) from the username buffer.
-		afp_extract_domain_and_user_name(
-			sz_user_name,
-			sizeof(sz_user_name),
-			sz_domain_name,
-			sizeof(sz_domain_name)
-		);
+		afp_extract_domain_and_user_name(sz_user_name, sz_domain_name);
 
-		DBGWRITE(dbg_level_info, L"Username    = %s\n", sz_user_name);
-		DBGWRITE(dbg_level_info, L"Domain name = %s\n", sz_domain_name);
+		DBGWRITE(dbg_level_info, L"Username    = %s\n", sz_user_name.c_str());
+		DBGWRITE(dbg_level_info, L"Domain name = %s\n", sz_domain_name.c_str());
 
 		// We need the name and domain for later to get the user SID.
 		connection->set_user_name(sz_user_name);
@@ -373,6 +365,9 @@ AFPERROR FPLogin(
 
 		afp_request.advance_if_odd(); //Padding byte
 	}
+
+	char afp_password[UAM_CLRTXTPWDLEN + 1]{};
+	std::wstring password;
 
 	switch (afp_uam_type)
 	{
@@ -383,9 +378,7 @@ AFPERROR FPLogin(
 				return afpBadUAM;
 			}
 
-			RtlZeroMemory(sz_user_name, sizeof(sz_user_name));
-			// ReSharper disable once CppFunctionResultShouldBeUsed
-			StringCbCopy(sz_user_name, sizeof(sz_user_name), TEXT("Guest"));
+			sz_user_name = L"Guest";
 			break;
 		}
 
@@ -402,9 +395,9 @@ AFPERROR FPLogin(
 			// The password is sent to us as an 8 byte array. This array is not length
 			// byte preceded or null terminated.
 			afp_request.pull_raw_data(afp_password, UAM_CLRTXTPWDLEN);
-			afp_mac_to_windows_string(afp_password, sizeof(afp_password_w), afp_password_w);
+			password = string_to_wide_string(afp_password);
 
-			DBGWRITE(dbg_level_info, L"Cleartext password = %s\n", afp_password_w);
+			DBGWRITE(dbg_level_info, L"Cleartext password = %s\n", password.c_str());
 			break;
 		}
 
@@ -454,7 +447,7 @@ AFPERROR FPLogin(
 	}
 
 	// Now do the actual logon, the implementation routine "does the right thing".
-	return afp_imp_user_logon(connection, afp_reply, afp_password_w, sizeof(afp_password_w));
+	return afp_imp_user_logon(connection, afp_reply, password);
 }
 
 
@@ -484,8 +477,7 @@ AFPERROR FPContLogin(
 
 	if (uam_type == afpUAMDHCAST128)
 	{
-		char sz_password[DHX_PASSWDLEN + 1];
-		WCHAR sz_password_w[DHX_PASSWDLEN + 1];
+		char sz_password[DHX_PASSWDLEN + 1]{};
 		const auto dhx_info = static_cast<DHXInfo*>(connection->get_extended_logon_info());
 
 		// The DHXInfo structure should have been allocated and filled in already
@@ -495,8 +487,6 @@ AFPERROR FPContLogin(
 			DBGWRITE(dbg_level_error, L"DHXInfo is invalid\n");
 			return afpMiscErr;
 		}
-
-		memset(sz_password, 0, sizeof(sz_password));
 
 		// The heavy lifting of all the encryption/decryption goop is done by the
 		// encryption routines.
@@ -515,17 +505,13 @@ AFPERROR FPContLogin(
 			// convert the password to a unicode string and authenticate this user
 			// using the Windows Logon API.
 
-			if (!afp_mac_to_windows_string(sz_password, sizeof(sz_password_w), sz_password_w))
-			{
-				DBGWRITE(dbg_level_warning, L"Error converting password to unicode\n");
-				return afpMiscErr;
-			}
+			auto password = string_to_wide_string(sz_password);
+			afp_error = afp_imp_user_logon(connection, afp_reply, password);
 
-			afp_error = afp_imp_user_logon(connection, afp_reply, sz_password_w, sizeof(sz_password_w));
+		    password.clear();
 		}
 
 		SecureZeroMemory(sz_password, sizeof(sz_password));
-		SecureZeroMemory(sz_password_w, sizeof(sz_password_w));
 
 		// We don't require the extended login info anymore. Free it and
 		// be sure the clear the pointer for the next go-around.
@@ -558,34 +544,32 @@ AFPERROR FPChangePassword(
 	IN dsi::dsi_connection* connection
 )
 {
-	WCHAR sz_uam_version[MAX_UAM_STRING_LEN + 1];
-	WCHAR sz_user_name[UAM_USERNAMELEN + 1];
+	std::wstring sz_user_name;
 	AFPERROR afp_error = afpParmErr;
 
 	DBGWRITE(dbg_level_info, L"Enter...\n");
 
 	afp_request.advance_pos_ptr(sizeof(int16));
 
-	afp_request.get_pascal_string(sz_uam_version, sizeof(sz_uam_version));
-	const auto uam_type = get_uam_type_as_int(sz_uam_version);
+	const auto sz_uam_version = afp_request.pull_string();
+	const auto uam_type = get_uam_type_as_int(sz_uam_version.c_str());
 
 	afp_request.advance_if_odd();
 
 	// Starting with AFP3.0, the username is just 2 bytes of zeros.
 	if (connection->get_afp_version() > afpVersion22)
 	{
-		afp_request.advance_pos_ptr(sizeof(int16));
-		// ReSharper disable once CppFunctionResultShouldBeUsed
-		StringCbCopy(sz_user_name, sizeof(sz_user_name), connection->get_user_name().c_str());
+		afp_request.advance_pos_ptr(sizeof(INT16));
+		sz_user_name = connection->get_user_name();
 	}
 	else
 	{
-		afp_request.get_pascal_string(sz_user_name, sizeof(sz_user_name));
+		sz_user_name = afp_request.pull_string();
 		afp_request.advance_if_odd();
 	}
 
-	DBGWRITE(dbg_level_info, L"UAM Str:  %s\n", sz_uam_version);
-	DBGWRITE(dbg_level_info, L"Username: %s\n", sz_user_name);
+	DBGWRITE(dbg_level_info, L"UAM Str:  %s\n", sz_uam_version.c_str());
+	DBGWRITE(dbg_level_info, L"Username: %s\n", sz_user_name.c_str());
 
 	switch (uam_type)
 	{
@@ -796,13 +780,13 @@ AFPERROR FPMapID(
 		if (AFP_SUCCESS(afp_error))
 		{
 			DBGWRITE(dbg_level_info, L"Mapped id to name %s\n", sz_name);
-			afp_reply.push_pascal_string(sz_name);
+			afp_reply.push_string(sz_name);
 		}
 		break;
 
 	//Looking for group name
 	case 2:
-		afp_reply.push_pascal_string("Everyone");
+		afp_reply.push_string(L"Everyone");
 		break;
 
 	//Unicode user name

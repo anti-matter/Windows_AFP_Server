@@ -29,9 +29,9 @@ struct afp_index
 	{
 	}
 
-	DWORD par_id;
+	INT32 par_id;
 	afp_index* par_entry;
-	DWORD object_id;
+	INT32 object_id;
 	std::wstring sz_object_name;
 	std::filesystem::path sz_path;
 	WORD flags;
@@ -53,19 +53,19 @@ public:
 	);
 
 	void remove_entry(const afp_index* entry);
-	void remove_entry(uint32 object_id);
+	void remove_entry(INT32 object_id);
 
-	void update_entry(afp_index* entry, afp_index* new_parent, PWCHAR new_name);
+	void update_entry(afp_index* entry, afp_index* new_parent, const std::wstring& new_name);
 
 	static void update_entry_flags(afp_index* p_entry, uint16 flags);
 	static size_t hash_string(PWCHAR string);
 
-	afp_index* find(uint32 object_id);
+	afp_index* find(INT32 object_id);
 	afp_index* find(const std::wstring& full_path);
-	afp_index* find(DWORD directory_id, const std::wstring& path);
+	afp_index* find(INT32 directory_id, const std::wstring& path);
 
-	UINT32 get_offspring(UINT32 par_id, std::vector<afp_index*>& offspring);
-	UINT32 get_offspring(UINT32 par_id);
+	UINT32 get_offspring(INT32 par_id, std::vector<afp_index*>& offspring);
+	UINT32 get_offspring(INT32 par_id);
 
 	uint32 next_id() { return m_next_id_++; }
 

@@ -95,25 +95,137 @@ AFPERROR afp_net_buffer::get_pascal_string(
 	return afp_error;
 }
 
-std::wstring afp_net_buffer::get_pascal_string()
+std::wstring afp_net_buffer::pull_path(const UINT8 path_type)
 {
-    if (const auto string_length = pull_num<UINT8>(); string_length > 0)
+	switch(path_type)
 	{
-        char raw[MAX_AFP30_PATH];
-        wchar_t raw_wide[MAX_AFP30_PATH];
-
-        pull_raw_data(raw, string_length);
-		raw[string_length] = '\0';
-
-		afp_mac_to_windows_string(raw, string_length+1, raw_wide);
-
-		std::wstring w_string = raw_wide;
-		return w_string;
+	case kLongNames:
+		return convert_to_windows_path(pull_multi_byte_string<UINT8>());
+	case kUnicodeNames:
+		return convert_to_windows_path(pull_multi_byte_string<INT16>());
+	default:
+		break;
 	}
 
-	std::wstring none;
+	return L"";
+}
 
-	return none;
+AFPERROR afp_net_buffer::push_path(const UINT8 path_type, const std::wstring& path)
+{
+	if (not_enough_space(path.length()) || path.length() > 255)
+	{
+		return afpParmErr;
+	}
+
+	switch (path_type)
+	{
+	case kLongNames:
+		push_multi_byte_string<UINT8>(convert_to_mac_path(path));
+		break;
+	case kUnicodeNames:
+		push_multi_byte_string<INT16>(convert_to_mac_path(path));
+		break;
+	default:
+		return afpParmErr;
+	}
+
+	return AFP_OK;
+}
+
+std::wstring afp_net_buffer::pull_string(const UINT8 path_type)
+{
+	switch (path_type)
+	{
+	case kLongNames:
+		return pull_wide_string();
+	case kUnicodeNames:
+		return string_to_wide_string(pull_multi_byte_string<INT16>());
+	default:
+		break;
+	}
+
+	return L"";
+}
+
+void afp_net_buffer::push_string(const std::wstring& str)
+{
+	push_multi_byte_string<UINT8>(wide_string_to_string(str));
+}
+
+std::wstring afp_net_buffer::convert_to_windows_path(const std::string& mac_path)
+{
+	if (mac_path.empty())
+	{
+		return L"";
+	}
+
+	auto win_path = string_to_wide_string(mac_path);
+	auto replacement = first_replacement_character;
+
+	for (auto win_illegal_path_character : win_illegal_path_characters)
+	{
+		std::ranges::replace(win_path, win_illegal_path_character, replacement);
+		replacement++;
+	}
+
+	// Mac uses ':' as the path separator, convert to windows.
+	std::ranges::replace(win_path, L':', L'\\');
+
+	return win_path;
+}
+
+std::string afp_net_buffer::convert_to_mac_path(const std::wstring& win_path)
+{
+	if (win_path.empty())
+	{
+		return "";
+	}
+
+	auto wide_path = win_path;
+	wchar_t replacement = first_replacement_character;
+
+	for (auto win_illegal_path_character : win_illegal_path_characters)
+	{
+		std::ranges::replace(wide_path, replacement, win_illegal_path_character);
+		replacement++;
+	}
+
+	return wide_string_to_string(wide_path);
+}
+
+std::wstring afp_net_buffer::pull_wide_string()
+{
+	const auto mb_string = pull_multi_byte_string<INT8>();
+    return string_to_wide_string(mb_string);
+}
+
+template <class T>
+std::string afp_net_buffer::pull_multi_byte_string()
+{
+	const auto string_length = pull_num<T>();
+
+	if (string_length > 0)
+	{
+		char raw[MAX_AFP30_PATH];
+
+		pull_raw_data(raw, string_length);
+		raw[string_length] = '\0';
+
+		std::string mb_string(raw);
+		return mb_string;
+	}
+
+	return "";
+}
+
+template <class T>
+void afp_net_buffer::push_multi_byte_string(const std::string& mac_string)
+{
+	sizeof(T) == sizeof(UINT8)
+        ? push_num(static_cast<UINT8>(mac_string.length()))
+        : push_num(static_cast<UINT16>(mac_string.length()));
+
+	push_raw_data(mac_string.data(), mac_string.size());
 }
 
 /*
@@ -295,8 +407,6 @@ void afp_net_buffer::pull_raw_data(void* buffer, const size_t amount)
  */
 AFPERROR afp_net_buffer::push_pascal_string(const char* string)
 {
-	constexpr size_t max_pascal_string_length = 255;
-
 	if (string == nullptr)
 	{
 		return afpParmErr;
@@ -332,7 +442,7 @@ AFPERROR afp_net_buffer::push_pascal_string(const std::wstring& wide_string, AFP
 {
 	char ansi_string[MAX_AFP_PATH];
 
-	if (afp_windows_to_mac_path(const_cast<wchar_t*>(wide_string.c_str()), sizeof(ansi_string), char_map, ansi_string) != nullptr)
+	if (afp_windows_to_mac_path(wide_string.c_str(), sizeof(ansi_string), char_map, ansi_string) != nullptr)
 	{
 		return push_pascal_string(ansi_string);
 	}
@@ -355,7 +465,7 @@ AFPERROR afp_net_buffer::push_unicode_string(const std::wstring& wide_string, AF
     if (mCurrentPos - mBuffer + wide_string.length() * 2 + 2 <= mBufferSize)
     {
         char ansi_string[MAX_AFP_PATH];
-        if (afp_windows_to_mac_path(const_cast<wchar_t*>(wide_string.c_str()), sizeof(ansi_string), char_map, ansi_string) != nullptr)
+        if (afp_windows_to_mac_path(wide_string.c_str(), sizeof(ansi_string), char_map, ansi_string) != nullptr)
         {
             const auto string_len = strlen(ansi_string);
 

@@ -41,7 +41,7 @@ AFPERROR FPGetSrvrParms(
 	if (!connection->get_is_session_authenticated())
 	{
 		// Not authenticated, prevent access.
-		return (afpAccessDenied);
+		return afpAccessDenied;
 	}
 
 	// Get the Windows system time for the first part of our buffer.
@@ -69,7 +69,7 @@ AFPERROR FPGetSrvrParms(
 		DBGWRITE(dbg_level_all, L"Stuffing volume: %s\n", volume->get_share_name().c_str());
 
 		afp_reply.push_num(volume->get_afp_flags());
-		afp_reply.push_pascal_string(volume->get_share_name());
+		afp_reply.push_string(volume->get_share_name());
 	}
 
 	return AFP_OK;
@@ -94,96 +94,80 @@ AFPERROR FPGetSrvrInfo(
 {
 	UNREFERENCED_PARAMETER(afp_request);
 
-	unichar computer_name[MAX_COMPUTERNAME_LENGTH + 1];
+	WCHAR computer_name[MAX_COMPUTERNAME_LENGTH + 1];
 	UINT32 size = MAX_COMPUTERNAME_LENGTH + 1;
 	UINT16 flags = 0;
 	UINT8 uam_count = UAM_COUNT;
 
 	GetComputerName(computer_name, reinterpret_cast<LPDWORD>(&size));
 
-	//
-	//Set the flags which tells what our server supports.
-	//
+	// Set the flags which tells what our server supports.
 	flags |= kSupportsTCPIP;
 	flags |= kSupportsSrvrNotification;
 	flags |= kSupportsCopyFile;
 	flags |= kSupportsSrvrMsgs;
-	flags |= kSupportsReconnect;
+	//flags |= kSupportsReconnect;
 
-	afp_reply.advance_pos_ptr(sizeof(int16)); //Machine type offset
-	afp_reply.advance_pos_ptr(sizeof(int16)); //Afp version count offset
-	afp_reply.advance_pos_ptr(sizeof(int16)); //UAM count offset
+	afp_reply.advance_pos_ptr(sizeof(UINT16)); //Machine type offset
+	afp_reply.advance_pos_ptr(sizeof(UINT16)); //Afp version count offset
+	afp_reply.advance_pos_ptr(sizeof(UINT16)); //UAM count offset
 
 	afp_reply.push_num<UINT16>(0); //Volume icon and mask offset
 	afp_reply.push_num(flags); //Server flags
 
-	afp_reply.push_pascal_string(computer_name);
+	afp_reply.push_string(computer_name);
 	afp_reply.advance_if_odd();
 
-	auto* address_count_offset = reinterpret_cast<UINT16*>(afp_reply.get_current_pos_ptr());
-	afp_reply.advance_pos_ptr(sizeof(UINT16));
+	afp_reply.push_num<INT16>(0); //server sig offset
+	afp_reply.push_num<INT16>(0); //address count offset
+	afp_reply.push_num<INT16>(0); //directory names offset
+	afp_reply.push_num<INT16>(0); //UTF-8 server name offset
 
-	//
-	//Set the machine type string and offset
-	//
-	afp_reply.add_parameter_offset(offset_machine_type, static_cast<int16>(afp_reply.get_data_length()));
-	afp_reply.push_pascal_string(UAM_NONE_STR);
+	// Set the machine type string and offset
+	afp_reply.add_parameter_offset(offset_machine_type, static_cast<INT16>(afp_reply.get_data_length()));
+	afp_reply.push_string(AFP_MACHINE_TYPE);
 
-	//AFP versions
-	afp_reply.add_parameter_offset(offset_afp_version_count, static_cast<int16>(afp_reply.get_data_length()));
-	afp_reply.push_int8(AFP_VERSION_COUNT);
-	afp_reply.push_pascal_string(AFP_22_VERSION_STR);
+	// AFP versions
+	afp_reply.add_parameter_offset(offset_afp_version_count, static_cast<INT16>(afp_reply.get_data_length()));
+	afp_reply.push_num<INT8>(AFP_VERSION_COUNT);
+	afp_reply.push_string(AFP_22_VERSION_STR);
 #ifdef AFP_VERSION_30
-	afp_reply.push_pascal_string(AFP_30_VERSION_STR);
-	afp_reply.push_pascal_string(AFP_31_VERSION_STR);
-	afp_reply.push_pascal_string(AFP_32_VERSION_STR);
+	afp_reply.push_string(AFP_30_VERSION_STR);
+	afp_reply.push_string(AFP_31_VERSION_STR);
+	afp_reply.push_string(AFP_32_VERSION_STR);
 #endif
 
-	//UAMs supported
-	afp_reply.add_parameter_offset(offset_uam_count, static_cast<int16>(afp_reply.get_data_length()));
+	// UAMs supported
 
-	//
-	//If we only allow encrypted logon (e.g. no clear text), then we
-	//need to reduce the count of UAM we're sending over.
-	//
+	// If we only allow encrypted logon (e.g. no clear text), then we
+	// need to reduce the count of UAM we're sending over.
 	if (g_force_encrypted_logon)
 	{
 		--uam_count;
 	}
 
-	//
-	//If no guest support, reduce the count yet again as above.
-	//
+	// If no guest support, reduce the count yet again as above.
 	if (!g_allow_guests)
 	{
 		--uam_count;
 	}
 
+	afp_reply.add_parameter_offset(offset_uam_count, static_cast<INT16>(afp_reply.get_data_length()));
 	afp_reply.push_num(uam_count);
 
 	if (g_allow_guests)
 	{
-		afp_reply.push_pascal_string(UAM_NONE_STR);
+		afp_reply.push_string(UAM_NONE_STR);
 	}
 
 	if (!g_force_encrypted_logon)
 	{
-		afp_reply.push_pascal_string(UAM_CLEAR_TEXT);
+		afp_reply.push_string(UAM_CLEAR_TEXT);
 	}
 
-	//
-	//The DHCAST128 UAM is Apple's SSL encrypted password scheme, it
-	//is always passed as supported, no matter what.
-	//
-	afp_reply.push_pascal_string(UAM_DHCAST128);
-
-	//Network Address: Note, there is no reason for us to pass
-	//back address since we only support connections over TCP/IP.
-	//This feature is only for connection where the initial connection
-	//is done over AppleTalk.
-
-	*address_count_offset = static_cast<int16>(afp_reply.get_data_length());
-	afp_reply.push_num<UINT8>(0);
+	// The DHCAST128 UAM is Apple's SSL encrypted password scheme, it
+	// is always passed as supported, no matter what.
+	afp_reply.push_string(UAM_DHCAST128);
 
 	return NO_ERROR;
 }

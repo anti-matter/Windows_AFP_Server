@@ -132,7 +132,7 @@
       <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
     <ClCompile Include="afp-source\fp-core\afpvolumes.cpp">
-      <Filter>Source Files\fp-imp</Filter>
+      <Filter>Source Files\fp-core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -67,7 +67,7 @@ public:
     std::shared_ptr<afp_volume> find(const std::wstring& name);
     std::shared_ptr<afp_volume> find(const INT16 id);
 
-    bool map_name_to_id(const std::wstring& share_name, UINT16* id);
+    bool map_name_to_id(const std::wstring& share_name, INT16* id);
 
     // Return the count of active volumes and optionally fill in
     // the supplied std::vector with their pointers.
