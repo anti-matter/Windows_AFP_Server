@@ -240,7 +240,7 @@ AFPERROR AFPGetVolumeParameters(
 
     if (afp_bitmap & kFPVolNameBit)
     {
-        *volume_name_offset = htons(afp_reply.get_data_length() - sizeof(UINT16));
+        *volume_name_offset = htons(static_cast<u_short>(afp_reply.get_data_length() - sizeof(UINT16)));
         afp_reply.push_string(afp_volume->get_share_name());
     }
 

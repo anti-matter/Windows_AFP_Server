@@ -592,8 +592,6 @@ void afp_extract_domain_and_user_name(
 	OUT std::wstring& domain_name
 )
 {
-	WCHAR sz_user_name[64];
-
 	if (user_name.empty())
 	{
 		return;
