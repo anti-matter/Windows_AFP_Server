@@ -3,6 +3,7 @@
 #include "StdAfx.h"
 #include "afpvolumes.h"
 #include "afp_volumes.h"
+#include "volumes.h"
 
 extern std::unique_ptr<afp_volumes> g_volumes;
 
@@ -160,7 +161,7 @@ AFPERROR FPGetVolParms(
     }
 
     // Extract the bitmap that requests vol data from the buffer.
-    const auto afp_bitmap = afp_request.pull_num<UINT16>();
+    const auto afp_bitmap = afp_request.pull_num<INT16>();
 
     // Get the volume parameters requested in the open call via the bitmap.
     const AFPERROR afp_error = AFPGetVolumeParameters(afp_volume_id, afp_bitmap, afp_reply);

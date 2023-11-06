@@ -172,21 +172,11 @@ void change_notify::afp_read_dir_changes(
             if (index_entry != nullptr)
             {
                 WCHAR new_name[64];
-                AFPCHARMAPARRAY charmap;
 
                 ZeroMemory(new_name, sizeof(new_name));
                 afp_get_object_name_from_path(file_name, new_name, sizeof(new_name));
 
                 volume->get_index()->update_entry(index_entry, static_cast<afp_index*>(index_entry->par_entry), file_name);
-
-                // If the object was renamed on the windows box then all bets are
-                // off and there's no way to preserve the character mapping. So,
-                // clear the charmap and hope for the best.
-                if ((index_entry->flags & flag_index_has_charmap) == 0)
-                {
-                    memset(charmap, 0, sizeof(AFPCHARMAPARRAY));
-                    add_char_map_to_index_entry(index_entry, charmap);
-                }
                 volume->set_is_dirty();
             }
             break;
@@ -260,7 +250,7 @@ void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_no
     }
 
     // Finally, add the new file object into the afp index.
-    UINT32 new_object_id;
+    INT32 new_object_id;
     const auto new_entry = volume->get_index()->add_entry(
         parent_entry->object_id,
         new_item_name,

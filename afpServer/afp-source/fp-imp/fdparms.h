@@ -5,6 +5,8 @@
 #include "dsi/dsi_connection.h"
 
 
+struct afp_index;
+
 void afp_check_for_and_create_rsrc_stream(
     IN const afp_index* index_entry
 );

@@ -2,6 +2,9 @@
 #include <thread>
 
 #include "dsi_connections.h"
+
+#include <algorithm>
+
 #include "afpdebug.h"
 #include "afp_session.h"
 

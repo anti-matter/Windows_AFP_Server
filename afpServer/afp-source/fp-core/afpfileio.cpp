@@ -355,9 +355,6 @@ AFPERROR FPCreateFile(
 )
 {
     UNREFERENCED_PARAMETER(afp_reply);
-
-    AFPCHARMAPARRAY char_map;
-
     DBGWRITE(dbg_level_all, L"Enter\n");
 
     // First byte is padding.
@@ -437,7 +434,7 @@ AFPERROR FPCreateFile(
 
     if (new_entry != nullptr)
     {
-        create_finder_info_stream(new_entry, char_map);
+        create_finder_info_stream(new_entry);
         afp_check_for_and_create_rsrc_stream(new_entry);
     }
 
@@ -756,11 +753,11 @@ AFPERROR FPWrite(
         switch (afp_command)  // NOLINT(hicpp-multiway-paths-covered)
         {
         case afpWrite:
-            afp_reply.push_int32(static_cast<int32>(act_count));
+            afp_reply.push_num(static_cast<INT32>(act_count));
             break;
 
         case afpWriteExt:
-            afp_reply.push_int64(act_count);
+            afp_reply.push_num(act_count);
             break;
         default:
             ASSERT(0);

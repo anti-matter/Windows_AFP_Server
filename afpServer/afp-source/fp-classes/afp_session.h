@@ -1,9 +1,11 @@
 #pragma once
 
-#include "volumes.h"
 #include "afphelp.h"
 #include "dsi/dsi_connection.h"
 
+class afp_desktop;
+struct afp_index;
+class afp_volume;
 class afp_open_file;
 
 class afp_session  // NOLINT(cppcoreguidelines-special-member-functions)

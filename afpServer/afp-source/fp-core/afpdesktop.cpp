@@ -281,7 +281,7 @@ AFPERROR FPAddComment(
 	wcscpy_s(desk_item.path_name, pathname.c_str());
 
 	afp_request.advance_if_odd();
-	afp_request.get_pascal_string(desk_item.data, sizeof(desk_item.data));
+	afp_request.pull_raw_data(desk_item.data, sizeof(desk_item.data));
 
 	desk_item.item_type = entry_type_comment;
 	desk_item.data_size = static_cast<UINT16>(strlen(desk_item.data));
@@ -384,7 +384,8 @@ AFPERROR FPGetComment(
 		return afpItemNotFound;
     }
 
-    afp_reply.push_pascal_string(desk_item->data);
+    const std::string temp_data = desk_item->data;
+    afp_reply.push_string(temp_data);
 
     return AFP_OK;
 }

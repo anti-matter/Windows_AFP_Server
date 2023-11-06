@@ -4,7 +4,6 @@
 
 #include "afp.h"
 #include "afpdebug.h"
-#include "afphelp.h"
 #include "byte_swap.h"
 #include "dsi/dsi_connection.h"
 
@@ -19,14 +18,12 @@ class afp_net_buffer // NOLINT(cppcoreguidelines-special-member-functions)
 public:
 	afp_net_buffer(_In_ char* afp_buffer, _In_ size_t cb_buffer);
 
-	AFPERROR get_pascal_string(unichar* string, const UINT16 cb_string, const bool is_path = false, const UINT8 path_type = kLongNames,
-                               AFPCHARMAPARRAY char_map = nullptr);
-
 	std::wstring pull_path(UINT8 path_type);
 	AFPERROR push_path(UINT8 path_type, const std::wstring& path);
 
 	std::wstring pull_string(UINT8 path_type = kLongNames);
-	void push_string(const std::wstring& str);
+	void push_string(const std::wstring& str, UINT8 path_type = kLongNames);
+	void push_string(const std::string& str, UINT8 path_type = kLongNames);
 
     static std::wstring convert_to_windows_path(const std::string& mac_path);
 	static std::string convert_to_mac_path(const std::wstring& win_path);
@@ -39,15 +36,7 @@ public:
 	template <class T>
 	void push_multi_byte_string(const std::string& mac_string);
 
-	AFPERROR get_pascal_string(char* string, UINT16 cb_string, INT16* s_len = nullptr);
-	AFPERROR get_unicode_string(WCHAR* string, UINT16 cb_string, UINT16* s_len);
-	AFPERROR get_unicode_string(char* string, UINT16 cb_string, INT16* s_len, bool is_path, bool is_afp_name = true);
-
 	void pull_raw_data(void* buffer, size_t amount);
-
-	AFPERROR push_pascal_string(const char* string);
-	AFPERROR push_pascal_string(const std::wstring& wide_string, AFPCHARMAPARRAY char_map = nullptr);
-	AFPERROR push_unicode_string(const std::wstring& wide_string, AFPCHARMAPARRAY char_map = nullptr);
 
 	template <class T>
 	AFPERROR push_num(T value);
@@ -61,51 +50,47 @@ public:
 	template <class T>
 	T* get_ptr_offset();
 
-	AFPERROR push_int8(INT8 value);
-	AFPERROR push_int16(INT16 value);
-	AFPERROR push_int32(INT32 value);
-	AFPERROR push_int64(INT64 value);
+    [[nodiscard]] size_t get_data_length() const;
 
-	size_t get_data_length() const;
+	void set_parameter_offset_value(INT16 offset, INT16 value);
 
-	void add_parameter_offset(INT16 offset, INT16 value);
+    [[nodiscard]] bool check_space_needed(size_t space_needed) const;
+    [[nodiscard]] bool not_enough_space(size_t space_needed) const;
+    [[nodiscard]] bool will_overflow(UINT32 value) const;
 
-	bool check_space_needed(size_t space_needed) const;
-	bool not_enough_space(size_t space_needed) const;
-	bool will_overflow(UINT32 value) const;
+    [[nodiscard]] char* get_current_pos_ptr() const;
+	[[nodiscard]] char* get_buffer() const;
+	[[nodiscard]] size_t get_buffer_size() const;
 
-	char* get_current_pos_ptr() const;
-	void advance_pos_ptr(UINT32 offset);
+    void advance_pos_ptr(UINT32 offset);
     void push_raw_data(const void* data, size_t size);
     void advance_if_odd();
 	void advance_to(INT32 offset);
-	char* get_buffer() const;
-	size_t get_buffer_size() const;
 	void rewind();
 
 	void set_dsi_return_value(UINT32 value);
-	UINT32 get_dsi_return_value() const;
+    [[nodiscard]] UINT32 get_dsi_return_value() const;
 
 	void set_dsi_data_offset(UINT32 value);
-	UINT32 get_dsi_data_offset() const;
+    [[nodiscard]] UINT32 get_dsi_data_offset() const;
 
 private:
-	char* mBuffer;
-	char* mCurrentPos;
-	size_t mBufferSize;
+	char* buffer_;
+	char* current_buffer_ptr_;
+	size_t buffer_size_;
 
 	//
 	//Sometimes, like in the case of FPRead, the function result is returned
 	//as part of the DSI header in the size argument. We provide this var
 	//to pass that value on to the dispatch function to properly return it.
 	//
-	UINT32 mDSIReturnValue;
+	UINT32 dsi_return_value_;
 
 	//
 	//This value stores the contents of the DSI_DATA_OFFSET parameter since
 	//AFP functions cannot access that part of the buffer.
 	//
-	UINT32 mDSIDataOffset;
+	UINT32 dsi_data_offset_;
 };
 
 __pragma(warning(push))
@@ -138,11 +123,11 @@ AFPERROR afp_net_buffer::push_num(T value)
 
 	if (sizeof(T) > 1)
 	{
-		*reinterpret_cast<T*>(mCurrentPos) = byte_swap<T>(value);
+		*reinterpret_cast<T*>(current_buffer_ptr_) = byte_swap<T>(value);
 	}
 	else
 	{
-		*reinterpret_cast<T*>(mCurrentPos) = value;
+		*reinterpret_cast<T*>(current_buffer_ptr_) = value;
 	}
 
 	advance_pos_ptr(sizeof(T));
@@ -164,11 +149,11 @@ T afp_net_buffer::pull_num()
 
 	if (sizeof(T) > 1)
 	{
-		result = byte_swap<T>(*reinterpret_cast<T*>(mCurrentPos));
+		result = byte_swap<T>(*reinterpret_cast<T*>(current_buffer_ptr_));
 	}
 	else
 	{
-		result = *reinterpret_cast<T*>(mCurrentPos);
+		result = *reinterpret_cast<T*>(current_buffer_ptr_);
 	}
 
 	advance_pos_ptr(sizeof(T));
@@ -188,20 +173,20 @@ T afp_net_buffer::get_num() const
 {
 	if (sizeof(T) > 1)
 	{
-		return byte_swap<T>(*reinterpret_cast<T*>(mCurrentPos));
+		return byte_swap<T>(*reinterpret_cast<T*>(current_buffer_ptr_));
 	}
 
-	return *reinterpret_cast<T*>(mCurrentPos);
+	return *reinterpret_cast<T*>(current_buffer_ptr_);
 }
 
 __pragma(warning(pop))
 
 inline size_t afp_net_buffer::get_data_length() const
 {
-	return mCurrentPos - mBuffer;
+	return current_buffer_ptr_ - buffer_;
 }
 
-inline void afp_net_buffer::add_parameter_offset(const INT16 offset, const INT16 value)
+inline void afp_net_buffer::set_parameter_offset_value(const INT16 offset, const INT16 value)
 {
 	if (will_overflow(offset + value))
 	{
@@ -211,15 +196,15 @@ inline void afp_net_buffer::add_parameter_offset(const INT16 offset, const INT16
 		return;
 	}
 
-	const auto save = mCurrentPos;
+	const auto save = current_buffer_ptr_;
 	advance_to(offset);
-	push_int16(value);
-	mCurrentPos = save;
+	push_num(value);
+	current_buffer_ptr_ = save;
 }
 
 inline char* afp_net_buffer::get_current_pos_ptr() const
 {
-	return mCurrentPos;
+	return current_buffer_ptr_;
 }
 
 inline void afp_net_buffer::advance_pos_ptr(const UINT32 offset)
@@ -232,7 +217,7 @@ inline void afp_net_buffer::advance_pos_ptr(const UINT32 offset)
 		return;
 	}
 
-	mCurrentPos += offset;
+	current_buffer_ptr_ += offset;
 }
 
 inline void afp_net_buffer::push_raw_data(const void* data, const size_t size)
@@ -251,7 +236,7 @@ inline void afp_net_buffer::push_raw_data(const void* data, const size_t size)
 
 inline void afp_net_buffer::advance_if_odd()
 {
-	if ((mCurrentPos - (mBuffer + dsi_header_size)) % 2) advance_pos_ptr(sizeof(INT8));
+	if ((current_buffer_ptr_ - (buffer_ + dsi_header_size)) % 2) advance_pos_ptr(sizeof(INT8));
 }
 
 inline void afp_net_buffer::advance_to(const INT32 offset)
@@ -264,40 +249,40 @@ inline void afp_net_buffer::advance_to(const INT32 offset)
 		return;
 	}
 
-	mCurrentPos = mBuffer + offset;
+	current_buffer_ptr_ = buffer_ + offset;
 }
 
 inline char* afp_net_buffer::get_buffer() const
 {
-	return mBuffer;
+	return buffer_;
 }
 
 inline size_t afp_net_buffer::get_buffer_size() const
 {
-	return mBufferSize;
+	return buffer_size_;
 }
 
 inline void afp_net_buffer::rewind()
 {
-	mCurrentPos = mBuffer;
+	current_buffer_ptr_ = buffer_;
 }
 
 inline void afp_net_buffer::set_dsi_return_value(const UINT32 value)
 {
-	mDSIReturnValue = value;
+	dsi_return_value_ = value;
 }
 
 inline UINT32 afp_net_buffer::get_dsi_return_value() const
 {
-	return mDSIReturnValue;
+	return dsi_return_value_;
 }
 
 inline void afp_net_buffer::set_dsi_data_offset(const UINT32 value)
 {
-	mDSIDataOffset = value;
+	dsi_data_offset_ = value;
 }
 
 inline UINT32 afp_net_buffer::get_dsi_data_offset() const
 {
-	return mDSIDataOffset;
+	return dsi_data_offset_;
 }

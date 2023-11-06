@@ -1,65 +1,40 @@
 #include "StdAfx.h"
 #include "fpinfo.h"
 #include "afpxattr.h"
+#include "afp_file_index.h"
 
-
-BOOL create_finder_info_stream(
-    IN afp_index* entry,
-    IN AFPCHARMAPARRAY char_map,
-    IN bool make_invisible
+void create_finder_info_stream(
+    IN const afp_index* entry,
+    IN const bool make_invisible
 )
 {
-    afp_extended_finder_info finder_info_ex;
+    afp_finder_info finder_info;
 
-    if (AFP_FAILED(get_finder_info_ex(entry, &finder_info_ex)))
+    if (AFP_SUCCESS(get_finder_info(entry, &finder_info)))
     {
-        const auto attributes = GetFileAttributes(entry->sz_path.c_str());
-
-        if (attributes != 0xFFFFFFFF && attributes & FILE_ATTRIBUTE_HIDDEN || make_invisible)
-        {
-            finder_info_ex.finder_info.fd_flags |= kFDInvisible;
-        }
-
-        finder_info_ex.finder_info.fd_location.x = 20;
-        finder_info_ex.finder_info.fd_location.y = 20;
-
-        // Copy the charMap into the extended finder info structure.
-        if (char_map != nullptr)
-        {
-            RtlCopyMemory(&finder_info_ex.char_map, char_map, sizeof(AFPCHARMAPARRAY));
-        }
-
-        // If an item didn't have a finder info stream before, set the
-        // defaults and add one now.
-        set_finder_info_ex(entry, &finder_info_ex, true);
-
-        return false;
+        return;
     }
 
-    return true;
+    // If an item didn't have a finder info stream before, set the
+    // defaults and add one now.
+
+    const auto attributes = GetFileAttributes(entry->sz_path.c_str());
+
+    if (attributes != 0xFFFFFFFF && attributes & FILE_ATTRIBUTE_HIDDEN || make_invisible)
+    {
+        finder_info.fd_flags |= kFDInvisible;
+    }
+
+    finder_info.fd_location.x = 20;
+    finder_info.fd_location.y = 20;
+
+    set_finder_info(entry, &finder_info, true);
 }
 
 
 AFPERROR get_finder_info(
-    IN afp_index* entry,
+    IN const afp_index* entry,
     OUT afp_finder_info* finder_info
-)
-{
-    afp_extended_finder_info extended_finder_info;
-
-    const auto afp_error = get_finder_info_ex(entry, &extended_finder_info);
-    if (AFP_SUCCESS(afp_error))
-    {
-        *finder_info = extended_finder_info.finder_info;
-    }
-
-    return afp_error;
-}
-
-
-AFPERROR get_finder_info_ex(
-    IN afp_index* entry,
-    OUT afp_extended_finder_info* extended_finder_info
 )
 {
     DWORD dw_error = NO_ERROR;
@@ -89,23 +64,12 @@ AFPERROR get_finder_info_ex(
         return afp_map_win_error_to_afp(dw_error, afpMiscErr);
     }
 
-    if (!ReadFile(h_file, extended_finder_info, sizeof(afp_extended_finder_info), &dw_bytes_read, nullptr))
+    if (!ReadFile(h_file, finder_info, sizeof(afp_finder_info), &dw_bytes_read, nullptr))
     {
         dw_error = GetLastError();
-        DBGWRITE(dbg_level_info, L"[fpinfo]ReadFile() failed! (%d)\n", dw_error);
+        DBGWRITE(dbg_level_info, L"ReadFile() failed! (%d)\n", dw_error);
 
         dw_error = afp_map_win_error_to_afp(dw_error, afpMiscErr);
-    }
-
-    if (extended_finder_info->version != extended_finder_info_version)
-    {
-        // Clear everything out and start over (with the extended portion).
-        afp_extended_finder_info new_info;
-        new_info.finder_info = extended_finder_info->finder_info;
-
-        set_finder_info_ex(entry, &new_info, true);
-
-        *extended_finder_info = new_info;
     }
 
     CloseHandle(h_file);
@@ -115,33 +79,8 @@ AFPERROR get_finder_info_ex(
 
 
 AFPERROR set_finder_info(
-    IN afp_index* entry,
+    IN const afp_index* entry,
     IN const afp_finder_info* finder_info,
-    IN const bool create_always
-)
-{
-    afp_extended_finder_info extended_finder_info;
-
-    if (create_always)
-    {
-        extended_finder_info.finder_info = *finder_info;
-    }
-    else
-    {
-        const auto afp_error = get_finder_info_ex(entry, &extended_finder_info);
-        if (AFP_SUCCESS(afp_error))
-        {
-            extended_finder_info.finder_info = *finder_info;
-        }
-    }
-
-    return set_finder_info_ex(entry, &extended_finder_info, create_always);
-}
-
-
-AFPERROR set_finder_info_ex(
-    IN afp_index* entry,
-    IN const afp_extended_finder_info* extended_finder_info,
     IN const bool create_always
 )
 {
@@ -201,7 +140,7 @@ AFPERROR set_finder_info_ex(
 
     if (dw_error == NO_ERROR)
     {
-        if (!WriteFile(h_file, extended_finder_info, sizeof(afp_extended_finder_info), &bytes_written, nullptr))
+        if (!WriteFile(h_file, finder_info, sizeof(afp_finder_info), &bytes_written, nullptr))
         {
             dw_error = GetLastError();
             DBGWRITE(dbg_level_error, L"WriteFile() failed! (%d) (%s)\n", dw_error, path.c_str());
@@ -209,17 +148,8 @@ AFPERROR set_finder_info_ex(
 
         if (dw_error == NO_ERROR)
         {
-            ASSERT(bytes_written == sizeof(afp_extended_finder_info));
+            ASSERT(bytes_written == sizeof(afp_finder_info));
             DBGWRITE(dbg_level_all, L"FinderInfo updated successfully for %s.\n", path.c_str());
-
-            if (extended_finder_info->char_map[0].wKeyCode != 0)
-            {
-                entry->flags |= flag_index_has_charmap;
-            }
-            else
-            {
-                entry->flags &= ~flag_index_has_charmap;
-            }
         }
 
         CloseHandle(h_file);
@@ -228,81 +158,3 @@ AFPERROR set_finder_info_ex(
     return afp_map_win_error_to_afp(dw_error, afpMiscErr);
 }
 
-
-AFPERROR update_entry_char_map(
-    IN afp_index* entry,
-    IN AFPCHARMAPARRAY char_map
-)
-{
-    afp_extended_finder_info extended_finder_info;
-
-    auto afp_error = get_finder_info_ex(entry, &extended_finder_info);
-
-    if (AFP_SUCCESS(afp_error))
-    {
-        RtlCopyMemory(&extended_finder_info.char_map, char_map, sizeof(AFPCHARMAPARRAY));
-
-        afp_error = set_finder_info_ex(entry, &extended_finder_info);
-    }
-
-    return afp_error;
-}
-
-
-AFPERROR add_char_map_to_index_entry(
-    IN afp_index* entry,
-    IN AFPCHARMAPARRAY char_map
-)
-{
-    if (char_map[0].wKeyCode != 0)
-    {
-        entry->flags |= flag_index_has_charmap;
-    }
-    else
-    {
-        entry->flags &= ~flag_index_has_charmap;
-    }
-
-    return update_entry_char_map(entry, char_map);
-}
-
-
-AFPERROR get_char_map_for_index_entry(
-    IN afp_index* entry,
-    OUT AFPCHARMAPARRAY char_map
-)
-{
-    afp_extended_finder_info extended_finder_info;
-    AFPERROR afp_error = AFP_OK;
-
-    if (entry->flags & flag_index_has_charmap)
-    {
-        afp_error = get_finder_info_ex(entry, &extended_finder_info);
-
-        if (AFP_SUCCESS(afp_error))
-        {
-            memcpy(char_map, &extended_finder_info.char_map, sizeof(AFPCHARMAPARRAY));
-        }
-    }
-
-    return afp_error;
-}
-
-
-bool check_for_char_map(
-    IN afp_index* entry
-)
-{
-    afp_extended_finder_info extended_finder_info;
-
-    if (AFP_SUCCESS(get_finder_info_ex(entry, &extended_finder_info)))
-    {
-        if (extended_finder_info.char_map[0].wKeyCode != 0)
-        {
-            entry->flags |= flag_index_has_charmap;
-            return true;
-        }
-    }
-
-    return false;
-}

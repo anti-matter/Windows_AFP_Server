@@ -7,9 +7,9 @@
 #include "afphelp.h"
 #include "afpdebug.h"
 #include "afpxattr.h"
-#include "volumes.h"
 #include "fpinfo.h"
 #include "afp_session.h"
+#include "afp_volumes.h"
 
 #include "AltStreams.h"
 
@@ -28,13 +28,9 @@ AFPERROR FPGetExtAttribute(
     IN dsi::dsi_connection* connection
 )
 {
-    WCHAR afpPathname[MAX_AFP_PATH];
-    WCHAR afpAttrName[MAX_AFP_NAME];
-    uint16 afpNameLen;
     uint32 afpActualRead = 0;
-    afp_index* afpEntry = nullptr;
 
-    DBGWRITE(dbg_level_all, L"[FPGetExtAttribute]Enter...\n");
+    DBGWRITE(dbg_level_all, L"Enter...\n");
 
     //
     //Advance beyond command and pad byte
@@ -42,12 +38,12 @@ AFPERROR FPGetExtAttribute(
     afpRequest.advance_pos_ptr(sizeof(int16));
 
     // ReSharper disable CppDeclaratorNeverUsed
-    const auto afpVolID = afpRequest.pull_num<UINT16>();
-    const uint32 afpDirID = afpRequest.pull_num<UINT32>();
+    const auto afpVolID = afpRequest.pull_num<INT16>();
+    const auto afpDirID = afpRequest.pull_num<INT32>();
     const auto afpBitmap = afpRequest.pull_num<UINT16>();
     afpRequest.advance_pos_ptr(sizeof(INT64) * 2); // offset and req count
-    const int32 afpMaxReplySize = afpRequest.pull_num<INT32>();
-    const int8 afpPathtype = afpRequest.pull_num<INT8>();
+    const auto afpMaxReplySize = afpRequest.pull_num<INT32>();
+    const auto afpPathtype = afpRequest.pull_num<UINT8>();
     // ReSharper restore CppDeclaratorNeverUsed
 
     //
@@ -56,19 +52,18 @@ AFPERROR FPGetExtAttribute(
     //	
     if (!connection->get_afp_session()->session_has_volume_open(afpVolID))
     {
-        DBGWRITE(dbg_level_warning, L"[FPGetExtAttribute]User does not have volume open!\n");
-        return (afpParmErr);
+        DBGWRITE(dbg_level_warning, L"User does not have volume open!\n");
+        return afpParmErr;
     }
 
     //
     //Get the pathname of the object we're working on.
     //
-    AFPERROR afpError = afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathtype);
-
-    if (AFP_FAILED(afpError))
+    std::filesystem::path afpPathname = afpRequest.pull_path(afpPathtype);
+    if (afpPathname.empty())
     {
-        DBGWRITE(dbg_level_warning, L"[FPGetExtAttribute]Could not retrieve pathname! (%d)\n", afpError);
-        return (afpError);
+        DBGWRITE(dbg_level_warning, L"Could not retrieve pathname! (%d)\n");
+        return afpParmErr;
     }
 
     //
@@ -77,42 +72,29 @@ AFPERROR FPGetExtAttribute(
     afpRequest.advance_if_odd();
 
     //
-    //Get the size of the attribute name string.
-    //
-    afpNameLen = afpRequest.pull_num<UINT16>();
-
-    //
     //Now get the string. Note that on return afpNameLen now contains the actual
     //length of the converted string.
     //
-    afpError = afpRequest.get_unicode_string(afpAttrName, sizeof(afpAttrName), &afpNameLen);
-
-    if (AFP_FAILED(afpError))
+    const auto afpAttrName = afpRequest.pull_path(kUnicodeNames);
+    if (afpAttrName.empty())
     {
-        DBGWRITE(dbg_level_warning, L"[FPGetExtAttribute]Could not retrieve attribute name! (%d)\n", afpError);
-        return (afpError);
+        DBGWRITE(dbg_level_warning, L"Could not retrieve attribute name! (%d)\n");
+        return afpParmErr;
     }
 
-    DBGWRITE(dbg_level_all, L"[FPGetExtAttribute]Getting attr, file=%s, attr=%s\n", afpPathname, afpAttrName);
+    DBGWRITE(dbg_level_all, L"Getting attr, file=%s, attr=%s\n", afpPathname.c_str(), afpAttrName.c_str());
 
     //
     //Set the entry object that will point to the object we're working with.
     //
-    afpError = AFPIndexFindEntryWithVolIDAndPath(
-        afpVolID,
-        afpDirID,
-        afpPathname,
-        &afpEntry
-    );
-
-    if (AFP_SUCCESS(afpError))
+    const afp_index* afpEntry = afp_volumes::current()->find(afpVolID)->find(afpDirID, afpPathname);
+    if (afpEntry != nullptr)
     {
         //
         //Get the size of the attribute data. Note we don't pass the name of the
         //stream because we already have an open handle to the right stream.
         //
-        const auto afpDataLen = static_cast<uint32>(GetStreamLen(const_cast<wchar_t*>(afpEntry->sz_path.c_str()), afpAttrName));
-
+        const auto afpDataLen = static_cast<uint32>(GetStreamLen(afpEntry->sz_path.c_str(), afpAttrName.c_str()));
         if (afpDataLen != BAD_LENGTH_32)
         {
             //
@@ -122,13 +104,15 @@ AFPERROR FPGetExtAttribute(
             afpReply.push_num(afpBitmap);
             afpReply.push_num(afpDataLen);
 
-            DBGWRITE(dbg_level_all, L"[FPGetExtAttribute]DataLen == %d\n", afpDataLen);
+            DBGWRITE(dbg_level_all, L"DataLen == %d\n", afpDataLen);
 
             if (afpMaxReplySize > 0)
             {
                 if (afpReply.check_space_needed(afpDataLen))
                 {
-                    StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->sz_path.c_str(), afpAttrName);
+                    afpPathname = afpEntry->sz_path;
+                    afpPathname.concat(":");
+                    afpPathname.concat(afpAttrName);
 
                     if (!afp_impersonate_user(connection->get_user_token()))
                     {
@@ -142,7 +126,7 @@ AFPERROR FPGetExtAttribute(
                     //Open a handle to the file stream object.
                     //
                     const auto hFile = CreateFile(
-                        afpPathname,
+                        afpPathname.c_str(),
                         GENERIC_READ,
                         FILE_SHARE_READ,
                         nullptr,
@@ -186,7 +170,7 @@ AFPERROR FPGetExtAttribute(
                     //
                     //Not enough space in the reply buffer.
                     //
-                    DBGWRITE(dbg_level_warning, L"[FPGetExtAttribute]Not enough space in reply buffer!\n");
+                    DBGWRITE(dbg_level_warning, L"Not enough space in reply buffer!\n");
                     ASSERT(0);
 
                     return (afpMiscErr);
@@ -195,23 +179,21 @@ AFPERROR FPGetExtAttribute(
         }
         else
         {
-            DBGWRITE(dbg_level_warning, L"[FPGetExtAttribute]GetStreamLen() failed!\n");
-            afpError = afpMiscErr;
+            DBGWRITE(dbg_level_warning, L"GetStreamLen() failed!\n");
+            return afpMiscErr;
         }
     }
     else
     {
         DBGWRITE(
             dbg_level_warning,
-            L"[FPGetExtAttribute]Object not found! (name = %s, dirID = %d)\n",
-            afpPathname,
+            L"Object not found! (name = %s, dirID = %d)\n",
+            afpPathname.c_str(),
             afpDirID
         );
     }
 
-    DBGWRITE(dbg_level_all, L"[FPGetExtAttribute]Returning: %d\n", afpError);
-
-    return (afpError);
+    return AFP_OK;
 }
 
 
@@ -233,10 +215,6 @@ AFPERROR FPSetExtAttribute(
 {
     UNREFERENCED_PARAMETER(afpReply);
 
-    WCHAR afpPathname[MAX_AFP_PATH];
-    WCHAR afpAttrName[MAX_AFP_NAME];
-    afp_index* afpEntry = nullptr;
-    uint16 afpNameLen;
     DWORD bytesWritten = 0;
 
     DBGWRITE(dbg_level_info, L"[afp:FPSetExtAttribute]Enter...\n");
@@ -246,21 +224,20 @@ AFPERROR FPSetExtAttribute(
     //
     afpRequest.advance_pos_ptr(sizeof(int16));
 
-    const auto afpVolID = afpRequest.pull_num<UINT16>();
-    const uint32 afpDirID = afpRequest.pull_num<UINT32>();
+    const auto afpVolID = afpRequest.pull_num<INT16>();
+    const auto afpDirID = afpRequest.pull_num<INT32>();
     const auto afpBitmap = afpRequest.pull_num<UINT16>();
     afpRequest.advance_pos_ptr(sizeof(INT64)); //offset
-    const int8 afpPathtype = afpRequest.pull_num<INT8>();
+    const auto afpPathtype = afpRequest.pull_num<UINT8>();
 
     //
     //Get the pathname of the object we're working on.
     //
-    AFPERROR afpError = afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathtype);
-
-    if (AFP_FAILED(afpError))
+    std::filesystem::path afpPathname = afpRequest.pull_path(afpPathtype);
+    if (afpPathname.empty())
     {
-        DBGWRITE(dbg_level_info, L"[afp:FPSetExtAttribute]Could not retrieve pathname! (%d)\n", afpError);
-        return (afpError);
+        DBGWRITE(dbg_level_info, L"[afp:FPSetExtAttribute]Could not retrieve pathname! (%d)\n");
+        return afpParmErr;
     }
 
     //
@@ -273,16 +250,15 @@ AFPERROR FPSetExtAttribute(
     //Now get the string. Note that on return afpNameLen now contains the actual
     //length of the converted string.
     //
-    afpNameLen = afpRequest.pull_num<UINT16>();
-    afpError = afpRequest.get_unicode_string(afpAttrName, sizeof(afpAttrName), &afpNameLen);
+    const auto afpAttrName = afpRequest.pull_string(kUnicodeNames);
 
-    if (AFP_FAILED(afpError))
+    if (afpAttrName.empty())
     {
-        DBGWRITE(dbg_level_info, L"[afp:FPSetExtAttribute]Could not retrieve attribute name! (%d)\n", afpError);
-        return (afpError);
+        DBGWRITE(dbg_level_info, L"[afp:FPSetExtAttribute]Could not retrieve attribute name! (%d)\n");
+        return afpParmErr;
     }
 
-    DBGWRITE(dbg_level_info, L"[afp:FPSetExtAttribute]Setting attr, file=%s, attr=%s\n", afpPathname, afpAttrName);
+    DBGWRITE(dbg_level_info, L"[afp:FPSetExtAttribute]Setting attr, file=%s, attr=%s\n", afpPathname.c_str(), afpAttrName.c_str());
 
     //
     //The attribute data length we're going to write.
@@ -293,54 +269,51 @@ AFPERROR FPSetExtAttribute(
     //See if the user has the volume open and get a pointer to
     //the volume object.
     //
-    if (!connection->get_afp_session()->session_has_volume_open(afpVolID))
+    const auto volume = connection->get_afp_session()->find_open_volume(afpVolID);
+    if (volume == nullptr)
     {
         DBGWRITE(dbg_level_info, L"[afp:FPSetExtAttribute]User does not have volume open!\n");
-        return (afpParmErr);
+        return afpParmErr;
     }
 
     //
     //Set the entry object that will point to the object we're working with.
     //
-    afpError = AFPIndexFindEntryWithVolIDAndPath(
-        afpVolID,
-        afpDirID,
-        afpPathname,
-        &afpEntry
-    );
-
-    if (AFP_SUCCESS(afpError))
+    const auto afpEntry = volume->find(afpDirID, afpPathname);
+    if (afpEntry != nullptr)
     {
         //
         //We have different errors to check for based on the supplied attribute
         //flags (replace and/or already exists).
         //
-        const auto status = static_cast<uint32>(GetStreamLen(const_cast<wchar_t*>(afpEntry->sz_path.c_str()), afpAttrName));
+        const auto status = static_cast<uint32>(GetStreamLen(const_cast<wchar_t*>(afpEntry->sz_path.c_str()), afpAttrName.c_str()));
 
         if ((status == BAD_LENGTH_32) && (afpBitmap & kXAttrCreate))
         {
-            return (afpObjectExists);
+            return afpObjectExists;
         }
         if (afpBitmap & kXAttrReplace)
         {
-            return (afpObjectNotFound);
+            return afpObjectNotFound;
         }
 
-        StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->sz_path.c_str(), afpAttrName);
+        afpPathname = afpEntry->sz_path;
+        afpPathname.concat(":");
+        afpPathname.concat(afpAttrName);
 
         if (!afp_impersonate_user(connection->get_user_token()))
         {
             //
             //Impersonation failed, don't allow any further operations.
             //
-            return (afpAccessDenied);
+            return afpAccessDenied;
         }
 
         //
         //Open a handle to the file stream object.
         //
         const auto hFile = CreateFile(
-            afpPathname,
+            afpPathname.c_str(),
             GENERIC_READ | GENERIC_WRITE,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             nullptr,
@@ -356,7 +329,7 @@ AFPERROR FPSetExtAttribute(
 
             DBGWRITE(
                 dbg_level_info,
-                L"[FPGetExtAttribute]WriteFile() returned: %d\n",
+                L"WriteFile() returned: %d\n",
                 GetLastError()
             );
         }
@@ -365,20 +338,18 @@ AFPERROR FPSetExtAttribute(
 
         //
         //As a last check, make sure the right amount of bytes were
-        //written out to the atrribute.
+        //written out to the attribute.
         //
         if (bytesWritten != afpAttrDataLen)
         {
-            DBGWRITE(dbg_level_info, L"[afp:FPSetExtAttribute]WriteFork() wrote out the wrong number of bytes!\n",
-                     afpError);
-            return (afpMiscErr);
+            DBGWRITE(dbg_level_info, L"WriteFork() wrote out the wrong number of bytes!\n");
+            return afpMiscErr;
         }
     }
 
-    DBGWRITE(dbg_level_info, L"[FPSetExtAttribute]Wrote(bytes): %d\n", bytesWritten);
-    DBGWRITE(dbg_level_info, L"[FPSetExtAttribute]Returning:    %d\n", afpError);
+    DBGWRITE(dbg_level_info, L"Wrote(bytes): %d\n", bytesWritten);
 
-    return (afpError);
+    return AFP_OK;
 }
 
 
@@ -397,63 +368,56 @@ AFPERROR FPListExtAttribute(
     IN dsi::dsi_connection* connection
 )
 {
-    WCHAR afpPathname[MAX_AFP_PATH];
-    afp_index* afpEntry = nullptr;
     int32 afpDataLen = 0;
 
-    DBGWRITE(dbg_level_info, L"[FPListExtAttribute]Enter...\n");
+    DBGWRITE(dbg_level_info, L"Enter...\n");
 
     //
     //Advance beyond command and pad byte
     //
     afpRequest.advance_pos_ptr(sizeof(int16));
 
-    const auto afpVolID = afpRequest.pull_num<UINT16>();
-    const uint32 afpDirID = afpRequest.pull_num<UINT32>();
+    const auto afpVolID = afpRequest.pull_num<INT16>();
+    const auto afpDirID = afpRequest.pull_num<INT32>();
     const auto afpBitmap = afpRequest.pull_num<UINT16>();
     afpRequest.advance_pos_ptr(sizeof(UINT16) + sizeof(UINT32)); // req count and start index
-    const int32 afpMaxReplySize = afpRequest.pull_num<INT32>();
-    const int8 afpPathtype = afpRequest.pull_num<INT8>();
+    const auto afpMaxReplySize = afpRequest.pull_num<INT32>();
+    const auto afpPathtype = afpRequest.pull_num<UINT8>();
 
     //
     //See if the user has the volume open and get a pointer to
     //the volume object.
     //
-    if (!connection->get_afp_session()->session_has_volume_open(afpVolID))
+    const auto volume = connection->get_afp_session()->find_open_volume(afpVolID);
+    if (volume == nullptr)
     {
-        DBGWRITE(dbg_level_info, L"[FPListExtAttribute]User does not have volume open!\n");
-        return (afpParmErr);
+        DBGWRITE(dbg_level_info, L"User does not have volume open!\n");
+        return afpParmErr;
     }
 
     //
     //Get the pathname of the object we're working on.
     //
-    AFPERROR afpError = afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathtype);
-
-    if (AFP_FAILED(afpError))
+    const auto afpPathname = afpRequest.pull_string(afpPathtype);
+    if (afpPathname.empty())
     {
-        DBGWRITE(dbg_level_info, L"[FPListExtAttribute]Could not retrieve pathname! (%d)\n", afpError);
-        return (afpError);
+        DBGWRITE(dbg_level_info, L"Could not retrieve pathname! (%d)\n");
+        return afpParmErr;
     }
+
+    AFPERROR afpError = AFP_OK;
 
     //
     //Set the entry object that will point to the object we're working with.
     //
-    afpError = AFPIndexFindEntryWithVolIDAndPath(
-        afpVolID,
-        afpDirID,
-        afpPathname,
-        &afpEntry
-    );
-
-    if (AFP_SUCCESS(afpError))
+    const auto afpEntry = volume->find(afpDirID, afpPathname);
+    if (afpEntry != nullptr)
     {
         std::vector<afp_attr_info> streamArray;
-        char ansi_string[MAX_AFP_NAME];
 
         DBGWRITE(
             dbg_level_info,
-            L"[FPListExtAttribute]Getting stream list for %s\n", afpEntry->sz_path.c_str());
+            L"Getting stream list for %s\n", afpEntry->sz_path.c_str());
 
         if (!afp_impersonate_user(connection->get_user_token()))
         {
@@ -463,7 +427,7 @@ AFPERROR FPListExtAttribute(
             return (afpAccessDenied);
         }
 
-        afpError = GetStreams(const_cast<wchar_t*>(afpEntry->sz_path.c_str()), streamArray);
+        afpError = GetStreams(afpEntry->sz_path.c_str(), streamArray);
 
         if (AFP_SUCCESS(afpError))
         {
@@ -473,7 +437,7 @@ AFPERROR FPListExtAttribute(
             afpReply.push_num(afpBitmap);
 
             //
-            //Save the position of the datalen field...
+            //Save the position of the data len field...
             //
             auto* saveDL = reinterpret_cast<uint32*>(afpReply.get_current_pos_ptr());
             afpReply.advance_pos_ptr(sizeof(uint32));
@@ -511,15 +475,12 @@ AFPERROR FPListExtAttribute(
                         {
                             DBGWRITE(
                                 dbg_level_info,
-                                L"[FPListExtAttribute]New attr name added: %s\n",
+                                L"New attr name added: %s\n",
                                     stream_name);
 
 
-                            if (afp_windows_to_mac_path(stream_name, sizeof(ansi_string), nullptr,
-                                                        ansi_string) != nullptr)
-                            {
-                                afpReply.push_raw_data(ansi_string, strlen(ansi_string) + sizeof(char));
-                            }
+                            const auto ansi_string = wide_string_to_string(stream_name);
+                            afpReply.push_raw_data(ansi_string.data(), ansi_string.size() + sizeof(char));
                         }
                         else
                         {
@@ -527,7 +488,7 @@ AFPERROR FPListExtAttribute(
                             //Our buffer will grow larger than the client can handle. Stop
                             //including new names, adjust the reported data size and return.
                             //
-                            DBGWRITE(dbg_level_info, L"[FPListExtAttribute]Data len exceeds client buffer size! (%d)\n",
+                            DBGWRITE(dbg_level_info, L"Data len exceeds client buffer size! (%d)\n",
                                      afpMaxReplySize);
 
                             afpDataLen -= cbStreamName + 1;
@@ -539,7 +500,7 @@ AFPERROR FPListExtAttribute(
 
             //
             //If we're only returning the size, we need to include the size of
-            //the bitmap and datalen parameters.
+            //the bitmap and data len parameters.
             //
             if (afpMaxReplySize == 0)
             {
@@ -555,10 +516,9 @@ AFPERROR FPListExtAttribute(
         afp_revert_to_self(connection->get_user_token());
     }
 
-    DBGWRITE(dbg_level_info, L"[FPListExtAttribute]Name list datalen = %d\n", afpDataLen);
-    DBGWRITE(dbg_level_info, L"[FPListExtAttribute]Returning %d\n", afpError);
+    DBGWRITE(dbg_level_info, L"Name list datalen = %d\n", afpDataLen);
 
-    return (afpError);
+    return afpError;
 }
 
 
@@ -578,23 +538,17 @@ AFPERROR FPRemoveExtAttribute(
 )
 {
     UNREFERENCED_PARAMETER(afpReply);
-
-    WCHAR afpPathname[MAX_AFP_PATH];
-    WCHAR afpAttrName[MAX_PATH];
-    afp_index* afpEntry = nullptr;
-    uint16 afpNameLen;
-
-    DBGWRITE(dbg_level_info, L"[FPRemoveExtAttribute]Enter...\n");
+    DBGWRITE(dbg_level_info, L"Enter...\n");
 
     //
     //Advance beyond command and pad byte
     //
     afpRequest.advance_pos_ptr(sizeof(int16));
 
-    const auto afpVolID = afpRequest.pull_num<UINT16>();
-    const uint32 afpDirID = afpRequest.pull_num<UINT32>();
+    const auto afpVolID = afpRequest.pull_num<INT16>();
+    const auto afpDirID = afpRequest.pull_num<INT32>();
     afpRequest.advance_pos_ptr(sizeof(UINT16)); // bitmap
-    const int8 afpPathtype = afpRequest.pull_num<INT8>();
+    const auto afpPathtype = afpRequest.pull_num<UINT8>();
 
     //
     //See if the user has the volume open and get a pointer to
@@ -603,7 +557,7 @@ AFPERROR FPRemoveExtAttribute(
     const auto volume = connection->get_afp_session()->find_open_volume(afpVolID);
     if (volume == nullptr)
     {
-        DBGWRITE(dbg_level_info, L"[FPRemoveExtAttribute]User does not have volume open!\n");
+        DBGWRITE(dbg_level_info, L"User does not have volume open!\n");
         return afpParmErr;
     }
 
@@ -615,29 +569,21 @@ AFPERROR FPRemoveExtAttribute(
     //
     //Get the pathname of the object we're working on.
     //
-    auto afpError = afpRequest.get_pascal_string(afpPathname, sizeof(afpPathname), true, afpPathtype);
-
-    if (AFP_FAILED(afpError))
+    std::filesystem::path afpPathname = afpRequest.pull_path(afpPathtype);
+    if (afpPathname.empty())
     {
-        DBGWRITE(dbg_level_info, L"[FPRemoveExtAttribute]Could not retrieve pathname! (%d)\n", afpError);
-        return (afpError);
+        DBGWRITE(dbg_level_info, L"Could not retrieve pathname!\n");
+        return afpParmErr;
     }
 
     //
     //Set the entry object that will point to the object we're working with.
     //
-    afpError = AFPIndexFindEntryWithVolIDAndPath(
-        afpVolID,
-        afpDirID,
-        afpPathname,
-        &afpEntry
-    );
-
-    if (AFP_FAILED(afpError))
+    const auto afpEntry = volume->find(afpDirID, afpPathname);
+    if (afpEntry == nullptr)
     {
-        DBGWRITE(dbg_level_info, L"[FPRemoveExtAttribute]Object not found! (name = %s, dirID = %d)\n", afpPathname,
-                 afpDirID);
-        return (afpError);
+        DBGWRITE(dbg_level_info, L"Object not found! (name = %s, dirID = %d)\n", afpPathname.c_str(), afpDirID);
+        return afpParmErr;
     }
 
     //
@@ -650,31 +596,33 @@ AFPERROR FPRemoveExtAttribute(
     //Now get the string. Note that on return afpNameLen now contains the actual
     //length of the converted string.
     //
-    afpNameLen = afpRequest.pull_num<UINT16>();
-    afpError = afpRequest.get_unicode_string(afpAttrName, sizeof(afpAttrName), &afpNameLen);
-
-    if (AFP_FAILED(afpError))
+    const auto afpAttrName = afpRequest.pull_string(kUnicodeNames);
+    if (afpAttrName.empty())
     {
-        DBGWRITE(dbg_level_info, L"[FPRemoveExtAttribute]Could not retrieve attribute name! (%d)\n", afpError);
-        return (afpError);
+        DBGWRITE(dbg_level_info, L"Could not retrieve attribute name!\n");
+        return afpParmErr;
     }
 
-    DBGWRITE(dbg_level_info, L"[FPRemoveExtAttribute]Removing attr, file=%s, attr=%s\n", afpPathname, afpAttrName);
+    DBGWRITE(dbg_level_info, L"Removing attr, file=%s, attr=%s\n", afpPathname.c_str(), afpAttrName.c_str());
 
-    StringCbPrintf(afpPathname, sizeof(afpPathname), L"%s:%s", afpEntry->sz_path.c_str(), afpAttrName);
+    afpPathname = afpEntry->sz_path;
+    afpPathname.concat(":");
+    afpPathname.concat(afpAttrName);
+
+    AFPERROR afpError = afpMiscErr;
 
     if (!afp_impersonate_user(connection->get_user_token()))
     {
         //
         //Impersonation failed, don't allow any further operations.
         //
-        return (afpAccessDenied);
+        return afpAccessDenied;
     }
 
-    if (!DeleteFile(afpPathname))
+    if (!DeleteFile(afpPathname.c_str()))
     {
         DBGWRITE(dbg_level_info,
-                 L"[FPRemoveExtAttribute]DeleteFile failed on %s! (%d)\n",
+                 L"DeleteFile failed on %s! (%d)\n",
                  afpEntry->sz_path.c_str(),
                  GetLastError()
         );
@@ -684,9 +632,9 @@ AFPERROR FPRemoveExtAttribute(
 
     afp_revert_to_self(connection->get_user_token());
 
-    DBGWRITE(dbg_level_info, L"[FPRemoveExtAttribute]Returning %d\n", afpError);
+    DBGWRITE(dbg_level_info, L"Returning %d\n", afpError);
 
-    return (afpError);
+    return afpError;
 }
 
 
@@ -703,8 +651,8 @@ AFPERROR FPRemoveExtAttribute(
  */
 
 LONGLONG GetStreamLen(
-    IN PWCHAR pathname,
-    IN PWCHAR streamName
+    IN const WCHAR* pathname,
+    IN const WCHAR* streamName
 )
 {
     std::vector<afp_attr_info> streams;
@@ -719,7 +667,7 @@ LONGLONG GetStreamLen(
             }
         }
 
-        DBGWRITE(dbg_level_info, L"[afpxattr:GetStreamLen]Stream name not found!\n");
+        DBGWRITE(dbg_level_info, L"Stream name not found!\n");
     }
 
     return BAD_LENGTH_64;
@@ -740,7 +688,7 @@ LONGLONG GetStreamLen(
  */
 
 AFPERROR GetStreams(
-    IN WCHAR* pathname,
+    IN const WCHAR* pathname,
     IN std::vector<afp_attr_info>& streams
 )
 {

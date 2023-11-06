@@ -41,11 +41,11 @@ AFPERROR FPRemoveExtAttribute(
 );
 
 LONGLONG GetStreamLen(
-    IN PWCHAR pathname,
-    IN PWCHAR streamName
+    IN const WCHAR* pathname,
+    IN const WCHAR* streamName
 );
 
 AFPERROR GetStreams(
-    IN WCHAR* pathname,
+    IN const WCHAR* pathname,
     IN std::vector<afp_attr_info>& streams
 );

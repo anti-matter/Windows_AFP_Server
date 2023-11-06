@@ -50,7 +50,7 @@ afp_index* afp_file_index::add_entry(
     const std::wstring& p_object_name,
     const std::filesystem::path& p_object_path,
     const bool is_directory,
-	UINT32* p_new_dir_id
+	INT32* p_new_dir_id
 )
 {
 	auto entry = std::make_unique<afp_index>();

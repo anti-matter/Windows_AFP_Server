@@ -55,7 +55,7 @@ std::wstring string_to_wide_string(const std::string& string)
 
 BOOL afp_get_logon_sid(
 	IN const HANDLE h_token,
-	OUT std::shared_ptr<SID>& sid
+	OUT PSID* sid
 )
 {
 	auto success = FALSE;
@@ -71,7 +71,6 @@ BOOL afp_get_logon_sid(
 		}
 
 		ptg = std::unique_ptr<TOKEN_GROUPS>(new TOKEN_GROUPS[length / sizeof(TOKEN_GROUPS)]);
-
 		if (ptg == nullptr)
 		{
 			// We failed to allocate enough memory for the buffer.
@@ -87,11 +86,11 @@ BOOL afp_get_logon_sid(
 			if ((ptg->Groups[index].Attributes & SE_GROUP_LOGON_ID) == SE_GROUP_LOGON_ID)
 			{
 				length = GetLengthSid(ptg->Groups[index].Sid);
-				sid = std::make_shared<SID>(length);
+				*sid = malloc(length);
 
 				if (sid != nullptr)
 				{
-					if (CopySid(length, sid.get(), ptg->Groups[index].Sid))
+					if (CopySid(length, *sid, ptg->Groups[index].Sid))
 					{
 						success = TRUE;
 					}
@@ -208,6 +207,8 @@ DWORD afp_get_directory_rights(
 	IN DWORD* afp_rights
 )
 {
+	UNREFERENCED_PARAMETER(token);
+
 	PACL p_dacl = nullptr;
 	PSECURITY_DESCRIPTOR p_security_descriptor = nullptr;
 	PSID p_sid_group = nullptr;
@@ -875,6 +876,7 @@ BOOL afp_impersonate_user(
 	return success;
 }
 
+
 BOOL afp_revert_to_self(
 	IN const HANDLE h_user_token
 )
@@ -889,234 +891,12 @@ BOOL afp_revert_to_self(
 	return success;
 }
 
-PWCHAR afp_mac_to_windows_string(
-	IN const PCHAR p_mac_string,
-	IN const WORD cb_wide_string,
-	OUT const PWCHAR p_wide_string
-)
-{
-	if (strlen(p_mac_string) == 0)
-	{
-		p_wide_string[0] = '\0';
-		return p_wide_string;
-	}
-
-	const auto size = MultiByteToWideChar(
-		CP_MACCP,
-		0,
-		p_mac_string,
-		static_cast<int>(strlen(p_mac_string)),
-		p_wide_string,
-		cb_wide_string
-	);
-
-	if (size == 0)
-	{
-		DBGWRITE(dbg_level_error, L"MultiByteToWideChar() failed in AFPMacToWindowsString()! (%d)\n", GetLastError());
-		return nullptr;
-	}
-
-	p_wide_string[size] = '\0';
-
-	return p_wide_string;
-}
-
-PWCHAR afp_mac_to_windows_path(
-	IN const PCHAR p_afp_path,
-	OUT const PWCHAR p_wide_path,
-	OUT AFPCHARMAPARRAY p_char_map
-)
-{
-	const auto path_len = strlen(p_afp_path);
-
-	if (path_len == 0)
-	{
-		p_wide_path[0] = '\0';
-		return p_wide_path;
-	}
-
-	if (p_char_map != nullptr)
-	{
-		memset(p_char_map, 0, sizeof(AFPCHARMAPARRAY));
-	}
-
-	WORD char_map_pos = 0;
-
-	for (WORD i = 0; i < path_len; i++)
-	{
-		//
-		//Make sure we're ansi chars and make sure the name doesn't contain
-		//one of the illegal file characters for Windows.
-		//
-		if (p_afp_path[i] < FIRST_VALID_ANSI_CHAR ||
-			static_cast<UCHAR>(p_afp_path[i]) > LAST_VALID_ANSI_CHAR ||
-			p_afp_path[i] == '\\' ||
-			p_afp_path[i] == '/' ||
-			p_afp_path[i] == '"' ||
-			p_afp_path[i] == '?' ||
-			p_afp_path[i] == '*' ||
-			p_afp_path[i] == '<' ||
-			p_afp_path[i] == '>' ||
-			p_afp_path[i] == '|')
-		{
-			//
-			//If pCharMap is not null, then we are building the char map for
-			//the index entry as well.
-			//
-			if (p_char_map != nullptr)
-			{
-				p_char_map[char_map_pos].wKeyCode = static_cast<BYTE>(p_afp_path[i]);
-				p_char_map[char_map_pos].wOffset = i;
-
-				DBGWRITE(dbg_level_all, L"[HELP]Adding keycode %d offset %d\n",
-				         p_char_map[char_map_pos].wKeyCode,
-				         p_char_map[char_map_pos].wOffset);
-
-				char_map_pos++;
-			}
-
-			p_afp_path[i] = REPLACEMENT_CHAR;
-		}
-		else
-		{
-			switch (p_afp_path[i])
-			{
-			//
-			//The macintosh path separator is a ":", convert to windows path
-			//separator of "/". Note that we don't save for conversion back,
-			//since we'll never send paths back to the mac client.
-			//
-			case ':':
-				p_afp_path[i] = '/';
-				break;
-
-			//
-			//Windows can't handle multiple periods in a row, we need to replace
-			//one of them. We also can't have the last character in the file name
-			//be a period.
-			//
-			case '.':
-				if (p_afp_path[i + 1] == '.' || i == path_len - 1)
-				{
-					if (p_char_map != nullptr)
-					{
-						p_char_map[char_map_pos].wKeyCode = static_cast<BYTE>(p_afp_path[i]);
-						p_char_map[char_map_pos].wOffset = i;
-
-						char_map_pos++;
-					}
-
-					p_afp_path[i] = REPLACEMENT_CHAR;
-				}
-				break;
-
-			default:
-				break;
-			}
-		}
-	}
-
-	//
-	//Lastly, make sure the last character in the afp path is not a white space
-	//because Windows has trouble dealing with that.
-	//
-	if (is_white_space(p_afp_path[path_len - 1]))
-	{
-		p_afp_path[path_len - 1] = '\0';
-	}
-
-	//
-	//So we know where to stop when reading the char table.
-	//
-	if (p_char_map != nullptr)
-	{
-		p_char_map[char_map_pos].wKeyCode = 0;
-		p_char_map[char_map_pos].wOffset = 0;
-	}
-
-	const auto size = MultiByteToWideChar(
-		CP_MACCP,
-		0,
-		p_afp_path,
-		static_cast<int>(strlen(p_afp_path)),
-		p_wide_path,
-		MAX_PATH);
-
-	if (size == 0)
-	{
-		DBGWRITE(dbg_level_info, L"[HELP]MultiByteToWideChar() failed! (%d)\n", GetLastError());
-		return nullptr;
-	}
-
-	p_wide_path[size] = '\0';
-
-	return p_wide_path;
-}
-
 
 bool is_white_space(const char c)
 {
 	// A white space checker that doesn't choke on negative values.
 
 	return (c == ' ' || c == '\t' || c == '\r' || c == '\n');
-}
-
-PCHAR afp_windows_to_mac_path(
-	IN const WCHAR* p_win_path,
-	IN const WORD afp_buff_size,
-	IN AFPCHARMAPARRAY p_char_map,
-	OUT const PCHAR p_afp_path
-)
-{
-	const auto path_len = lstrlen(p_win_path);
-
-	if (path_len == 0)
-	{
-		p_afp_path[0] = '\0';
-		return p_afp_path;
-	}
-
-	BOOL f_used_default_char;
-	const auto size = WideCharToMultiByte(
-		CP_MACCP,
-		0,
-		p_win_path,
-		lstrlen(p_win_path),
-		p_afp_path,
-		afp_buff_size,
-		"!",
-		&f_used_default_char);
-
-	if (size == 0)
-	{
-		DBGWRITE(dbg_level_info, L"[HELP]WideCharToMultiByte() failed! (%d)\n", GetLastError());
-		return p_afp_path;
-	}
-
-	p_afp_path[size] = '\0';
-
-	if (p_char_map != nullptr)
-	{
-		auto i = 0;
-
-		while (p_char_map[i].wKeyCode != 0)
-		{
-			if (p_char_map[i].wOffset > size)
-			{
-				break;
-			}
-
-			p_afp_path[p_char_map[i].wOffset] = static_cast<char>(p_char_map[i].wKeyCode);
-
-			DBGWRITE(dbg_level_all, L"[HELP]Converting keycode %d offset %d\n",
-			         p_char_map[i].wKeyCode,
-			         p_char_map[i].wOffset);
-
-			i++;
-		}
-	}
-
-	return p_afp_path;
 }
 
 

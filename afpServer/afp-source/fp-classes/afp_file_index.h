@@ -49,7 +49,7 @@ public:
         const std::wstring& p_object_name,
         const std::filesystem::path& p_object_path,
 		bool is_directory,
-		UINT32* p_new_dir_id = nullptr
+		INT32* p_new_dir_id = nullptr
 	);
 
 	void remove_entry(const afp_index* entry);

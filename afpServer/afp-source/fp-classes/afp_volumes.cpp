@@ -199,7 +199,7 @@ bool afp_volumes::index_build(std::filesystem::path& share_path, const UINT32  p
         // Form path to new file or directory.
         std::filesystem::path item_path = share_path / file_name;
 
-        UINT32 new_item_id;
+        INT32 new_item_id;
         const auto entry = volume->get_index()->add_entry(
             parent_dir_id,
             file_name,
@@ -215,13 +215,7 @@ bool afp_volumes::index_build(std::filesystem::path& share_path, const UINT32  p
             continue;
         }
 
-        // Now that we have our index entry, we need to get the char mapping
-        // table for mac characters that didn't map to windows chars. Only
-        // copy the mapping if the stream existed before we created it.
-        if (create_finder_info_stream(entry))
-        {
-            check_for_char_map(entry);
-        }
+        create_finder_info_stream(entry);
 
         if (is_directory)
         {

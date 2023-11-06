@@ -493,21 +493,6 @@ enum afp_directory_attribute_flags
 
 #pragma pack(push,1)
 
-// How many replacement chars are saved when file names have
-// Mac specific extended chars in them.
-#define MAX_REPLACED_CHARACTERS		MAX_DIR_NAME
-
-// This is a table that will map invalid Mac characters to a known
-// good windows character. This will then be placed back when
-// data is sent back to the Mac.
-using AFPCHARMAP = struct _AFPCHARMAP
-{
-    WORD wKeyCode; //Keycode of offending character
-    WORD wOffset; //Offset in string where char existed
-};
-
-using AFPCHARMAPARRAY = AFPCHARMAP[MAX_REPLACED_CHARACTERS];
-
 struct mac_point
 {
     SHORT x;
@@ -532,29 +517,6 @@ struct afp_finder_info
     mac_point fd_location;
     SHORT fd_fldr;
     CHAR fd_finder_data[16];
-};
-
-constexpr BYTE extended_finder_info_version = 1;
-
-// This is the extended FinderInfo that we use to store
-// data per file/dir specific to this file server.
-struct afp_extended_finder_info
-{
-    afp_extended_finder_info()
-        : version(extended_finder_info_version)
-          , char_map{}
-          , reserved(0)
-          , reserved2(0)
-    {
-    }
-
-    afp_finder_info finder_info;
-
-    BYTE version;
-    AFPCHARMAPARRAY char_map;
-
-    DWORD reserved;
-    DWORD reserved2;
 };
 
 #pragma pack(pop)

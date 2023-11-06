@@ -9,7 +9,7 @@
 #include "afpxattr.h"
 #include "afp_open_file.h"
 #include "afp_volumes.h"
-
+#include "afp_file_index.h"
 
 void afp_check_for_and_create_rsrc_stream(
     IN const afp_index* index_entry
@@ -77,7 +77,6 @@ AFPERROR afp_get_object_parms(
     IN WIN32_FILE_ATTRIBUTE_DATA win_attributes
 )
 {
-    AFPCHARMAPARRAY char_map{};
     LARGE_INTEGER data_size64{};
     LARGE_INTEGER rsrc_size64{};
     UINT16* long_name_offset = nullptr;

@@ -1,11 +1,13 @@
 #pragma once
 
-#include "volumes.h"
 #include "afphelp.h"
 #include "afp_net_buffer.h"
 
+class afp_volume;
+struct afp_index;
+
 // Struct to keep info about a particular stream. All we care
-// about from the afp perspective it the size and the name.
+// about from the afp perspective is the size and the name.
 typedef struct
 {
 	LARGE_INTEGER stream_size;
@@ -59,7 +61,7 @@ public:
     [[nodiscard]] INT32 get_dir_id() const { return m_dir_id_; }
 	[[nodiscard]] WCHAR* get_win_path() { return m_windows_path_; }
     [[nodiscard]] afp_index* get_entry() const { return m_entry_; }
-    [[nodiscard]] bool is_volume_read_only() const { return volume_->is_read_only(); }
+    [[nodiscard]] bool is_volume_read_only() const;
 
 private:
 

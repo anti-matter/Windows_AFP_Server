@@ -1,17 +1,11 @@
 #include "StdAfx.h"
 #include <strsafe.h>
+
 #include "afp_open_file.h"
 #include "afpxattr.h"
 #include "afp_volumes.h"
-
-/*
- * afp_open_file()
- *
- * Description:
- *		Initializer for the AFPOpenFile class. 
- *
- * Returns: None
- */
+#include "afp_volume.h"
+#include "afp_file_index.h"
 
 afp_open_file::afp_open_file(
     const INT16 vol_id,
@@ -39,16 +33,6 @@ afp_open_file::afp_open_file(
 }
 
 
-/*
- * ~afp_open_file()
- *
- * Description:
- *		Destructor for the AFPOpenFile class. The destructor closes the
- *		opened file fork.
- *
- * Returns: None
- */
-
 afp_open_file::~afp_open_file()
 {
 	if (is_fork_open())
@@ -57,18 +41,6 @@ afp_open_file::~afp_open_file()
 	}
 }
 
-
-/*
- * afp_open_file_fork()
- *
- * Description:
- *		Open the file fork for access.
- *
- *		streamName can optionally contain the name of a particular stream
- *		in the file to open.
- *
- * Returns: afpError code
- */
 
 AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD creation_disposition)
 {
@@ -154,20 +126,11 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 	m_file_handle_ = h_file;
 
 	//Now set the appropriate flags to indicate the state of the forks.
-	AFPIndexUpdateEntryFlags(m_entry_, afp_flags);
+	afp_file_index::update_entry_flags(m_entry_, afp_flags);
 
 	return AFP_OK;
 }
 
-
-/*
- * close_file_fork()
- *
- * Description:
- *		Close the file fork from access.
- *
- * Returns: afpError code
- */
 
 AFPERROR afp_open_file::close_file_fork()
 {
@@ -199,7 +162,7 @@ AFPERROR afp_open_file::close_file_fork()
 	DBGWRITE(dbg_level_all, L"Closing file %s, fork = %d\n", m_windows_path_, m_fork_);
 
 	//Now set the appropriate flags to indicate the state of the forks.
-	AFPIndexUpdateEntryFlags(m_entry_, afp_flags);
+	afp_file_index::update_entry_flags(m_entry_, afp_flags);
 
 	//Now, perform the actual close operation on the file.
 	if (m_file_handle_ != INVALID_HANDLE_VALUE)
@@ -215,15 +178,6 @@ AFPERROR afp_open_file::close_file_fork()
 	return AFP_OK;
 }
 
-
-/*
- * read_fork()
- *
- * Description:
- *		Read data from an open file fork.
- *
- * Returns: afpError code
- */
 
 AFPERROR afp_open_file::read_fork(
 	afp_net_buffer& afp_reply,
@@ -296,15 +250,6 @@ AFPERROR afp_open_file::read_fork(
 }
 
 
-/*
- * write_fork()
- *
- * Description:
- *		Write data to an open file fork.
- *
- * Returns: afpError code
- */
-
 AFPERROR afp_open_file::write_fork(
 	afp_net_buffer& afp_request,
 	const int64 afp_offset,
@@ -362,15 +307,6 @@ AFPERROR afp_open_file::write_fork(
 	return afp_error;
 }
 
-
-/*
- * file_seek()
- *
- * Description:
- *		Seek to a place in the file.
- *
- * Returns: afpError code
- */
 
 AFPERROR afp_open_file::file_seek(
 	const int64 marker_distance,
@@ -445,4 +381,9 @@ AFPERROR afp_open_file::get_stream_list(std::vector<afp_attr_info>& streams)
 {
 	// Call the extended attribute helper functions for the dirty work.
 	return GetStreams(m_windows_path_, streams);
+}
+
+bool afp_open_file::is_volume_read_only() const
+{
+    return volume_->is_read_only();
 }

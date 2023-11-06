@@ -665,21 +665,15 @@ AFPERROR FPChangePassword(
 
 			if (AFP_SUCCESS(afp_error))
 			{
-				if (!afp_mac_to_windows_string(sz_new_password, sizeof(sz_new_password_w), sz_new_password_w))
-				{
-					DBGWRITE(dbg_level_warning, L"Error converting new password to unicode\n");
-					afp_error = afpMiscErr;
-				}
-				else
-				{
-					//**** TO BE IMPLEMENTED ****
-					//afpError = afpImpChangePswd(
-					//				szUserName,
-					//				szOldPassword,
-					//				szNewPassword
-					//				);
-				}
-			}
+				const std::wstring new_password = string_to_wide_string(sz_new_password);
+
+                //**** TO BE IMPLEMENTED ****
+                //afpError = afpImpChangePswd(
+                //				szUserName,
+                //				szOldPassword,
+                //				new_password
+                //				);
+            }
 
 			SecureZeroMemory(sz_old_password, sizeof(sz_old_password));
 			SecureZeroMemory(sz_new_password, sizeof(sz_new_password));
@@ -796,14 +790,14 @@ AFPERROR FPMapID(
 		if (AFP_SUCCESS(afp_error))
 		{
 			DBGWRITE(dbg_level_info, L"Mapped id to name %s\n", sz_name);
-			afp_reply.push_unicode_string(sz_name);
+			afp_reply.push_string(sz_name, kUnicodeNames);
 		}
 		break;
 
 	//Unicode group name
 	case 4:
 		// ReSharper disable once CppStringLiteralToCharPointerConversion
-		afp_reply.push_unicode_string(TEXT("Everyone"));
+		afp_reply.push_string(TEXT("Everyone"), kUnicodeNames);
 		break;
 
 	default:
@@ -881,11 +875,11 @@ AFPERROR FPGetSrvrMsg(
 	// unicode format.
 	if (afp_message_bitmap & kSendMessageAsUnicode)
 	{
-		afp_reply.push_unicode_string(message);
+		afp_reply.push_string(message, kUnicodeNames);
 	}
 	else
 	{
-		afp_reply.push_pascal_string(message);
+		afp_reply.push_string(message);
 	}
 
 	return AFP_OK;

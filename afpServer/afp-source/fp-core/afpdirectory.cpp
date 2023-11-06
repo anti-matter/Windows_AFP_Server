@@ -162,6 +162,7 @@ AFPERROR FPGetFileDirParms(
     afp_reply.push_num(afp_file_bitmap);
     afp_reply.push_num(afp_dir_bitmap);
     afp_reply.push_num(afp_attributes);
+    afp_reply.push_num<UINT8>(0);
 
     // If both bitmaps are null, then we are to just return
     // the bitmaps and the attributes.
@@ -169,9 +170,6 @@ AFPERROR FPGetFileDirParms(
     {
         return AFP_OK;
     }
-
-    // We add a null byte when adding more parameters to separate the stuff.
-    afp_reply.push_int8(0);
 
     const auto afp_error = afp_get_object_parms(
         afp_reply,
@@ -399,7 +397,7 @@ AFPERROR FPEnumerate(
         afp_reply.push_num(afp_attributes);
         if (afp_command > afpEnumerate)
         {
-            afp_reply.push_int8(0);
+            afp_reply.push_num<UINT8>(0);
         }
 
         afp_reply.push_raw_data(parameter_buffer.get_buffer(), parameter_buffer.get_data_length());
@@ -573,9 +571,9 @@ AFPERROR FPCreateDir(
 
     afp_request.advance_pos_ptr(sizeof(int16));
 
-    const auto volume_id = afp_request.pull_num<UINT16>();
-    auto dir_id = afp_request.pull_num<UINT32>();
-    const auto afp_path_type = afp_request.pull_num<INT8>();
+    const auto volume_id = afp_request.pull_num<INT16>();
+    auto dir_id = afp_request.pull_num<INT32>();
+    const auto afp_path_type = afp_request.pull_num<UINT8>();
     const auto session = connection->get_afp_session();
 
     const std::shared_ptr<afp_volume> volume = session->find_open_volume(volume_id);
@@ -638,7 +636,7 @@ AFPERROR FPCreateDir(
             true,
             &dir_id);
 
-        create_finder_info_stream(new_dir_entry, nullptr, false);
+        create_finder_info_stream(new_dir_entry, false);
 
         volume->set_is_dirty();
 

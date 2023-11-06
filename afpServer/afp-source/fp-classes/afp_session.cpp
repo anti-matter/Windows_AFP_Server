@@ -1,10 +1,12 @@
 #include "StdAfx.h"
 #include <algorithm>
+
 #include "afp_session.h"
 #include "auto_lock.h"
 #include "afp_open_file.h"
 #include "afp_desktop.h"
 #include "afp_volumes.h"
+#include "afp_volume.h"
 
 extern std::unique_ptr<afp_volumes> g_volumes;
 

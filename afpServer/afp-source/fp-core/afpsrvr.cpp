@@ -124,11 +124,11 @@ AFPERROR FPGetSrvrInfo(
 	afp_reply.push_num<INT16>(0); //UTF-8 server name offset
 
 	// Set the machine type string and offset
-	afp_reply.add_parameter_offset(offset_machine_type, static_cast<INT16>(afp_reply.get_data_length()));
+	afp_reply.set_parameter_offset_value(offset_machine_type, static_cast<INT16>(afp_reply.get_data_length()));
 	afp_reply.push_string(AFP_MACHINE_TYPE);
 
 	// AFP versions
-	afp_reply.add_parameter_offset(offset_afp_version_count, static_cast<INT16>(afp_reply.get_data_length()));
+	afp_reply.set_parameter_offset_value(offset_afp_version_count, static_cast<INT16>(afp_reply.get_data_length()));
 	afp_reply.push_num<INT8>(AFP_VERSION_COUNT);
 	afp_reply.push_string(AFP_22_VERSION_STR);
 #ifdef AFP_VERSION_30
@@ -152,7 +152,7 @@ AFPERROR FPGetSrvrInfo(
 		--uam_count;
 	}
 
-	afp_reply.add_parameter_offset(offset_uam_count, static_cast<INT16>(afp_reply.get_data_length()));
+	afp_reply.set_parameter_offset_value(offset_uam_count, static_cast<INT16>(afp_reply.get_data_length()));
 	afp_reply.push_num(uam_count);
 
 	if (g_allow_guests)

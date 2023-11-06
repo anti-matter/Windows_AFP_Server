@@ -7,9 +7,6 @@ constexpr auto seconds_per_day = 86400L; // 24*60*60;
 constexpr auto seconds_from_1980_2000 = seconds_per_day * days_from_1980_2000;
 constexpr auto num_100_ns_per_second = 10000000L;
 
-#define REPLACEMENT_CHAR		((CHAR)'¦')
-#define REPLACEMENT_WCHAR		((WCHAR)'¦')
-
 using int32 = LONG;
 using uint32 = DWORD;
 using int16 = SHORT;
@@ -21,73 +18,6 @@ using unichar = WCHAR;
 using int64 = LONGLONG;
 using uint64 = ULONGLONG;
 using status_t = HRESULT;
-
-#define EXTRACT_BYTE(p, n)	{ \
-			(n) = *(p); \
-			(p) += sizeof(BYTE); \
-}
-#define EXTRACT_WORD(p, n)	{ \
-			(n) = ntohs(*(WORD UNALIGNED*)(p));	\
-			(p) += sizeof(WORD); \
-}
-#define EXTRACT_LONG(p, n)	{ \
-			(n) = ntohl(*(DWORD UNALIGNED*)(p)); \
-			(p) += sizeof(DWORD); \
-}
-
-#define PUSH_WORD_NBO(w,p) { \
-			(*(WORD*)(p)) = htons(w); \
-			(p) += sizeof(WORD); \
-}
-
-#define PUSH_DWRD_NBO(w,p) { \
-			(*(DWORD*)(p)) = htonl(w); \
-			(p) += sizeof(DWORD); \
-}
-
-#define PUSH_BYTE(b, p) { \
-			*(p) = b; \
-			(p) += sizeof(BYTE); \
-}
-
-#define PUSH_UINT64_NBO(i, p) { \
-			(*(ULONGLONG*)(p)) = _byteswap_uint64(i); \
-			(p) += sizeof(ULONGLONG); \
-}
-
-#define EXTRACT_STRING(p,s,c) { \
-			CHAR	_temp[MAX_AFP_STRING_LEN]; \
-			RtlCopyMemory(_temp, (p)+sizeof(BYTE), (BYTE)*(p));	\
-			_temp[(BYTE)*(p)] = '\0'; \
-			(p) += (sizeof(BYTE) + (BYTE)*(p)); \
-			AFPMacToWindowsPath(_temp, s, (c)); \
-}
-#define EXTRACT_STRINGEX(p,s,cchs,c) { \
-			if (AFPExtractStringAndAdvanceBuffPtr(&(p),s,(cchs),(c)) != NO_ERROR) { \
-				return(afpParmErr); \
-			} \
-}
-
-//Pushes a null terminated string into the buffer and
-//precedes it with a length byte (pascal style string).
-#define PUSH_CSTRING(s,p) { \
-			CHAR	_temp[MAX_AFP_STRING_LEN]; \
-			RtlZeroMemory(_temp, sizeof(_temp)); \
-			AFPWindowsToMacPath(s, sizeof(_temp), NULL, _temp); \
-			*(p) = strlen(_temp); \
-			(p) += sizeof(BYTE); \
-			RtlCopyMemory(p, _temp, strlen(_temp)); \
-			(p) += strlen(_temp); \
-}
-
-#define PUSH_ANSI_CSTRING(s,p) { \
-			*(p) = strlen(s); \
-			(p) += sizeof(BYTE); \
-			RtlCopyMemory(p, s, strlen(s)); \
-			(p) += strlen(s); \
-}
-
-#define SAFE_CLOSE_HANDLE(h) if ((h) != nullptr)  CloseHandle(h)
 
 std::string wide_string_to_string(const std::wstring & wide_string);
 std::wstring string_to_wide_string(const std::string & string);
@@ -108,7 +38,7 @@ typedef struct
 // Returns the SID for the logged in access token
 BOOL afp_get_logon_sid(
 	IN HANDLE h_token,
-	OUT std::shared_ptr<SID>& sid
+	OUT PSID sid
 );
 
 // This routine returns TRUE if the caller's process
@@ -188,25 +118,6 @@ BOOL afp_impersonate_user(
 
 BOOL afp_revert_to_self(
 	IN HANDLE h_user_token
-);
-
-PWCHAR afp_mac_to_windows_string(
-	IN PCHAR p_mac_string,
-	IN WORD cb_wide_string,
-	OUT PWCHAR p_wide_string
-);
-
-PWCHAR afp_mac_to_windows_path(
-	IN PCHAR p_afp_path,
-	OUT PWCHAR p_wide_path,
-	OUT AFPCHARMAPARRAY p_char_map
-);
-
-PCHAR afp_windows_to_mac_path(
-	IN const WCHAR* p_win_path,
-	IN WORD afp_buff_size,
-	IN AFPCHARMAPARRAY p_char_map,
-	OUT PCHAR p_afp_path
 );
 
 bool is_white_space(char c);
