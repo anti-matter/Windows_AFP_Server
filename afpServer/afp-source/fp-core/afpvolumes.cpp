@@ -5,7 +5,6 @@
 #include "afp_volumes.h"
 #include "volumes.h"
 
-extern std::unique_ptr<afp_volumes> g_volumes;
 
 /*
  * FPOpenVol()
@@ -25,7 +24,6 @@ AFPERROR FPOpenVol(
 {
     const auto afp_session = connection->get_afp_session();
     INT16 afp_volume_id = 0;
-    AFPERROR afp_error = AFP_OK;
 
     afp_request.advance_pos_ptr(sizeof(UINT16));
     const auto afp_bitmap = afp_request.pull_num<INT16>();
@@ -38,25 +36,14 @@ AFPERROR FPOpenVol(
     DBGWRITE(dbg_level_all, L"Opening volume: %s\n", afp_volume_name.c_str());
 
     // Get the volume ID for the volume to be opened.
-    if (!g_volumes->map_name_to_id(afp_volume_name, &afp_volume_id))
+    if (!afp_volumes::current()->map_name_to_id(afp_volume_name, &afp_volume_id))
     {
         DBGWRITE(dbg_level_warning, L"Requested volume doesn't exist! (%s)\n", afp_volume_name.c_str());
         return afpParmErr;
     }
 
-    // Vol passwords not supported in AFP2.2+ ??
-#if 0
-    afpError = AFPCheckVolumePassword(afpVolumeID, &pswd);
-
-    if (AFP_FAILED(afpError))
-    {
-        DBGWRITE(DbgLevelWarning, L"Bad volume password!!\n");
-        return( afpError );
-    }
-#endif
-
     // Get the volume parameters requested in the open call via the bitmap.
-    afp_error = AFPGetVolumeParameters(afp_volume_id, afp_bitmap, afp_reply);
+    AFPERROR afp_error = AFPGetVolumeParameters(afp_volume_id, afp_bitmap, afp_reply);
 
     if (AFP_SUCCESS(afp_error))
     {
@@ -157,7 +144,7 @@ AFPERROR FPGetVolParms(
     {
         // The volume has not been opened, we need to return error.
         DBGWRITE(dbg_level_info, L"Bad volume ID passed by client!\n");
-        return (afpParmErr);
+        return afpParmErr;
     }
 
     // Extract the bitmap that requests vol data from the buffer.
