@@ -11,8 +11,6 @@
 #include "afp_registry.h"
 #include "afp_volumes.h"
 
-extern std::unique_ptr<afp_volumes> g_volumes;
-
 
 DWORD AFPAddNewVolumeFromUI(
     IN WCHAR* share_name,
@@ -26,7 +24,7 @@ DWORD AFPAddNewVolumeFromUI(
     if (SUCCEEDED(dw_error))
     {
         std::filesystem::path path = share_path;
-        g_volumes->add_volume(share_name, path, 0);
+        afp_volumes::current()->add_volume(share_name, path, 0);
     }
 
     return dw_error;
@@ -37,10 +35,10 @@ DWORD AFPRemoveVolumeFromUI(
     IN WCHAR* share_name
 )
 {
-    const auto volume = g_volumes->find(share_name);
+    const auto volume = afp_volumes::current()->find(share_name);
     if (volume != nullptr)
     {
-        g_volumes->remove_volume(volume->get_volume_id());
+        afp_volumes::current()->remove_volume(volume->get_volume_id());
     }
 
     return afp_registry::remove_volume(share_name);
@@ -64,7 +62,7 @@ AFPERROR AFPGetVolumeParameters(
 )
 {
     UINT16* volume_name_offset = nullptr;
-    const std::shared_ptr<afp_volume> afp_volume = g_volumes->find(afp_volume_id);
+    const std::shared_ptr<afp_volume> afp_volume = afp_volumes::current()->find(afp_volume_id);
     ULARGE_INTEGER free_bytes_available{};
     ULARGE_INTEGER num_bytes_in_disk{};
     ULARGE_INTEGER num_free_bytes{};
@@ -95,7 +93,7 @@ AFPERROR AFPGetVolumeParameters(
 
             if ((dw_error != ERROR_IO_PENDING) && (dw_error != NO_ERROR))
             {
-                DBGWRITE(dbg_level_warning, L"[VOL]GetFreeDiskSpaceEx() failed! (%d)\n", dw_error);
+                DBGWRITE(dbg_level_warning, L"GetFreeDiskSpaceEx() failed! (%d)\n", dw_error);
                 return afpMiscErr;
             }
         }
@@ -192,7 +190,7 @@ AFPERROR AFPGetVolumeParameters(
     if (afp_bitmap & kFPVolNameBit)
     {
         volume_name_offset = reinterpret_cast<UINT16*>(afp_reply.get_current_pos_ptr());
-        afp_reply.advance_pos_ptr(sizeof(INT16));
+        afp_reply.advance_pos_ptr(sizeof(UINT16));
     }
 
     // The following 3 bits will only be set if the caller

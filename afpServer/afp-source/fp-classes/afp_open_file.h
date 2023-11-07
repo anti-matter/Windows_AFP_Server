@@ -1,6 +1,5 @@
 #pragma once
 
-#include "afphelp.h"
 #include "afp_net_buffer.h"
 
 class afp_volume;

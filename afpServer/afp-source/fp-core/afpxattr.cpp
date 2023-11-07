@@ -62,7 +62,7 @@ AFPERROR FPGetExtAttribute(
     std::filesystem::path afpPathname = afpRequest.pull_path(afpPathtype);
     if (afpPathname.empty())
     {
-        DBGWRITE(dbg_level_warning, L"Could not retrieve pathname! (%d)\n");
+        DBGWRITE(dbg_level_warning, L"Could not retrieve pathname!\n");
         return afpParmErr;
     }
 
@@ -78,7 +78,7 @@ AFPERROR FPGetExtAttribute(
     const auto afpAttrName = afpRequest.pull_path(kUnicodeNames);
     if (afpAttrName.empty())
     {
-        DBGWRITE(dbg_level_warning, L"Could not retrieve attribute name! (%d)\n");
+        DBGWRITE(dbg_level_warning, L"Could not retrieve attribute name!\n");
         return afpParmErr;
     }
 
@@ -236,7 +236,7 @@ AFPERROR FPSetExtAttribute(
     std::filesystem::path afpPathname = afpRequest.pull_path(afpPathtype);
     if (afpPathname.empty())
     {
-        DBGWRITE(dbg_level_info, L"[afp:FPSetExtAttribute]Could not retrieve pathname! (%d)\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPSetExtAttribute]Could not retrieve pathname!\n");
         return afpParmErr;
     }
 
@@ -254,7 +254,7 @@ AFPERROR FPSetExtAttribute(
 
     if (afpAttrName.empty())
     {
-        DBGWRITE(dbg_level_info, L"[afp:FPSetExtAttribute]Could not retrieve attribute name! (%d)\n");
+        DBGWRITE(dbg_level_info, L"[afp:FPSetExtAttribute]Could not retrieve attribute name!\n");
         return afpParmErr;
     }
 

@@ -1,10 +1,8 @@
 #include "stdafx.h"
 #include <thread>
-
-#include "dsi_connections.h"
-
 #include <algorithm>
 
+#include "dsi_connections.h"
 #include "afpdebug.h"
 #include "afp_session.h"
 

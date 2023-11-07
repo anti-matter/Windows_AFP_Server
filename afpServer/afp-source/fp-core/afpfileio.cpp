@@ -358,12 +358,12 @@ AFPERROR FPCreateFile(
     DBGWRITE(dbg_level_all, L"Enter\n");
 
     // First byte is padding.
-    afp_request.advance_pos_ptr(sizeof(INT8));
+    afp_request.advance_pos_ptr(sizeof(UINT8));
 
-    const auto create_flag = afp_request.pull_num<INT8>();
-    const auto volume_id = afp_request.pull_num<UINT16>();
+    const auto create_flag = afp_request.pull_num<UINT8>();
+    const auto volume_id = afp_request.pull_num<INT16>();
     const auto dir_id = afp_request.pull_num<INT32>();
-    const auto path_type = afp_request.pull_num<INT8>();
+    const auto path_type = afp_request.pull_num<UINT8>();
     const auto session = connection->get_afp_session();
 
     // The client must have previously opened the volume we are creating

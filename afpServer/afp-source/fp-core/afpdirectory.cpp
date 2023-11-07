@@ -589,7 +589,6 @@ AFPERROR FPCreateDir(
     }
 
     const auto afp_pathname = afp_request.pull_path(afp_path_type);
-    //auto afp_error = afp_request.get_pascal_string(afp_pathname, sizeof(afp_pathname), true, afp_path_type, char_map);
     if (afp_pathname.empty())
     {
         DBGWRITE(dbg_level_error, L"Failed to get pathname!\n");

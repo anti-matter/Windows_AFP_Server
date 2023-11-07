@@ -282,40 +282,6 @@ enum
 #define MAX_AFP_OPEN_DIRS		24
 #define MAX_AFP_OPEN_VOLUMES	16
 
-
-//
-//This structure keeps track of file locks. Locks are tracked on a per
-//session basis and a session who has a fork open more than once
-//can conflict with its own locks as per spec.
-//
-//typedef struct
-//{
-//    DWORD			dwLockStart;
-//    DWORD			dwLockLength;
-//
-//    LPSESSION		pSession;			//Session that locked the range
-//    PVOID			nextLockEntry;		//Ptr to next lock entry in list
-//}BRL_LOCK_ENTRY, *LPBRL_LOCK_ENTRY;
-
-//
-//AFP worker thread parameter structure and enums
-//
-typedef struct
-{
-    PVOID pParam1;
-    PVOID pParam2;
-    DWORD dwParam;
-    DWORD dwWorkerFunction;
-    PVOID next;
-} AFP_WORKER_ELEMENT, *PAFP_WORKER_ELEMENT;
-
-enum
-{
-    afp_worker_delete_index_entry = 1,
-    afp_worker_index_directory = 2,
-    afp_worker_index_complete = 3
-};
-
 using afp_clear_text_password = unsigned char[8];
 
 // ReSharper disable CppInconsistentNaming

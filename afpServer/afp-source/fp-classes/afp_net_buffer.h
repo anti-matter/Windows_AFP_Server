@@ -37,6 +37,7 @@ public:
 	void push_multi_byte_string(const std::string& mac_string);
 
 	void pull_raw_data(void* buffer, size_t amount);
+	void push_raw_data(const void* data, size_t size);
 
 	template <class T>
 	AFPERROR push_num(T value);
@@ -45,10 +46,10 @@ public:
 	T pull_num();
 
 	template <class T>
-	T get_num() const;
+	T* get_ptr_offset();
 
 	template <class T>
-	T* get_ptr_offset();
+	T peek_num();
 
     [[nodiscard]] size_t get_data_length() const;
 
@@ -63,7 +64,6 @@ public:
 	[[nodiscard]] size_t get_buffer_size() const;
 
     void advance_pos_ptr(UINT32 offset);
-    void push_raw_data(const void* data, size_t size);
     void advance_if_odd();
 	void advance_to(INT32 offset);
 	void rewind();
@@ -106,13 +106,17 @@ T* afp_net_buffer::get_ptr_offset()
 	return offset;
 }
 
-/*
- * push_num()
- *
- * Description:
- *		Extracts a number of type T from the buffer and advances
- *		the position pointer by sizeof(T).
- */
+// Returns the numerical value at the current ptr offset
+// without advancing the ptr.
+template <class T>
+T afp_net_buffer::peek_num()
+{
+	const auto value = pull_num<T>();
+	current_buffer_ptr_ -= sizeof(T);
+
+	return value;
+}
+
 template <class T>
 AFPERROR afp_net_buffer::push_num(T value)
 {
@@ -135,13 +139,6 @@ AFPERROR afp_net_buffer::push_num(T value)
 	return AFP_OK;
 }
 
-/*
- * pull_num()
- *
- * Description:
- *		Pulls a number of type T from the buffer and advances the
- *		position pointer by sizeof(T).
- */
 template <class T>
 T afp_net_buffer::pull_num()
 {
@@ -159,24 +156,6 @@ T afp_net_buffer::pull_num()
 	advance_pos_ptr(sizeof(T));
 
 	return result;
-}
-
-/*
- * get_num()
- *
- * Description:
- *		Retrieves a number of type T from the current position in the buffer.
- *		This method does NOT advance_pos_ptr the position pointer.
- */
-template <class T>
-T afp_net_buffer::get_num() const
-{
-	if (sizeof(T) > 1)
-	{
-		return byte_swap<T>(*reinterpret_cast<T*>(current_buffer_ptr_));
-	}
-
-	return *reinterpret_cast<T*>(current_buffer_ptr_);
 }
 
 __pragma(warning(pop))
@@ -230,7 +209,7 @@ inline void afp_net_buffer::push_raw_data(const void* data, const size_t size)
 		return;
 	}
 
-	memcpy(get_current_pos_ptr(), data, size);
+	memcpy(current_buffer_ptr_, data, size);
 	advance_pos_ptr(size);
 }
 

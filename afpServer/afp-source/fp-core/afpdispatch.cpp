@@ -115,7 +115,7 @@ AFPERROR fp_unimplemented(
 	UNREFERENCED_PARAMETER(connection);
 
 	DBGWRITE(dbg_level_error, L"Call not implemented (%d)\n", afp_request.pull_num<INT8>());
-	return (afpCallNotSupported);
+	return afpCallNotSupported;
 }
 
 
@@ -135,7 +135,7 @@ AFPERROR fp_dispatch_command(
 	IN dsi::dsi_connection* connection
 )
 {
-	const auto afp_command = afp_request.get_num<UINT8>();
+	const auto afp_command = afp_request.peek_num<UINT8>();
 	AFPERROR afp_error = afpCallNotSupported;
 
 	// Whether we're authenticated or not is how we determine

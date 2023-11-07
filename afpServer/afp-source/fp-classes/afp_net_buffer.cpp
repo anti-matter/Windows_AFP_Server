@@ -142,7 +142,7 @@ std::string afp_net_buffer::pull_multi_byte_string()
 		pull_raw_data(raw, string_length);
 		raw[string_length] = '\0';
 
-		std::string mb_string(raw);
+		std::string mb_string = raw;
 		return mb_string;
 	}
 
@@ -159,21 +159,11 @@ void afp_net_buffer::push_multi_byte_string(const std::string& mac_string)
 	push_raw_data(mac_string.data(), mac_string.size());
 }
 
-
-/*
- * pull_raw_data()
- *
- * Description:
- *		Extracts an raw data from the buffer and advances the
- *		buffer pointer.
- *
- * Returns: void
- */
 void afp_net_buffer::pull_raw_data(void* buffer, const size_t amount)
 {
 	if (current_buffer_ptr_ + amount > buffer_ + buffer_size_)
 	{
-		DBGWRITE(dbg_level_error, L"Reading past end of buffer!");
+		DBGWRITE(dbg_level_error, L"Reading past end of buffer!\n");
 		ASSERT(0);
 
 		return;
@@ -182,7 +172,6 @@ void afp_net_buffer::pull_raw_data(void* buffer, const size_t amount)
 	memcpy(buffer, current_buffer_ptr_, amount);
 	current_buffer_ptr_ += amount;
 }
-
 
 bool afp_net_buffer::check_space_needed(const size_t space_needed) const
 {
