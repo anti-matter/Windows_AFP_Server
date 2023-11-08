@@ -3,6 +3,8 @@
 // ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
 #include "StdAfx.h"
 #include "afpsrvr.h"
+
+#include "afphelp.h"
 #include "afp_volumes.h"
 #include "dsi/dsi_connection.h"
 

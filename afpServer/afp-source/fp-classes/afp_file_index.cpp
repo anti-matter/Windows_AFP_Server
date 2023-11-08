@@ -46,7 +46,7 @@ afp_file_index::~afp_file_index() = default;
  */
 
 afp_index* afp_file_index::add_entry(
-    const UINT32 par_id,
+    const INT32 par_id,
     const std::wstring& p_object_name,
     const std::filesystem::path& p_object_path,
     const bool is_directory,
@@ -179,7 +179,7 @@ void afp_file_index::update_entry(afp_index* entry, afp_index* new_parent, const
 			if (sub_entry->par_id != entry->object_id)
 				continue;
 
-			update_entry(sub_entry, entry, nullptr);
+			update_entry(sub_entry, entry, L"");
 		}
 	}
 }

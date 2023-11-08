@@ -1,6 +1,5 @@
 #pragma once
 #include <filesystem>
-#include "afphelp.h"
 
 constexpr INT32 hash_multiplier = 1024;
 
@@ -45,7 +44,7 @@ public:
 	~afp_file_index();
 
 	afp_index* add_entry(
-		UINT32 par_id,
+		INT32 par_id,
         const std::wstring& p_object_name,
         const std::filesystem::path& p_object_path,
 		bool is_directory,
@@ -67,7 +66,7 @@ public:
 	UINT32 get_offspring(INT32 par_id, std::vector<afp_index*>& offspring);
 	UINT32 get_offspring(INT32 par_id);
 
-	UINT32 next_id() { return m_next_id_++; }
+	INT32 next_id() { return m_next_id_++; }
 
 	[[nodiscard]] std::reference_wrapper<std::recursive_mutex> get_mutex() { return std::ref(mutex_); }
 
@@ -80,5 +79,5 @@ private:
 	std::recursive_mutex mutex_;
 	std::vector<std::unique_ptr<afp_index>> m_index_;
 
-	UINT32 m_next_id_;
+	INT32 m_next_id_;
 };
