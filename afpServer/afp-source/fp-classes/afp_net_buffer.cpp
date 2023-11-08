@@ -21,10 +21,10 @@ std::wstring afp_net_buffer::pull_path(const UINT8 path_type)
 	switch(path_type)
 	{
 	case kLongNames:
-		result_str = convert_to_windows_path(pull_multi_byte_string());
+		result_str = convert_to_windows_path(pull_multi_byte_string<UINT8>());
 		return result_str;
 	case kUnicodeNames:
-		result_str = convert_to_windows_path(pull_unicode_string(true));
+		result_str = convert_to_windows_path(pull_multi_byte_string<UINT16>(true));
 		return result_str;
 	default:
 		break;
@@ -62,7 +62,7 @@ std::wstring afp_net_buffer::pull_string(const UINT8 path_type)
 	case kLongNames:
 		return pull_wide_string();
 	case kUnicodeNames:
-		return string_to_wide_string(pull_unicode_string());
+		return string_to_wide_string(pull_multi_byte_string<UINT16>());
 	default:
 		break;
 	}
@@ -130,41 +130,28 @@ std::string afp_net_buffer::convert_to_mac_path(const std::wstring& win_path)
 
 std::wstring afp_net_buffer::pull_wide_string()
 {
-	const auto mb_string = pull_multi_byte_string();
+	const auto mb_string = pull_multi_byte_string<UINT8>();
     return string_to_wide_string(mb_string);
 }
 
-std::string afp_net_buffer::pull_multi_byte_string()
+template <class T>
+std::string afp_net_buffer::pull_multi_byte_string(const bool is_afp_path)
 {
-	const auto string_length = pull_num<UINT8>();
-
-	if (string_length <= 0 || string_length >= MAXBYTE)
-    {
-        DBGWRITE(dbg_level_error, L"String length error: path type=kLongNames, length=%d\n", string_length);
-        return "";
-    }
-
-    char raw[MAX_AFP30_PATH];
-
-    pull_raw_data(raw, string_length);
-    raw[string_length] = '\0';
-
-    std::string mb_string = raw;
-    return mb_string;
-}
-
-std::string afp_net_buffer::pull_unicode_string(const bool is_path)
-{
-	if (is_path)
+	if (is_afp_path && sizeof(T) > 1)
 	{
+		// Ignore the hint in an afp path.
 		pull_num<UINT32>();
 	}
 
-	const auto string_length = pull_num<UINT16>();
+	const auto string_length = sizeof(T) == 1 ? pull_num<UINT8>() : pull_num<UINT16>();
+	if (string_length == 0)
+	{
+		return "";
+	}
 
-	if (string_length <= 0 || string_length >= MAX_AFP30_PATH)
+	if (string_length >= MAXBYTE)
     {
-        DBGWRITE(dbg_level_error, L"String length error: path type=kUnicodeNames, length=%d\n", string_length);
+        DBGWRITE(dbg_level_error, L"String length error: path type=kLongNames, length=%d\n", string_length);
         return "";
     }
 
