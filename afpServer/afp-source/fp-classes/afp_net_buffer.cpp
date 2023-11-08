@@ -103,6 +103,15 @@ std::wstring afp_net_buffer::convert_to_windows_path(const std::string& mac_path
 		replacement++;
 	}
 
+	// Replace non printable characters the filesystem can't use.
+	for (wchar_t c : win_path)
+	{
+	    if (c < 32)
+	    {
+			c = '+';
+	    }
+	}
+
 	// Mac uses ':' as the path separator, convert to windows.
 	std::ranges::replace(win_path, L':', L'\\');
 
@@ -144,13 +153,13 @@ std::string afp_net_buffer::pull_multi_byte_string(const bool is_afp_path)
 		pull_num<UINT32>();
 	}
 
-	const int string_length = sizeof(T) == 1 ? pull_num<UINT8>() : pull_num<UINT16>();
+	const size_t string_length = sizeof(T) == 1 ? pull_num<UINT8>() : pull_num<UINT16>();
 	if (string_length == 0)
 	{
 		return "";
 	}
 
-	if (string_length >= (sizeof(T) == 1 ? MAXBYTE : MAX_AFP30_PATH))
+	if (string_length >= (sizeof(T) == 1 ? max_pascal_string_length : MAX_AFP30_PATH))
     {
         DBGWRITE(dbg_level_error, L"String length error: path type=kLongNames, length=%d\n", string_length);
         return "";
@@ -168,9 +177,14 @@ std::string afp_net_buffer::pull_multi_byte_string(const bool is_afp_path)
 template <class T>
 void afp_net_buffer::push_multi_byte_string(const std::string& mac_string)
 {
-	sizeof(T) == sizeof(UINT8)
-        ? push_num(static_cast<UINT8>(mac_string.length()))
-        : push_num(static_cast<UINT16>(mac_string.length()));
+	if (sizeof(T) == 1)
+	{
+		push_num(static_cast<UINT8>(mac_string.length()));
+	}
+	else
+	{
+		push_num(static_cast<UINT16>(mac_string.length()));
+	}
 
 	push_raw_data(mac_string.data(), mac_string.size());
 }
