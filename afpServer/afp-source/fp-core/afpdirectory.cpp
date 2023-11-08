@@ -31,8 +31,8 @@ AFPERROR FPResolveID(
     afp_request.advance_pos_ptr(sizeof(INT16));
 
     const auto afp_volume_id = afp_request.pull_num<INT16>();
-    const auto afp_file_id = afp_request.pull_num<UINT32>();
-    auto afp_bitmap = afp_request.pull_num<UINT16>();
+    const auto afp_file_id = afp_request.pull_num<INT32>();
+    auto afp_bitmap = afp_request.pull_num<INT16>();
 
     // Get a pointer to the volume info structure for this volume.
     const auto afp_session = connection->get_afp_session();
@@ -119,10 +119,6 @@ AFPERROR FPGetFileDirParms(
     }
 
     const auto afp_pathname = afp_request.pull_path(afp_path_type);
-    if (afp_pathname.empty())
-    {
-        return afpParmErr;
-    }
 
     const auto afp_entry = volume->find(afp_dir_id, afp_pathname);
     if (afp_entry == nullptr)
@@ -249,10 +245,6 @@ AFPERROR FPEnumerate(
     }
 
     const auto afp_pathname = afp_request.pull_path(afp_path_type);
-    if (afp_pathname.empty())
-    {
-        return afpParmErr;
-    }
 
     DBGWRITE(dbg_level_info, L"Enumerating directory: %d, path: %s\n", afp_dir_id, afp_pathname.c_str());
     DBGWRITE(dbg_level_all, L"Start index: %d\n", afp_start_index);
@@ -459,10 +451,10 @@ AFPERROR FPSetFileDirParms(
     const auto afp_command = afp_request.pull_num<INT8>();
     afp_request.advance_pos_ptr(sizeof(INT8));
 
-    const auto afp_vol_id = afp_request.pull_num<UINT16>();
-    const auto afp_dir_id = afp_request.pull_num<UINT32>();
+    const auto afp_vol_id = afp_request.pull_num<INT16>();
+    const auto afp_dir_id = afp_request.pull_num<INT32>();
     const auto afp_bitmap = afp_request.pull_num<UINT16>();
-    const auto afp_path_type = afp_request.pull_num<INT8>();
+    const auto afp_path_type = afp_request.pull_num<UINT8>();
 
     const auto volume = connection->get_afp_session()->find_open_volume(afp_vol_id);
     if (volume == nullptr)
@@ -476,10 +468,6 @@ AFPERROR FPSetFileDirParms(
     }
 
     const auto afp_pathname = afp_request.pull_path(afp_path_type);
-    if (afp_pathname.empty())
-    {
-        return afpParmErr;
-    }
 
     // The remaining parameters for the call must start on an
     // even boundary.
@@ -669,9 +657,9 @@ AFPERROR FPDelete(
 
     afp_request.advance_pos_ptr(sizeof(INT16));
 
-    const auto afp_volume_id = afp_request.pull_num<UINT16>();
-    const auto afp_dir_id = afp_request.pull_num<UINT32>();
-    const auto afp_path_type = afp_request.pull_num<INT8>();
+    const auto afp_volume_id = afp_request.pull_num<INT16>();
+    const auto afp_dir_id = afp_request.pull_num<INT32>();
+    const auto afp_path_type = afp_request.pull_num<UINT8>();
 
     const auto volume = connection->get_afp_session()->find_open_volume(afp_volume_id);
     if (volume == nullptr)
@@ -780,10 +768,10 @@ AFPERROR FPCopyFile(
 
     afp_request.advance_pos_ptr(sizeof(INT16));
 
-    const auto afp_src_vol_id = afp_request.pull_num<UINT16>();
-    const auto afp_src_dir_id = afp_request.pull_num<UINT32>();
-    const auto afp_dst_vol_id = afp_request.pull_num<UINT16>();
-    const auto afp_dst_dir_id = afp_request.pull_num<UINT32>();
+    const auto afp_src_vol_id = afp_request.pull_num<INT16>();
+    const auto afp_src_dir_id = afp_request.pull_num<INT32>();
+    const auto afp_dst_vol_id = afp_request.pull_num<INT16>();
+    const auto afp_dst_dir_id = afp_request.pull_num<INT32>();
 
     // Get the pathname of the object we're copying.
     auto afp_path_type = afp_request.pull_num<INT8>();
@@ -895,10 +883,10 @@ AFPERROR FPMoveAndRename(
 
     afp_request.advance_pos_ptr(sizeof(INT16));
 
-    const auto afp_volume_id = afp_request.pull_num<UINT16>();
-    const auto afp_src_dir_id = afp_request.pull_num<UINT32>();
-    const auto afp_dst_dir_id = afp_request.pull_num<UINT32>();
-    auto afp_path_type = afp_request.pull_num<INT8>();
+    const auto afp_volume_id = afp_request.pull_num<INT16>();
+    const auto afp_src_dir_id = afp_request.pull_num<INT32>();
+    const auto afp_dst_dir_id = afp_request.pull_num<INT32>();
+    auto afp_path_type = afp_request.pull_num<UINT8>();
 
     const auto volume = connection->get_afp_session()->find_open_volume(afp_volume_id);
     if (volume == nullptr)
@@ -916,10 +904,6 @@ AFPERROR FPMoveAndRename(
     //*****************
 
     auto afp_pathname = afp_request.pull_path(afp_path_type);
-    if (afp_pathname.empty())
-    {
-        return afpParmErr;
-    }
 
     const auto afp_src_entry = volume->find(afp_src_dir_id, afp_pathname);
     if (afp_src_entry == nullptr)
@@ -947,10 +931,6 @@ AFPERROR FPMoveAndRename(
 
     afp_path_type = afp_request.pull_num<INT8>();
     afp_pathname = afp_request.pull_path(afp_path_type);
-    if (afp_pathname.empty())
-    {
-        return afpParmErr;
-    }
 
     const auto afp_dst_entry = volume->find(afp_dst_dir_id, afp_pathname);
     if (afp_dst_entry == nullptr)
@@ -961,10 +941,6 @@ AFPERROR FPMoveAndRename(
 
     afp_path_type = afp_request.pull_num<INT8>();
     const auto afp_new_pathname = afp_request.pull_path(afp_path_type);
-    if (afp_new_pathname.empty())
-    {
-        return afpObjectNotFound;
-    }
 
     // Build the correct path to the newly moved and/or renamed object.
     std::filesystem::path win_dst_path;
@@ -1029,9 +1005,9 @@ AFPERROR FPRename(
 
     afp_request.advance_pos_ptr(sizeof(INT16));
 
-    const auto afp_volume_id = afp_request.pull_num<UINT16>();
-    const auto afp_dir_id = afp_request.pull_num<UINT32>();
-    auto afp_path_type = afp_request.pull_num<INT8>();
+    const auto afp_volume_id = afp_request.pull_num<INT16>();
+    const auto afp_dir_id = afp_request.pull_num<INT32>();
+    auto afp_path_type = afp_request.pull_num<UINT8>();
 
     const auto volume = connection->get_afp_session()->find_open_volume(afp_volume_id);
     if (volume == nullptr)
