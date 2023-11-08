@@ -177,13 +177,18 @@ std::string afp_net_buffer::pull_multi_byte_string(const bool is_afp_path)
 template <class T>
 void afp_net_buffer::push_multi_byte_string(const std::string& mac_string)
 {
-	if (sizeof(T) == 1)
+	if constexpr (sizeof(T) > 1)
 	{
-		push_num(static_cast<UINT8>(mac_string.length()));
+		// This is supposed to be the encoding hint. We need to
+		// build an encoding mapping table before we can use this.
+		// for now, 0 == MAC_ROMAN encoding.
+		push_num<UINT32>(0);
+
+		push_num(static_cast<UINT16>(mac_string.length()));
 	}
 	else
 	{
-		push_num(static_cast<UINT16>(mac_string.length()));
+		push_num(static_cast<UINT8>(mac_string.length()));
 	}
 
 	push_raw_data(mac_string.data(), mac_string.size());
