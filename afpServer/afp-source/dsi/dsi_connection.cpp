@@ -318,14 +318,16 @@ namespace dsi
 		kill_connection();
 	}
 
-	void dsi_connection::dsi_process_command(char* receive_buffer, char* reply_buffer, UINT8 dsi_cmd, UINT16 client_request_id, UINT8 afp_cmd)
+	void dsi_connection::dsi_process_command(char* receive_buffer, char* reply_buffer, const UINT8 dsi_cmd, const UINT16 client_request_id, const UINT8 afp_cmd)
 	{
 		// Get a wrapper for the AFP request payload.
-		afp_net_buffer request(&receive_buffer[dsi_offset_data_start], dsi_server_request_quantum_size);
+		afp_net_buffer request(
+			&receive_buffer[dsi_offset_data_start],
+			ntohl(*reinterpret_cast<UINT32*>(&receive_buffer[dsi_offset_data_len])));
 		request.set_dsi_data_offset(ntohl(*reinterpret_cast<UINT32*>(&receive_buffer[dsi_offset_data_offset])));
 
 		// Get a wrapper for the AFP reply payload.
-		afp_net_buffer reply(&reply_buffer[dsi_offset_data_start], dsi_server_request_quantum_size);
+		afp_net_buffer reply(&reply_buffer[dsi_offset_data_start], SEND_BUFFER_SIZE);
 
         DBGWRITE(dbg_level_info, L"Processing AFP cmd: %d\n", afp_cmd);
 
@@ -413,7 +415,7 @@ namespace dsi
 
 		} while (true);
 
-		DBGWRITE(dbg_level_info, L"Bytes sent: %d\n", bytes_sent);
+		DBGWRITE(dbg_level_info, L"Bytes sent: %d\n", bytes_sent+offset);
 
 		if (bytes_sent < 0)
 		{
@@ -427,19 +429,19 @@ namespace dsi
 		const UINT8 dsi_command,
 		const UINT16 client_request_id,
 		const INT32 afp_error,
-		const INT32 data_size)
+		const INT32 afp_data_size)
 	{
-		afp_net_buffer header(reply_buffer, dsi_header_size + data_size);
+		afp_net_buffer header(reply_buffer, dsi_header_size + afp_data_size);
 		header.push_num<UINT8>(dsi_reply_flag);
 		header.push_num<UINT8>(dsi_command);
 		header.push_num<UINT16>(client_request_id);
 		header.push_num<INT32>(afp_error);
-		header.push_num<UINT32>(data_size);
+		header.push_num<UINT32>(afp_data_size);
 		header.push_num<UINT32>(0);
 
 		last_tickle_ = GetTickCount64();
 
-		send_(reply_buffer, data_size + dsi_header_size);
+		send_(reply_buffer, afp_data_size + dsi_header_size);
 	}
 
     void dsi_connection::send_request(char* buffer, const UINT8 dsi_command, const INT32 afp_data_size)

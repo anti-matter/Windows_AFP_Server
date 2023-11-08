@@ -16,12 +16,18 @@ afp_net_buffer::afp_net_buffer(_In_ char* afp_buffer, _In_ const size_t cb_buffe
 
 std::wstring afp_net_buffer::pull_path(const UINT8 path_type)
 {
+	std::wstring result_str;
+
 	switch(path_type)
 	{
 	case kLongNames:
-		return convert_to_windows_path(pull_multi_byte_string<UINT8>());
+		result_str = convert_to_windows_path(pull_multi_byte_string<UINT8>(true));
+		DBGWRITE(dbg_level_all, L"Pulled path: %s (%s)\n", result_str.c_str(), L"kLongNames");
+		return result_str;
 	case kUnicodeNames:
-		return convert_to_windows_path(pull_multi_byte_string<INT16>());
+		result_str = convert_to_windows_path(pull_multi_byte_string<INT16>(true));
+		DBGWRITE(dbg_level_all, L"Pulled path: %s (%s)\n", result_str.c_str(), L"kUnicodeNames");
+		return result_str;
 	default:
 		break;
 	}
@@ -131,22 +137,32 @@ std::wstring afp_net_buffer::pull_wide_string()
 }
 
 template <class T>
-std::string afp_net_buffer::pull_multi_byte_string()
+std::string afp_net_buffer::pull_multi_byte_string(const bool is_path)
 {
+	if (sizeof(T) == sizeof(UINT16) && is_path)
+	{
+		pull_num<UINT32>();
+	}
+
 	const auto string_length = pull_num<T>();
 
-	if (string_length > 0)
+	if (string_length > 0 && string_length < MAX_AFP30_PATH)
 	{
 		char raw[MAX_AFP30_PATH];
 
 		pull_raw_data(raw, string_length);
+
 		raw[string_length] = '\0';
 
 		std::string mb_string = raw;
 		return mb_string;
 	}
 
-	return "";
+    DBGWRITE(dbg_level_error, L"String length error: path type=%s, length=%d\n",
+             sizeof(T) == sizeof(UINT8) ? L"kLongNames" : L"kUnicodeNames",
+             string_length);
+
+    return "";
 }
 
 template <class T>

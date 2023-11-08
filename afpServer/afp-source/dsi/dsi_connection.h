@@ -87,7 +87,7 @@ namespace dsi
 		UINT16 get_next_request_id();
 
         void send_(const char* buffer, INT32 send_size);
-		void send_reply(char* reply_buffer, UINT8 dsi_command, UINT16 client_request_id, INT32 afp_error, INT32 data_size);
+		void send_reply(char* reply_buffer, UINT8 dsi_command, UINT16 client_request_id, INT32 afp_error, INT32 afp_data_size);
 		void send_request(char* buffer, UINT8 dsi_command, INT32 afp_data_size);
 		void send_tickle();
 		void send_attention(UINT16 code);

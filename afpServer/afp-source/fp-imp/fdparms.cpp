@@ -291,8 +291,6 @@ AFPERROR afp_get_object_parms(
         }
     }
 
-    DBG_DUMP_BUFFER(reply.get_buffer(), 256);
-
     return AFP_OK;
 }
 
