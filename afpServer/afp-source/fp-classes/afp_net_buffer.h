@@ -30,8 +30,8 @@ public:
 
 	std::wstring pull_wide_string();
 
-	template <class T>
-	std::string pull_multi_byte_string(bool is_path = false);
+	std::string pull_multi_byte_string();
+	std::string pull_unicode_string(bool is_path = false);
 
 	template <class T>
 	void push_multi_byte_string(const std::string& mac_string);

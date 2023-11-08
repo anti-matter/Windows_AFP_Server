@@ -21,12 +21,10 @@ std::wstring afp_net_buffer::pull_path(const UINT8 path_type)
 	switch(path_type)
 	{
 	case kLongNames:
-		result_str = convert_to_windows_path(pull_multi_byte_string<UINT8>(true));
-		DBGWRITE(dbg_level_all, L"Pulled path: %s (%s)\n", result_str.c_str(), L"kLongNames");
+		result_str = convert_to_windows_path(pull_multi_byte_string());
 		return result_str;
 	case kUnicodeNames:
-		result_str = convert_to_windows_path(pull_multi_byte_string<INT16>(true));
-		DBGWRITE(dbg_level_all, L"Pulled path: %s (%s)\n", result_str.c_str(), L"kUnicodeNames");
+		result_str = convert_to_windows_path(pull_unicode_string(true));
 		return result_str;
 	default:
 		break;
@@ -64,7 +62,7 @@ std::wstring afp_net_buffer::pull_string(const UINT8 path_type)
 	case kLongNames:
 		return pull_wide_string();
 	case kUnicodeNames:
-		return string_to_wide_string(pull_multi_byte_string<INT16>());
+		return string_to_wide_string(pull_unicode_string());
 	default:
 		break;
 	}
@@ -132,37 +130,51 @@ std::string afp_net_buffer::convert_to_mac_path(const std::wstring& win_path)
 
 std::wstring afp_net_buffer::pull_wide_string()
 {
-	const auto mb_string = pull_multi_byte_string<INT8>();
+	const auto mb_string = pull_multi_byte_string();
     return string_to_wide_string(mb_string);
 }
 
-template <class T>
-std::string afp_net_buffer::pull_multi_byte_string(const bool is_path)
+std::string afp_net_buffer::pull_multi_byte_string()
 {
-	if (sizeof(T) == sizeof(UINT16) && is_path)
+	const auto string_length = pull_num<UINT8>();
+
+	if (string_length <= 0 || string_length >= MAXBYTE)
+    {
+        DBGWRITE(dbg_level_error, L"String length error: path type=kLongNames, length=%d\n", string_length);
+        return "";
+    }
+
+    char raw[MAX_AFP30_PATH];
+
+    pull_raw_data(raw, string_length);
+    raw[string_length] = '\0';
+
+    std::string mb_string = raw;
+    return mb_string;
+}
+
+std::string afp_net_buffer::pull_unicode_string(const bool is_path)
+{
+	if (is_path)
 	{
 		pull_num<UINT32>();
 	}
 
-	const auto string_length = pull_num<T>();
+	const auto string_length = pull_num<UINT16>();
 
-	if (string_length > 0 && string_length < MAX_AFP30_PATH)
-	{
-		char raw[MAX_AFP30_PATH];
+	if (string_length <= 0 || string_length >= MAX_AFP30_PATH)
+    {
+        DBGWRITE(dbg_level_error, L"String length error: path type=kUnicodeNames, length=%d\n", string_length);
+        return "";
+    }
 
-		pull_raw_data(raw, string_length);
+    char raw[MAX_AFP30_PATH];
 
-		raw[string_length] = '\0';
+    pull_raw_data(raw, string_length);
+    raw[string_length] = '\0';
 
-		std::string mb_string = raw;
-		return mb_string;
-	}
-
-    DBGWRITE(dbg_level_error, L"String length error: path type=%s, length=%d\n",
-             sizeof(T) == sizeof(UINT8) ? L"kLongNames" : L"kUnicodeNames",
-             string_length);
-
-    return "";
+    std::string mb_string = raw;
+    return mb_string;
 }
 
 template <class T>
