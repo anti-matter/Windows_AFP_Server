@@ -59,7 +59,7 @@ AFPERROR get_finder_info(
     if (h_file == INVALID_HANDLE_VALUE)
     {
         dw_error = GetLastError();
-        DBGWRITE(dbg_level_error, L"CreatFile() failed in get_finder_info_ex! (%d) (%s)\n", dw_error, path.c_str());
+        DBGWRITE(dbg_level_error, L"CreatFile() failed in get_finder_info! (%d) (%s)\n", dw_error, path.c_str());
 
         return afp_map_win_error_to_afp(dw_error, afpMiscErr);
     }

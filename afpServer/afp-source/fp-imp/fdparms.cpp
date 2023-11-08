@@ -233,13 +233,19 @@ AFPERROR afp_get_object_parms(
 
         if (bitmap & (kFPRFLen | kFPExtRsrcForkLen))
         {
-            afp_open_file afp_file(volume_id, dir_id, kReadMode, static_cast<INT8>(kAttrFork), entry, entry->sz_path.c_str());
+            const afp_open_file afp_file(
+                volume_id,
+                dir_id,
+                kReadMode,
+                static_cast<INT8>(kAttrFork),
+                entry,
+                entry->sz_path.c_str());
 
             rsrc_size64.QuadPart = afp_file.get_stream_length(const_cast<wchar_t*>(AFP_RESOURCE_FORK_NAME_PLAIN));
-
             if (rsrc_size64.QuadPart == BAD_LENGTH_64)
             {
-                DBGWRITE(dbg_level_warning, L"GetStreamLength() failed! (%d) (%s)\n", GetLastError(), entry->sz_object_name.c_str());
+                // Likely just doesn't have a resource fork.
+                DBGWRITE(dbg_level_all, L"No resource fork for: %s\n", entry->sz_object_name.c_str());
                 rsrc_size64.QuadPart = 0;
             }
             else

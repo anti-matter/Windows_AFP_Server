@@ -187,8 +187,8 @@ afp_desk_item* afp_desktop::find(const afp_desk_item* match_item, const UINT16 s
                 // Make sure the provided search index is in range.
                 if (index > num_icons)
                 {
-                    DBGWRITE(dbg_level_warning, L"Icon search index out of range! (%d vs %d)", search_index, num_icons);
-                    return false;
+                    DBGWRITE(dbg_level_warning, L"Icon search index out of range! (%d vs %d)\n", search_index, num_icons);
+                    return true;
                 }
 
                 //const auto itr = std::ranges::find_if(desk_items_, [&](const std::unique_ptr<afp_desk_item>& i3)
@@ -203,8 +203,8 @@ afp_desk_item* afp_desktop::find(const afp_desk_item* match_item, const UINT16 s
             {
                 if (index > num_appl)
                 {
-                    DBGWRITE(dbg_level_warning, L"APPL search index out of range! (%d vs %d)", search_index, num_appl);
-                    return false;
+                    DBGWRITE(dbg_level_warning, L"APPL search index out of range! (%d vs %d)\n", search_index, num_appl);
+                    return true;
                 }
 
                 ++index;

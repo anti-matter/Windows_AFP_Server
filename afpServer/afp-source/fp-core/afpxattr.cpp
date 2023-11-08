@@ -667,7 +667,7 @@ LONGLONG GetStreamLen(
             }
         }
 
-        DBGWRITE(dbg_level_info, L"Stream name not found!\n");
+        DBGWRITE(dbg_level_info, L"Stream name (%s) not found!\n", streamName);
     }
 
     return BAD_LENGTH_64;
