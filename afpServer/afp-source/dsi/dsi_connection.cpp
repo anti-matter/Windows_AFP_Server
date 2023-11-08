@@ -79,7 +79,8 @@ namespace dsi
             if (bytes_received < 0)
             {
                 DBGWRITE(dbg_level_error, L"Error from recv(): %d)\n", WSAGetLastError());
-                continue;
+				kill_connection();
+				break;
             }
 
             bytes_in_buffer += static_cast<UINT16>(bytes_received);
