@@ -137,19 +137,20 @@ std::wstring afp_net_buffer::pull_wide_string()
 template <class T>
 std::string afp_net_buffer::pull_multi_byte_string(const bool is_afp_path)
 {
+	// T is the type of the value that denotes the length of the string.
 	if (is_afp_path && sizeof(T) > 1)
 	{
 		// Ignore the hint in an afp path.
 		pull_num<UINT32>();
 	}
 
-	const auto string_length = sizeof(T) == 1 ? pull_num<UINT8>() : pull_num<UINT16>();
+	const int string_length = sizeof(T) == 1 ? pull_num<UINT8>() : pull_num<UINT16>();
 	if (string_length == 0)
 	{
 		return "";
 	}
 
-	if (string_length >= MAXBYTE)
+	if (string_length >= (sizeof(T) == 1 ? MAXBYTE : MAX_AFP30_PATH))
     {
         DBGWRITE(dbg_level_error, L"String length error: path type=kLongNames, length=%d\n", string_length);
         return "";
