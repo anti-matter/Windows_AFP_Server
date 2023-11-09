@@ -85,7 +85,7 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
       </DataExecutionPrevention>
       <TargetMachine>MachineX86</TargetMachine>
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
-      <AdditionalDependencies>legacy_stdio_definitions.lib;libcrypto32MT.lib;libssl32MT.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>legacy_stdio_definitions.lib;libcrypto32MT.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
     </Link>
     <Manifest>
@@ -128,8 +128,8 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
     </ResourceCompile>
     <Link>
       <AdditionalOptions>Ws2_32.lib %(AdditionalOptions)</AdditionalOptions>
-      <OutputFile>$(OutDir)afpServer.exe</OutputFile>
-      <Version>1.0</Version>
+      <OutputFile>$(OutDir)AfpServer.exe</OutputFile>
+      <Version>2.0</Version>
       <AdditionalLibraryDirectories>$(SolutionDir)afpServer\deps\openssl-1.1\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <GenerateManifest>false</GenerateManifest>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -142,7 +142,7 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
       </DataExecutionPrevention>
       <TargetMachine>MachineX86</TargetMachine>
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
-      <AdditionalDependencies>legacy_stdio_definitions.lib;libcrypto32MT.lib;libssl32MT.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>legacy_stdio_definitions.lib;libcrypto32MT.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Manifest>
       <AdditionalManifestFiles>afpServer.exe.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles>
