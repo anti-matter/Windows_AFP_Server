@@ -53,7 +53,7 @@ UINT32 afp_desktop::load_from_file()
         return desktop_file_error;
     }
 
-    DBGWRITE(dbg_level_all, L"Desktop file contains %d items.\n", item_count);
+    DBGWRITE(dbg_level_trace, L"Desktop file contains %d items.\n", item_count);
 
     for (std::vector<std::unique_ptr<afp_desk_item>>::size_type i = 0; i < item_count; ++i)
     {
@@ -110,7 +110,7 @@ UINT32 afp_desktop::export_to_file()
         }
     }
 
-    DBGWRITE(dbg_level_all, L"Desktop exported %d items to the desktop file.\n", return_written);
+    DBGWRITE(dbg_level_trace, L"Desktop exported %d items to the desktop file.\n", return_written);
 
     fclose(file); // NOLINT(cert-err33-c)
 
@@ -177,7 +177,7 @@ afp_desk_item* afp_desktop::find(const afp_desk_item* match_item, const UINT16 s
                                  match_item->data_size) ==
                         std::tie(i->file_creator, i->file_type, i->icon_type, i->data_size))
                     {
-                        DBGWRITE(dbg_level_all, L"Found icon entry:\n");
+                        DBGWRITE(dbg_level_trace, L"Found icon entry:\n");
                         return true;
                     }
 
@@ -210,7 +210,7 @@ afp_desk_item* afp_desktop::find(const afp_desk_item* match_item, const UINT16 s
                 ++index;
                 if (i->file_creator == match_item->file_creator && index == search_index)
                 {
-                    DBGWRITE(dbg_level_all, L"Found APPL for: %s\n", i->path_name);
+                    DBGWRITE(dbg_level_trace, L"Found APPL for: %s\n", i->path_name);
                     return true;
                 }
 
@@ -219,7 +219,7 @@ afp_desk_item* afp_desktop::find(const afp_desk_item* match_item, const UINT16 s
         case entry_type_comment:
             if (match_item->dir_id == i->dir_id && lstrcmp(match_item->path_name, i->path_name))
             {
-                DBGWRITE(dbg_level_all, L"Found comment:\n");
+                DBGWRITE(dbg_level_trace, L"Found comment:\n");
             }
             break;
         case entry_type_reserved:
@@ -251,14 +251,14 @@ void afp_desktop::dump_db()
 
 void afp_desktop::dump_item(afp_desk_item* item, bool include_data)
 {
-    DBGWRITE(dbg_level_all, L"item_type:    %d\n", item->item_type);
-    DBGWRITE(dbg_level_all, L"file_type:    %d\n", item->file_type);
-    DBGWRITE(dbg_level_all, L"file_creator: %d\n", item->file_creator);
-    DBGWRITE(dbg_level_all, L"tag:          %d\n", item->tag);
-    DBGWRITE(dbg_level_all, L"dir_id:       %d\n", item->dir_id);
-    DBGWRITE(dbg_level_all, L"icon_type:    %d\n", item->icon_type);
-    DBGWRITE(dbg_level_all, L"data_size:    %d\n", item->data_size);
-    DBGWRITE(dbg_level_all, L"path_name:    %s\n", item->path_name);
+    DBGWRITE(dbg_level_trace, L"item_type:    %d\n", item->item_type);
+    DBGWRITE(dbg_level_trace, L"file_type:    %d\n", item->file_type);
+    DBGWRITE(dbg_level_trace, L"file_creator: %d\n", item->file_creator);
+    DBGWRITE(dbg_level_trace, L"tag:          %d\n", item->tag);
+    DBGWRITE(dbg_level_trace, L"dir_id:       %d\n", item->dir_id);
+    DBGWRITE(dbg_level_trace, L"icon_type:    %d\n", item->icon_type);
+    DBGWRITE(dbg_level_trace, L"data_size:    %d\n", item->data_size);
+    DBGWRITE(dbg_level_trace, L"path_name:    %s\n", item->path_name);
 
     if (include_data)
     {

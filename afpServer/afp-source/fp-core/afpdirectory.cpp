@@ -102,7 +102,7 @@ AFPERROR FPGetFileDirParms(
     WIN32_FILE_ATTRIBUTE_DATA win_attributes;
     INT8 afp_attributes = 0;
 
-    DBGWRITE(dbg_level_all, L"Enter...\n");
+    DBGWRITE(dbg_level_trace, L"Enter...\n");
 
     afp_request.advance_pos_ptr(sizeof(UINT16));
     const auto afp_volume_id = afp_request.pull_num<INT16>();
@@ -123,7 +123,7 @@ AFPERROR FPGetFileDirParms(
     const auto afp_entry = volume->find(afp_dir_id, afp_pathname);
     if (afp_entry == nullptr)
     {
-        DBGWRITE(dbg_level_all,
+        DBGWRITE(dbg_level_trace,
                  L"Entry not found in GetFileDirParms! (dirID = %d)(name = %s)\n",
                  afp_dir_id, afp_pathname.c_str());
 
@@ -204,7 +204,7 @@ AFPERROR FPEnumerate(
 
     WIN32_FILE_ATTRIBUTE_DATA win_attributes;
 
-    DBGWRITE(dbg_level_all, L"Enter...\n");
+    DBGWRITE(dbg_level_trace, L"Enter...\n");
 
     const auto afp_command = afp_request.pull_num<UINT8>();
     afp_request.advance_pos_ptr(sizeof(UINT8));
@@ -247,7 +247,7 @@ AFPERROR FPEnumerate(
     const auto afp_pathname = afp_request.pull_path(afp_path_type);
 
     DBGWRITE(dbg_level_info, L"Enumerating directory: %d, path: %s\n", afp_dir_id, afp_pathname.c_str());
-    DBGWRITE(dbg_level_all, L"Start index: %d\n", afp_start_index);
+    DBGWRITE(dbg_level_trace, L"Start index: %d\n", afp_start_index);
 
     // We don't support the following bitmaps, so we clear them.
     if (connection->get_afp_version() < afpVersion30)
@@ -327,7 +327,7 @@ AFPERROR FPEnumerate(
             return;
         }
 
-        DBGWRITE(dbg_level_all, L"Enumerating, dir id: %d, pathname: %s\n", afp_dir_id, index_item->sz_object_name.c_str());
+        DBGWRITE(dbg_level_trace, L"Enumerating, dir id: %d, pathname: %s\n", afp_dir_id, index_item->sz_object_name.c_str());
 
         const bool is_directory = index_item->flags & flag_index_is_dir;
         if (afp_dir_bitmap == kFPDirNone && is_directory || afp_file_bitmap == kFPFileNone && !is_directory)
@@ -338,7 +338,7 @@ AFPERROR FPEnumerate(
         UINT8 afp_attributes = 0;
         if (is_directory)
         {
-            DBGWRITE(dbg_level_all, L"Is directory: %s\n", is_directory ? L"TRUE" : L"FALSE");
+            DBGWRITE(dbg_level_trace, L"Is directory: %s\n", is_directory ? L"TRUE" : L"FALSE");
             afp_attributes |= kFileDirIsDir;
         }
 
@@ -419,8 +419,8 @@ AFPERROR FPEnumerate(
     // Set the actual number of objects found and in the buffer.
     *afp_act_count_spot = static_cast<INT16>(htons(afp_act_count));
 
-    DBGWRITE(dbg_level_all, L"afpActCount = %d\n", afp_act_count);
-    DBGWRITE(dbg_level_all, L"Returning: %d\n", (afp_act_count == 0) ? afpObjectNotFound : AFP_OK);
+    DBGWRITE(dbg_level_trace, L"afpActCount = %d\n", afp_act_count);
+    DBGWRITE(dbg_level_trace, L"Returning: %d\n", (afp_act_count == 0) ? afpObjectNotFound : AFP_OK);
 
     return (afp_act_count == 0 ? afpObjectNotFound : AFP_OK);
 }
@@ -446,7 +446,7 @@ AFPERROR FPSetFileDirParms(
 
     WIN32_FILE_ATTRIBUTE_DATA win_attributes;
 
-    DBGWRITE(dbg_level_all, L"Enter...\n");
+    DBGWRITE(dbg_level_trace, L"Enter...\n");
 
     const auto afp_command = afp_request.pull_num<INT8>();
     afp_request.advance_pos_ptr(sizeof(INT8));
@@ -484,7 +484,7 @@ AFPERROR FPSetFileDirParms(
             kFPDirGroupID | kFPDirAccess | kFPDirUnicodeName |
             kFPExtDataForkLen | kFPExtRsrcForkLen))
         {
-            DBGWRITE(dbg_level_all, L"Bad bitmap!\n");
+            DBGWRITE(dbg_level_trace, L"Bad bitmap!\n");
             return afpBitmapErr;
         }
         break;
@@ -493,7 +493,7 @@ AFPERROR FPSetFileDirParms(
         if (afp_bitmap & (kFPParentID | kFPLongName | kFPShortName |
             kFPDirOffCount | kFPDirID | kFPDirUnicodeName))
         {
-            DBGWRITE(dbg_level_all, L"[afp:FPSetDirParms]Bad bitmap!\n");
+            DBGWRITE(dbg_level_trace, L"[afp:FPSetDirParms]Bad bitmap!\n");
             return afpBitmapErr;
         }
         break;
@@ -555,7 +555,7 @@ AFPERROR FPCreateDir(
     IN dsi::dsi_connection* connection
 )
 {
-    DBGWRITE(dbg_level_all, L"FPCreateDir...\n");
+    DBGWRITE(dbg_level_trace, L"FPCreateDir...\n");
 
     afp_request.advance_pos_ptr(sizeof(INT16));
 
@@ -653,7 +653,7 @@ AFPERROR FPDelete(
 {
     UNREFERENCED_PARAMETER(afp_reply);
 
-    DBGWRITE(dbg_level_all, L"Enter\n");
+    DBGWRITE(dbg_level_trace, L"Enter\n");
 
     afp_request.advance_pos_ptr(sizeof(INT16));
 
@@ -740,7 +740,7 @@ AFPERROR FPDelete(
 
     afp_revert_to_self(connection->get_user_token());
 
-    DBGWRITE(dbg_level_all, L"FPDelete returning: %d\n", afp_error);
+    DBGWRITE(dbg_level_trace, L"FPDelete returning: %d\n", afp_error);
 
     return afp_error;
 }
@@ -764,7 +764,7 @@ AFPERROR FPCopyFile(
 {
     UNREFERENCED_PARAMETER(afp_reply);
 
-    DBGWRITE(dbg_level_all, L"Enter...\n");
+    DBGWRITE(dbg_level_trace, L"Enter...\n");
 
     afp_request.advance_pos_ptr(sizeof(INT16));
 
@@ -835,8 +835,8 @@ AFPERROR FPCopyFile(
         new_win_path = afp_dst_entry->sz_path / afp_src_entry->sz_object_name;
     }
 
-    DBGWRITE(dbg_level_all, L"copying from %s\n", afp_src_entry->sz_path.c_str());
-    DBGWRITE(dbg_level_all, L"copying to %s\n", new_win_path.c_str());
+    DBGWRITE(dbg_level_trace, L"copying from %s\n", afp_src_entry->sz_path.c_str());
+    DBGWRITE(dbg_level_trace, L"copying to %s\n", new_win_path.c_str());
 
     // Setup the correct impersonation for this API call. We have to
     // have the right credentials for copy file.
@@ -879,7 +879,7 @@ AFPERROR FPMoveAndRename(
 
     WIN32_FILE_ATTRIBUTE_DATA win_attributes;
 
-    DBGWRITE(dbg_level_all, L"Enter\n");
+    DBGWRITE(dbg_level_trace, L"Enter\n");
 
     afp_request.advance_pos_ptr(sizeof(INT16));
 
@@ -1001,7 +1001,7 @@ AFPERROR FPRename(
 {
     UNREFERENCED_PARAMETER(afp_reply);
 
-    DBGWRITE(dbg_level_all, L"Enter\n");
+    DBGWRITE(dbg_level_trace, L"Enter\n");
 
     afp_request.advance_pos_ptr(sizeof(INT16));
 

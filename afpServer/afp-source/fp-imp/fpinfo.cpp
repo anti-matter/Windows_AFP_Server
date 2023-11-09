@@ -149,7 +149,7 @@ AFPERROR set_finder_info(
         if (dw_error == NO_ERROR)
         {
             ASSERT(bytes_written == sizeof(afp_finder_info));
-            DBGWRITE(dbg_level_all, L"FinderInfo updated successfully for %s.\n", path.c_str());
+            DBGWRITE(dbg_level_trace, L"FinderInfo updated successfully for %s.\n", path.c_str());
         }
 
         CloseHandle(h_file);

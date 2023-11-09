@@ -264,7 +264,7 @@ AFPERROR FPAddComment(
 
 	afp_desk_item desk_item;
 
-	DBGWRITE(dbg_level_all, L"Enter\n");
+	DBGWRITE(dbg_level_trace, L"Enter\n");
 
 	afp_request.advance_pos_ptr(sizeof(INT16));
 
@@ -337,7 +337,7 @@ AFPERROR FPGetComment(
 {
 	afp_desk_item search_entry;
 
-	DBGWRITE(dbg_level_all, L"Enter\n");
+	DBGWRITE(dbg_level_trace, L"Enter\n");
 
 	afp_request.advance_pos_ptr(sizeof(INT16));
 
@@ -461,7 +461,7 @@ AFPERROR FPGetAPPL(
 	WIN32_FILE_ATTRIBUTE_DATA winAttributes;
 	afp_desk_item search_entry;
 
-	DBGWRITE(dbg_level_all, L"Enter\n");
+	DBGWRITE(dbg_level_trace, L"Enter\n");
 
 	afp_request.advance_pos_ptr(sizeof(INT16));
 	const auto afp_dt_refnum = afp_request.pull_num<UINT16>();
@@ -505,7 +505,7 @@ AFPERROR FPGetAPPL(
     afp_reply.push_num(afp_bitmap);
     afp_reply.push_num(desk_item->tag);
 
-	DBGWRITE(dbg_level_all, L"Found APPL entry for: %s\n", file_item->sz_path.c_str());
+	DBGWRITE(dbg_level_trace, L"Found APPL entry for: %s\n", file_item->sz_path.c_str());
 
     const auto afp_error = afp_get_object_parms(
         afp_reply,

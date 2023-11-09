@@ -44,7 +44,7 @@ void afp_check_for_and_create_rsrc_stream(
 
             if (h_file != INVALID_HANDLE_VALUE)
             {
-                DBGWRITE(dbg_level_all,
+                DBGWRITE(dbg_level_trace,
                     L"Successfully created new resource stream (%s)\n",
                     res_path.c_str()
                 );
@@ -222,7 +222,7 @@ AFPERROR afp_get_object_parms(
             }
             else
             {
-                DBGWRITE(dbg_level_all, L"Data fork size =  (%d)\n", data_size64.LowPart);
+                DBGWRITE(dbg_level_trace, L"Data fork size =  (%d)\n", data_size64.LowPart);
             }
 
             if (bitmap & kFPDFLen)
@@ -245,12 +245,12 @@ AFPERROR afp_get_object_parms(
             if (rsrc_size64.QuadPart == BAD_LENGTH_64)
             {
                 // Likely just doesn't have a resource fork.
-                DBGWRITE(dbg_level_all, L"No resource fork for: %s\n", entry->sz_object_name.c_str());
+                DBGWRITE(dbg_level_trace, L"No resource fork for: %s\n", entry->sz_object_name.c_str());
                 rsrc_size64.QuadPart = 0;
             }
             else
             {
-                DBGWRITE(dbg_level_all, L"Resource fork size =  (%d)\n", rsrc_size64.LowPart);
+                DBGWRITE(dbg_level_trace, L"Resource fork size =  (%d)\n", rsrc_size64.LowPart);
             }
         }
 

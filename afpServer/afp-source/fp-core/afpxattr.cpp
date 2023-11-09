@@ -30,7 +30,7 @@ AFPERROR FPGetExtAttribute(
 {
     DWORD afpActualRead = 0;
 
-    DBGWRITE(dbg_level_all, L"Enter...\n");
+    DBGWRITE(dbg_level_trace, L"Enter...\n");
 
     //
     //Advance beyond command and pad byte
@@ -82,7 +82,7 @@ AFPERROR FPGetExtAttribute(
         return afpParmErr;
     }
 
-    DBGWRITE(dbg_level_all, L"Getting attr, file=%s, attr=%s\n", afpPathname.c_str(), afpAttrName.c_str());
+    DBGWRITE(dbg_level_trace, L"Getting attr, file=%s, attr=%s\n", afpPathname.c_str(), afpAttrName.c_str());
 
     //
     //Set the entry object that will point to the object we're working with.
@@ -104,7 +104,7 @@ AFPERROR FPGetExtAttribute(
             afpReply.push_num(afpBitmap);
             afpReply.push_num(afpDataLen);
 
-            DBGWRITE(dbg_level_all, L"DataLen == %d\n", afpDataLen);
+            DBGWRITE(dbg_level_trace, L"DataLen == %d\n", afpDataLen);
 
             if (afpMaxReplySize > 0)
             {
@@ -148,7 +148,7 @@ AFPERROR FPGetExtAttribute(
                         CloseHandle(hFile);
 
                         DBGWRITE(
-                            dbg_level_all,
+                            dbg_level_trace,
                             L"ReadFile() returned: %d, read %d bytes\n",
                             GetLastError(),
                             afpActualRead

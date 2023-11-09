@@ -129,7 +129,7 @@ void afp_file_index::remove_entry(const INT32 object_id)
 		// it again.
 
 		DBGWRITE(
-			dbg_level_all,
+			dbg_level_trace,
 			L"Failed to find objectID to remove! (%d)\n", object_id);
 
 		return;
@@ -384,7 +384,7 @@ void afp_file_index::dump_index()
 
 void afp_file_index::dump_entry(const afp_index* entry)
 {
-    constexpr auto dbg_level = dbg_level_all;
+    constexpr auto dbg_level = dbg_level_trace;
 
 	DBGWRITE(dbg_level, L"Dumping entry for: %s\n", entry->sz_path.c_str());
 	DBGWRITE(dbg_level, L"Par id:      %d\n", entry->par_id);

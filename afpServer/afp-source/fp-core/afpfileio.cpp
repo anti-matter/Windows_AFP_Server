@@ -215,7 +215,7 @@ AFPERROR FPSetForkParms(
 
     afp_session* afp_afp_session = connection->get_afp_session();
 
-    DBGWRITE(dbg_level_all, L"Enter\n");
+    DBGWRITE(dbg_level_trace, L"Enter\n");
 
     // The first byte contains the afp command.
     afp_request.advance_pos_ptr(sizeof(INT16));
@@ -241,7 +241,7 @@ AFPERROR FPSetForkParms(
         {
             if (open_file->get_fork() != kDataFork)
             {
-                DBGWRITE(dbg_level_all, L"Data fork is not open!\n");
+                DBGWRITE(dbg_level_trace, L"Data fork is not open!\n");
                 return afpBitmapErr;
             }
         }
@@ -257,7 +257,7 @@ AFPERROR FPSetForkParms(
     }
     else
     {
-        DBGWRITE(dbg_level_all, L"Fork item not found!\n");
+        DBGWRITE(dbg_level_trace, L"Fork item not found!\n");
     }
 
     return afp_error;
@@ -284,7 +284,7 @@ AFPERROR FPGetForkParms(
 
     WIN32_FILE_ATTRIBUTE_DATA win_attributes;
 
-    DBGWRITE(dbg_level_all, L"nter\n");
+    DBGWRITE(dbg_level_trace, L"nter\n");
 
     // The first byte contains the afp command.
     afp_request.advance_pos_ptr(sizeof(INT16));
@@ -332,7 +332,7 @@ AFPERROR FPGetForkParms(
         );
     }
 
-    DBGWRITE(dbg_level_all, L"Returning %d\n", afp_error);
+    DBGWRITE(dbg_level_trace, L"Returning %d\n", afp_error);
 
     return afp_error;
 }
@@ -355,7 +355,7 @@ AFPERROR FPCreateFile(
 )
 {
     UNREFERENCED_PARAMETER(afp_reply);
-    DBGWRITE(dbg_level_all, L"Enter\n");
+    DBGWRITE(dbg_level_trace, L"Enter\n");
 
     // First byte is padding.
     afp_request.advance_pos_ptr(sizeof(UINT8));
@@ -621,7 +621,7 @@ AFPERROR FPRead(
     INT64 afp_req_count;
     DWORD afp_act_count = 0;
 
-    DBGWRITE(dbg_level_all, L"Enter\n");
+    DBGWRITE(dbg_level_trace, L"Enter\n");
 
     const auto afp_command = afp_request.pull_num<INT8>();
     afp_request.advance_pos_ptr(sizeof(char));
@@ -675,7 +675,7 @@ AFPERROR FPRead(
     // in the DSI Header's data size field.
     afp_reply.set_dsi_return_value(afp_act_count);
 
-    DBGWRITE(dbg_level_all, L"Returning error: %d, act count: %d\n", afp_error, afp_act_count);
+    DBGWRITE(dbg_level_trace, L"Returning error: %d, act count: %d\n", afp_error, afp_act_count);
 
     return afp_error;
 }
@@ -702,7 +702,7 @@ AFPERROR FPWrite(
     INT64 req_count;
     INT64 act_count = 0;
 
-    DBGWRITE(dbg_level_all, L"Enter\n");
+    DBGWRITE(dbg_level_trace, L"Enter\n");
 
     const auto afp_command = afp_request.pull_num<INT8>();
     const auto afp_flag = afp_request.pull_num<INT8>();

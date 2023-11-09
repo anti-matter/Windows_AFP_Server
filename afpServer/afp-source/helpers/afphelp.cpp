@@ -214,8 +214,8 @@ DWORD afp_get_directory_rights(
 	ACCESS_MASK access_rights = 0;
 	TRUSTEE trustee = {};
 
-	DBGWRITE(dbg_level_all, L"[AFPHELP]AFPGetDirectoryRights() enter...\n");
-	DBGWRITE(dbg_level_all, L"[AFPHELP]user name = %s\n", p_user_name);
+	DBGWRITE(dbg_level_trace, L"[AFPHELP]AFPGetDirectoryRights() enter...\n");
+	DBGWRITE(dbg_level_trace, L"[AFPHELP]user name = %s\n", p_user_name);
 
 	*afp_rights = 0;
 
@@ -246,8 +246,8 @@ DWORD afp_get_directory_rights(
 		{
 			if (EqualSid(user_sid, p_sid_owner))
 			{
-				DBGWRITE(dbg_level_all, L"[AFPHELP]Logged on user is owner!!\n");
-				DBGWRITE(dbg_level_all, L"[AFPHELP]Checking access rights for owner\n");
+				DBGWRITE(dbg_level_trace, L"[AFPHELP]Logged on user is owner!!\n");
+				DBGWRITE(dbg_level_trace, L"[AFPHELP]Checking access rights for owner\n");
 
 				//
 				//Use the handy-dandy routine to build the trustee for us.
@@ -255,18 +255,18 @@ DWORD afp_get_directory_rights(
 				BuildTrusteeWithSid(&trustee, p_sid_owner);
 				error = GetEffectiveRightsFromAcl(p_dacl, &trustee, &access_rights);
 
-				DBGWRITE(dbg_level_all, L"[AFPHELP]GetEffectiveRightsFromAcl() returned %d\n", error);
+				DBGWRITE(dbg_level_trace, L"[AFPHELP]GetEffectiveRightsFromAcl() returned %d\n", error);
 
 				if (access_rights & (WRITE_OWNER | WRITE_DAC | DELETE))
 				{
 					*afp_rights |= (kAccess_OW | kAccess_UAW);
-					DBGWRITE(dbg_level_all, L"[AFPHELP]Owner has write access!\n");
+					DBGWRITE(dbg_level_trace, L"[AFPHELP]Owner has write access!\n");
 				}
 
 				if (access_rights & READ_CONTROL)
 				{
 					*afp_rights |= (kAccess_OS | kAccess_OR | kAccess_UAS | kAccess_UAR);
-					DBGWRITE(dbg_level_all, L"[AFPHELP]Owner has read access!\n");
+					DBGWRITE(dbg_level_trace, L"[AFPHELP]Owner has read access!\n");
 				}
 
 				*afp_rights |= kAccess_Owner;
@@ -286,13 +286,13 @@ DWORD afp_get_directory_rights(
 					if (access_rights & (WRITE_OWNER | WRITE_DAC | DELETE))
 					{
 						*afp_rights |= kAccess_UAW;
-						DBGWRITE(dbg_level_all, L"[AFPHELP]User has write access!\n");
+						DBGWRITE(dbg_level_trace, L"[AFPHELP]User has write access!\n");
 					}
 
 					if (access_rights & READ_CONTROL)
 					{
 						*afp_rights |= kAccess_UAS | kAccess_UAR;
-						DBGWRITE(dbg_level_all, L"[AFPHELP]User has read access!\n");
+						DBGWRITE(dbg_level_trace, L"[AFPHELP]User has read access!\n");
 					}
 
 					//
@@ -333,13 +333,13 @@ DWORD afp_get_directory_rights(
 				if (access_rights & (WRITE_OWNER | WRITE_DAC | DELETE))
 				{
 					*afp_rights |= kAccess_WW;
-					DBGWRITE(dbg_level_all, L"[AFPHELP]Guest has write access!\n");
+					DBGWRITE(dbg_level_trace, L"[AFPHELP]Guest has write access!\n");
 				}
 
 				if (access_rights & READ_CONTROL)
 				{
 					*afp_rights |= kAccess_WS | kAccess_WR;
-					DBGWRITE(dbg_level_all, L"[AFPHELP]Guest has read access!\n");
+					DBGWRITE(dbg_level_trace, L"[AFPHELP]Guest has read access!\n");
 				}
 			}
 
@@ -545,7 +545,7 @@ DWORD afp_get_directory_owner_and_group_id(
 			//We successfully got the group name from the directory SID. Now we
 			//need to convert it to an AFP group ID.
 			//
-			DBGWRITE(dbg_level_all, L"[AFPHELP]Group name from SID = %s for dir %s\n", sz_name, p_dir_win_path);
+			DBGWRITE(dbg_level_trace, L"[AFPHELP]Group name from SID = %s for dir %s\n", sz_name, p_dir_win_path);
 
 			//
 			//We only care about group SID's, check to make sure that's what we got.
@@ -771,7 +771,7 @@ BOOL afp_adjust_privilege(
 		return FALSE;
 	}
 
-	DBGWRITE(dbg_level_all, L"AdjustTokenPrivileges() succeeded for %s\n", privilege);
+	DBGWRITE(dbg_level_trace, L"AdjustTokenPrivileges() succeeded for %s\n", privilege);
 
 	// We only want to close the Token handle if we created it
 	// locally with OpenCurrentToken().

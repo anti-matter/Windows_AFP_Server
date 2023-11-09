@@ -68,7 +68,7 @@ AFPERROR FPGetSrvrParms(
 			continue;
 		}
 
-		DBGWRITE(dbg_level_all, L"Stuffing volume: %s\n", volume->get_share_name().c_str());
+		DBGWRITE(dbg_level_trace, L"Stuffing volume: %s\n", volume->get_share_name().c_str());
 
 		afp_reply.push_num(volume->get_afp_flags());
 		afp_reply.push_string(volume->get_share_name());

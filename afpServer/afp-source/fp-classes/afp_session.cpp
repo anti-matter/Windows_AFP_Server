@@ -75,7 +75,7 @@ void afp_session::associate_open_file(afp_open_file* open_file)
     auto_lock lock(&m_mutex_);
 
     ASSERT(open_file != nullptr);
-    DBGWRITE(dbg_level_all, L"[AFPSession:SessionAssociateAFPOpenFile]opening fileobject %x\n", open_file);
+    DBGWRITE(dbg_level_trace, L"[AFPSession:SessionAssociateAFPOpenFile]opening fileobject %x\n", open_file);
 
     std::unique_ptr<afp_open_file> AFPOpenFileObject(open_file);
     m_afp_open_files_.push_back(std::move(AFPOpenFileObject));
@@ -204,7 +204,7 @@ AFPERROR afp_session::open_volume(const UINT16 volume_id)
 
     m_open_volumes_.push_back(volume);
 
-    DBGWRITE(dbg_level_all, L"Volume %s opened\n", volume->get_share_name().c_str());
+    DBGWRITE(dbg_level_trace, L"Volume %s opened\n", volume->get_share_name().c_str());
 
     return AFP_OK;
 }
@@ -232,7 +232,7 @@ AFPERROR afp_session::close_volume(const UINT16 volume_id)
 
     if (it != m_open_volumes_.end())
     {
-        DBGWRITE(dbg_level_all, L"Volume %s was closed\n", (*it)->get_share_name().c_str());
+        DBGWRITE(dbg_level_trace, L"Volume %s was closed\n", (*it)->get_share_name().c_str());
 
         m_open_volumes_.erase(it);
         return AFP_OK;

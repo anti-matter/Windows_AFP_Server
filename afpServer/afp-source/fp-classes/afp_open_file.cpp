@@ -100,7 +100,7 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 
 	// ReSharper restore CppFunctionResultShouldBeUsed
 
-	DBGWRITE(dbg_level_all, L"Opening file %s\n", sz_file_path);
+	DBGWRITE(dbg_level_trace, L"Opening file %s\n", sz_file_path);
 
 	const auto h_file = CreateFile(
 		sz_file_path,
@@ -159,7 +159,7 @@ AFPERROR afp_open_file::close_file_fork()
 		break;
 	}
 
-	DBGWRITE(dbg_level_all, L"Closing file %s, fork = %d\n", m_windows_path_, m_fork_);
+	DBGWRITE(dbg_level_trace, L"Closing file %s, fork = %d\n", m_windows_path_, m_fork_);
 
 	//Now set the appropriate flags to indicate the state of the forks.
 	afp_file_index::update_entry_flags(m_entry_, afp_flags);
@@ -172,7 +172,7 @@ AFPERROR afp_open_file::close_file_fork()
 	}
 	else
 	{
-		DBGWRITE(dbg_level_all, L"Invalid file handle for %s\n", m_windows_path_);
+		DBGWRITE(dbg_level_trace, L"Invalid file handle for %s\n", m_windows_path_);
 	}
 
 	return AFP_OK;
@@ -196,7 +196,7 @@ AFPERROR afp_open_file::read_fork(
 		return afpParmErr;
 	}
 
-	DBGWRITE(dbg_level_all, L"Reading %lld bytes from file %s from fork %d\n", afp_req_count, m_windows_path_, m_fork_);
+	DBGWRITE(dbg_level_trace, L"Reading %lld bytes from file %s from fork %d\n", afp_req_count, m_windows_path_, m_fork_);
 
 	//We have to make sure our buffer is big enough for
 	//the read operation.
@@ -296,7 +296,7 @@ AFPERROR afp_open_file::write_fork(
 
 			*afp_last_byte_written = afp_offset + afp_actual;
 
-			DBGWRITE(dbg_level_all,
+			DBGWRITE(dbg_level_trace,
 			         L"WRITE: Actual written: %d, Last Byte: %d\n",
 			         afp_actual,
 			         *afp_last_byte_written

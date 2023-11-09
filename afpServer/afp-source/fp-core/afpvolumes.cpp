@@ -33,7 +33,7 @@ AFPERROR FPOpenVol(
         return afpParmErr;
     }
 
-    DBGWRITE(dbg_level_all, L"Opening volume: %s\n", afp_volume_name.c_str());
+    DBGWRITE(dbg_level_trace, L"Opening volume: %s\n", afp_volume_name.c_str());
 
     // Get the volume ID for the volume to be opened.
     if (!afp_volumes::current()->map_name_to_id(afp_volume_name, &afp_volume_id))
@@ -134,7 +134,7 @@ AFPERROR FPGetVolParms(
     IN dsi::dsi_connection* connection
 )
 {
-    DBGWRITE(dbg_level_all, L"FPGetVolParms...\n");
+    DBGWRITE(dbg_level_trace, L"FPGetVolParms...\n");
 
     afp_request.advance_pos_ptr(sizeof(INT16));
     const auto afp_volume_id = afp_request.pull_num<INT16>();

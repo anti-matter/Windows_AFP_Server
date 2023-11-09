@@ -133,7 +133,7 @@ void change_notify::afp_read_dir_changes(
 
     // We have a successful change notify. Flip through the array of
     // changes and take appropriate action depending on the change.
-    DBGWRITE(dbg_level_all, L"Change notify data received!! (%d bytes)\n", bytes_returned);
+    DBGWRITE(dbg_level_trace, L"Change notify data received!! (%d bytes)\n", bytes_returned);
 
     do
     {
@@ -157,7 +157,7 @@ void change_notify::afp_read_dir_changes(
         case FILE_ACTION_RENAMED_OLD_NAME:
             lstrcpyn(file_name, p_info->FileName, static_cast<int>(p_info->FileNameLength));
 
-            DBGWRITE(dbg_level_all, L"File renamed, old name = %s\n", file_name);
+            DBGWRITE(dbg_level_trace, L"File renamed, old name = %s\n", file_name);
 
             index_entry = volume->find(kRootDirID, file_name);
             break;
@@ -167,7 +167,7 @@ void change_notify::afp_read_dir_changes(
         case FILE_ACTION_RENAMED_NEW_NAME:
             lstrcpyn(file_name, p_info->FileName, static_cast<int>(p_info->FileNameLength));
 
-            DBGWRITE(dbg_level_all, L"File renamed, new name = %s\n", file_name);
+            DBGWRITE(dbg_level_trace, L"File renamed, new name = %s\n", file_name);
 
             if (index_entry != nullptr)
             {
@@ -186,7 +186,7 @@ void change_notify::afp_read_dir_changes(
             break;
         }
 
-        DBGWRITE(dbg_level_all, L"NextEntryOffset = %d\n", p_info->NextEntryOffset);
+        DBGWRITE(dbg_level_trace, L"NextEntryOffset = %d\n", p_info->NextEntryOffset);
 
         if (p_info->NextEntryOffset == 0)
         {
@@ -237,7 +237,7 @@ void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_no
     // don't need to do anything.
     if (volume->find(kRootDirID, new_item_pathname) != nullptr)
     {
-        DBGWRITE(dbg_level_all, L"Object already exists in index: %s\n", new_full_path.c_str());
+        DBGWRITE(dbg_level_trace, L"Object already exists in index: %s\n", new_full_path.c_str());
         return;
     }
 
@@ -259,7 +259,7 @@ void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_no
         &new_object_id);
 
     DBGWRITE(
-        dbg_level_all,
+        dbg_level_trace,
         L"Added new item in notify id=%d name=%s\n",
         new_object_id,
         new_item_pathname);

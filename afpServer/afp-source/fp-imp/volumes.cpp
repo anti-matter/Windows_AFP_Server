@@ -233,7 +233,7 @@ AFPERROR AFPGetVolumeParameters(
 
         afp_reply.push_num(allocation_size);
 
-        DBGWRITE(dbg_level_all, L"Allocation block size = %d (0x%x)\n", allocation_size, allocation_size);
+        DBGWRITE(dbg_level_trace, L"Allocation block size = %d (0x%x)\n", allocation_size, allocation_size);
     }
 
     if (afp_bitmap & kFPVolNameBit)
