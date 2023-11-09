@@ -103,13 +103,10 @@ std::wstring afp_net_buffer::convert_to_windows_path(const std::string& mac_path
 		replacement++;
 	}
 
-	// Replace non printable characters the filesystem can't use.
-	for (wchar_t c : win_path)
+	// Windows explorer does not like file names to end with a '.'.
+	if (win_path.back() == L'.')
 	{
-	    if (c < 32)
-	    {
-			c = '+';
-	    }
+		win_path[win_path.size() - 1] = period_replacement_character;
 	}
 
 	// Mac uses ':' as the path separator, convert to windows.
@@ -132,6 +129,11 @@ std::string afp_net_buffer::convert_to_mac_path(const std::wstring& win_path)
 	{
 		std::ranges::replace(wide_path, replacement, win_illegal_path_character);
 		replacement++;
+	}
+
+	if (wide_path.back() == period_replacement_character)
+	{
+		wide_path[wide_path.size() - 1] = L'.';
 	}
 
 	return wide_string_to_string(wide_path);
