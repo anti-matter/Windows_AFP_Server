@@ -31,12 +31,6 @@ public:
 
 	std::wstring pull_wide_string();
 
-	template <class T>
-	std::string pull_multi_byte_string(bool is_afp_path = false);
-
-	template <class T>
-	void push_multi_byte_string(const std::string& mac_string);
-
 	void pull_raw_data(void* buffer, size_t amount);
 	void push_raw_data(const void* data, size_t size);
 
@@ -92,6 +86,12 @@ private:
 	//AFP functions cannot access that part of the buffer.
 	//
 	UINT32 dsi_data_offset_;
+
+	template <class T>
+	std::string pull_multi_byte_string(bool is_afp_path = false);
+
+	template <class T>
+	void push_multi_byte_string(const std::string& mac_string);
 };
 
 __pragma(warning(push))

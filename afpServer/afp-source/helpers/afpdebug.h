@@ -15,12 +15,6 @@ enum dbg_level
 
 constexpr dbg_level current_debug_level = dbg_level_info;
 
-#define DBG_ALLOC(dwSize)		dbg_alloc(dwSize, __LINE__, __FILE__)
-#define DBG_FREE(ptr)			dbg_free((PBYTE)(ptr)); \
-                                (ptr) = NULL
-
-#define CHECK_DEALLOCATIONS()	DBGCheckDeallocations();
-
 #define DBGWRITE(level, message, ...) afp_debug_write(level, __func__, message, __VA_ARGS__)
 #define ASSERT(exp) assert(exp)
 
