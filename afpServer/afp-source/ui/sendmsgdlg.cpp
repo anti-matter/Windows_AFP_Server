@@ -41,7 +41,7 @@ LRESULT CALLBACK SendMessageDlgProc(
                                             (WPARAM)sizeof(g_server_message), (LPARAM)g_server_message);
                     
                     //Let DSI do all the real work of sending the message
-                    active_connections.broadcast_attention(ATTN_SERVER_MESSAGE);
+                    active_connections.broadcast_attention(dsi_attention_server_message);
 
                 case IDCANCEL:  // NOLINT(clang-diagnostic-implicit-fallthrough)
                     EndDialog(hDlg, LOWORD(wParam));

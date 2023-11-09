@@ -110,7 +110,7 @@ std::wstring afp_net_buffer::convert_to_windows_path(const std::string& mac_path
 	}
 
 	// Mac uses ':' as the path separator, convert to windows.
-	std::ranges::replace(win_path, L':', L'\\');
+	std::ranges::replace(win_path, kPathDelimiter, L'\\');
 
 	return win_path;
 }

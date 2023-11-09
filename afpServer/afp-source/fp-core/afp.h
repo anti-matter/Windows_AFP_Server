@@ -1,33 +1,38 @@
 #pragma once
 
-//
-//File flags.
-//
-#define kShortPathType		0
-#define kLongPathType		1
-#define kPathDelimeter		':'
-#define kShortNames			1
-#define kLongNames			2
-#define kUnicodeNames		3
-#define kRootDirID			2
-#define kParentOfRoot		1
-#define kSoftCreate			0x1
-#define kHardCreate			0x2
-#define kReadMode			0x0001
-#define kWriteMode			0x0002
-#define kDenyRead			0x10
-#define kDenyWrite			0x20
-#define kReadWriteMode		0x03
-#define kResourceForkBit	0x80
-#define kDataFork			0x00
-#define kRsrcFork			0x01
-#define kAttrFork			0xFF	//Special for NTFS attributes access
-#define kWriteStartEndFlag	0x01
-#define kFromStart			0
-#define kFromEnd			1
-
-
 // ReSharper disable CppInconsistentNaming
+
+enum : UINT8
+{
+    kShortPathType = 0,
+    kLongPathType = 1,
+    kShortNames = 1,
+    kLongNames = 2,
+    kUnicodeNames = 3,
+    kDataFork = 0x00,
+    kRsrcFork = 0x01,
+    kAttrFork = 0xFF,
+    kDenyRead = 0x10,
+    kDenyWrite = 0x20,
+    kReadWriteMode = 0x03,
+    kResourceForkBit = 0x80,
+    //Special for NTFS attributes access
+    kWriteStartEndFlag = 0x01,
+    kFromStart = 0,
+    kFromEnd = 1,
+    kSoftCreate = 0x1,
+    kHardCreate = 0x2
+};
+
+enum
+{
+    kPathDelimiter = L':',
+    kRootDirID = 2,
+    kParentOfRoot = 1,
+    kReadMode = 0x0001,
+    kWriteMode = 0x0002,
+};
+
 enum AfpCommand
 {
     afpByteRangeLock = 1,
@@ -153,15 +158,14 @@ enum AfpErrorCode
     afpInsideSharedErr = -5043,
     afpInsideTrashErr = -5044,
     afpBadDirIDType = -5060,
-    afpCantMountMoreSrvre = -5061,
+    afpCantMountMoreSrvr = -5061,
     afpAlreadyMounted = -5062,
     afpSameNodeErr = -5063
 };
-// ReSharper restore CppInconsistentNaming
+
+typedef LONG AFPERROR;
 
 #define AFP_VERSION_30
-
-using AFPERROR = LONG;
 
 #define AFP_RESOURCE_FORK_NAME			TEXT(":Afp_AfpResource")
 #define AFP_RESOURCE_FORK_NAME_PLAIN	TEXT("Afp_AfpResource")
@@ -181,8 +185,7 @@ using AFPERROR = LONG;
 #define AFP_MAX_LONG			MAXLONG
 #define AFP_MAX_WORD			MAXWORD
 
-//AFP version constants
-enum
+enum afp_versions
 {
     afpVersion22 = 1,
     afpVersion30,
@@ -190,44 +193,34 @@ enum
     afpVersion32
 };
 
-enum
+enum uam_types
 {
     afpUAMNone = 0,
     afpUAMCleartext = 1,
     afpUAMDHCAST128 = 2
 };
 
+#define AFP_MACHINE_TYPE		TEXT("Windows")
 #define UAM_NONE_STR			TEXT("No User Authent")
 #define UAM_CLEAR_TEXT			TEXT("Cleartxt passwrd")
 #define UAM_DHCAST128			TEXT("DHCAST128")
-#define UAM_COUNT				3
-#define AFP_MACHINE_TYPE		TEXT("Windows")
-#define AFP_COMMENT_MAX			199
-#define MAX_UAM_STRING_LEN		25
-#define MAX_AFP_VERSION_LEN		15
 
-//
-//Attention codes
-//
-#define ATTN_SERVER_SHUTDOWN        0x8000
-#define ATTN_USER_DISCONNECT        0x9000
-#define ATTN_SERVER_MESSAGE         0x2000
-#define ATTN_SERVER_NOTIFY          0x3001
-#define ATTN_TIME_MASK              0x0FFF
+enum
+{
+    UAM_COUNT = 3,
+    AFP_COMMENT_MAX = 199,
+    MAX_UAM_STRING_LEN = 25,
+    MAX_AFP_VERSION_LEN = 15
+};
 
-//
-//Enumerate offsets
-//
-#define ENUM_FILE_BITMAP_OFFSET	0
-#define ENUM_DIR_BITMAP_OFFSET	2
-#define ENUM_NUM_ENTRIES		4
-#define ENUM_BEGIN_LIST			6
-
-#define MAX_AFP20_NAME							32
-#define MAX_AFP20_PATH							256
-#define MAX_AFP30_NAME							256
-#define MAX_AFP30_PATH							MAX_PATH
-#define MAX_AFP_SHORT_NAME						12
+enum afp_path_constants
+{
+    MAX_AFP20_NAME = 32,
+    MAX_AFP20_PATH = 256,
+    MAX_AFP30_NAME = 256,
+    MAX_AFP30_PATH = MAX_PATH,
+    MAX_AFP_SHORT_NAME = 12
+};
 
 #ifdef AFP_VERSION_30
 #define MAX_AFP_NAME							MAX_AFP30_NAME
@@ -241,50 +234,45 @@ enum
 #define MAX_AFP_PATH							MAX_AFP20_PATH
 #endif //AFP_VERSION_30
 
-#define UAM_USERNAMELEN							33
-#define UAM_CLRTXTPWDLEN						8
-#define MAX_DHXPASSWORDLEN						64
-#define AFP_ICONSIZE							128
-#define MAX_VOLNAME_LEN							27
-#define FINDERINFO_LEN							32
-#define PRODOS_LEN								6
-#define APPLETALK_NAME_LEN						31
-#define AFP_DIR_NEVER_BACKEDUP					0x80000000
-#define AFP_GUEST_USER_ID						0
-#define AFP_OWNER_USER_ID						1
-#define MAX_DOMAIN_NAME_LEN						32
+enum
+{
+    UAM_USERNAMELEN = 33,
+    UAM_CLRTXTPWDLEN = 8,
+    MAX_DHXPASSWORDLEN = 64,
+    AFP_ICONSIZE = 128,
+    MAX_VOLNAME_LEN = 27,
+    FINDERINFO_LEN = 32,
+    PRODOS_LEN = 6,
+    APPLETALK_NAME_LEN = 31,
+    AFP_GUEST_USER_ID = 0,
+    AFP_OWNER_USER_ID = 1,
+    MAX_DOMAIN_NAME_LEN = 32,
 
+    FIRST_VALID_ANSI_CHAR = 32,
+    LAST_VALID_ANSI_CHAR = 255,
 
-//
-//Mac's time is based from January 1, 1904 while a server's is based on the
-//year 2000. Below is the difference between the two for conversion and a
-//macro to make life easier.
-//
+    MAX_AFP_FILES_OPEN = 24,
+    MAX_AFP_OPEN_DIRS = 24,
+    MAX_AFP_OPEN_VOLUMES = 16
+};
+
+enum : UINT32
+{
+    AFP_DIR_NEVER_BACKEDUP = 0x80000000,
+};
+
+// Mac's time is based from January 1, 1904 while a server's is based on the
+// year 2000. Below is the difference between the two for conversion and a
+// macro to make life easier.
 #define NUM_SECS_FROM_1904_TO_2000 	3029529600
-#define LOCAL_TIME(serverTime)		(NUM_SECS_FROM_1904_TO_2000 + serverTime)
+#define LOCAL_TIME(serverTime)		(NUM_SECS_FROM_1904_TO_2000 + (serverTime))
 
-#define FIRST_VALID_ANSI_CHAR	32
-#define LAST_VALID_ANSI_CHAR	255
-
-//
-//Yes, we succeeded and are OK.
-//
 #define AFP_OK					0
 #define AFP_SUCCESS(e)			((e) == AFP_OK)
 #define AFP_FAILED(e)           ((e) != AFP_OK)
 
-//
-//This user sturcture is kept by the DSI session. AFP
-//uses it to keep track of open volumes and files on
-//a per-session basis.
-//
-#define MAX_AFP_FILES_OPEN		24
-#define MAX_AFP_OPEN_DIRS		24
-#define MAX_AFP_OPEN_VOLUMES	16
-
 using afp_clear_text_password = unsigned char[8];
 
-// ReSharper disable CppInconsistentNaming
 enum
 {
     KFPMsgSrvrBit = 0x1
@@ -487,7 +475,6 @@ struct afp_finder_info
 
 #pragma pack(pop)
 
-// ReSharper disable CppInconsistentNaming
 enum afp_finder_flags
 {
     kFDIsShared = 0x0040,
@@ -553,5 +540,3 @@ enum afp_session_token_types
     kRecon1Refresh = 7,
     kGetKerberosSessionKey = 8
 };
-
-// ReSharper restore CppInconsistentNaming
