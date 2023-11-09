@@ -1,7 +1,4 @@
-//===================================================================
-// afphelp.c
-//===================================================================
-
+// ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
 #include "StdAfx.h"
 
 #include <windows.h>
@@ -13,164 +10,166 @@
 #include "afphelp.h"
 #include "afpdebug.h"
 #include "afp.h"
-#include "AFPArray.h"
-#include "UsersAndGroupsArray.h"
+#include "afp_array.h"
+#include "users_and_groups_array.h"
 
-UsersAndGroupsArray gUserAndGroupID;
-DWORD gNextUserID = 1;
-DWORD gNextGroupID = 1;
+users_and_groups_array g_user_and_group_id;
+DWORD g_next_user_id = 1;
+DWORD g_next_group_id = 1;
 
-/*
- * AFPGetLogonSID()
- *
- * Description:
- *	Returns the SID for the logged in access token
- *	
- *	Return Value: 
- *		TRUE - Call succeeded. 
- *		FALSE - Call failed
- */
-BOOL AFPGetLogonSID(
-	IN HANDLE hToken,
-	   OUT PSID* ppSID
+std::string wide_string_to_string(const std::wstring& wide_string)
+{
+	if (wide_string.empty())
+	{
+		return "";
+	}
+
+	const auto size_needed = WideCharToMultiByte(CP_ACP, 0, &wide_string.at(0), static_cast<int>(wide_string.size()), nullptr, 0, nullptr, nullptr);
+	if (size_needed <= 0)
+	{
+		throw std::runtime_error("WideCharToMultiByte() failed: " + std::to_string(size_needed));
+	}
+
+	std::string result(size_needed, 0);
+	WideCharToMultiByte(CP_ACP, 0, &wide_string.at(0), static_cast<int>(wide_string.size()), &result.at(0), size_needed, nullptr, nullptr);
+	return result;
+}
+
+std::wstring string_to_wide_string(const std::string& string)
+{
+	if (string.empty())
+	{
+		return L"";
+	}
+
+	const auto size_needed = MultiByteToWideChar(CP_ACP, 0, &string.at(0), static_cast<int>(string.size()), nullptr, 0);
+	if (size_needed <= 0)
+	{
+		throw std::runtime_error("MultiByteToWideChar() failed: " + std::to_string(size_needed));
+	}
+
+	std::wstring result(size_needed, 0);
+	MultiByteToWideChar(CP_ACP, 0, &string.at(0), static_cast<int>(string.size()), &result.at(0), size_needed);
+	return result;
+}
+
+std::shared_ptr<PSID> afp_get_logon_sid(
+	IN const HANDLE h_token
 )
 {
-	auto bSuccess = FALSE;
-	DWORD dwIndex;
-	DWORD dwLength = 0;
+    DWORD length = 0;
 	std::unique_ptr<TOKEN_GROUPS> ptg;
+	std::shared_ptr<PSID> sid;
 
-	//
-	//Get the required buffer size and allocate the TOKEN_GROUPS buffer.
-	//
-	if (!GetTokenInformation(hToken, TokenGroups, nullptr, 0, &dwLength))
+	// Get the required buffer size and allocate the TOKEN_GROUPS buffer.
+	if (!GetTokenInformation(h_token, TokenGroups, nullptr, 0, &length))
 	{
 		if (GetLastError() != ERROR_INSUFFICIENT_BUFFER)
 		{
-			return FALSE;
+			return nullptr;
 		}
 
-		ptg = std::unique_ptr<TOKEN_GROUPS>(new TOKEN_GROUPS[dwLength / sizeof(TOKEN_GROUPS)]);
-
+		ptg = std::unique_ptr<TOKEN_GROUPS>(new TOKEN_GROUPS[length / sizeof(TOKEN_GROUPS)]);
 		if (ptg == nullptr)
 		{
-			//
-			//We failed to allocate enough memory for the buffer.
-			//
-			return FALSE;
+			// We failed to allocate enough memory for the buffer.
+			return nullptr;
 		}
 	}
 
-	if (GetTokenInformation(hToken, TokenGroups, static_cast<LPVOID>(ptg.get()), dwLength, &dwLength))
+	if (GetTokenInformation(h_token, TokenGroups, ptg.get(), length, &length))
 	{
-		//
-		//Loop through the groups to find the logon SID.
-		//
-
-		for (dwIndex = 0; dwIndex < ptg->GroupCount; dwIndex++)
+		// Loop through the groups to find the logon SID.
+		for (DWORD index = 0; index < ptg->GroupCount; index++)
 		{
-			if ((ptg->Groups[dwIndex].Attributes & SE_GROUP_LOGON_ID) == SE_GROUP_LOGON_ID)
+			if ((ptg->Groups[index].Attributes & SE_GROUP_LOGON_ID) == SE_GROUP_LOGON_ID)
 			{
-				dwLength = GetLengthSid(ptg->Groups[dwIndex].Sid);
-				*ppSID = static_cast<PSID>(DBG_ALLOC(dwLength));
+				length = GetLengthSid(ptg->Groups[index].Sid);
+				sid = std::make_shared<PSID>(new char[length]);
 
-				if (*ppSID != nullptr)
+				if (sid != nullptr)
 				{
-					if (!CopySid(dwLength, *ppSID, ptg->Groups[dwIndex].Sid))
+					if (CopySid(length, sid.get(), ptg->Groups[index].Sid))
 					{
-						DBG_FREE(*ppSID);
-					}
-					else
-					{
-						bSuccess = TRUE;
 					}
 				}
 			}
 		}
 	}
 
-	return bSuccess;
+	return sid;
 }
 
-/*
- * IsUserAdmin()
- *
- * Description:
- *	Routine Description: This routine returns TRUE if the caller's process
- *	is a member of the Administrators local group. Caller is NOT expected to
- *	be impersonating anyone and is expected to be able to open their own process 
- *	and process token.
- *	
- *	Arguments: None. 
- *	Return Value: 
- *		TRUE - Caller has Administrators local group. 
- *		FALSE - Caller does not have Administrators local group. --
- */
-BOOL IsUserAdmin(
-	IN HANDLE token
+BOOL is_user_admin(
+	IN const HANDLE token
 )
 {
-	SID_IDENTIFIER_AUTHORITY NtAuthority = SECURITY_NT_AUTHORITY;
-	PSID AdministratorsGroup = nullptr;
+	SID_IDENTIFIER_AUTHORITY nt_authority = SECURITY_NT_AUTHORITY;
+	PSID administrators_group = nullptr;
 
 	auto b = AllocateAndInitializeSid(
-		&NtAuthority,
+		&nt_authority,
 		2,
 		SECURITY_BUILTIN_DOMAIN_RID,
 		DOMAIN_ALIAS_RID_ADMINS,
 		0, 0, 0, 0, 0, 0,
-		&AdministratorsGroup
+		&administrators_group
 	);
 	if (b)
 	{
-		if (!CheckTokenMembership(token, AdministratorsGroup, &b))
+		if (!CheckTokenMembership(token, administrators_group, &b))
 		{
 			b = FALSE;
 		}
-		FreeSid(AdministratorsGroup);
+		FreeSid(administrators_group);
 	}
 
 	return b;
 }
 
-//---------------------------------------------------------------------
-// AFPGetSIDforUser()
-//---------------------------------------------------------------------
-//
-PSID AFPGetSIDforUser(
-	IN PWCHAR userName,
-	   IN PWCHAR domainName
+/*
+ * afp_get_sid_for_user()
+ *
+ * Description:
+ *	Return a user's SID.
+ *
+ *	Return Value: The user's SID
+ */
+PSID afp_get_sid_for_user(
+	IN const PWCHAR user_name,
+	IN const PWCHAR domain_name
 )
 {
-	UNREFERENCED_PARAMETER(domainName);
+	UNREFERENCED_PARAMETER(domain_name);
 
-	DWORD cbSid = 0;
-	DWORD cbReferencedDomainName = 0;
-	SID_NAME_USE sidNameUse;
-	WCHAR refDomainName[128];
+	DWORD cb_sid = 0;
+	DWORD cb_referenced_domain_name = 0;
+	SID_NAME_USE sid_name_use;
 
 	LookupAccountName(
 		nullptr,
-		userName,
+		user_name,
 		nullptr,
-		&cbSid,
+		&cb_sid,
 		nullptr,
-		&cbReferencedDomainName,
-		&sidNameUse
+		&cb_referenced_domain_name,
+		&sid_name_use
 	);
 
-	auto pSid = LocalAlloc(LMEM_ZEROINIT, cbSid);
+	const auto p_sid = LocalAlloc(LMEM_ZEROINIT, cb_sid);
 
-	if (pSid != nullptr)
+	if (p_sid != nullptr)
 	{
-		auto success = LookupAccountName(
+		WCHAR ref_domain_name[128];
+
+		const auto success = LookupAccountName(
 			nullptr,
-			userName,
-			pSid,
-			&cbSid,
-			refDomainName,
-			&cbReferencedDomainName,
-			&sidNameUse
+			user_name,
+			p_sid,
+			&cb_sid,
+			ref_domain_name,
+			&cb_referenced_domain_name,
+			&sid_name_use
 		);
 
 		if (!success)
@@ -178,129 +177,136 @@ PSID AFPGetSIDforUser(
 			//
 			//For some reason we failed to get the account SID.
 			//
-			DBGWRITE(DbgLevelInfo, L"[AFPHELP]LookupAccountName() failed getting user SID for [%s] (%d)\n", userName, GetLastError());
+			DBGWRITE(dbg_level_info, L"[AFPHELP]LookupAccountName() failed getting user SID for [%s] (%d)\n", user_name,
+			         GetLastError());
 
-			LocalFree(pSid);
+			LocalFree(p_sid);
 			return nullptr;
 		}
 	}
 
-	return pSid;
+	return p_sid;
 }
 
-//---------------------------------------------------------------------
-// AFPGetDirectoryRights()
-//---------------------------------------------------------------------
-//
-AFPERROR AFPGetDirectoryRights(
-	IN HANDLE token, //login token
-	   IN PWCHAR pDirWinPath, //directory to check
-	   IN PWCHAR pUserName,
-	   IN PWCHAR pDomainName,
-	   IN DWORD* afpRights
+/*
+ * afp_get_directory_rights()
+ *
+ * Description:
+ *	Returns a bitmap with rights associated with the supplied directory.
+ *
+ *	Return Value: error code
+ */
+DWORD afp_get_directory_rights(
+    // ReSharper disable once CppParameterNeverUsed
+    IN const HANDLE token, //login token
+	IN const PWCHAR p_dir_win_path, //directory to check
+	IN const PWCHAR p_user_name,
+	IN const PWCHAR p_domain_name,
+	IN DWORD* afp_rights
 )
 {
-	DWORD dwError;
-	PACL pDACL = nullptr;
-	PSECURITY_DESCRIPTOR pSecurityDescriptor = nullptr;
-	PSID pSidGroup = nullptr;
-	PSID pSidOwner = nullptr;
-	ACCESS_MASK accessRights = 0;
-	TRUSTEE trustee;
+	UNREFERENCED_PARAMETER(token);
 
-	DBGWRITE(DbgLevelAll, L"[AFPHELP]AFPGetDirectoryRights() enter...\n");
-	DBGWRITE(DbgLevelAll, L"[AFPHELP]user name = %s\n", pUserName);
+	PACL p_dacl = nullptr;
+	PSECURITY_DESCRIPTOR p_security_descriptor = nullptr;
+	PSID p_sid_group = nullptr;
+	PSID p_sid_owner = nullptr;
+	ACCESS_MASK access_rights = 0;
+	TRUSTEE trustee = {};
 
-	*afpRights = 0;
+	DBGWRITE(dbg_level_trace, L"[AFPHELP]AFPGetDirectoryRights() enter...\n");
+	DBGWRITE(dbg_level_trace, L"[AFPHELP]user name = %s\n", p_user_name);
+
+	*afp_rights = 0;
 
 	//
 	//First step is to get the security descriptor and SIDs for
 	//the directory.
 	//
-	dwError = GetNamedSecurityInfo(
-		pDirWinPath,
+	DWORD error = GetNamedSecurityInfo(
+		p_dir_win_path,
 		SE_FILE_OBJECT,
 		DACL_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | OWNER_SECURITY_INFORMATION,
-		&pSidOwner,
-		&pSidGroup,
-		&pDACL,
+		&p_sid_owner,
+		&p_sid_group,
+		&p_dacl,
 		nullptr,
-		&pSecurityDescriptor
+		&p_security_descriptor
 	);
 
-	if ((SUCCEEDED(dwError)) && (pSidOwner != nullptr))
+	if (SUCCEEDED(error) && p_sid_owner != nullptr)
 	{
 		//
 		//Check to see if the current user is the owner of the directory. If not, we
 		//get the access rights for this user as allowed by it's SID.
 		//
-		auto userSid = AFPGetSIDforUser(pUserName, pDomainName);
+		const auto user_sid = afp_get_sid_for_user(p_user_name, p_domain_name);
 
-		if (userSid != nullptr)
+		if (user_sid != nullptr)
 		{
-			if (EqualSid(userSid, pSidOwner))
+			if (EqualSid(user_sid, p_sid_owner))
 			{
-				DBGWRITE(DbgLevelAll, L"[AFPHELP]Logged on user is owner!!\n");
-				DBGWRITE(DbgLevelAll, L"[AFPHELP]Checking access rights for owner\n");
+				DBGWRITE(dbg_level_trace, L"[AFPHELP]Logged on user is owner!!\n");
+				DBGWRITE(dbg_level_trace, L"[AFPHELP]Checking access rights for owner\n");
 
 				//
 				//Use the handy-dandy routine to build the trustee for us.
 				//
-				BuildTrusteeWithSid(&trustee, pSidOwner);
-				dwError = GetEffectiveRightsFromAcl(pDACL, &trustee, &accessRights);
+				BuildTrusteeWithSid(&trustee, p_sid_owner);
+				error = GetEffectiveRightsFromAcl(p_dacl, &trustee, &access_rights);
 
-				DBGWRITE(DbgLevelAll, L"[AFPHELP]GetEffectiveRightsFromAcl() returned %d\n", dwError);
+				DBGWRITE(dbg_level_trace, L"[AFPHELP]GetEffectiveRightsFromAcl() returned %d\n", error);
 
-				if (accessRights & (WRITE_OWNER | WRITE_DAC | DELETE))
+				if (access_rights & (WRITE_OWNER | WRITE_DAC | DELETE))
 				{
-					*afpRights |= (kAccess_OW | kAccess_UAW);
-					DBGWRITE(DbgLevelAll, L"[AFPHELP]Owner has write access!\n");
+					*afp_rights |= (kAccess_OW | kAccess_UAW);
+					DBGWRITE(dbg_level_trace, L"[AFPHELP]Owner has write access!\n");
 				}
 
-				if (accessRights & READ_CONTROL)
+				if (access_rights & READ_CONTROL)
 				{
-					*afpRights |= (kAccess_OS | kAccess_OR | kAccess_UAS | kAccess_UAR);
-					DBGWRITE(DbgLevelAll, L"[AFPHELP]Owner has read access!\n");
+					*afp_rights |= (kAccess_OS | kAccess_OR | kAccess_UAS | kAccess_UAR);
+					DBGWRITE(dbg_level_trace, L"[AFPHELP]Owner has read access!\n");
 				}
 
-				*afpRights |= kAccess_Owner;
+				*afp_rights |= kAccess_Owner;
 			}
 			else
 			{
 				//
 				//Get the explicit access rights for this user.
 				//
-				accessRights = 0;
+				access_rights = 0;
 
-				BuildTrusteeWithSid(&trustee, userSid);
-				dwError = GetEffectiveRightsFromAcl(pDACL, &trustee, &accessRights);
+				BuildTrusteeWithSid(&trustee, user_sid);
+				error = GetEffectiveRightsFromAcl(p_dacl, &trustee, &access_rights);
 
-				if (SUCCEEDED(dwError))
+				if (SUCCEEDED(error))
 				{
-					if (accessRights & (WRITE_OWNER | WRITE_DAC | DELETE))
+					if (access_rights & (WRITE_OWNER | WRITE_DAC | DELETE))
 					{
-						*afpRights |= kAccess_UAW;
-						DBGWRITE(DbgLevelAll, L"[AFPHELP]User has write access!\n");
+						*afp_rights |= kAccess_UAW;
+						DBGWRITE(dbg_level_trace, L"[AFPHELP]User has write access!\n");
 					}
 
-					if (accessRights & READ_CONTROL)
+					if (access_rights & READ_CONTROL)
 					{
-						*afpRights |= kAccess_UAS | kAccess_UAR;
-						DBGWRITE(DbgLevelAll, L"[AFPHELP]User has read access!\n");
+						*afp_rights |= kAccess_UAS | kAccess_UAR;
+						DBGWRITE(dbg_level_trace, L"[AFPHELP]User has read access!\n");
 					}
 
 					//
 					//Needed to move this check here for Vista since admins don't get
 					//owner access information anymore.
 					//
-					if (IsUserAdmin(token))
+					//if (is_user_admin(token))
 					{
-						*afpRights |= kAccess_Owner;
+						*afp_rights |= kAccess_Owner;
 					}
 				}
 			}
 
-			LocalFree(userSid);
+			LocalFree(user_sid);
 		}
 
 		//
@@ -309,34 +315,35 @@ AFPERROR AFPGetDirectoryRights(
 		//BUGBUG: I cannot find a way to get the name of the guest account. This
 		//will fail on international systems as the guest name is different.
 		//
-		auto guestSID = AFPGetSIDforUser(TEXT("Guest"), nullptr);
+		constexpr WCHAR guest[] = L"Guest";
+		const auto guest_sid = afp_get_sid_for_user(const_cast<PWCHAR>(guest), nullptr);
 
-		if (guestSID != nullptr)
+		if (guest_sid != nullptr)
 		{
 			//
 			//Get the explicit access rights for this user.
 			//
-			accessRights = 0;
+			access_rights = 0;
 
-			BuildTrusteeWithSid(&trustee, guestSID);
-			dwError = GetEffectiveRightsFromAcl(pDACL, &trustee, &accessRights);
+			BuildTrusteeWithSid(&trustee, guest_sid);
+			error = GetEffectiveRightsFromAcl(p_dacl, &trustee, &access_rights);
 
-			if (SUCCEEDED(dwError))
+			if (SUCCEEDED(error))
 			{
-				if (accessRights & (WRITE_OWNER | WRITE_DAC | DELETE))
+				if (access_rights & (WRITE_OWNER | WRITE_DAC | DELETE))
 				{
-					*afpRights |= kAccess_WW;
-					DBGWRITE(DbgLevelAll, L"[AFPHELP]Guest has write access!\n");
+					*afp_rights |= kAccess_WW;
+					DBGWRITE(dbg_level_trace, L"[AFPHELP]Guest has write access!\n");
 				}
 
-				if (accessRights & READ_CONTROL)
+				if (access_rights & READ_CONTROL)
 				{
-					*afpRights |= kAccess_WS | kAccess_WR;
-					DBGWRITE(DbgLevelAll, L"[AFPHELP]Guest has read access!\n");
+					*afp_rights |= kAccess_WS | kAccess_WR;
+					DBGWRITE(dbg_level_trace, L"[AFPHELP]Guest has read access!\n");
 				}
 			}
 
-			LocalFree(guestSID);
+			LocalFree(guest_sid);
 		}
 
 #if 0
@@ -369,105 +376,93 @@ AFPERROR AFPGetDirectoryRights(
         }
 #endif
 
-		if (pSecurityDescriptor != nullptr)
+		if (p_security_descriptor != nullptr)
 		{
 			//
 			//This pointer was allocate on our behalf by GetNamedSecurityInfo().
 			//Clear it now that we're done with it.
 			//
-			LocalFree(pSecurityDescriptor);
+			LocalFree(p_security_descriptor);
 		}
 	}
 	else
 	{
-		DBGWRITE(DbgLevelInfo, L"[AFPHELP]GetNamedSecurityInfo() failed getting dir rights (%d)!\n", dwError);
+		DBGWRITE(dbg_level_info, L"[AFPHELP]GetNamedSecurityInfo() failed getting dir rights (%d)!\n", error);
 	}
 
-	return dwError;
+	return error;
 }
 
-#ifdef __MWERKS__
-#pragma pop
-#endif
 
-//---------------------------------------------------------------------
-// AFPGetUserNameByID()
-//---------------------------------------------------------------------
-//
-AFPERROR AFPGetUserNameByID(
-	IN DWORD dwID,
-	   IN PWCHAR szName
+AFPERROR afp_get_user_name_by_id(
+	IN const DWORD id,
+	IN const PWCHAR name
 )
 {
-    auto userAndGroup = gUserAndGroupID.FindById(dwID);
+	const auto user_and_group = g_user_and_group_id.find_by_id(id);
 
-    if (userAndGroup != nullptr)
-    {
-        lstrcpyn(szName, userAndGroup->name, lstrlen(userAndGroup->name) + 1);
-        return AFP_OK;
-    }
+	if (user_and_group != nullptr)
+	{
+		lstrcpyn(name, user_and_group->name, lstrlen(user_and_group->name) + 1);
+		return AFP_OK;
+	}
 
-    return afpParmErr;
+	return afpParmErr;
 }
 
-//---------------------------------------------------------------------
-// AFPGetDirectoryOwnerAndGroupID()
-//---------------------------------------------------------------------
-//
-AFPERROR AFPGetDirectoryOwnerAndGroupID(
-	IN PWCHAR pDirWinPath,
-	   OUT DWORD* dwOwnerID,
-	   OUT DWORD* dwGroupID
+DWORD afp_get_directory_owner_and_group_id(
+	IN const PWCHAR p_dir_win_path,
+	OUT DWORD* owner_id,
+	OUT DWORD* group_id
 )
 {
-	DWORD dwError;
-	PSID pSidGroup = nullptr;
-	PSID pSidOwner = nullptr;
+	PSID p_sid_group = nullptr;
+	PSID p_sid_owner = nullptr;
 	PSECURITY_DESCRIPTOR pSecurityDescriptor = nullptr;
 
-	ASSERT(dwOwnerID != nullptr);
-	ASSERT(dwGroupID != nullptr);
+	ASSERT(owner_id != nullptr);
+	ASSERT(group_id != nullptr);
 
 	//
 	//Initialize ID's to zero, this means no owner or group assigned.
 	//
-	*dwOwnerID = 0;
-	*dwGroupID = 0;
+	*owner_id = 0;
+	*group_id = 0;
 
 	//
 	//First step is to get the security descriptor and SIDs for
 	//the directory.
 	//
-	dwError = GetNamedSecurityInfo(
-		pDirWinPath,
+	DWORD error = GetNamedSecurityInfo(
+		p_dir_win_path,
 		SE_FILE_OBJECT,
 		GROUP_SECURITY_INFORMATION | OWNER_SECURITY_INFORMATION,
-		&pSidOwner,
-		&pSidGroup,
+		&p_sid_owner,
+		&p_sid_group,
 		nullptr,
 		nullptr,
 		&pSecurityDescriptor
 	);
 
-	if (SUCCEEDED(dwError))
+	if (SUCCEEDED(error))
 	{
-		WCHAR szName[64];
-		WCHAR szDomainName[64];
-		DWORD cbName = sizeof(szName);
-		DWORD cbDomainName = sizeof(szDomainName);
-		DWORD sidType = 0;
+		WCHAR sz_name[64];
+		WCHAR sz_domain_name[64];
+		DWORD cb_name = sizeof(sz_name) / 2;
+		DWORD cb_domain_name = sizeof(sz_domain_name) / 2;
+		DWORD sid_type = 0;
 
 		//
 		//First we get the name of the owner of the directory.
 		//
 		auto succeeded = LookupAccountSid(
 			nullptr,
-			pSidOwner,
-			szName,
-			&cbName,
-			szDomainName,
-			&cbDomainName,
-			reinterpret_cast<PSID_NAME_USE>(&sidType)
+			p_sid_owner,
+			sz_name,
+			&cb_name,
+			sz_domain_name,
+			&cb_domain_name,
+			reinterpret_cast<PSID_NAME_USE>(&sid_type)
 		);
 
 		if (succeeded)
@@ -476,41 +471,41 @@ AFPERROR AFPGetDirectoryOwnerAndGroupID(
 			//We successfully got the owner name from the directory SID. Now we
 			//need to convert it to an AFP user ID.
 			//
-			DBGWRITE(DbgLevelInfo, L"[AFPHELP]Owner name from SID = %s for dir %s\n", szName, pDirWinPath);
+			DBGWRITE(dbg_level_info, L"[AFPHELP]Owner name from SID = %s for dir %s\n", sz_name, p_dir_win_path);
 
 			//
 			//We only care about user SID's, check to make sure that's what we got.
 			//
-			if (sidType == SidTypeUser)
+			if (sid_type == SidTypeUser)
 			{
 				//
 				//First, search to see if the user name is already in our tables with
 				//a valid afp user ID.
 				//
-                auto userAndGroup = gUserAndGroupID.FindByName(szName, AFP_USERNAME_TYPE);
-                if (userAndGroup != nullptr)
-                {
-                    *dwOwnerID = userAndGroup->id;
-                }
+				const auto user_and_group = g_user_and_group_id.find_by_name(sz_name, afp_user_name_type);
+				if (user_and_group != nullptr)
+				{
+					*owner_id = user_and_group->id;
+				}
 
 				//
 				//If a matching user name wasn't found in the list, then add it.
 				//
-				if (*dwOwnerID == 0)
+				if (*owner_id == 0)
 				{
-                    auto userOrGroupName = std::make_unique<AFP_USERGROUP_NAME>();
+					auto user_or_group_name = std::make_unique<afp_user_group_name>();
 
-					if (userOrGroupName)
+					if (user_or_group_name)
 					{
-						*dwOwnerID = gNextUserID++;
-						userOrGroupName->id = *dwOwnerID;
-						userOrGroupName->type = AFP_USERNAME_TYPE;
+						*owner_id = g_next_user_id++;
+						user_or_group_name->id = *owner_id;
+						user_or_group_name->type = afp_user_name_type;
 
-						lstrcpyn(userOrGroupName->name, szName, lstrlen(szName) + 1);
+						lstrcpyn(user_or_group_name->name, sz_name, lstrlen(sz_name) + 1);
 
-						gUserAndGroupID.AddItem(userOrGroupName);
+						g_user_and_group_id.add_item(user_or_group_name);
 
-						DBGWRITE(DbgLevelInfo, L"[AFPHELP]Added username %s to the array\n", userOrGroupName->name);
+						DBGWRITE(dbg_level_info, L"[AFPHELP]Added username %s to the array\n", user_or_group_name->name);
 					}
 				}
 			}
@@ -520,28 +515,28 @@ AFPERROR AFPGetDirectoryOwnerAndGroupID(
 			//
 			//We failed to get the owner name. Report it but only in debug.
 			//
-			dwError = GetLastError();
+			error = GetLastError();
 
-			DBGWRITE(DbgLevelInfo, L"[AFPHELP]****Error getting owner name for [%s], error code: %d\n",
-				pDirWinPath,
-				dwError
+			DBGWRITE(dbg_level_info, L"[AFPHELP]****Error getting owner name for [%s], error code: %d\n",
+			         p_dir_win_path,
+			         error
 			);
 		}
 
-		cbName = sizeof(szName);
-		cbDomainName = sizeof(szDomainName);
+		cb_name = sizeof(sz_name) / 2;
+		cb_domain_name = sizeof(sz_domain_name) / 2;
 
 		//
 		//Get the name of the group that owns the directory.
 		//
 		succeeded = LookupAccountSid(
 			nullptr,
-			pSidGroup,
-			szName,
-			&cbName,
-			szDomainName,
-			&cbDomainName,
-			reinterpret_cast<PSID_NAME_USE>(&sidType)
+			p_sid_group,
+			sz_name,
+			&cb_name,
+			sz_domain_name,
+			&cb_domain_name,
+			reinterpret_cast<PSID_NAME_USE>(&sid_type)
 		);
 
 		if (succeeded)
@@ -550,12 +545,12 @@ AFPERROR AFPGetDirectoryOwnerAndGroupID(
 			//We successfully got the group name from the directory SID. Now we
 			//need to convert it to an AFP group ID.
 			//
-			DBGWRITE(DbgLevelAll, L"[AFPHELP]Group name from SID = %s for dir %s\n", szName, pDirWinPath);
+			DBGWRITE(dbg_level_trace, L"[AFPHELP]Group name from SID = %s for dir %s\n", sz_name, p_dir_win_path);
 
 			//
 			//We only care about group SID's, check to make sure that's what we got.
 			//
-			if (sidType == SidTypeGroup)
+			if (sid_type == SidTypeGroup)
 			{
 			}
 		}
@@ -564,9 +559,9 @@ AFPERROR AFPGetDirectoryOwnerAndGroupID(
 			//
 			//We failed to get the group name. Report it but only in debug.
 			//
-			dwError = GetLastError();
+			error = GetLastError();
 
-			DBGWRITE(DbgLevelInfo, L"[AFPHELP]****Error getting group name! (%d)\n", dwError);
+			DBGWRITE(dbg_level_info, L"[AFPHELP]****Error getting group name! (%d)\n", error);
 		}
 
 		if (pSecurityDescriptor)
@@ -579,172 +574,111 @@ AFPERROR AFPGetDirectoryOwnerAndGroupID(
 		}
 	}
 
-	return dwError;
+	return error;
 }
 
-//---------------------------------------------------------------------
-// AFPExtractDomainAndUserName()
-//---------------------------------------------------------------------
-// Extracts the domain and user name from a string. The string can
-// consist of "domain\username" or just "username".
-//
-// pUserName	contains the string to extract the domain name and
-//				will point to just the user name on exit.
-// pDomain		buffer that will contain the extracted domain name.
-//
-void AFPExtractDomainAndUserName(
-	IN PWCHAR pUserName,
-	   IN size_t cbUserName,
-	   OUT PWCHAR pDomain,
-	   IN size_t cbDomain
+/*
+ * afp_extract_domain_and_user_name()
+ *
+ * Description:
+ *  Extracts the domain and user name from a string. The string can
+ *  consist of "domain\username" or just "username". *
+ *
+ *	Return Value: none
+ */
+void afp_extract_domain_and_user_name(
+	IN std::wstring& user_name,
+	OUT std::wstring& domain_name
 )
 {
-	WCHAR szUserName[64];
-	WCHAR* pTemp;
-
-	if (lstrlen(pUserName) == 0)
+	if (user_name.empty())
 	{
-		//
-		//Empty string was passed, nothing to do.
-		//
 		return;
 	}
 
-	ZeroMemory(szUserName, sizeof(szUserName));
-
-	//
-	//First extract the domain name from the big username string.
-	//
-	pTemp = wcschr(pUserName, '\\');
-
-	if (pTemp)
+    const std::size_t pos = user_name.find(L'\\');
+	if (pos == std::wstring::npos)
 	{
-		lstrcpyn(
-			pDomain,
-			pUserName,
-			min((int)cbDomain, (int)((pTemp-pUserName)+1))
-		);
-	}
-	else
-	{
-		//
-		//No domain name supplied, so zero out the buffer.
-		//
-		ZeroMemory(pDomain, cbDomain);
+		// No domain name, leave everything untouched.
+		return;
 	}
 
-	//
-	//Now get just the username in the username buffer.
-	//
-	lstrcpyn(szUserName, pUserName, sizeof(szUserName));
-
-	pTemp = wcschr(szUserName, '\\');
-
-	if (pTemp)
-	{
-		StringCbCopy(pUserName, cbUserName, pTemp + 1);
-	}
-
-	//
-	//Note, if we didn't find a '\' in the username, then we'll just
-	//pass back whatever we got as the user name untouched.
-	//
+	domain_name = user_name.substr(0, pos);
+	user_name = user_name.substr(pos + 1);
 }
 
-//---------------------------------------------------------------------
-// AFPWindowsToMacTime()
-//---------------------------------------------------------------------
-// Converts Windows time to Mac AFP time.
-ULONG AFPWindowsToMacTime(
-	IN PFILETIME filetime
+ULONG afp_windows_to_mac_time(
+	IN const PFILETIME file_time
 )
 {
+	ULARGE_INTEGER seconds;
+	ULARGE_INTEGER time;
+	LARGE_INTEGER seconds_to_start_of1980;
+
+	seconds_to_start_of1980.LowPart = 0xc8df3700;
+	seconds_to_start_of1980.HighPart = 0x00000002;
+
+	time.LowPart = file_time->dwLowDateTime;
+	time.HighPart = file_time->dwHighDateTime;
+
+	seconds.QuadPart = time.QuadPart / num_100_ns_per_second;
+	seconds.QuadPart = seconds.QuadPart - seconds_to_start_of1980.QuadPart;
+
+	return seconds.LowPart - seconds_from_1980_2000;
+}
+
+ULONG afp_windows_to_mac_local_time(
+	IN const PFILETIME file_time
+)
+{
+	LARGE_INTEGER local_time;
 	LARGE_INTEGER seconds;
-	LARGE_INTEGER fTime;
-	LARGE_INTEGER SecondsToStartOf1980;
+	LARGE_INTEGER seconds_to_start_of1980;
 
-	SecondsToStartOf1980.LowPart = 0xc8df3700;
-	SecondsToStartOf1980.HighPart = 0x00000002;
+	seconds_to_start_of1980.LowPart = 0xc8df3700;
+	seconds_to_start_of1980.HighPart = 0x00000002;
 
-	fTime.LowPart = filetime->dwLowDateTime;
-	fTime.HighPart = filetime->dwHighDateTime;
+	FileTimeToLocalFileTime(file_time, reinterpret_cast<PFILETIME>(&local_time));
 
-	seconds.QuadPart = fTime.QuadPart / NUM_100ns_PER_SECOND;
-	seconds.QuadPart = seconds.QuadPart - SecondsToStartOf1980.QuadPart;
+	seconds.QuadPart = local_time.QuadPart / num_100_ns_per_second;
+	seconds.QuadPart = seconds.QuadPart - seconds_to_start_of1980.QuadPart;
 
-	return seconds.LowPart - SECONDS_FROM_1980_2000;
+	return seconds.LowPart - seconds_from_1980_2000;
 }
 
-//---------------------------------------------------------------------
-// AFPWindowsToMacLocalTime()
-//---------------------------------------------------------------------
-// Converts Windows time to Mac AFP time.
-ULONG AFPWindowsToMacLocalTime(
-	IN PFILETIME filetime
+void afp_mac_to_windows_time(
+	IN ULONG mac_time,
+	IN const PFILETIME file_time
 )
 {
-	LARGE_INTEGER localTime;
-	LARGE_INTEGER seconds;
-	LARGE_INTEGER SecondsToStartOf1980;
+	LARGE_INTEGER local_time;
+	LARGE_INTEGER seconds_to_start_of1980;
 
-	SecondsToStartOf1980.LowPart = 0xc8df3700;
-	SecondsToStartOf1980.HighPart = 0x00000002;
+	seconds_to_start_of1980.LowPart = 0xc8df3700;
+	seconds_to_start_of1980.HighPart = 0x00000002;
 
-	FileTimeToLocalFileTime(filetime, reinterpret_cast<PFILETIME>(&localTime));
+	mac_time += seconds_from_1980_2000;
 
-	seconds.QuadPart = localTime.QuadPart / NUM_100ns_PER_SECOND;
-	seconds.QuadPart = seconds.QuadPart - SecondsToStartOf1980.QuadPart;
+	local_time.QuadPart = mac_time + seconds_to_start_of1980.QuadPart;
+	local_time.QuadPart = local_time.QuadPart * num_100_ns_per_second;
 
-	return seconds.LowPart - SECONDS_FROM_1980_2000;
+	file_time->dwLowDateTime = local_time.LowPart;
+	file_time->dwHighDateTime = local_time.HighPart;
 }
 
-//---------------------------------------------------------------------
-// AFPMacToWindowsTime()
-//---------------------------------------------------------------------
-// Converts Mac AFP time to Windows time.
-void AFPMacToWindowsTime(
-	IN ULONG dwMacTime,
-	   IN PFILETIME filetime
+void afp_mac_to_windows_local_time(
+	IN const ULONG mac_time,
+	IN const PFILETIME file_time
 )
 {
-	LARGE_INTEGER localTime;
-	LARGE_INTEGER SecondsToStartOf1980;
+	FILETIME utc_time;
 
-	SecondsToStartOf1980.LowPart = 0xc8df3700;
-	SecondsToStartOf1980.HighPart = 0x00000002;
-
-	dwMacTime += SECONDS_FROM_1980_2000;
-
-	localTime.QuadPart = dwMacTime + SecondsToStartOf1980.QuadPart;
-	localTime.QuadPart = localTime.QuadPart * NUM_100ns_PER_SECOND;
-
-	filetime->dwLowDateTime = localTime.LowPart;
-	filetime->dwHighDateTime = localTime.HighPart;
+	afp_mac_to_windows_time(mac_time, &utc_time);
+	FileTimeToLocalFileTime(&utc_time, file_time);
 }
 
-//---------------------------------------------------------------------
-// AFPMacToWindowsLocalTime()
-//---------------------------------------------------------------------
-// Converts Mac AFP time to Windows time and converts the UTC time
-// to local (calculating time zones).
-void AFPMacToWindowsLocalTime(
-	IN ULONG dwMacTime,
-	   IN PFILETIME fileTime
-)
-{
-	FILETIME utcTime;
-
-	AFPMacToWindowsTime(dwMacTime, &utcTime);
-	FileTimeToLocalFileTime(&utcTime, fileTime);
-}
-
-//---------------------------------------------------------------------
-// OpenCurrentToken()
-//---------------------------------------------------------------------
-// Open a token for the privileges. First attempts on current thread.
-//
-BOOL OpenCurrentToken(
-	IN OUT PHANDLE Token
+BOOL open_current_token(
+	IN OUT const PHANDLE token
 )
 {
 	//
@@ -755,7 +689,7 @@ BOOL OpenCurrentToken(
 		GetCurrentThread(),
 		TOKEN_ADJUST_PRIVILEGES,
 		FALSE,
-		Token))
+		token))
 	{
 		//
 		//Couldn't open a thread token, so now open one for
@@ -764,9 +698,9 @@ BOOL OpenCurrentToken(
 		if (!OpenProcessToken(
 			GetCurrentProcess(),
 			TOKEN_ADJUST_PRIVILEGES,
-			Token))
+			token))
 		{
-			DBGWRITE(DbgLevelInfo, L"[SEC]OpenProcessToken() failed! (%d)\n", GetLastError());
+			DBGWRITE(dbg_level_info, L"[SEC]OpenProcessToken() failed! (%d)\n", GetLastError());
 			return FALSE;
 		}
 	}
@@ -774,466 +708,205 @@ BOOL OpenCurrentToken(
 	return TRUE;
 }
 
-//---------------------------------------------------------------------
-// AFPAdjustPrivilege()
-//---------------------------------------------------------------------
-// Adjusts the privilege of a token. If no token handle is not supplied
-// then we will get the token for the current thread or process.
-//
-BOOL AFPAdjustPrivilege(
-	IN PWCHAR szPrivilege,
-	   IN BOOL bEnable,
-	   IN HANDLE hToken
+BOOL afp_adjust_privilege(
+	IN const PWCHAR privilege,
+	IN const BOOL enable,
+	IN const HANDLE h_token
 )
 {
-	auto Token = INVALID_HANDLE_VALUE;
+	auto token = INVALID_HANDLE_VALUE;
 	LUID luid;
-	TOKEN_PRIVILEGES privs;
-	DWORD dwError;
+	TOKEN_PRIVILEGES privileges;
 
-	if (!LookupPrivilegeValue(nullptr, szPrivilege, &luid))
+	if (!LookupPrivilegeValue(nullptr, privilege, &luid))
 	{
-		DBGWRITE(DbgLevelInfo, L"[SEC]LookupPrivilegeValue() failed for %s! (%d)\n", szPrivilege, GetLastError());
+		DBGWRITE(dbg_level_error, L"LookupPrivilegeValue() failed for %s! (%d)\n", privilege, GetLastError());
 		return FALSE;
 	}
 
-	//
-	//If hToken was not supplied, then we get the token for the
-	//currently running thread.
-	//
-	if (hToken == INVALID_HANDLE_VALUE)
+	// If hToken was not supplied, then we get the token for the
+	// currently running thread.
+	if (h_token == INVALID_HANDLE_VALUE)
 	{
-		if (!OpenCurrentToken(&Token))
+		if (!open_current_token(&token))
 		{
-			DBGWRITE(DbgLevelInfo, L"[SEC]OpenCurrentToken() failed! (%d)\n", GetLastError());
+			DBGWRITE(dbg_level_error, L"OpenCurrentToken() failed! (%d)\n", GetLastError());
 			return FALSE;
 		}
 	}
 	else
 	{
-		Token = hToken;
+		token = h_token;
 	}
 
-	privs.PrivilegeCount = 1;
-	privs.Privileges[0].Luid = luid;
-	privs.Privileges[0].Attributes = bEnable ? SE_PRIVILEGE_ENABLED : 0;
+	privileges.PrivilegeCount = 1;
+	privileges.Privileges[0].Luid = luid;
+	privileges.Privileges[0].Attributes = enable ? SE_PRIVILEGE_ENABLED : 0;
 
 	//
 	//Here's the real API call that adjusts the privileges.
 	//
 	if (!AdjustTokenPrivileges(
-		Token,
+		token,
 		FALSE,
-		&privs,
+		&privileges,
 		0,
 		nullptr,
 		nullptr))
 	{
-		dwError = GetLastError();
+		const DWORD error = GetLastError();
 
-		DBGWRITE(DbgLevelInfo, L"[SEC]AdjustTokenPrivileges() failed! (%d)\n", dwError);
+		DBGWRITE(dbg_level_error, L"AdjustTokenPrivileges() failed! (%d)\n", error);
 
 		//
 		//If we have an invalid handle, we don't want to make a call on
 		//it at this stage or we'll die. Only close if we created the token
 		//handle locally.
 		//
-		if ((dwError != ERROR_INVALID_HANDLE) && (hToken == INVALID_HANDLE_VALUE))
+		if (error != ERROR_INVALID_HANDLE && h_token == INVALID_HANDLE_VALUE)
 		{
-			CloseHandle(Token);
+			CloseHandle(token);
 		}
 
 		return FALSE;
 	}
 
-	DBGWRITE(DbgLevelAll, L"[SEC]AdjustTokenPrivileges() succeeded for %s\n", szPrivilege);
+	DBGWRITE(dbg_level_trace, L"AdjustTokenPrivileges() succeeded for %s\n", privilege);
 
-	//
-	//We only want to close the Token handle if we created it
-	//locally with OpenCurrentToken().
-	//
-	if (hToken == INVALID_HANDLE_VALUE)
+	// We only want to close the Token handle if we created it
+	// locally with OpenCurrentToken().
+	if (h_token == INVALID_HANDLE_VALUE)
 	{
-		CloseHandle(Token);
+		CloseHandle(token);
 	}
 
 	return TRUE;
 }
 
-//---------------------------------------------------------------------
-// AFPAdjustAccountRight()
-//---------------------------------------------------------------------
-// Adjust the account rights for the supplied user.
-//
-BOOL AFPAdjustAccountRight(
-	IN HANDLE hUserToken,
-	   PWCHAR szPriv,
-	   USHORT cbPriv //count in bytes the size of the szPriv buffer
+BOOL afp_adjust_account_right(
+	IN const HANDLE h_user_token,
+	const PWCHAR privileges,
+	const USHORT cb_privileges //count in bytes the size of the privileges buffer
 )
 {
-	UNREFERENCED_PARAMETER(hUserToken);
+	UNREFERENCED_PARAMETER(h_user_token);
 
-	LSA_OBJECT_ATTRIBUTES objectAttributes;
-	LSA_UNICODE_STRING userRights;
-	PSID accountSID = nullptr;
-	auto policyHandle = INVALID_HANDLE_VALUE;
+	LSA_OBJECT_ATTRIBUTES object_attributes;
+	LSA_UNICODE_STRING user_rights;
+	auto policy_handle = INVALID_HANDLE_VALUE;
 
-	//
-	//First open a policy object for the local system.
-	//
-	ZeroMemory(&objectAttributes, sizeof(objectAttributes));
+	// First open a policy object for the local system.
+	ZeroMemory(&object_attributes, sizeof(object_attributes));
 
-	auto status = LsaOpenPolicy(nullptr, &objectAttributes, POLICY_LOOKUP_NAMES | POLICY_CREATE_ACCOUNT, &policyHandle);
-
+	auto status = LsaOpenPolicy(nullptr, &object_attributes, POLICY_LOOKUP_NAMES | POLICY_CREATE_ACCOUNT, &policy_handle);
 	if (status == ERROR_SUCCESS)
 	{
-		ZeroMemory(&userRights, sizeof(userRights));
+		const PSID account_sid = nullptr;
+		ZeroMemory(&user_rights, sizeof(user_rights));
 
-		//
-		//Build the LSA unicode string structure
-		//
-		userRights.Length = static_cast<USHORT>(lstrlen(szPriv));
-		userRights.MaximumLength = cbPriv;
-		userRights.Buffer = szPriv;
+		// Build the LSA unicode string structure
+		user_rights.Length = static_cast<USHORT>(lstrlen(privileges));
+		user_rights.MaximumLength = cb_privileges;
+		user_rights.Buffer = privileges;
 
 		status = LsaAddAccountRights(
-			policyHandle,
-			accountSID,
-			&userRights,
+			policy_handle,
+			account_sid,
+			&user_rights,
 			1
 		);
 
-		LsaClose(policyHandle);
+		// ReSharper disable once CppFunctionResultShouldBeUsed
+		LsaClose(policy_handle);
 
 		if (status != ERROR_SUCCESS)
 		{
-			DBGWRITE(DbgLevelInfo, L"[SEC:AFPAdjustAccountRight]LsaAddAccountRights() failed %lu\n", LsaNtStatusToWinError(status));
+			DBGWRITE(dbg_level_info, L"LsaAddAccountRights() failed %lu\n",
+			         LsaNtStatusToWinError(status));
 			return FALSE;
 		}
 	}
 	else
 	{
-		DBGWRITE(DbgLevelInfo, L"[SEC:AFPAdjustAccountRight]LsaOpenPolicy() failed %lu\n", LsaNtStatusToWinError(status));
+		DBGWRITE(dbg_level_info, L"LsaOpenPolicy() failed %lu\n",
+		         LsaNtStatusToWinError(status));
 		return FALSE;
 	}
 
 	return TRUE;
 }
 
-//---------------------------------------------------------------------
-// AFPImpersonateUser()
-//---------------------------------------------------------------------
-// Workhorse routine for impersonating a logged in client. We have to
-// do some special handling, especially for Vista, to ensure that
-// the logged on user token has the privilege to impersonate on this
-// machine.
-//
-// NOTE: In order to set the impersonation privilege, the logged on user
-// must be enabled as an impersonable user. To do this, go to the Local 
-// Security Settings in the control panel, go to Local Policies\User Rights
-// Assignment and add your user to the 'Impersonate a client after 
-// authentication' policy.
-//
-BOOL AFPImpersonateUser(
-	IN HANDLE hUserToken
+
+/*
+ * afp_impersonate_user()
+ *
+ * Description:
+ *  Workhorse routine for impersonating a logged in client. We have to
+ *  do some special handling, especially for Vista, to ensure that
+ *  the logged on user token has the privilege to impersonate on this
+ *  machine.
+ *
+ *  NOTE: In order to set the impersonation privilege, the logged on user
+ *  must be enabled as an impersonable user. To do this, go to the Local
+ *  Security Settings in the control panel, go to Local Policies\User Rights
+ *  Assignment and add your user to the 'Impersonate a client after
+ *  authentication' policy.
+ *
+ *	Return Value: true if successful.
+ */
+BOOL afp_impersonate_user(
+	IN const HANDLE h_user_token
 )
 {
-	auto success = AFPAdjustPrivilege(SE_IMPERSONATE_NAME, TRUE);
+	const std::wstring impersonate_name = SE_IMPERSONATE_NAME;
+
+	auto success = afp_adjust_privilege(const_cast<PWCHAR>(impersonate_name.c_str()), TRUE);
 
 	if (success)
 	{
-		success = ImpersonateLoggedOnUser(hUserToken);
-
-		DBGWRITE(DbgLevelAll, L"[SEC:AFPImpersonateUser]Impersonation succeeded:  %s\n", (success) ? L"YES" : L"NO");
+		success = ImpersonateLoggedOnUser(h_user_token);
+		if (!success)
+        {
+            DBGWRITE(dbg_level_error, L"Impersonation failed\n");
+        }
 	}
 
 	return success;
 }
 
-//---------------------------------------------------------------------
-// AFPRevertToSelf()
-//---------------------------------------------------------------------
-// Reciprocal of above.
-//
-BOOL AFPRevertToSelf(
-	IN HANDLE hUserToken
+
+BOOL afp_revert_to_self(
+	IN const HANDLE h_user_token
 )
 {
-	UNREFERENCED_PARAMETER(hUserToken);
+	UNREFERENCED_PARAMETER(h_user_token);
 
-	BOOL success;
+	const BOOL success = RevertToSelf();
+	const std::wstring impersonate_name = SE_IMPERSONATE_NAME;
 
-	success = RevertToSelf();
-	AFPAdjustPrivilege(SE_IMPERSONATE_NAME, FALSE);
+	afp_adjust_privilege(const_cast<PWCHAR>(impersonate_name.c_str()), FALSE);
 
 	return success;
 }
 
-//---------------------------------------------------------------------
-// AFPMacToWindowsString()
-//---------------------------------------------------------------------
-// Converts a Mac format string into a windows unicode string.
-//
-PWCHAR AFPMacToWindowsString(
-	IN PCHAR pMacString,
-	   IN WORD cbWideString,
-	   OUT PWCHAR pWideString
-)
+
+bool is_white_space(const char c)
 {
-	if (strlen(pMacString) == 0)
-	{
-		pWideString[0] = '\0';
-		return pWideString;
-	}
+	// A white space checker that doesn't choke on negative values.
 
-	auto wSize = MultiByteToWideChar(
-		CP_MACCP,
-		0,
-		pMacString,
-		static_cast<int>(strlen(pMacString)),
-		pWideString,
-		cbWideString
-	);
-
-	if (wSize == 0)
-	{
-		auto dwError = GetLastError();
-
-		DBGWRITE(DbgLevelInfo, L"[HELP]MultiByteToWideChar() failed in AFPMacToWindowsString()! (%d)\n", dwError);
-		return nullptr;
-	}
-
-	pWideString[wSize] = '\0';
-
-	return pWideString;
-}
-
-//---------------------------------------------------------------------
-// AFPMacToWindowsPath()
-//---------------------------------------------------------------------
-// Converts a Mac format pathname into a windows pathname.
-//
-PWCHAR AFPMacToWindowsPath(
-	IN PCHAR pAFPPath,
-	   OUT PWCHAR pWidePath,
-	   OUT AFPCHARMAPARRAY pCharMap
-)
-{
-	auto dwLen = strlen(pAFPPath);
-
-	if (dwLen == 0)
-	{
-		pWidePath[0] = '\0';
-		return pWidePath;
-	}
-
-	if (pCharMap != nullptr)
-	{
-		memset(pCharMap, 0, sizeof(AFPCHARMAPARRAY));
-	}
-
-	WORD wCharMapPos = 0;
-
-	for (WORD i = 0; i < dwLen; i++)
-	{
-		//
-		//Make sure we're ansi chars and make sure the name doesn't contain
-		//one of the illegal file characters for Windows.
-		//
-		if (pAFPPath[i] < FIRST_VALID_ANSI_CHAR ||
-			static_cast<UCHAR>(pAFPPath[i]) > LAST_VALID_ANSI_CHAR ||
-			pAFPPath[i] == '\\' ||
-			pAFPPath[i] == '/' ||
-			pAFPPath[i] == '"' ||
-			pAFPPath[i] == '?' ||
-			pAFPPath[i] == '*' ||
-			pAFPPath[i] == '<' ||
-			pAFPPath[i] == '>' ||
-			pAFPPath[i] == '|')
-		{
-			//
-			//If pCharMap is not null, then we are building the char map for
-			//the index entry as well.
-			//
-			if (pCharMap != nullptr)
-			{
-				pCharMap[wCharMapPos].wKeyCode = static_cast<BYTE>(pAFPPath[i]);
-				pCharMap[wCharMapPos].wOffset = i;
-
-				DBGWRITE(DbgLevelAll, L"[HELP]Adding keycode %d offset %d\n",
-					pCharMap[wCharMapPos].wKeyCode,
-					pCharMap[wCharMapPos].wOffset);
-
-				wCharMapPos++;
-			}
-
-			pAFPPath[i] = REPLACEMENT_CHAR;
-		}
-		else
-		{
-			switch (pAFPPath[i])
-			{
-				//
-				//The macintosh path seperator is a ":", convert to windows path
-				//seperator of "/". Note that we don't save for conversion back,
-				//since we'll never send paths back to the mac client.
-				//
-			case ':':
-				pAFPPath[i] = '/';
-				break;
-
-				//
-				//Windows can't handle multiple periods in a row, we need to replace
-				//one of them. We also can't have the last character in the file name
-				//be a period.
-				//
-			case '.':
-				if (pAFPPath[i + 1] == '.' || i == dwLen - 1)
-				{
-					if (pCharMap != nullptr)
-					{
-						pCharMap[wCharMapPos].wKeyCode = static_cast<BYTE>(pAFPPath[i]);
-						pCharMap[wCharMapPos].wOffset = i;
-
-						wCharMapPos++;
-					}
-
-					pAFPPath[i] = REPLACEMENT_CHAR;
-				}
-				break;
-
-			default:
-				break;
-			}
-		}
-	}
-
-	//
-	//Lastly, make sure the last character in the afp path is not a white space
-	//because Windows has trouble dealing with that.
-	//
-	if (IsWhiteSpace(pAFPPath[dwLen - 1]))
-	{
-		pAFPPath[dwLen - 1] = '\0';
-	}
-
-	//
-	//So we know where to stop when reading the char table.
-	//
-	if (pCharMap != nullptr)
-	{
-		pCharMap[wCharMapPos].wKeyCode = 0;
-		pCharMap[wCharMapPos].wOffset = 0;
-	}
-
-	auto wSize = MultiByteToWideChar(
-		CP_MACCP,
-		0,
-		pAFPPath,
-		static_cast<int>(strlen(pAFPPath)),
-		pWidePath,
-		MAX_PATH);
-
-	if (wSize == 0)
-	{
-		auto dwError = GetLastError();
-
-		DBGWRITE(DbgLevelInfo, L"[HELP]MultiByteToWideChar() failed! (%d)\n", dwError);
-		return nullptr;
-	}
-
-	pWidePath[wSize] = '\0';
-
-	return pWidePath;
-}
-
-//---------------------------------------------------------------------
-// IsWhiteSpace()
-//---------------------------------------------------------------------
-// A white space checker that doesn't choke on negative values.
-//
-bool IsWhiteSpace(char c)
-{
 	return (c == ' ' || c == '\t' || c == '\r' || c == '\n');
 }
 
-//---------------------------------------------------------------------
-// AFPWindowsToMacPath()
-//---------------------------------------------------------------------
-// Converts a Windows format pathname into a mac pathname.
-//
-PCHAR AFPWindowsToMacPath(
-	IN PWCHAR pWinPath,
-	   IN WORD wAFPBuffSize,
-	   IN AFPCHARMAPARRAY pCharMap,
-	   OUT PCHAR pAFPPath
+
+void afp_get_object_name_from_path(
+	IN const PWCHAR p_path,
+	OUT const PWCHAR p_name_buff,
+	IN const size_t cb_name_buff
 )
 {
-	auto dwLen = lstrlen(pWinPath);
+	const auto path_len = lstrlen(p_path);
 
-	if (dwLen == 0)
-	{
-		pAFPPath[0] = '\0';
-		return pAFPPath;
-	}
-
-	BOOL fUsedDefaultChar;
-	auto wSize = WideCharToMultiByte(
-		CP_MACCP,
-		0,
-		pWinPath,
-		static_cast<int>(lstrlen(pWinPath)),
-		pAFPPath,
-		wAFPBuffSize,
-		"!",
-		&fUsedDefaultChar);
-
-	if (wSize == 0)
-	{
-		auto dwError = GetLastError();
-		DBGWRITE(DbgLevelInfo, L"[HELP]WideCharToMultiByte() failed! (%d)\n", dwError);
-	}
-
-	pAFPPath[wSize] = '\0';
-
-	if (pCharMap != nullptr)
-	{
-		auto i = 0;
-
-		while (pCharMap[i].wKeyCode != 0)
-		{
-			if (pCharMap[i].wOffset > wSize)
-			{
-				break;
-			}
-
-			pAFPPath[pCharMap[i].wOffset] = static_cast<char>(pCharMap[i].wKeyCode);
-
-			DBGWRITE(DbgLevelAll, L"[HELP]Converting keycode %d offset %d\n",
-				pCharMap[i].wKeyCode,
-				pCharMap[i].wOffset);
-
-			i++;
-		}
-	}
-
-	return pAFPPath;
-}
-
-//---------------------------------------------------------------------
-// AFPGetObjectNameFromPath()
-//---------------------------------------------------------------------
-// Returns just the file or dir name from a full pathname.
-//
-void AFPGetObjectNameFromPath(
-	IN PWCHAR pPath,
-	   OUT PWCHAR pNameBuff,
-	   IN size_t cbNameBuff
-)
-{
-	auto wLen = lstrlen(pPath);
-
-	if (wLen == 0)
+	if (path_len == 0)
 	{
 		return;
 	}
@@ -1242,11 +915,11 @@ void AFPGetObjectNameFromPath(
 	//When this loop completes, szTemp should contain the
 	//object name.
 	//
-	auto i = wLen - 1;
+	auto i = path_len - 1;
 
 	do
 	{
-		if (pPath[i] == '\\')
+		if (p_path[i] == '\\')
 		{
 			i++;
 			break;
@@ -1256,27 +929,24 @@ void AFPGetObjectNameFromPath(
 	}
 	while (i >= 0);
 
-	StringCbCopy(pNameBuff, cbNameBuff, &pPath[max(0, i)]);
+	// ReSharper disable once CppFunctionResultShouldBeUsed
+	StringCbCopy(p_name_buff, cb_name_buff, &p_path[max(0, i)]);
 
 	//
 	//BUGBUG: Add code here to check for proper length of filename!
 	//
 }
 
-//---------------------------------------------------------------------
-// AFPGetObjectDot3Extension()
-//---------------------------------------------------------------------
-// Returns just the last characters after the last period.
-//
-void AFPGetObjectDot3Extension(
-	IN PWCHAR pPath,
-	   OUT PWCHAR pNameBuff,
-	   IN size_t cbNameBuff
+
+void afp_get_object_dot3_extension(
+	IN const PWCHAR p_path,
+	OUT const PWCHAR p_name_buff,
+	IN const size_t cb_name_buff
 )
 {
-	auto wLen = lstrlen(pPath);
+	const auto path_len = lstrlen(p_path);
 
-	if (wLen == 0)
+	if (path_len == 0)
 	{
 		return;
 	}
@@ -1285,12 +955,12 @@ void AFPGetObjectDot3Extension(
 	//When this loop completes, szTemp should contain the
 	//object extension.
 	//
-	auto i = wLen - 1;
+	auto i = path_len - 1;
 	auto j = 0;
 
 	do
 	{
-		if (pPath[i] == '.')
+		if (p_path[i] == '.')
 		{
 			i++;
 			break;
@@ -1304,36 +974,37 @@ void AFPGetObjectDot3Extension(
 	while (i >= 0);
 
 	if (j < 4)
-	StringCbCopy(pNameBuff, cbNameBuff, &pPath[max(0, i)]);
+	{
+		// ReSharper disable once CppFunctionResultShouldBeUsed
+		StringCbCopy(p_name_buff, cb_name_buff, &p_path[max(0, i)]);
+	}
 }
 
-//---------------------------------------------------------------------
-// AFPGetObjectPath()
-//---------------------------------------------------------------------
-// Returns just the path to a file or dir. For example, if the full
-// path to a file is c:\dir1\dir2\dir3\filename, then this function
-// will return c:\dir1\dir2\dir3.
-//
-void AFPGetObjectPath(
-	IN PWCHAR pPath,
-	   OUT PWCHAR pPathBuff
+
+void afp_get_object_path(
+	IN const PWCHAR p_path,
+	OUT const PWCHAR p_path_buff
 )
 {
-	auto wLen = lstrlen(pPath);
+	// Returns just the path to a file or dir. For example, if the full
+	// path to a file is c:\dir1\dir2\dir3\filename, then this function
+	// will return c:\dir1\dir2\dir3.
 
-	pPathBuff[0] = '\0';
+	const auto path_len = lstrlen(p_path);
 
-	if (wLen == 0)
+	p_path_buff[0] = '\0';
+
+	if (path_len == 0)
 	{
 		return;
 	}
 
-	auto j = wLen - 1;
+	auto j = path_len - 1;
 	auto i = 0;
 
 	do
 	{
-		if (pPath[j] == '\\')
+		if (p_path[j] == '\\')
 		{
 			break;
 		}
@@ -1341,157 +1012,36 @@ void AFPGetObjectPath(
 		i++;
 		j--;
 	}
-	while (i < wLen);
+	while (i < path_len);
 
-	lstrcpyn(pPathBuff, pPath, wLen - i);
-}
-
-//---------------------------------------------------------------------
-// AFPMapWinErrorToAFP()
-//---------------------------------------------------------------------
-// Maps a Windows error code to an Afp error code.
-//
-AFPERROR AFPMapWinErrorToAFP(
-	IN DWORD dwWinError, //Windows code to map
-	   IN DWORD dwDefaultError //Default AFP error to use if no map found
-)
-{
-	switch (dwWinError)
-	{
-	case ERROR_LOCK_VIOLATION: return (afpLockErr);
-	case ERROR_FILE_NOT_FOUND: return (afpObjectNotFound);
-	case ERROR_PATH_NOT_FOUND: return (afpObjectNotFound);
-	case ERROR_INVALID_PARAMETER: return (afpParmErr);
-	case ERROR_INVALID_NAME: return (afpParmErr);
-	case ERROR_ACCESS_DENIED: return (afpAccessDenied);
-	case ERROR_HANDLE_DISK_FULL: return (afpDiskFull);
-	case ERROR_FILE_EXISTS: return (afpObjectExists);
-	case ERROR_DIR_NOT_EMPTY: return (afpDirNotEmpty);
-	case ERROR_HANDLE_EOF: return (afpEofError);
-	case ERROR_INVALID_LOGON_HOURS: return (afpUserNotAuth);
-	case ERROR_PASSWORD_EXPIRED: return (afpPwdExpiredErr);
-
-	default: return dwDefaultError;
-	}
-}
-
-//---------------------------------------------------------------------
-// AFPReAlloc()
-//---------------------------------------------------------------------
-// Windows realloc sucks! Here's my own inefficient one. :-(
-//
-PVOID AFPReAlloc(
-	IN PCHAR pOldBuffer,
-	   IN DWORD dwOldBufferSize,
-	   IN DWORD dwNewSize,
-	   IN BOOL fCopyOldToNew
-)
-{
-	auto pNewBuffer = static_cast<PCHAR>(DBG_ALLOC(dwNewSize));
-	if (pNewBuffer == nullptr)
-	{
-		return nullptr;
-	}
-
-	//
-	//Copy the contents of the old buffer
-	//
-	if (fCopyOldToNew)
-	{
-		RtlCopyMemory(pNewBuffer, pOldBuffer, min(dwOldBufferSize, dwNewSize));
-	}
-
-	//
-	//Free the old buffer pointer.
-	//
-	DBG_FREE(pOldBuffer);
-
-	return pNewBuffer;
+	lstrcpyn(p_path_buff, p_path, path_len - i);
 }
 
 
-//---------------------------------------------------------------------
-// AFPExtractStringAndAdvanceBuffPtr()
-//---------------------------------------------------------------------
-// Extract a string from a buffer and advance the buffer pointer
-// to the end of the string (to the next parameter in an AFP command).
-//
-
-HRESULT AFPExtractStringAndAdvanceBuffPtr(
-	IN PCHAR* pBuffer, //Buffer containing string to extract
-	   IN PWCHAR pWinString, //Wide buffer to hold extracted unicode string
-	   IN WORD cchWinString, //Size in characters of pWinString
-	   IN BOOL fIsPath, //Is the string a pathname to a file?
-	   OPTIONAL LPAFPCHARMAP pCharMap //Optional charmap table for Mac->Win conversion
+AFPERROR afp_map_win_error_to_afp(
+	IN const DWORD win_error,
+	IN const AFPERROR default_error //Default AFP error to use if no map found
 )
 {
-	auto pTempString = *pBuffer;
-	CHAR szTempString[MAX_AFP_PATH];
-
-	pWinString[0] = '\0';
-
-	//
-	//Validate the data sent to us by the caller.
-	//
-	if (pTempString == nullptr || pWinString == nullptr)
+	switch (win_error)
 	{
-		return (ERROR_INVALID_DATA);
+	case NO_ERROR: return AFP_OK;
+	case ERROR_LOCK_VIOLATION: return afpLockErr;
+
+	case ERROR_FILE_NOT_FOUND:
+	case ERROR_PATH_NOT_FOUND: return afpObjectNotFound;
+
+	case ERROR_INVALID_PARAMETER:
+	case ERROR_INVALID_NAME: return afpParmErr;
+
+	case ERROR_ACCESS_DENIED: return afpAccessDenied;
+	case ERROR_HANDLE_DISK_FULL: return afpDiskFull;
+	case ERROR_FILE_EXISTS: return afpObjectExists;
+	case ERROR_DIR_NOT_EMPTY: return afpDirNotEmpty;
+	case ERROR_HANDLE_EOF: return afpEofError;
+	case ERROR_INVALID_LOGON_HOURS: return afpUserNotAuth;
+	case ERROR_PASSWORD_EXPIRED: return afpPwdExpiredErr;
+
+	default: return default_error;
 	}
-
-	//
-	//If there is no string to extract, save some cycles and exit.
-	//
-	if (static_cast<BYTE>(pTempString[0]) > 0)
-	{
-		//
-		//Check the length of the pascal string. If it's too big,
-		//we bail. We add one for the null trailer.
-		//
-		if (static_cast<BYTE>(pTempString[0]) + 1 > cchWinString)
-		{
-			//
-			//The supplied buffer is not big enough to hold the
-			//string passed from the client.
-			//
-			return ERROR_NOT_ENOUGH_MEMORY;
-		}
-
-		//
-		//Because the buffer we're passed does not contain a null
-		//terminated string, we need to make one to pass to the
-		//AFP conversion routine.
-		//
-		RtlCopyMemory(szTempString, &pTempString[1], static_cast<BYTE>(pTempString[0]));
-		szTempString[static_cast<BYTE>(pTempString[0])] = '\0';
-
-		//
-		//Call the AFP helper function that does the Mac ANSI to
-		//Windows UNICODE conversion.
-		//
-		if (fIsPath)
-		{
-			//
-			//Set the fIsPath parameter if this is a pathname in an AFP command.
-			//
-			if (AFPMacToWindowsPath(szTempString, pWinString, pCharMap) == nullptr)
-			{
-				//
-				//There was a failure in the conversion process. Return
-				//appropriate error code.
-				//
-				return (GetLastError());
-			}
-		}
-		else
-		{
-			if (AFPMacToWindowsString(szTempString, cchWinString, pWinString) == nullptr)
-			{
-				return GetLastError();
-			}
-		}
-	}
-
-	*pBuffer += sizeof(BYTE) + static_cast<BYTE>(pTempString[0]);
-
-	return NO_ERROR;
 }

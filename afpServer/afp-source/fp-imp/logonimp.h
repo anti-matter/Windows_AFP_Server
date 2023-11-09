@@ -1,25 +1,10 @@
-/*
- * 	logonimp.h
- *	Copyright (c) 2005, Some-guy Software.
- *
- */
+#pragma once
 
-#ifndef __logonimp__
-#define __logonimp__
-
-#include "AfpBuffer.h"
-
-//
-//BLOODSHED: This is not in the ming headers for some stupid reason
-//
-#define LOGON32_LOGON_NETWORK       3
+#include "afp_net_buffer.h"
 
 
-AFPERROR afpImpUserLogon(
-	LPSESSION	afpSession,
-	AfpBuffer&	afpReply,
-	WCHAR*		afpPasswordW,
-	WORD		cbAfpPasswordW
+AFPERROR afp_imp_user_logon(
+    dsi::dsi_connection* connection,
+    const afp_net_buffer& afp_reply,
+    std::wstring& afp_password_w
 );
-
-#endif //__logonimp__

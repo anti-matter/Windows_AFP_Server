@@ -1,67 +1,40 @@
-//===================================================================
-// fdparms.h
-//===================================================================
-
 #pragma once
 
 #include "volumes.h"
+#include "afp_net_buffer.h"
+#include "dsi/dsi_connection.h"
 
-size_t AFPGetParmsBufferSizeRequired(
-	IN	PFILEDIRPARMS	pFdp
+
+struct afp_index;
+
+void afp_check_for_and_create_rsrc_stream(
+    IN const afp_index* index_entry
 );
 
-AFPERROR AFPMapAFPToWindowsPath(
-	IN	WORD	wVolID,
-	IN	DWORD	dwDirID,
-	IN	PTCHAR	pAFPPath,
-	OUT PTCHAR	pWindowsPath,
-	IN	size_t	cbWindowsPath
+AFPERROR afp_get_object_parms(
+    IN afp_net_buffer& reply,
+    IN UINT16 bitmap,
+    IN INT16 volume_id,
+    IN INT32 dir_id,
+    IN const dsi::dsi_connection* dsi_session,
+    IN afp_index* entry,
+    IN WIN32_FILE_ATTRIBUTE_DATA win_attributes
 );
 
-void AFPCheckForAndCreateFinderRsrcStream(
-	IN	LPAFPINDEX		pEntry
+AFPERROR afp_set_file_dir_parms(
+    IN WORD bitmap,
+    IN DWORD file_attributes,
+    IN const afp_index* index_entry,
+    IN afp_net_buffer& request
 );
 
-AFPERROR AFPGetObjectParms(
-	IN	AfpBuffer&					afpReply,
-	IN	uint16						afpBitmap,
-	IN	uint16						afpVolumeID,
-	IN	int32						afpDirID,
-	IN	LPSESSION					afpSession,
-	IN	LPAFPINDEX					afpEntry,
-	IN	WIN32_FILE_ATTRIBUTE_DATA	winAttributes
-	);
-
-WORD AFPGetDirOffspringCount(
-	IN	WORD		wVolID,
-	IN	LPAFPINDEX	pDirEntry
+AFPERROR afp_set_file_time(
+    IN const WCHAR* windows_path,
+    IN BOOL is_directory,
+    IN UINT32 creation,
+    IN UINT32 modification
 );
 
-AFPERROR AFPSetFileDirParms(
-	IN	WORD		wBitmap,
-	IN	LPAFPINDEX	pEntry,
-	IN	PCHAR		pParms,
-	IN	DWORD		dwFileAttributes
+WORD win_to_afp_attributes(
+    IN DWORD win_attributes
 );
-
-AFPERROR AFPSetFileTime(
-	IN	PTCHAR	pWindowspath,
-	IN	BOOL	fIsDirectory,
-	IN	PULONG	plwCreation,
-	IN	PULONG	plwModification,
-	IN	PULONG	plwBackup
-);
-
-WORD AFPWinToAFPAttributes(
-	IN	DWORD	dwWinAttributes,
-	OUT	PWORD	pwAFPAttributes
-);
-
-#ifdef DBG
-void AFPExtractDirParms(
-		IN PBYTE		pParms,		//Points to actual start of data
-		IN WORD			wBitMap
-);
-#endif
-
-

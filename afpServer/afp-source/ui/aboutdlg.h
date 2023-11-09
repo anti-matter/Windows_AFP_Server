@@ -5,7 +5,6 @@
  */
 
 #include "resource.h"
-#include "dsi.h"
 #include "afp.h"
 #include "afphelp.h"
 

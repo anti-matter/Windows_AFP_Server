@@ -1,103 +1,80 @@
-/*
- *	afpsrvr.cpp
- *	Created 3/5/2005
- *
- *	Copyright © 2005, Michael J. Conrad. All Rights Reserved.
- *
- *	Core FP srvr routines.
- */
-
+// ReSharper disable CppStringLiteralToCharPointerConversion
+// ReSharper disable CppParameterMayBeConstPtrOrRef
+// ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
 #include "StdAfx.h"
 #include "afpsrvr.h"
-#include "VolumeArray.h"
 
-extern VolumeArray gVolumeArray;
-extern BOOL	gAllowGuests;
-extern BOOL	gForceEncryptedLogon;
+#include "afphelp.h"
+#include "afp_volumes.h"
+#include "dsi/dsi_connection.h"
+
+extern BOOL g_allow_guests;
+extern BOOL g_force_encrypted_logon;
+extern std::unique_ptr<afp_volumes> g_volumes;
 
 
 /*
  * FPGetSrvrParms()
  *
  * Description:
- *		Returns server parameters, mainly, what volumes are availalbe
+ *		Returns server parameters, mainly, what volumes are available
  *		for this server.
  *
  * Returns: AFP error code
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPGetSrvrParms(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
+)
 {
-    UNREFERENCED_PARAMETER(afpRequest);
+	UNREFERENCED_PARAMETER(afp_request);
 
-    int8				afpNumVolumesActive = AFPNumVolumesActive();
-    int32				afpTime				= 0;
-    SYSTEMTIME			sysTime;
-    FILETIME			fileTime;
+	std::vector<std::shared_ptr<afp_volume>> afp_volume_list;
+	const auto afp_num_volumes_active = g_volumes->active_volumes(&afp_volume_list);
+	SYSTEMTIME sys_time;
+	FILETIME file_time;
+		
+	// Make sure the session requesting parms is an authenticated
+	// user (logged on).
+	
+	if (!connection->get_is_session_authenticated())
+	{
+		// Not authenticated, prevent access.
+		return afpAccessDenied;
+	}
 
-    //
-    //Make sure the session requesting parms is an authenticated
-    //user (logged on).
-    //
-    if ((afpSession->dwState & sessAuthenticated) == 0)
-    {
-        //
-        //Not authenticated, prevent access.
-        //
-        return( afpAccessDenied );
-    }
-        
-    //
-    //Get the Windows system time for the first part of our buffer.
-    //
-    GetSystemTime(&sysTime);
-    SystemTimeToFileTime(&sysTime, &fileTime);
-    
-    //
-    //Convert the Windows system time to local AFP time.
-    //
-    afpTime = AFPWindowsToMacTime(&fileTime);
-        
-    //
-    //Stuff in the AFP server time value.
-    //
-    afpReply.AddInt32(afpTime);
-    
-    //
-    //Stuff in the number of volumes our server has shared.
-    //
-    afpReply.AddInt8(afpNumVolumesActive);
-    
-    //
-    //Stuff in all the volume names and their flags.
-    //
-    for (auto it = gVolumeArray.begin(); it < gVolumeArray.end(); ++it)
-    {
-        AFP_VOLUME_INFO* afpVolumeInfo = it->get();
+	// Get the Windows system time for the first part of our buffer.
+	GetSystemTime(&sys_time);
+	SystemTimeToFileTime(&sys_time, &file_time);
 
-        //
-        //First, we check to make sure the volume has been fully indexed. If not
-        //we cannot offer it to the clients.
-        //
-        if (!(afpVolumeInfo->wVolumeFlags & FLAG_VOLUME_INDEXINGCOMPLETE))
-        {
-            //
-            //Not done indexing, can't show this one now.
-            //
-            continue;
-        }
+	// Convert the Windows system time to local AFP time.
+	const auto afp_time = afp_windows_to_mac_time(&file_time);
 
-        DBGWRITE(DbgLevelAll, L"[AFP]Stuffing volume: %s\n", afpVolumeInfo->szShareName);
-            
-        afpReply.AddInt8(afpVolumeInfo->bAFPFlags);
-        afpReply.AddUniStringAsPascal(afpVolumeInfo->szShareName);
-    }
-        
-    return AFP_OK;
+	// Stuff in the AFP server time value.
+	afp_reply.push_num(afp_time);
+
+	// Stuff in the number of volumes our server has shared.
+	afp_reply.push_num(afp_num_volumes_active);
+
+	// Stuff in all the volume names and their flags.
+	for (const auto& volume : afp_volume_list)
+	{
+		if (!(volume->get_internal_flags() & flag_volume_indexing_complete))
+		{
+			// Not done indexing, can't show this one now.
+			continue;
+		}
+
+		DBGWRITE(dbg_level_trace, L"Stuffing volume: %s\n", volume->get_share_name().c_str());
+
+		afp_reply.push_num(volume->get_afp_flags());
+		afp_reply.push_string(volume->get_share_name());
+	}
+
+	return AFP_OK;
 }
 
 
@@ -110,115 +87,91 @@ AFPERROR FPGetSrvrParms(
  * Returns: AFP error code
  */
 
-AFPERROR FPGetSrvrInfo( 
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
-{	
-    UNREFERENCED_PARAMETER(afpSession);
-    UNREFERENCED_PARAMETER(afpRequest);
+// ReSharper disable once CppInconsistentNaming
+AFPERROR FPGetSrvrInfo(
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* /*connection*/
+)
+{
+	UNREFERENCED_PARAMETER(afp_request);
 
-    unichar	szComputerName[MAX_COMPUTERNAME_LENGTH+1];
-    int16*	pAddressCountOffset	= NULL;
-    uint32	dwSize				= MAX_COMPUTERNAME_LENGTH+1;
-    int16	afpFlags			= 0;
-    int8	afpUAMCount			= UAM_COUNT;
+	WCHAR computer_name[MAX_COMPUTERNAME_LENGTH + 1];
+	UINT32 size = MAX_COMPUTERNAME_LENGTH + 1;
+	UINT16 flags = 0;
+	UINT8 uam_count = UAM_COUNT;
 
-    GetComputerName(szComputerName, &dwSize);
-        
-    //
-    //Set the flags which tells what our server supports.
-    //
-    afpFlags |= kSupportsTCPIP;
-    afpFlags |= kSupportsSrvrNotification;
-    afpFlags |= kSupportsCopyFile;
-    afpFlags |= kSupportsSrvrMsgs;
-    afpFlags |= kSupportsReconnect;
+	GetComputerName(computer_name, reinterpret_cast<LPDWORD>(&size));
 
-    afpReply.Advance(sizeof(int16));	//Machine type offset
-    afpReply.Advance(sizeof(int16));	//Afp version count offset
-    afpReply.Advance(sizeof(int16));	//UAM count offset
+	// Set the flags which tells what our server supports.
+	flags |= kSupportsTCPIP;
+	flags |= kSupportsSrvrNotification;
+	flags |= kSupportsCopyFile;
+	flags |= kSupportsSrvrMsgs;
+	//flags |= kSupportsReconnect;
 
-    afpReply.AddInt16(0);				//Volume icon and mask offset
-    afpReply.AddInt16(afpFlags);		//Server flags
+	afp_reply.advance_pos_ptr(sizeof(UINT16)); //Machine type offset
+	afp_reply.advance_pos_ptr(sizeof(UINT16)); //Afp version count offset
+	afp_reply.advance_pos_ptr(sizeof(UINT16)); //UAM count offset
 
-    //
-    //Paste in the name of the computer as the server name.
-    //
-    afpReply.AddUniStringAsPascal(szComputerName);
-    
-    //
-    //Add an extra padding byte if the AFP buffer is not on
-    //an even boundary.
-    //
-    afpReply.AdvanceIfOdd();
-    
-    //
-    //Network address count offset, save it to set later.
-    //
-    pAddressCountOffset = (int16*)afpReply.GetCurrentPosPtr();
-    afpReply.Advance(sizeof(int16));
-    
-    //
-    //Set the machine type string and offset
-    //
-    afpReply.AddParameterOffset(SRVRINFO_OFFSET_MACHTYPE, (int16)afpReply.GetDataLength());
-    afpReply.AddUniStringAsPascal(AFP_MACHINE_TYPE);
-        
-    //AFP versions
-    afpReply.AddParameterOffset(SRVRINFO_OFFSET_AFPVERSCOUNT, (int16)afpReply.GetDataLength());
-    afpReply.AddInt8(AFP_VERSION_COUNT);
-    afpReply.AddUniStringAsPascal(AFP_22_VERSION_STR);
+	afp_reply.push_num<UINT16>(0); //Volume icon and mask offset
+	afp_reply.push_num(flags); //Server flags
+
+	afp_reply.push_string(computer_name);
+	afp_reply.advance_if_odd();
+
+	afp_reply.push_num<INT16>(0); //server sig offset
+	afp_reply.push_num<INT16>(0); //address count offset
+	afp_reply.push_num<INT16>(0); //directory names offset
+	afp_reply.push_num<INT16>(0); //UTF-8 server name offset
+
+	// Set the machine type string and offset
+	afp_reply.set_parameter_offset_value(offset_machine_type, static_cast<INT16>(afp_reply.get_data_length()));
+	afp_reply.push_string(AFP_MACHINE_TYPE);
+
+	// AFP versions
+	afp_reply.set_parameter_offset_value(offset_afp_version_count, static_cast<INT16>(afp_reply.get_data_length()));
+	afp_reply.push_num<INT8>(AFP_VERSION_COUNT);
+	afp_reply.push_string(AFP_22_VERSION_STR);
 #ifdef AFP_VERSION_30
-    afpReply.AddUniStringAsPascal(AFP_30_VERSION_STR);
-    afpReply.AddUniStringAsPascal(AFP_31_VERSION_STR);
-    afpReply.AddUniStringAsPascal(AFP_32_VERSION_STR);
+	afp_reply.push_string(AFP_30_VERSION_STR);
+	afp_reply.push_string(AFP_31_VERSION_STR);
+	afp_reply.push_string(AFP_32_VERSION_STR);
 #endif
 
-    //UAMs supported
-    afpReply.AddParameterOffset(SRVRINFO_OFFSET_UAMCOUNT, (int16)afpReply.GetDataLength());
-    
-    //
-    //If we only allow encrypted logons (e.g. no clear text), then we
-    //need to reduce the count of uams we're sending over.
-    //
-    if (gForceEncryptedLogon) {
-        --afpUAMCount;
-    }
-    
-    //
-    //If no guest support, reduce the count yet again as above.
-    //
-    if (!gAllowGuests) {
-        --afpUAMCount;
-    }
-    
-    afpReply.AddInt8(afpUAMCount);
-    
-    if (gAllowGuests) {
-        afpReply.AddUniStringAsPascal(UAM_NONE_STR);
-    }
-    
-    if (!gForceEncryptedLogon) {
-        afpReply.AddUniStringAsPascal(UAM_CLEAR_TEXT);
-    }
-    
-    //
-    //The DHCAST128 UAM is Apple's SSL encrypted password scheme, it
-    //is always passed as supported, no matter what.
-    //
-    afpReply.AddUniStringAsPascal(UAM_DHCAST128);
-    
-    //Network Address: Note, there is no reason for us to pass
-    //back address since we only support connections over TCP/IP.
-    //This feature is only for connection where the initial connection
-    //is done over AppleTalk.
+	// UAMs supported
 
-    *pAddressCountOffset = (int16)afpReply.GetDataLength();
-    afpReply.AddInt8(0);
-        
-    return(NO_ERROR);
+	// If we only allow encrypted logon (e.g. no clear text), then we
+	// need to reduce the count of UAM we're sending over.
+	if (g_force_encrypted_logon)
+	{
+		--uam_count;
+	}
+
+	// If no guest support, reduce the count yet again as above.
+	if (!g_allow_guests)
+	{
+		--uam_count;
+	}
+
+	afp_reply.set_parameter_offset_value(offset_uam_count, static_cast<INT16>(afp_reply.get_data_length()));
+	afp_reply.push_num(uam_count);
+
+	if (g_allow_guests)
+	{
+		afp_reply.push_string(UAM_NONE_STR);
+	}
+
+	if (!g_force_encrypted_logon)
+	{
+		afp_reply.push_string(UAM_CLEAR_TEXT);
+	}
+
+	// The DHCAST128 UAM is Apple's SSL encrypted password scheme, it
+	// is always passed as supported, no matter what.
+	afp_reply.push_string(UAM_DHCAST128);
+
+	return NO_ERROR;
 }
 
 
@@ -232,34 +185,26 @@ AFPERROR FPGetSrvrInfo(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPZzzz(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
+)
 {
-    UNREFERENCED_PARAMETER(afpReply);
+	UNREFERENCED_PARAMETER(afp_reply);
 
-    uint32			afpFlag		= 0;
+	DBGWRITE(dbg_level_info, L"[AFP:FpZzzz]Enter...\n");
 
-    DBGWRITE(DbgLevelInfo, L"[AFP:FpZzzz]Enter...\n");
-    
-    afpRequest.Advance(sizeof(int16));
+	afp_request.advance_pos_ptr(sizeof(INT16));
 
-    //
-    //Nab the flag parameter, this is a reserved field by
-    //Apple and is ignored now.
-    //
-    afpFlag = afpRequest.GetInt32();
+	// The flag parameter is a reserved field by
+	// Apple and is ignored now.
+	afp_request.advance_pos_ptr(sizeof(UINT32));
 
-    //
-    //Set the client sleeping flag so we don't kill it when we
-    //don't hear from it.
-    //
-    afpSession->dwState |= sessClientSleeping;
+	// Set the client sleeping flag so we don't kill it when we
+	// don't hear from it.
+	connection->set_sleep_state(true);
 
-    return( AFP_OK );
+	return AFP_OK;
 }
-
-
-

@@ -1,122 +1,70 @@
-/*
- * 	logonimp.cpp
- *	Copyright (c) 2005, Some-guy Software.
- *
- * Description:
- *		Contains the implementation routines for client logon.
- *
- */
-
 #include "StdAfx.h"
 #include "afp.h"
-#include "AFPSession.h"
+#include "afp_session.h"
 #include "logonimp.h"
 #include "afpEvents.h"
 
 #include <ntsecapi.h>
 
 
-/*
- * afpImpUserLogon()
- *
- * Description:
- *		The client is attempting to authenticate to this afp server.
- *
- * Returns: AFPERROR
- */
-
-AFPERROR afpImpUserLogon(
-    LPSESSION	afpSession,
-    AfpBuffer&	afpReply,
-    WCHAR*		afpPasswordW,
-    WORD		cbAfpPasswordW
+AFPERROR afp_imp_user_logon(
+    dsi::dsi_connection* connection,
+    const afp_net_buffer& afp_reply,
+    std::wstring& afp_password_w
 )
 {
-    UNREFERENCED_PARAMETER(afpReply);
+    UNREFERENCED_PARAMETER(afp_reply);
 
-    HANDLE		hToken		= NULL;
-    AFPERROR	afpError	= AFP_OK;
-    
+    HANDLE token = nullptr;
+    AFPERROR afp_error = AFP_OK;
+    const std::wstring user_name = connection->get_user_name();
+    const std::wstring domain_name = connection->get_domain_name();
+
     if (LogonUser(
-                afpSession->userName,
-                (lstrlen(afpSession->domainName)) ? afpSession->domainName : NULL,
-                afpPasswordW,
-                LOGON32_LOGON_NETWORK,
-                LOGON32_PROVIDER_DEFAULT,
-                &hToken) == 0)
+        user_name.c_str(),
+        domain_name.length() > 0 ? domain_name.c_str() : nullptr,
+        afp_password_w.c_str(),
+        LOGON32_LOGON_NETWORK,
+        LOGON32_PROVIDER_DEFAULT,
+        &token) == 0)
     {
-        //
-        //Logon failed, return the appropriate afp error code.
-        //
-        DBGWRITE(DbgLevelInfo, L"[logonimp]LogonUser() failed (%d)\n", GetLastError());
-        
-        afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpUserNotAuth));
+        DBGWRITE(dbg_level_info, L"LogonUser() failed (%d)\n", GetLastError());
+
+        // If we had a failure to logon, close the session down.
+        connection->kill_connection();
+
+        afp_error = afp_map_win_error_to_afp(GetLastError(), afpUserNotAuth);
+
+        return afp_error;
     }
-    else
+
+    // Clear out the password buffer for security purposes.
+    afp_password_w.clear();
+
+    HANDLE dupe_handle = nullptr;
+    if (!DuplicateTokenEx(token, MAXIMUM_ALLOWED, nullptr,
+                          SecurityImpersonation, TokenPrimary, &dupe_handle))
     {
-        //
-        //Clear out the password buffer for security purposes.
-        //
-        SecureZeroMemory(afpPasswordW, cbAfpPasswordW);
-
-        if (!DuplicateTokenEx(hToken, MAXIMUM_ALLOWED, NULL,
-                    SecurityImpersonation, TokenPrimary, &afpSession->hUserToken))
-        {
-            DBGWRITE(DbgLevelInfo, L"[logonimp]DuplicateToken() failed! (%d)\n", GetLastError());
-            ASSERT(0);
-        }
-        
-        RevertToSelf();
-        CloseHandle(hToken);
-
-        AFPAdjustPrivilege(SE_IMPERSONATE_NAME, TRUE, afpSession->hUserToken);
-
-        //
-        //Set the flag in the sessions that tells us this session is authenticated.
-        //
-        afpSession->dwState |= sessAuthenticated;
-        
-        DBGWRITE(DbgLevelInfo, L"[logonimp]Login for user %s successfull!\n", afpSession->userName);
+        DBGWRITE(dbg_level_info, L"DuplicateToken() failed! (%d)\n", GetLastError());
+        ASSERT(0);
     }
-    
-    if (AFP_SUCCESS(afpError))
-    {
-        //
-        //Create the AFPSession object that will track the *AFP* session.
-        //
-        AFPSession* afpAFPSession = NULL;
 
-        afpAFPSession = new AFPSession(afpSession);
+    connection->set_user_token(dupe_handle);
 
-        if (afpAFPSession == NULL)
-        {
-            DBGWRITE(DbgLevelWarning, L"[logonimp]Failed to allocate new afp session object!\n");
-            ASSERT(0);
+    RevertToSelf();
+    CloseHandle(token);
 
-            afpError = afpMiscErr;
-        }
-        else
-        {
-            afpSession->afpSessionObject = afpAFPSession;
+    // ReSharper disable once CppStringLiteralToCharPointerConversion
+    afp_adjust_privilege(const_cast<wchar_t*>(SE_IMPERSONATE_NAME), TRUE, dupe_handle);
 
-            //
-            //If we get here, then everything succeeded. We'll log an event
-            //notifying the administrator that this user has logged on.
-            //
+    connection->set_session_authenticated(true);
 
-            EventWriteAFPServerEvt_ClientLoggedOn( afpSession->userName );
-        }
-    }
-    
-    if (!AFP_SUCCESS(afpError))
-    {
-        //
-        //If we had a failure to logon, then set a flag that
-        //tells DSI to close the session down.
-        //
-        afpSession->dwState |= sessKillSession;		
-    }
-    
-    return( afpError );
+    DBGWRITE(dbg_level_info, L"Login for user %s successfull!\n", user_name.c_str());
+
+    // If we get here, then everything succeeded. We'll log an event
+    // notifying the administrator that this user has logged on.
+
+    EventWriteAFPServerEvt_ClientLoggedOn(user_name.c_str());
+
+    return afp_error;
 }
-

@@ -1,60 +1,9 @@
-/*
- *	afpvolumes.cpp
- *	Created 3/5/2005
- *
- *	Copyright © 2005, Michael J. Conrad. All Rights Reserved.
- *
- *	Core FP volume routines. Mostly FP wrappers to the implementations
- *	routines that live elsewhere.
- */
-
+// ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
+// ReSharper disable CppParameterMayBeConstPtrOrRef
 #include "StdAfx.h"
 #include "afpvolumes.h"
-
-
-/*
- * FPFlush()
- *
- * Description:
- *		Flushes the volume. For Windows, we don't do anything here since Windows
- *		doesn't have a flush concept.
- *
- * Returns: AFPERROR
- */
-
-AFPERROR FPFlush(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
-{
-    UNREFERENCED_PARAMETER(afpReply);
-
-    uint16	afpVolumeID	= 0;
-    
-    //
-    //First WORD is afp command and padding byte.
-    //
-    afpRequest.Advance(sizeof(int16));
-    
-    //
-    //Extract the volume identifier that we're working with.
-    //
-    afpVolumeID = afpRequest.GetInt16();
-
-    //
-    //The client must have previously opened the volume we are operating on.
-    //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolumeID))
-    {
-        //
-        //The volume has not been opened, we need to return error.
-        //
-        return( afpParmErr );
-    }
-
-    return( AFP_OK );
-}
+#include "afp_volumes.h"
+#include "volumes.h"
 
 
 /*
@@ -66,93 +15,50 @@ AFPERROR FPFlush(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPOpenVol(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+)
 {
-    unichar			afpVolumeName[MAX_VOLNAME_LEN+1];
-    AFPSession*	afpAFPSession	= (AFPSession*)afpSession->afpSessionObject;
-    int16			afpBitmap		= 0;
-    uint16			afpVolumeID		= 0;
-    AFPERROR		afpError		= AFP_OK;
-    
-    //
-    //First WORD is afp command and padding byte.
-    //
-    afpRequest.Advance(sizeof(int16));
-    
-    //
-    //Extract the bitmap that requests vol data from the buffer.
-    //
-    afpBitmap = afpRequest.GetInt16();
-    
-    //
-    //Extract the volume name from the buffer.
-    //
-    if (!AFP_SUCCESS(afpRequest.GetString(afpVolumeName, sizeof(afpVolumeName)))) {
+    const auto afp_session = connection->get_afp_session();
+    INT16 afp_volume_id = 0;
 
-        return( afpParmErr );
+    afp_request.advance_pos_ptr(sizeof(UINT16));
+    const auto afp_bitmap = afp_request.pull_num<INT16>();
+    const auto afp_volume_name = afp_request.pull_path(kLongNames);
+    if (afp_volume_name.empty())
+    {
+        return afpParmErr;
     }
 
-    DBGWRITE(DbgLevelAll, L"[afp:FPOpenVol]Opening volume: %s\n", afpVolumeName);
-    
-    //
-    //A padding byte is added if the volume name doesn't end on an
-    //even boudary.
-    //
-    //afpRequest.AdvanceIfOdd();
-    
-    //
-    //Extract the volume password.
-    //
-    //afpRequest.GetRawData(pswd, sizeof(pswd));
-        
-    //
-    //Get the volume ID for the volume to be opened.
-    //
-    if (!AFPMapVolumeNameToID(afpVolumeName, &afpVolumeID))
+    DBGWRITE(dbg_level_trace, L"Opening volume: %s\n", afp_volume_name.c_str());
+
+    // Get the volume ID for the volume to be opened.
+    if (!afp_volumes::current()->map_name_to_id(afp_volume_name, &afp_volume_id))
     {
-        DBGWRITE(DbgLevelWarning, L"[afp:FPOpenVol]Requested volume doesn't exist! (%s)\n", afpVolumeName);
-        return( afpParmErr );
+        DBGWRITE(dbg_level_warning, L"Requested volume doesn't exist! (%s)\n", afp_volume_name.c_str());
+        return afpParmErr;
     }
 
-//Vol passwords not supported in AFP2.2+ ??
-#if 0
-    //
-    //Check the password for access permissions.
-    //
-    afpError = AFPCheckVolumePassword(afpVolumeID, &pswd);
+    // Get the volume parameters requested in the open call via the bitmap.
+    AFPERROR afp_error = AFPGetVolumeParameters(afp_volume_id, afp_bitmap, afp_reply);
 
-    if (!AFP_SUCCESS(afpError))
+    if (AFP_SUCCESS(afp_error))
     {
-        DBGWRITE(DbgLevelWarning, L"[afp:FPOpenVol]Bad volume password!!\n");
-        return( afpError );
-    }
-#endif
-
-    //
-    //Get the volume parameters requested in the open call via the bitmap.
-    //
-    afpError = AFPGetVolumeParameters(afpVolumeID, afpBitmap, afpReply);
-    
-    if (AFP_SUCCESS(afpError))
-    {
-        //
-        //Now call the volume routine to actually flag the vol as open.
-        //Note, we don't error check here since we wouldn't get here with
-        //bad data (see above).
-        //
-        afpError = afpAFPSession->SessionOpenVolume(afpVolumeID);
+        // Now call the volume routine to actually flag the vol as open.
+        // Note, we don't error check here since we wouldn't get here with
+        // bad data (see above).
+        afp_error = afp_session->open_volume(afp_volume_id);
     }
     else
     {
-        DBGWRITE(DbgLevelWarning, L"[afp:FPOpenVol]AFPGetVolumeParameters() failed (%d)\n", afpError);
-        afpReply.Rewind();
+        DBGWRITE(dbg_level_warning, L"AFPGetVolumeParameters() failed (%d)\n", afp_error);
+        afp_reply.rewind();
     }
-    
-    return( afpError );
+
+    return afp_error;
 }
 
 
@@ -166,33 +72,49 @@ AFPERROR FPOpenVol(
  */
 
 AFPERROR FPCloseVol(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+)
 {
-    UNREFERENCED_PARAMETER(afpReply);
+    UNREFERENCED_PARAMETER(afp_reply);
 
-    AFPSession*	afpAFPSession	= (AFPSession*)afpSession->afpSessionObject;
-    uint16			afpVolumeID		= 0;
-    AFPERROR		afpError		= AFP_OK;
-    
-    //
-    //First WORD is afp command and padding byte.
-    //
-    afpRequest.Advance(sizeof(int16));
-    
-    //
-    //Extract the volume identifier that we're working with.
-    //
-    afpVolumeID = afpRequest.GetInt16();
-        
-    //
-    //Call on the volume routine to do the dirty work.
-    //
-    afpError = afpAFPSession->SessionCloseVolume(afpVolumeID);
-    
-    return( afpError );
+    afp_request.advance_pos_ptr(sizeof(INT16));
+    const auto afp_volume_id = afp_request.pull_num<INT16>();
+    const auto afp_session = connection->get_afp_session();
+
+    return afp_session->close_volume(afp_volume_id);
+}
+
+
+/*
+ * FPFlush()
+ *
+ * Description:
+ *		Flushes the volume. For Windows, we don't do anything here since Windows
+ *		doesn't have a flush concept.
+ *
+ * Returns: AFPERROR
+ */
+
+ // ReSharper disable once CppInconsistentNaming
+AFPERROR FPFlush(
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+)
+{
+    UNREFERENCED_PARAMETER(afp_reply);
+
+    afp_request.advance_pos_ptr(sizeof(INT16));
+    const auto afp_volume_id = afp_request.pull_num<INT16>();
+
+    if (!connection->get_afp_session()->session_has_volume_open(afp_volume_id))
+    {
+        return afpParmErr;
+    }
+
+    return AFP_OK;
 }
 
 
@@ -205,57 +127,37 @@ AFPERROR FPCloseVol(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPGetVolParms(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+)
 {
-    int16		afpBitmap	= 0;
-    uint16		afpVolumeID	= 0;
-    AFPERROR	afpError	= AFP_OK;
-    
-    DBGWRITE(DbgLevelAll, L"[afp:FPGetVolParms]FPGetVolParms...\n");
-    
-    //
-    //First WORD is afp command and padding byte.
-    //
-    afpRequest.Advance(sizeof(int16));
-    
-    //
-    //Extract the volume identifier that we're working with.
-    //
-    afpVolumeID = afpRequest.GetInt16();
-    
-    //
-    //The client must have previously opened the volume we are operating on.
-    //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolumeID))
+    DBGWRITE(dbg_level_trace, L"FPGetVolParms...\n");
+
+    afp_request.advance_pos_ptr(sizeof(INT16));
+    const auto afp_volume_id = afp_request.pull_num<INT16>();
+
+    // The client must have previously opened the volume we are operating on.
+    if (!connection->get_afp_session()->session_has_volume_open(afp_volume_id))
     {
-        //
-        //The volume has not been opened, we need to return error.
-        //
-        DBGWRITE(DbgLevelInfo, L"[afp:FPGetVolParms]Bad volume ID passed by client!\n");
-        return( afpParmErr );
+        // The volume has not been opened, we need to return error.
+        DBGWRITE(dbg_level_info, L"Bad volume ID passed by client!\n");
+        return afpParmErr;
     }
 
-    //
-    //Extract the bitmap that requests vol data from the buffer.
-    //
-    afpBitmap = afpRequest.GetInt16();
-    
-    //
-    //Get the volume parameters requested in the open call via the bitmap.
-    //
-    afpError = AFPGetVolumeParameters(afpVolumeID, afpBitmap, afpReply);
-    
-    if (!AFP_SUCCESS(afpError))
+    // Extract the bitmap that requests vol data from the buffer.
+    const auto afp_bitmap = afp_request.pull_num<INT16>();
+
+    // Get the volume parameters requested in the open call via the bitmap.
+    const AFPERROR afp_error = AFPGetVolumeParameters(afp_volume_id, afp_bitmap, afp_reply);
+
+    if (AFP_FAILED(afp_error))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPGetVolParms]AFPGetVolumeParameters() failed (%d)\n", afpError);
-        afpReply.Rewind();
+        DBGWRITE(dbg_level_info, L"AFPGetVolumeParameters() failed (%d)\n", afp_error);
+        afp_reply.rewind();
     }
-    
-    return( afpError );
+
+    return afp_error;
 }
-
-

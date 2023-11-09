@@ -1,20 +1,14 @@
-/*
- *	afpdhxlogin.h
- *	Created 04/27/09
- *
- *	Copyright © 2003-09, Michael J. Conrad. All Rights Reserved.
- */
-
-#ifndef __afpdhxlogin__
-#define __afpdhxlogin__
+// ReSharper disable CppInconsistentNaming
+#pragma once
 
 #include "stdlib.h"
 
 #include "afp.h"
 #include "afpDebug.h"
 #include "afphelp.h"
+#include "afp_net_buffer.h"
+#include "dsi/dsi_connection.h"
 
-#include "openssl/bn.h"
 #include "openssl/dh.h"
 #include "openssl/cast.h"
 
@@ -36,49 +30,47 @@
 //The following is the blob we store between FPLogin() and 
 //FPLoginCont() function calls.
 //
-typedef struct
+struct DHXInfo
 {
-	int16		sessionID;
-	uint8		randomBuffer[16];
-	CAST_KEY 	castkey;
-}DHXInfo;
+	UINT16 sessionID;
+	UINT8 randomBuffer[16];
+	CAST_KEY cast_key;
+};
 
 AFPERROR DHXLogin(
-	IN	AfpBuffer&		afpRequest,
-	IN	AfpBuffer&		afpReply,
-	IN	LPSESSION		dsiSession,
-	IN	DHXInfo*		dhxInfo
+	IN afp_net_buffer& afpRequest,
+	IN afp_net_buffer& afpReply,
+	IN dsi::dsi_connection* dsiSession,
+	IN DHXInfo* dhxInfo
 );
 
 AFPERROR DHXLoginContinue(
-	IN	AfpBuffer&		afpRequest,
-	IN	AfpBuffer&		afpReply,
-	IN	LPSESSION		dsiSession,
-	IN	char*			afpPassword,
-	IN	int16			afpPasswordLen,
-	IN	DHXInfo*		dhxInfo
+	IN afp_net_buffer& afpRequest,
+	IN afp_net_buffer& afpReply,
+	IN dsi::dsi_connection* dsiSession,
+	IN char* afpPassword,
+	IN INT16 afpPasswordLen,
+	IN DHXInfo* dhxInfo
 );
 
 AFPERROR DHXChangePassword(
-	IN	AfpBuffer&		afpRequest,
-	IN	AfpBuffer&		afpReply,
-	IN	LPSESSION		dsiSession,
-	IN	char*			oldPassword,
-	IN	int16			cbOldPassword,
-	IN	char*			newPassword,
-	IN	int16			cbNewPassword,
-	IN	DHXInfo*		dhxInfo
+	IN afp_net_buffer& afpRequest,
+	IN afp_net_buffer& afpReply,
+	IN dsi::dsi_connection* dsiSession,
+	IN char* oldPassword,
+	IN INT16 cbOldPassword,
+	IN char* newPassword,
+	IN INT16 cbNewPassword,
+	IN DHXInfo* dhxInfo
 );
 
 AFPERROR DHXCheckRandnum(
-	IN	unsigned char*	clientBuf,
-	IN	unsigned char*	serverBuf
+	IN unsigned char* clientBuf,
+	IN unsigned char* serverBuf
 );
 
 void afpGetRandomNumber(
-	IN	LPSESSION		dsiSession,
-	IN	char* 			buf,
-	IN	int16 			cbBuf
+	IN dsi::dsi_connection* dsiSession,
+	IN char* buf,
+	IN INT16 cbBuf
 );
-
-#endif //__afpdhxlogin__

@@ -1,39 +1,30 @@
-/*
- *	afpvolumes.h
- *	Created 3/5/2005
- *
- *	Copyright © 2005, Michael J. Conrad. All Rights Reserved.
- */
+// ReSharper disable CppInconsistentNaming
+#pragma once
 
-#ifndef __afpvolumes__
-#define __afpvolumes__
-
-#include "AfpBuffer.h"
-#include "AFPSession.h"
+#include "afp_net_buffer.h"
+#include "afp_session.h"
 
 
 AFPERROR FPOpenVol(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPCloseVol(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPFlush(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPGetVolParms(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
-
-#endif //__afpvolumes__
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+);

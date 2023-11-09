@@ -1,34 +1,27 @@
-/*
- *	afpsrvr.h
- *	Created 3/5/2005
- *
- *	Copyright © 2005, Michael J. Conrad. All Rights Reserved.
- */
+// ReSharper disable CppInconsistentNaming
+#pragma once
 
-#ifndef __afpsrvr__
-#define __afpsrvr__
+#include "afp_net_buffer.h"
 
-#include "afphelp.h"
-#include "AfpBuffer.h"
-#include "AFPSession.h"
-
+namespace dsi
+{
+    class dsi_connection;
+}
 
 AFPERROR FPGetSrvrParms(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPGetSrvrInfo(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPZzzz(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
-
-#endif //__afpsrvr__
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
+);

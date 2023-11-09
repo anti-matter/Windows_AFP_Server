@@ -6,14 +6,14 @@
 #include "afpdebug.h"
 #include "volumes.h"
 #include "attention.h"
-#include "AFPSession.h"
-#include "VolumeArray.h"
+#include "afp_session.h"
+#include "volume_array.h"
 
-extern CRITICAL_SECTION gcsSessionList;
-extern BOOL gRunning;
-extern LPSESSION gSessionsList;
-extern VolumeArray gVolumeArray;
-extern SHORT gWorkerThreadRefCount;
+extern CRITICAL_SECTION g_cs_session_list;
+extern BOOL g_running;
+extern LPSESSION g_sessions_list;
+extern volume_array g_volume_array;
+extern SHORT g_worker_thread_ref_count;
 
 //---------------------------------------------------------------------
 // AFPAttentionThread()
@@ -33,14 +33,14 @@ DWORD WINAPI AFPAttentionThread(
     //
     //This is how we keep track of all running "worker" threads.
     //
-    gWorkerThreadRefCount++;
+    g_worker_thread_ref_count++;
 
-    while (gRunning)
+    while (g_running)
     {
         {
-            AutoLock lock(gVolumeArray.Mutex());
+            auto_lock lock(g_volume_array.mutex());
 
-            for (auto it = gVolumeArray.begin(); it < gVolumeArray.end(); ++it)
+            for (auto it = g_volume_array.begin(); it < g_volume_array.end(); ++it)
             {
                 AFP_VOLUME_INFO* pVolInfo = it->get();
 
@@ -50,9 +50,9 @@ DWORD WINAPI AFPAttentionThread(
                 //
                 if (pVolInfo->fDirty)
                 {
-                    EnterCriticalSection(&gcsSessionList);
+                    EnterCriticalSection(&g_cs_session_list);
 
-                    pSession = gSessionsList;
+                    pSession = g_sessions_list;
 
                     while (pSession)
                     {
@@ -72,7 +72,7 @@ DWORD WINAPI AFPAttentionThread(
 
                         LeaveCriticalSection(&pSession->cs);
 
-                        if (static_cast<AFPSession*>(pSession->afpSessionObject)->SessionHasVolumeOpen(pVolInfo->wVolID))
+                        if (static_cast<afp_session*>(pSession->afpSessionObject)->session_has_volume_open(pVolInfo->wVolID))
                         {
                             DSISendAttention(pSession, ATTN_SERVER_NOTIFY);
                         }
@@ -80,7 +80,7 @@ DWORD WINAPI AFPAttentionThread(
                         pSession = static_cast<LPSESSION>(pSession->next);
                     }
 
-                    LeaveCriticalSection(&gcsSessionList);
+                    LeaveCriticalSection(&g_cs_session_list);
 
                     //
                     //Take this opportunity to clear the dirty flag for the volume.
@@ -93,9 +93,9 @@ DWORD WINAPI AFPAttentionThread(
         Sleep(ATTN_SLEEP_INTERVAL);
     }
 
-    gWorkerThreadRefCount--;
+    g_worker_thread_ref_count--;
 
-    DBGWRITE(DbgLevelInfo, L"[ATTN]Attention thread gone!\n");
+    DBGWRITE(dbg_level_info, L"[ATTN]Attention thread gone!\n");
 
     return 0;
 }

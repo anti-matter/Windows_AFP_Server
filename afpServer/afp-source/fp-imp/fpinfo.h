@@ -1,64 +1,25 @@
-/*
- * fpinfo.h
- *
- * Copyright(c) 2000-2004, Michael J. Conrad.
- *
- */
-
-#ifndef __fpinfo__
-#define __fpinfo__
+#pragma once
 
 #include "afp.h"
 #include "volumes.h"
 
-#define AFP_INFO_STREAM_NAME	TEXT("AFP_AfpInfo")
+struct afp_index;
+
+inline const WCHAR* afp_info_stream_name(L"AFP_AfpInfo");
 
 
-BOOL AFPCheckForAndAddFinderInfoStream(
-	IN	LPAFPINDEX		pEntry,
-	IN	AFPCHARMAPARRAY	pCharmap		= NULL,
-	IN	BOOL			fMakeInvisible	= false
+void create_finder_info_stream(
+    IN const afp_index* entry,
+    IN bool make_invisible = false
 );
 
-AFPERROR AFPGetFinderInfo(
-	IN	LPAFPINDEX		pEntry,
-	OUT	PFINDER_INFO	pInfo
+AFPERROR get_finder_info(
+    IN const afp_index* entry,
+    OUT afp_finder_info* finder_info
 );
 
-AFPERROR AFPGetFinderInfoEx(
-	IN	LPAFPINDEX				pEntry,
-	OUT	LPEXTENDED_FINDER_INFO	pInfo
+AFPERROR set_finder_info(
+    IN const afp_index* entry,
+    IN const afp_finder_info* finder_info,
+    IN bool create_always = false
 );
-
-AFPERROR AFPSetFinderInfo(
-	IN	LPAFPINDEX		pEntry,
-	IN	PFINDER_INFO	pInfo,
-	IN	BOOL			fCreateAlways = false
-);
-
-AFPERROR AFPSetFinderInfoEx(
-	IN	LPAFPINDEX				pEntry,
-	IN	LPEXTENDED_FINDER_INFO	pInfo,
-	IN	BOOL					fCreateAlways = false
-);
-
-AFPERROR AFPUpdateEntryCharMap(
-	IN	LPAFPINDEX		pEntry,
-	IN	AFPCHARMAPARRAY	pCharmap
-);
-
-AFPERROR AFPAddCharMapToIndexEntry(
-	IN	LPAFPINDEX		pEntry,
-	IN	AFPCHARMAPARRAY	pCharmap
-);
-
-AFPERROR AFPGetCharMapForIndexEntry(
-	IN	LPAFPINDEX		pEntry,
-	OUT	AFPCHARMAPARRAY	pCharmap
-);
-
-BOOL AFPCheckForCharMap(
-	IN	LPAFPINDEX	pEntry
-);
-
-#endif //__fpinfo__

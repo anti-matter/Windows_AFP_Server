@@ -1,78 +1,71 @@
-/*
- *	afpdesktop.h
- *	Created 3/5/2005
- *
- *	Copyright © 2005, Michael J. Conrad. All Rights Reserved.
- */
-
+// ReSharper disable CppInconsistentNaming
 #pragma once
 
-#include "dsi.h"
-#include "AfpBuffer.h"
-
+#include "afp_net_buffer.h"
+#include "dsi/dsi_connection.h"
 
 AFPERROR FPOpenDT(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+	afp_net_buffer& afp_request,
+	afp_net_buffer& afp_reply,
+	dsi::dsi_connection* connection
+);
 
 AFPERROR FPCloseDT(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPAddIcon(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPGetIcon(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPGetIconInfo(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPAddComment(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPGetComment(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPRemoveComment(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPGetAPPL(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPAddAPPL(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPRemoveAPPL(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
+);

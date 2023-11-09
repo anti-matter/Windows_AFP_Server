@@ -1,74 +1,60 @@
-/*
- *	afpdirectory.cpp
- *	Created 3/5/2005
- *
- *	Copyright © 2005, Michael J. Conrad. All Rights Reserved.
- *
- *	Core FP directory routines.
- */
+// ReSharper disable CppInconsistentNaming
+#pragma once
 
-#ifndef __afpdirectory__
-#define __afpdirectory__
-
-#include "afpnotify.h"
-#include "fpinfo.h"
-#include "fdparms.h"
-#include "AfpBuffer.h"
-#include "AFPSession.h"
+#include "afp_net_buffer.h"
+#include "dsi/dsi_connection.h"
 
 
 AFPERROR FPResolveID(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPGetFileDirParms(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPEnumerate(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPSetFileDirParms(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPCreateDir(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPDelete(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPCopyFile(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPMoveAndRename(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+);
 
 AFPERROR FPRename(
-	IN	AfpBuffer&	afpRequest,
-	IN	AfpBuffer&	afpReply,
-	IN	LPSESSION	afpSession
-	);
-
-#endif //__afpdirectory__
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+);

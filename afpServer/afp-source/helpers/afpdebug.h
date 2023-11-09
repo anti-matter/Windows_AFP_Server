@@ -1,8 +1,3 @@
-//============================================================================
-// afpdebug.h
-// Copyright (c) 1998-2000, Microsoft Corp. All Rights Reserved.
-//============================================================================
-
 #pragma once
 
 #include <strsafe.h>
@@ -10,56 +5,48 @@
 
 #if defined(DBG) || defined(_DEBUG)
 
-enum DbgLevel
+enum dbg_level
 {
-    DbgLevelWarning = 1,
-    DbgLevelInfo,
-    DbgLevelAll
+	dbg_level_error = 1,
+	dbg_level_warning,
+	dbg_level_info,
+	dbg_level_trace
 };
 
-const DbgLevel CurrentDebugLevel = DbgLevelAll;
+constexpr dbg_level current_debug_level = dbg_level_info;
 
-#define DBG_ALLOC(dwSize)		DBGAllocMem(dwSize, __LINE__, __FILE__)
-#define DBG_FREE(ptr)			DBGMemFree((PBYTE)ptr); \
-                                ptr = NULL;
-            
-#define CHECK_DEALLOCATIONS()	DBGCheckDeallocations();
-
-void AFPDebugWrite(_In_ const DbgLevel debugLevel, _In_ const WCHAR* format, ...);
-#define DBGWRITE(level, message, ...)      AFPDebugWrite(level, message, __VA_ARGS__);
-
+#define DBGWRITE(level, message, ...) afp_debug_write(level, __func__, message, __VA_ARGS__)
 #define ASSERT(exp) assert(exp)
 
+#define DBG_DUMP_BUFFER(buffer, cb_buffer) hex_dump_buffer(buffer, cb_buffer)
 
-void DumpBitmap(
-        IN DWORD dwBitmap
+
+void afp_debug_write(_In_ const dbg_level debug_level, _In_ const std::string& function, _In_ const WCHAR* format, ...);
+
+void dump_bitmap(
+	IN DWORD bitmap
 );
 
-void HexDumpBuffer(
-        IN CHAR *pBuffer,
-        IN DWORD dwLen
+void hex_dump_buffer(
+	IN const CHAR* p_buffer,
+	IN DWORD length
 );
 
-void DBGOutputBufferToDebugger(
-        IN PBYTE pBuffer,
-        IN DWORD dwSize
+void dbg_output_buffer_to_debugger(
+	IN PBYTE p_buffer,
+	IN DWORD size
 );
 
-void DBGOutputBufferToDebugger(
-        IN PBYTE pBuffer,
-        IN DWORD dwSize
+void dbg_check_deallocations(void);
+
+PVOID dbg_alloc(
+	IN DWORD size,
+	IN DWORD line,
+	IN const CHAR* file_name
 );
 
-void DBGCheckDeallocations(void);
-
-PVOID DBGAllocMem(
-        IN 	DWORD 	dwSize,
-        IN	DWORD	dwLine,
-        IN	CHAR*	szFileName
-);
-
-void DBGMemFree(
-        IN  PBYTE 	pPtr
+void dbg_free(
+	IN PBYTE ptr
 );
 
 #else
@@ -72,14 +59,11 @@ void DBGMemFree(
             
 #define CHECK_DEALLOCATIONS()
 
-#define DEST
 #define DBGWRITE(level, message, ...)
-#define DBGWRITE_IF_ERR(e, x)
 #define ASSERT(exp)
-#define CHECK_ASSERT_IF(IF, exp)
-#define DBGOUTPUT(b,s)
+#define DBG_DUMP_BUFFER(buffer, cb_buffer)
 
 #endif
 
 #define ERROR_DLG_TITLE TEXT("AFP Error")
-void ReportError(CHAR *szError, DWORD dwError);
+void report_error(CHAR* sz_error, DWORD dw_error);

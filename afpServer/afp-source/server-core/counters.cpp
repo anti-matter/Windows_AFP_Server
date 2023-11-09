@@ -12,6 +12,8 @@
 #include "afpdebug.h"
 #include "counters.h"
 
+#include "dsi/dsi_connections.h"
+
 //
 //These are the counter id's, we have to provide ourselves since
 //ctrpp doesn't auto-generate them for us in the header (why??)
@@ -21,11 +23,8 @@
 #define ID_BYTESSENTPERSEC		3
 #define ID_AFPREQUESTSPROCESSED	4
 
-//
-//A couple needed globals to keep the thread running, etc.
-//
-extern BOOL		gRunning;				//from dsi.cpp, true while app is running
-extern SHORT	gWorkerThreadRefCount;	//Thread reference counter so we wait while cleaining up
+extern bool server_running;
+extern dsi::dsi_connections active_connections;
 
 //
 //These globals are needed to track some of the perf
@@ -70,7 +69,7 @@ ULONG AFPInitializePerfCounters()
     }
     else
     {
-        DBGWRITE(DbgLevelWarning,
+        DBGWRITE(dbg_level_warning,
             L"[counters]CounterInitialize() returned failure: %d\n", status
             );
     }
@@ -164,23 +163,17 @@ DWORD WINAPI AFPCounterThread(
     PPERF_COUNTERSET_INSTANCE	connectionsInstance	= NULL;
     ULONG						status = ERROR_SUCCESS;
 
-    //
-    //Increment thread reference count so the app will wait until thread is
-    //shutdown and cleanup complete before quitting.
-    //
-    gWorkerThreadRefCount++;
-
     status = AFPCreateCounterInstance(&connectionsInstance);
     if (status != ERROR_SUCCESS)
     {
-        DBGWRITE(DbgLevelWarning,
+        DBGWRITE(dbg_level_warning,
             L"[**counters**]AFPCreateCounterInstance() returned failure: %d\n", status
             );
 
         goto cleanup;
     }
 
-    while(gRunning)
+    while(server_running)
     {
         //
         //Update the number of DSI connections active for this server.
@@ -189,12 +182,12 @@ DWORD WINAPI AFPCounterThread(
                             AFPServerCounters,
                             connectionsInstance,
                             ID_CONNECTIONS,
-                            (ULONG)DSICountSessions(true)
+                            active_connections.count(true)
                             );
 
         if (status != ERROR_SUCCESS)
         {
-            DBGWRITE(DbgLevelWarning,
+            DBGWRITE(dbg_level_warning,
                 L"[counters]PerfSetULongCounterValue(ID_CONNECTIONS) returned failure: %d\n", status
                 );
 
@@ -218,7 +211,7 @@ DWORD WINAPI AFPCounterThread(
 
         if (status != ERROR_SUCCESS)
         {
-            DBGWRITE(DbgLevelWarning,
+            DBGWRITE(dbg_level_warning,
                 L"[counters]PerfSetULongCounterValue(ID_BYTESRCVDPERSEC) returned failure: %d\n", status
                 );
 
@@ -247,7 +240,7 @@ DWORD WINAPI AFPCounterThread(
 
         if (status != ERROR_SUCCESS)
         {
-            DBGWRITE(DbgLevelWarning,
+            DBGWRITE(dbg_level_warning,
                 L"[counters]PerfSetULongCounterValue(ID_BYTESSENTPERSEC) returned failure: %d\n", status
                 );
 
@@ -275,7 +268,7 @@ DWORD WINAPI AFPCounterThread(
 
         if (status != ERROR_SUCCESS)
         {
-            DBGWRITE(DbgLevelWarning,
+            DBGWRITE(dbg_level_warning,
                 L"[counters]PerfSetULongCounterValue(ID_AFPREQUESTSPROCESSED) returned failure: %d\n", status
                 );
 
@@ -296,11 +289,9 @@ DWORD WINAPI AFPCounterThread(
 
 cleanup:
 
-    gWorkerThreadRefCount--;
-
     //
     //This is from afpCounters.h, the auto-generated file from
-    //the perf counter mainfest.
+    //the perf counter manifest.
     //
     CounterCleanup();
 

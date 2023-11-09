@@ -1,18 +1,13 @@
-/*
- *	afpextattr.h
- *	Created 09/18/2005
- *
- *	Copyright (c) 2003-05, Michael J. Conrad. All Rights Reserved.
- */
-
+// ReSharper disable CppInconsistentNaming
 #pragma once
 
 #include "afp.h"
-#include "AFPSession.h"
-#include <afpfileio.h>
+#include "afp_session.h"
+#include "afpfileio.h"
+#include "afp_open_file.h"
 
-#define BAD_LENGTH_64	0xFFFFFFFFFFFFFFFF
-#define BAD_LENGTH_32	0xFFFFFFFF
+#define BAD_LENGTH_64	MAXLONGLONG // 0xFFFFFFFFFFFFFFFF  // NOLINT(modernize-macro-to-enum)
+#define BAD_LENGTH_32	0xFFFFFFFF  // NOLINT(modernize-macro-to-enum)
 
 enum
 {
@@ -22,35 +17,35 @@ enum
 };
 
 AFPERROR FPGetExtAttribute(
-    IN AfpBuffer& afpRequest,
-       IN AfpBuffer& afpReply,
-       IN LPSESSION afpSession
+    IN afp_net_buffer& afpRequest,
+    IN afp_net_buffer& afpReply,
+    IN dsi::dsi_connection* connection
 );
 
 AFPERROR FPSetExtAttribute(
-    IN AfpBuffer& afpRequest,
-       IN AfpBuffer& afpReply,
-       IN LPSESSION afpSession
+    IN afp_net_buffer& afpRequest,
+    IN afp_net_buffer& afpReply,
+    IN dsi::dsi_connection* connection
 );
 
 AFPERROR FPListExtAttribute(
-    IN AfpBuffer& afpRequest,
-       IN AfpBuffer& afpReply,
-       IN LPSESSION afpSession
+    IN afp_net_buffer& afpRequest,
+    IN afp_net_buffer& afpReply,
+    IN dsi::dsi_connection* connection
 );
 
 AFPERROR FPRemoveExtAttribute(
-    IN AfpBuffer& afpRequest,
-       IN AfpBuffer& afpReply,
-       IN LPSESSION afpSession
+    IN afp_net_buffer& afpRequest,
+    IN afp_net_buffer& afpReply,
+    IN dsi::dsi_connection* connection
 );
 
-uint64 GetStreamLen(
-    IN PWCHAR pathname,
-       IN PWCHAR streamName
+LONGLONG GetStreamLen(
+    IN const WCHAR* pathname,
+    IN const WCHAR* streamName
 );
 
 AFPERROR GetStreams(
-    IN WCHAR* pathname,
-       IN std::vector<AFP_ATTR_INFO>& streams
+    IN const WCHAR* pathname,
+    IN std::vector<afp_attr_info>& streams
 );

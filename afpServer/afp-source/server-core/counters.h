@@ -9,7 +9,6 @@
 #include <perflib.h>
 #include <winperf.h>
 
-#include "dsi.h"
 #include "afpCounters.h"
 
 #pragma once

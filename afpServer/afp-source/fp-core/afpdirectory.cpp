@@ -1,15 +1,14 @@
-/*
- *	afpdirectory.cpp
- *	Created 3/5/2005
- *
- *	Copyright © 2005, Michael J. Conrad. All Rights Reserved.
- *
- *	Core FP directory routines.
- */
-
+// ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
+// ReSharper disable CppParameterMayBeConstPtrOrRef
 #include "StdAfx.h"
 #include "afpdirectory.h"
 
+#include "afp_desktop.h"
+#include "afp_session.h"
+#include "afp_volumes.h"
+#include "change_notify.h"
+#include "fdparms.h"
+#include "fpinfo.h"
 
 /*
  * FPResolveID()
@@ -20,81 +19,67 @@
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPResolveID(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+)
 {
-    int16				afpVolumeID		= 0;
-    int32				afpFileID		= 0;
-    int16				afpBitmap		= 0;
-    LPAFPINDEX			afpEntry		= NULL;
-    AFP_VOLUME_INFO*	afpVolumeInfo	= NULL;
-    AFPERROR			afpError		= AFP_OK;
+    WIN32_FILE_ATTRIBUTE_DATA win_attributes;
 
-    WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
+    afp_request.advance_pos_ptr(sizeof(INT16));
 
-    //
-    //First WORD is afp command and padding byte.
-    //
-    afpRequest.Advance(sizeof(int16));
+    const auto afp_volume_id = afp_request.pull_num<INT16>();
+    const auto afp_file_id = afp_request.pull_num<INT32>();
+    auto afp_bitmap = afp_request.pull_num<INT16>();
 
-    afpVolumeID	= afpRequest.GetInt16();
-    afpFileID	= afpRequest.GetInt32();
-    afpBitmap	= afpRequest.GetInt16();
+    // Get a pointer to the volume info structure for this volume.
+    const auto afp_session = connection->get_afp_session();
+    const std::shared_ptr<afp_volume> afp_volume_info = afp_session->find_open_volume(afp_volume_id);
+    const std::filesystem::path path;
+    const auto afp_entry = afp_volume_info->get_index()->find(afp_file_id,path);
 
-    //
-    //Get a pointer to the volume info structure for this volume.
-    //
-    afpVolumeInfo = ((AFPSession*)afpSession->afpSessionObject)->SessionFindOpenVolumeBlock(afpVolumeID);
+    AFPERROR afp_error = AFP_OK;
 
-    afpError = AFPIndexFindEntry(afpVolumeInfo, afpFileID, &afpEntry);
-
-    if (AFP_SUCCESS(afpError))
+    if (afp_entry != nullptr)
     {
-        //
-        //We don't support the following bitmaps, so we clear them.
-        //
-        if (afpSession->bAFPVersion < afpVersion30)
+        // We don't support the following bitmaps, so we clear them.
+        if (connection->get_afp_version() < afpVersion30)
         {
-            if (afpBitmap & kFPProDos)		afpBitmap  &= ~kFPProDos;
-            if (afpBitmap & kFPShortName)	afpBitmap  &= ~kFPShortName;
+            if (afp_bitmap & kFPProDos) afp_bitmap &= ~kFPProDos;
+            if (afp_bitmap & kFPShortName) afp_bitmap &= ~kFPShortName;
         }
 
-        //
-        //Add in the bitmap and new refnum id.
-        //
-        afpReply.AddInt16(afpBitmap);
+        // Add in the bitmap and new refnum id.
+        afp_reply.push_num(afp_bitmap);
 
-        //
-        //Collect attribute data on the file or folder.
-        //
-        if (!GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes))
+        // Collect attribute data on the file or folder.
+        if (!GetFileAttributesEx(afp_entry->sz_path.c_str(), GetFileExInfoStandard, &win_attributes))
         {
-            DBGWRITE(DbgLevelInfo, L"[afp:FPResolveID]GetFileAttributesEx() failed! (%d)\n", GetLastError());
-            DBGWRITE(DbgLevelInfo, L"[afp:FPResolveID]path = %s\n", afpEntry->szPath);
-                    
-            return( afpObjectNotFound );
+            DBGWRITE(dbg_level_info, L"GetFileAttributesEx() failed! (%d)\n", GetLastError());
+            DBGWRITE(dbg_level_info, L"path = %s\n", afp_entry->sz_path.c_str());
+
+            return afpObjectNotFound;
         }
 
-        afpError = AFPGetObjectParms(
-                        afpReply,
-                        afpBitmap,
-                        afpVolumeID,
-                        afpEntry->parID,
-                        afpSession,
-                        afpEntry,
-                        winAttributes
-                        );
+        afp_error = afp_get_object_parms(
+            afp_reply,
+            afp_bitmap,
+            afp_volume_id,
+            afp_entry->par_id,
+            connection,
+            afp_entry,
+            win_attributes
+        );
 
-        if (!AFP_SUCCESS(afpError)) {
-
-            DBGWRITE(DbgLevelInfo, L"[afp:FPResolveID]AFPGetObjectParms() failed %d\n", afpError);
+        if (AFP_FAILED(afp_error))
+        {
+            DBGWRITE(dbg_level_info, L"AFPGetObjectParms() failed %d\n", afp_error);
         }
     }
 
-    return( afpError );
+    return afp_error;
 }
 
 
@@ -107,138 +92,92 @@ AFPERROR FPResolveID(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPGetFileDirParms(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+)
 {
-    WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
-    WCHAR						afpPathname[MAX_AFP_PATH];
-    int8						afpAttributes	= 0;
-    int16						afpFileBitmap	= 0;
-    int16						afpDirBitmap	= 0;
-    uint16						afpVolumeID		= 0;
-    int32						afpDirID		= 0;
-    int8						afpPathtype		= 0;
-    AFPERROR					afpError		= AFP_OK;
-    LPAFPINDEX					afpEntry		= NULL;
-    
-    DBGWRITE(DbgLevelAll, L"[afp:FPGetFileDirParms]Enter...\n");
-        
-    //
-    //First WORD is afp command and padding byte.
-    //
-    afpRequest.Advance(sizeof(int16));
-    
-    //
-    //Extract the volume and directory ID's, the bitmaps and the pathtype.
-    //
-    afpVolumeID		= afpRequest.GetInt16();
-    afpDirID		= afpRequest.GetInt32();
-    afpFileBitmap	= afpRequest.GetInt16();
-    afpDirBitmap	= afpRequest.GetInt16();
-    afpPathtype		= afpRequest.GetInt8();
+    WIN32_FILE_ATTRIBUTE_DATA win_attributes;
+    INT8 afp_attributes = 0;
 
-    //
-    //The client must have previously opened the volume we are operating on.
-    //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolumeID))
+    DBGWRITE(dbg_level_trace, L"Enter...\n");
+
+    afp_request.advance_pos_ptr(sizeof(UINT16));
+    const auto afp_volume_id = afp_request.pull_num<INT16>();
+    const auto afp_dir_id = afp_request.pull_num<INT32>();
+    auto afp_file_bitmap = afp_request.pull_num<INT16>();
+    auto afp_dir_bitmap = afp_request.pull_num<INT16>();
+    const auto afp_path_type = afp_request.pull_num<UINT8>();
+
+    // The client must have previously opened the volume we are operating on.
+    const auto volume = connection->get_afp_session()->find_open_volume(afp_volume_id);
+    if (volume == nullptr)
     {
-        //
-        //The volume has not been opened, we need to return error.
-        //
-        return( afpParmErr );
+        return afpParmErr;
     }
 
-    //
-    //Extract the pathname to the file or directory.
-    //
-    if (!AFP_SUCCESS(afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathtype))) {
+    const auto afp_pathname = afp_request.pull_path(afp_path_type);
 
-            return( afpParmErr );
-    }
-        
-    //
-    //Get the entry for this item in the afp index.
-    //
-    afpError = AFPIndexFindEntryWithVolIDAndPath(afpVolumeID, afpDirID, afpPathname, &afpEntry);
-    
-    if (!AFP_SUCCESS(afpError))
+    const auto afp_entry = volume->find(afp_dir_id, afp_pathname);
+    if (afp_entry == nullptr)
     {
-        DBGWRITE(DbgLevelAll, 
-                L"[AFP]Entry not found in GetFileDirParms! (dirID = %d)(name = %s)\n",
-                afpDirID, afpPathname);
-        
-        return( afpObjectNotFound );
-    }
-        
-    //
-    //Collect attribute data on the file or folder.
-    //
-    if (!GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes))
-    {
-        return( afpObjectNotFound );
-    }
-    
-    if (winAttributes.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-    {
-        //
-        //Set the flag that tells the client this is a dir.
-        //
-        afpAttributes |= kFileDirIsDir;
+        DBGWRITE(dbg_level_trace,
+                 L"Entry not found in GetFileDirParms! (dirID = %d)(name = %s)\n",
+                 afp_dir_id, afp_pathname.c_str());
+
+        return afpObjectNotFound;
     }
 
-    //
-    //We don't support the following bitmaps, so we clear them. Note that
-    //we don't clear the KFPProDos bit in AFP3.x since it is now the unicode
-    //name bit.
-    //
-    if (afpSession->bAFPVersion < afpVersion30)
-    {
-        if (afpDirBitmap & kFPProDos)	afpDirBitmap  &= ~kFPProDos;
-        if (afpFileBitmap & kFPProDos)	afpFileBitmap &= ~kFPProDos;
-    }
-        
-    if (afpDirBitmap & kFPDirShortName)		afpDirBitmap  &= ~kFPDirShortName;
-    if (afpFileBitmap & kFPShortName)		afpFileBitmap &= ~kFPShortName;
+    DBGWRITE(dbg_level_info, L"Getting parms for: %s\n", afp_entry->sz_path.c_str());
 
-    //
-    //We always return copies of the bitmaps and the attributes.
-    //
-    afpReply.AddInt16(afpFileBitmap);
-    afpReply.AddInt16(afpDirBitmap);
-    afpReply.AddInt8(afpAttributes);
-        
-    //
-    //If both bitmaps are null, then we are to just return
-    //the bitmaps and the attributes.
-    //
-    if ((afpFileBitmap == kFPFileNone) && (afpDirBitmap == kFPDirNone))
-    {			
-        return( AFP_OK );
+    if (!GetFileAttributesEx(afp_entry->sz_path.c_str(), GetFileExInfoStandard, &win_attributes))
+    {
+        return afpObjectNotFound;
     }
-    
-    //
-    //We add a null byte when adding more parameters to separate the stuff.
-    //
-    afpReply.AddInt8(0);
-    
-    //
-    //Call the worker routine to do all the dirty  work of getting and
-    //packing all the parameters for us.
-    //
-    afpError = AFPGetObjectParms(
-                    afpReply,
-                    (winAttributes.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? afpDirBitmap : afpFileBitmap,
-                    afpVolumeID,
-                    afpDirID,
-                    afpSession,
-                    afpEntry,
-                    winAttributes
-                    );
-    
-    return( afpError );
+
+    if (win_attributes.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+    {
+        afp_attributes |= static_cast<INT8>(kFileDirIsDir);
+    }
+
+    // We don't support the following bitmaps, so we clear them. Note that
+    // we don't clear the KFPProDos bit in AFP3.x since it is now the unicode
+    // name bit.
+    if (connection->get_afp_version() < afpVersion30)
+    {
+        if (afp_dir_bitmap & kFPProDos) afp_dir_bitmap &= ~kFPProDos;
+        if (afp_file_bitmap & kFPProDos) afp_file_bitmap &= ~kFPProDos;
+    }
+
+    if (afp_dir_bitmap & kFPDirShortName) afp_dir_bitmap &= ~kFPDirShortName;
+    if (afp_file_bitmap & kFPShortName) afp_file_bitmap &= ~kFPShortName;
+
+    // We always return copies of the bitmaps and the attributes.
+    afp_reply.push_num(afp_file_bitmap);
+    afp_reply.push_num(afp_dir_bitmap);
+    afp_reply.push_num(afp_attributes);
+    afp_reply.push_num<UINT8>(0);
+
+    // If both bitmaps are null, then we are to just return
+    // the bitmaps and the attributes.
+    if (afp_file_bitmap == kFPFileNone && afp_dir_bitmap == kFPDirNone)
+    {
+        return AFP_OK;
+    }
+
+    const auto afp_error = afp_get_object_parms(
+        afp_reply,
+        (win_attributes.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? afp_dir_bitmap : afp_file_bitmap,
+        afp_volume_id,
+        afp_dir_id,
+        connection,
+        afp_entry,
+        win_attributes
+    );
+
+    return afp_error;
 }
 
 
@@ -251,373 +190,239 @@ AFPERROR FPGetFileDirParms(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPEnumerate(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+)
 {
-    unichar				afpPathname[MAX_AFP_PATH];
-    int16*				afpActCountSpot	= NULL;
-    int8				afpCommand		= 0;
-    int16				afpActCount		= 0;
-    int8				afpAttributes	= 0;
-    int16				afpObjectsFound	= 0;
-    uint16				afpVolID		= 0;
-    uint32				afpDirID		= 0;
-    uint16				afpFileBitmap	= 0;
-    uint16				afpDirBitmap	= 0;
-    int16				afpReqCount		= 0;
-    int32				afpStartIndex	= 0;
-    int32				afpMaxReplySize	= 0;
-    int8				afpPathType		= 0;
-    AFPERROR			afpError		= AFP_OK;
-    LPAFPINDEX			afpTargetEntry	= NULL;
-    LPAFPINDEX			afpEntry		= NULL;
-    AFP_VOLUME_INFO*	afpVolumeInfo	= NULL;
+    INT16 afp_act_count = 0;
+    INT16 afp_objects_found = 0;
+    INT32 afp_start_index;
+    size_t afp_max_reply_size;
 
-    WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
+    WIN32_FILE_ATTRIBUTE_DATA win_attributes;
 
-    DBGWRITE(DbgLevelAll, L"[afp:FPEnumerate]Enter...\n");
+    DBGWRITE(dbg_level_trace, L"Enter...\n");
 
-    //
-    //The first word contains the afp command and padding byte.
-    //
-    afpCommand = afpRequest.GetInt8();
-    afpRequest.Advance(sizeof(int8));
+    const auto afp_command = afp_request.pull_num<UINT8>();
+    afp_request.advance_pos_ptr(sizeof(UINT8));
 
-    //
-    //Extract the enumerate parameters for the API.
-    //
-    afpVolID		= afpRequest.GetInt16();
-    afpDirID		= afpRequest.GetInt32();
-    afpFileBitmap	= afpRequest.GetInt16();
-    afpDirBitmap	= afpRequest.GetInt16();
-    afpReqCount		= afpRequest.GetInt16();
+    const auto afp_vol_id = afp_request.pull_num<INT16>();
+    const auto afp_dir_id = afp_request.pull_num<INT32>();
+    auto afp_file_bitmap = afp_request.pull_num<INT16>();
+    auto afp_dir_bitmap = afp_request.pull_num<INT16>();
+    const auto afp_req_count = afp_request.pull_num<INT16>();
 
-    //
-    //In AFP3.1 we may get the new Ext2 call which allows for a
-    //larger number of files to be on the volume.
-    //
-    switch(afpCommand)
+    // In AFP3.1 we may get the new Ext2 call which allows for a
+    // larger number of files to be on the volume.
+    switch (afp_command)
     {
-        case afpEnumerate:
-        case afpEnumerateExt:
-            afpStartIndex	= afpRequest.GetInt16();
-            afpMaxReplySize	= afpRequest.GetInt16();
-            break;
-        
-        case afpEnumerateExt2:
-            afpStartIndex	= afpRequest.GetInt32();
-            afpMaxReplySize	= afpRequest.GetInt32();
-            break;
-        
-        default:
-            return( afpParmErr );
-    }
-    
-    afpPathType	= afpRequest.GetInt8();
+    case afpEnumerate:
+    case afpEnumerateExt:
+        afp_start_index = afp_request.pull_num<INT16>();
+        afp_max_reply_size = afp_request.pull_num<INT16>();
+        break;
 
-    //
-    //The client must have previously opened the volume we are enumerating
-    //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolID))
-    {
-        //
-        //The volume has not been opened, we need to return error.
-        //
-        DBGWRITE(DbgLevelInfo, L"[afp:FPEnumerate]Volume not opened!\n");
-        return( afpParmErr );
+    case afpEnumerateExt2:
+        afp_start_index = afp_request.pull_num<INT32>();
+        afp_max_reply_size = afp_request.pull_num<INT32>();
+        break;
+
+    default:
+        return afpParmErr;
     }
 
-    //
-    //Get the pathname of the object we're working on.
-    //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathType);
-    
-    if (!AFP_SUCCESS(afpError))
+    const auto afp_path_type = afp_request.pull_num<INT8>();
+
+    const auto afp_session = connection->get_afp_session();
+    const auto afp_volume_info = afp_session->find_open_volume(afp_vol_id);
+    if (afp_volume_info == nullptr)
     {
-        return( afpError );
+        DBGWRITE(dbg_level_info, L"Volume not opened!\n");
+        return afpParmErr;
     }
 
-    //
-    //We don't support the following bitmaps, so we clear them.
-    //
-    if (afpSession->bAFPVersion < afpVersion30)
+    const auto afp_pathname = afp_request.pull_path(afp_path_type);
+
+    DBGWRITE(dbg_level_info, L"Enumerating directory: %d, path: %s\n", afp_dir_id, afp_pathname.c_str());
+    DBGWRITE(dbg_level_trace, L"Start index: %d\n", afp_start_index);
+
+    // We don't support the following bitmaps, so we clear them.
+    if (connection->get_afp_version() < afpVersion30)
     {
-        if (afpDirBitmap & kFPDirProDOS)	afpDirBitmap  &= ~kFPDirProDOS;
-        if (afpFileBitmap & kFPProDos)		afpFileBitmap &= ~kFPProDos;
-    }
-    
-    if (afpDirBitmap & kFPDirShortName)		afpDirBitmap  &= ~kFPDirShortName;
-    if (afpFileBitmap & kFPShortName)		afpFileBitmap &= ~kFPShortName;
-
-    //
-    //The first thing we do is add the bitmaps to the reply buffer.
-    //
-    afpReply.AddInt16(afpFileBitmap);
-    afpReply.AddInt16(afpDirBitmap);
-    
-    //
-    //This is where the actual number of bytes in the buffer will
-    //be inserted into the buffer.
-    //
-    afpActCountSpot = (int16*)afpReply.GetCurrentPosPtr();
-    afpReply.Advance(sizeof(int16));
-
-    //
-    //Get a pointer to the volume info structure for this volume.
-    //
-    afpVolumeInfo = ((AFPSession*)afpSession->afpSessionObject)->SessionFindOpenVolumeBlock(afpVolID);
-    
-    //
-    //Retrieve the index entry of the directory pointed to by the AFP path.
-    //We use it's dirID to determine which files we'll return in the enum.
-    //
-    afpError = AFPIndexFindEntryWithPath(afpVolumeInfo, afpDirID, afpPathname, &afpTargetEntry);
-    
-    if (!AFP_SUCCESS(afpError))
-    {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPEnumerate]Failed to get index entry (vID = %d, dirID = %d, name = %s)\n",
-                    afpVolID,
-                    afpDirID,
-                    afpPathname
-                    );
-
-        return( afpError );
+        if (afp_dir_bitmap & kFPDirProDOS) afp_dir_bitmap &= ~kFPDirProDOS;
+        if (afp_file_bitmap & kFPProDos) afp_file_bitmap &= ~kFPProDos;
     }
 
-    //
-    //Don't let the change notify mechanism do anything yet.
-    //
-    AutoLock lock(&afpVolumeInfo->csNotifyQueue);
+    if (afp_dir_bitmap & kFPDirShortName) afp_dir_bitmap &= ~kFPDirShortName;
+    if (afp_file_bitmap & kFPShortName) afp_file_bitmap &= ~kFPShortName;
 
-    //
-    //Create a temporary index array to hold all the offspring for the
-    //target directory.
-    //
-    std::vector<LPAFPINDEX>* afpTempIndex;
-        
-    //
-    //Now populate the temp array with the offspring in the target dir.
-    //
-    afpVolumeInfo->index->GetOffspring(afpTargetEntry->objectID, &afpTempIndex);
-            
-    //
-    //Go through the entire index and find entries that have the dirID as their parent.
-    //
-    for (auto it = afpTempIndex->begin(); it < afpTempIndex->end(); ++it)
+    // The first thing we do is add the bitmaps to the reply buffer.
+    afp_reply.push_num(afp_file_bitmap);
+    afp_reply.push_num(afp_dir_bitmap);
+
+    // This is where the actual number of bytes in the buffer will
+    // be inserted into the buffer.
+    auto* afp_act_count_spot = reinterpret_cast<INT16*>(afp_reply.get_current_pos_ptr());
+    afp_reply.advance_pos_ptr(sizeof(INT16));
+
+    // Retrieve the index entry of the directory pointed to by the AFP path.
+    const auto afp_target_entry = afp_volume_info->find(afp_dir_id, afp_pathname);
+    if (afp_target_entry == nullptr)
     {
-        afpEntry = *it;
+        DBGWRITE(dbg_level_info, L"Failed to get index entry (dirID = %d, name = %s)\n", afp_dir_id, afp_pathname.c_str());
+        return afpObjectNotFound;
+    }
 
-        #ifdef _DEBUG
-        if ((afpEntry->parID == afpTargetEntry->objectID) && (GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes) == 0))
+    // Create a temporary index array to hold all the offspring for the
+    // target directory.
+    std::vector<afp_index*> offspring;
+
+    // Now populate the temp array with the offspring in the target dir.
+    afp_volume_info->get_index()->get_offspring(afp_target_entry->object_id, offspring);
+    if (offspring.empty())
+    {
+        return afpObjectNotFound;
+    }
+
+    constexpr UINT16 temp_buffer_size = 4096;
+    const auto temp_buffer = std::make_unique<char[]>(temp_buffer_size);
+    if (temp_buffer == nullptr)
+    {
+        return afpMiscErr;
+    }
+
+    AFPERROR afp_error = AFP_OK;
+    std::unique_lock<std::recursive_mutex> lock(afp_volume_info->get_index()->get_mutex());
+
+    // Go through the entire index and find entries that have the dirID as their parent.
+    const auto it = std::ranges::for_each(offspring.begin(), offspring.end(), [&](afp_index* index_item)
+    {
+        // If we've gotten as much data as the client requested, then exit this beast.
+        if (afp_act_count >= afp_req_count || afp_reply.get_data_length() >= afp_max_reply_size)
         {
-            DBGWRITE(DbgLevelInfo, L"[afp:FPEnumerate]GetFileAttributesEx() failed (%d)\n", GetLastError());
-            DBGWRITE(DbgLevelInfo, L"[afp:FPEnumerate]File = %s\n", afpEntry->szPath);
+            return;
         }
-        #endif
-        
-        //
-        //We don't include some files (like the desktop db) since they
-        //are server specific and the macs shouldn't see or edit them.
-        //
-        if (!lstrcmp(afpEntry->szObjectName, DESKTOP_FILE_NAME)) {
-            continue;
-        }
-        
-        if (GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes))
+
+        // We don't include some files (like the desktop db) since they
+        // are server specific and the macs shouldn't see or edit them.
+        if (!lstrcmp(index_item->sz_object_name.c_str(), desktop_file_name.c_str()))
         {
-            bool		afpIsDirectory;
-            uint8		tempBuffer[1024];
-            AfpBuffer	afpParmsBuffer(tempBuffer);
-
-            //
-            //This is how many total objects we found during our search.
-            //
-            afpObjectsFound++;
-            
-            //
-            //If we haven't hit the start index yet, continue on...
-            //
-            if (afpObjectsFound < afpStartIndex) {
-                continue;
-            }
-            
-            DBGWRITE(DbgLevelAll, L"[afp:FPEnumerate]Enumerating %s\n", afpEntry->szObjectName);
-            
-            afpIsDirectory = (afpEntry->flags & FLAG_INDEX_ISDIR);
-
-            //
-            //Check to make sure we don't include items not to be included
-            //in the return enumeration.
-            //
-            if (	((afpDirBitmap == kFPDirNone) && (afpIsDirectory))		||
-                    ((afpFileBitmap == kFPFileNone) && (!afpIsDirectory))	)
-            {
-                continue;
-            }
-                            
-            //
-            //Call the appropriate GetXXXParms calls.
-            //
-            afpParmsBuffer.Rewind();
-            afpAttributes = 0;
-
-            afpError = AFPGetObjectParms(
-                            afpParmsBuffer,
-                            (afpIsDirectory) ? afpDirBitmap : afpFileBitmap,
-                            afpVolID,
-                            afpDirID,
-                            afpSession,
-                            afpEntry,
-                            winAttributes
-                            );
-            
-            if (afpIsDirectory)
-            {
-                //
-                //Set the afp flag that marks this as a directory.
-                //
-                afpAttributes |= kFileDirIsDir;
-            }
-                    
-            if (AFP_SUCCESS(afpError))
-            {
-                uint8*	structLen 		= NULL;
-                int16*	extStructLen	= NULL;
-                size_t	sizeRequired;
-                int16	len;
-                
-                //
-                //Check to make sure there is enough room in the buffer to add the
-                //file/dir information.
-                //
-                sizeRequired = afpParmsBuffer.GetDataLength() + afpReply.GetDataLength();
-                
-                //
-                //There are items after the file dirs parms that are added to the buffer,
-                //so we add a little extra to be safe.
-                //
-                sizeRequired += (4);
-                
-                //
-                //wMaxReplySize is the maximum size our return buffer can be.
-                //
-                if (sizeRequired >= (size_t)afpMaxReplySize)
-                {
-                    //
-                    //We need to stay inside the callers max reply size in the request.
-                    //
-                    DBGWRITE(DbgLevelAll, L"[afp:FPEnumerate]Breaking out, size required too big!\n");
-                    break;
-                }
-                
-                //
-                //Make sure we didn't get bigger then our reply buffer can handle.
-                //
-                if (sizeRequired > afpReply.GetBufferSize())
-                {
-                    //
-                    //This should never happen (yeah right). In case it does, just
-                    //bail from here.
-                    //
-                    DBGWRITE(DbgLevelAll, L"[afp:FPEnumerate]Breaking out, reply buffer too small!\n");
-                    break;
-                }
-                
-                //
-                //Increment the count of the # of objects we're returning.
-                //
-                afpActCount++;
-                
-                //
-                //The first byte (or word for AFP3.x) contains the struct len.
-                //
-                if (afpCommand > afpEnumerate)
-                {
-                    extStructLen = (int16*)afpReply.GetCurrentPosPtr();
-                    afpReply.Advance(sizeof(int16));
-                }
-                else
-                {
-                    structLen = afpReply.GetCurrentPosPtr();
-                    afpReply.Advance(sizeof(int8));
-                }
-                
-                //
-                //Push in the attributes flag (dir, yes/no)
-                //
-                afpReply.AddInt8(afpAttributes);
-                
-                //
-                //For AFP3.x, we add an extra null byte for padding here.
-                //
-                if (afpCommand > afpEnumerate) {
-                    afpReply.AddInt8(0);
-                }
-                
-                //
-                //Insert the FDP parameters into the reply buffer.
-                //
-                afpReply.AddRawData(afpParmsBuffer.GetBuffer(), (int16)afpParmsBuffer.GetDataLength());
-                
-                //
-                //Set the structure length byte in the buffer. The extra bytes are
-                //for the first parms in the structure (structLen, attributes and padding).
-                //
-                len = (int16)afpParmsBuffer.GetDataLength() + ((afpCommand > afpEnumerate) ? 4 : 2);
-                
-                //
-                //This entry must end on an even boundary.
-                //
-                if (len % 2)
-                {
-                    afpReply.AddInt8(0);
-                    len++;
-                }
-                
-                //
-                //AFP3.x uses a word to describe the struct length vs. a byte
-                //
-                if (afpCommand > afpEnumerate)
-                {
-                    *extStructLen = htons(len);
-                }
-                else {
-                    *structLen = (int8)len;
-                }
-            }
-            else
-            {
-                //
-                //We had an error looking up the parms of an object.
-                //
-                DBGWRITE(DbgLevelInfo, L"[afp:Enumerate]Error finding parms for object\n");
-            }
-            
-            //
-            //If we've gotten as much data as the client requested, then
-            //exit this beast.
-            //
-            if ((afpActCount >= afpReqCount) || (afpReply.GetDataLength() >= afpMaxReplySize))
-            {
-                break;
-            }
+            return;
         }
-    }
-    
-    //
-    //Set the actual number of objects found and in the buffer.
-    //
-    *afpActCountSpot = htons(afpActCount);
 
-    DBGWRITE(DbgLevelAll, L"[afp:Enumerate]afpActCount = %d\n", afpActCount);
-    DBGWRITE(DbgLevelAll, L"[afp:Enumerate]Returning: %d\n", (afpActCount == 0) ? afpObjectNotFound : AFP_OK);
-    
-    delete afpTempIndex;
-    
-    return((afpActCount == 0) ? afpObjectNotFound : AFP_OK);
+        if (GetFileAttributesEx(index_item->sz_path.c_str(), GetFileExInfoStandard, &win_attributes) == 0)
+        {
+            DBGWRITE(dbg_level_error, L"File does not exist on disk: %s\n", index_item->sz_path.c_str());
+            return;
+        }
+
+        afp_net_buffer parameter_buffer(temp_buffer.get(), temp_buffer_size);
+
+        afp_objects_found++;
+        if (afp_objects_found < afp_start_index)
+        {
+            return;
+        }
+
+        DBGWRITE(dbg_level_trace, L"Enumerating, dir id: %d, pathname: %s\n", afp_dir_id, index_item->sz_object_name.c_str());
+
+        const bool is_directory = index_item->flags & flag_index_is_dir;
+        if (afp_dir_bitmap == kFPDirNone && is_directory || afp_file_bitmap == kFPFileNone && !is_directory)
+        {
+            return;
+        }
+
+        UINT8 afp_attributes = 0;
+        if (is_directory)
+        {
+            DBGWRITE(dbg_level_trace, L"Is directory: %s\n", is_directory ? L"TRUE" : L"FALSE");
+            afp_attributes |= kFileDirIsDir;
+        }
+
+        afp_error = afp_get_object_parms(
+            parameter_buffer,
+            is_directory ? afp_dir_bitmap : afp_file_bitmap,
+            afp_vol_id,
+            afp_dir_id,
+            connection,
+            index_item,
+            win_attributes);
+
+        if (AFP_FAILED(afp_error))
+        {
+            DBGWRITE(dbg_level_error, L"AFPGetObjectParms() failed: %s\n", index_item->sz_path.c_str());
+            return;
+        }
+
+        UINT8* struct_len = nullptr;
+        UINT16* ext_struct_len = nullptr;
+
+        // Check to make sure there is enough room in the buffer to add the
+        // file/dir information. There are items after the file dirs parms that are
+        // added to the buffer, so we add a little extra to be safe.
+        const size_t size_required = parameter_buffer.get_data_length() + afp_reply.get_data_length() + sizeof(UINT32);
+
+        // afp_max_reply_size is the maximum size our return buffer can be.
+        if (size_required >= afp_max_reply_size || size_required > afp_reply.get_buffer_size())
+        {
+            DBGWRITE(dbg_level_warning, L"Breaking out, size required too big!\n");
+            return;
+        }
+
+        afp_act_count++;
+
+        // The first byte (or word for AFP3.x) contains the struct len.
+        if (afp_command > afpEnumerate)
+        {
+            ext_struct_len = reinterpret_cast<UINT16*>(afp_reply.get_current_pos_ptr());
+            afp_reply.advance_pos_ptr(sizeof(UINT16));
+        }
+        else
+        {
+            struct_len = reinterpret_cast<UINT8*>(afp_reply.get_current_pos_ptr());
+            afp_reply.advance_pos_ptr(sizeof(UINT8));
+        }
+
+        afp_reply.push_num(afp_attributes);
+        if (afp_command > afpEnumerate)
+        {
+            afp_reply.push_num<UINT8>(0);
+        }
+
+        afp_reply.push_raw_data(parameter_buffer.get_buffer(), parameter_buffer.get_data_length());
+
+        // Set the structure length byte in the buffer. The extra bytes are
+        // for the first params in the structure (structLen, attributes and padding).
+        auto len = static_cast<UINT16>(parameter_buffer.get_data_length() + (afp_command > afpEnumerate ? 4 : 2));
+
+        // This entry must end on an even boundary.
+        if (len % 2)
+        {
+            afp_reply.push_num<UINT8>(0);
+            len++;
+        }
+
+        // AFP3.x uses a word to describe the struct length vs. a byte
+        if (afp_command > afpEnumerate)
+        {
+            *ext_struct_len = htons(len);
+        }
+        else
+        {
+            *struct_len = static_cast<UINT8>(len);
+        }
+    });
+
+    // Set the actual number of objects found and in the buffer.
+    *afp_act_count_spot = static_cast<INT16>(htons(afp_act_count));
+
+    DBGWRITE(dbg_level_trace, L"afpActCount = %d\n", afp_act_count);
+    DBGWRITE(dbg_level_trace, L"Returning: %d\n", (afp_act_count == 0) ? afpObjectNotFound : AFP_OK);
+
+    return (afp_act_count == 0 ? afpObjectNotFound : AFP_OK);
 }
 
 
@@ -630,157 +435,107 @@ AFPERROR FPEnumerate(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPSetFileDirParms(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+)
 {
-    UNREFERENCED_PARAMETER(afpReply);
+    UNREFERENCED_PARAMETER(afp_reply);
 
-    unichar		afpPathname[MAX_AFP_PATH];
-    uint16		afpVolID	= 0;
-    uint16		afpBitmap	= 0;
-    int32		afpDirID	= 0;
-    int8		afpPathType	= 0;
-    int8		afpCommand	= 0;
-    AFPERROR	afpError	= AFP_OK;
-    LPAFPINDEX	afpEntry	= NULL;
+    WIN32_FILE_ATTRIBUTE_DATA win_attributes;
 
-    WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
+    DBGWRITE(dbg_level_trace, L"Enter...\n");
 
-    DBGWRITE(DbgLevelAll, L"[afp:FPSetFileDirParms]Enter...\n");
+    const auto afp_command = afp_request.pull_num<INT8>();
+    afp_request.advance_pos_ptr(sizeof(INT8));
 
-    //
-    //The first word is afp command and padding byte.
-    //
-    afpCommand = afpRequest.GetInt8();
-    afpRequest.Advance(sizeof(int8));
-    
-    //
-    //Extract the volume and dir ID's as well as the bitmap that
-    //tells what we're setting.
-    //
-    afpVolID	= afpRequest.GetInt16();
-    afpDirID	= afpRequest.GetInt32();
-    afpBitmap	= afpRequest.GetInt16();
-    afpPathType	= afpRequest.GetInt8();
+    const auto afp_vol_id = afp_request.pull_num<INT16>();
+    const auto afp_dir_id = afp_request.pull_num<INT32>();
+    const auto afp_bitmap = afp_request.pull_num<UINT16>();
+    const auto afp_path_type = afp_request.pull_num<UINT8>();
 
-    //
-    //The client must have previously opened the volume we are operating on.
-    //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolID))
+    const auto volume = connection->get_afp_session()->find_open_volume(afp_vol_id);
+    if (volume == nullptr)
     {
-        //
-        //The volume has not been opened, we need to return error.
-        //
-        return( afpParmErr );
+        return afpParmErr;
     }
 
-    //
-    //Make sure the volume is not marked read-only.
-    //
-    afpError = AFPVolumeWriteAccessCheck(afpVolID);
-
-    if (!AFP_SUCCESS(afpError))
+    if (volume->is_read_only())
     {
-        return( afpError );
+        return afpVolLocked;
     }
 
-    //
-    //Get the pathname of the object we're working on.
-    //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathType);
-    
-    if (!AFP_SUCCESS(afpError))
-    {
-        return( afpError );
-    }
-    
-    //
-    //The remaining parameters for the call must start on an
-    //even boundary.
-    //
-    afpRequest.AdvanceIfOdd();
+    const auto afp_pathname = afp_request.pull_path(afp_path_type);
 
-    //
-    //Verify the bitmap contains valid settings, FPSetFileDirParms doesn't
-    //support the following bitmaps. The user is supposed to use
-    //FPSetFileParms or FPSetDirParms for these.
-    //
-    switch(afpCommand)
+    // The remaining parameters for the call must start on an
+    // even boundary.
+    afp_request.advance_if_odd();
+
+    // Verify the bitmap contains valid settings, FPSetFileDirParms doesn't
+    // support the following bitmaps. The user is supposed to use
+    // FPSetFileParms or FPSetDirParms for these.
+    switch (afp_command)
     {
-        case afpSetFlDrParms:
-            if ((afpBitmap & (	kFPParentID	  | kFPLongName | kFPShortName |
-                                kFPFileNum    | kFPDFLen    | kFPRFLen	   |
-                                kFPDirGroupID | kFPDirAccess | kFPDirUnicodeName |
-                                kFPExtDataForkLen | kFPExtRsrcForkLen)))
-            {
-                DBGWRITE(DbgLevelAll, L"[afp:FPSetFileDirParms]Bad bitmap!\n");
-                return( afpBitmapErr );
-            }
-            break;
-            
-        case afpSetDirParms:
-            if ((afpBitmap & (	kFPParentID	   | kFPLongName | kFPShortName |
-                                kFPDirOffCount | kFPDirID | kFPDirUnicodeName)))
-            {
-                DBGWRITE(DbgLevelAll, L"[afp:FPSetDirParms]Bad bitmap!\n");
-                return( afpBitmapErr );
-            }
-            break;
-        
-        case afpSetFileParms:
-            if ((afpBitmap & (	kFPParentID	| kFPLongName | kFPShortName |
-                                kFPFileNum  | kFPDFLen    | kFPRFLen     |
-                                kFPExtDataForkLen | kFPUnicodeName | kFPExtRsrcForkLen)))
-            {
-                DBGWRITE(DbgLevelInfo, L"[afp:FPSetFileParms]Bad bitmap!\n");
-                return( afpBitmapErr );
-            }
-            break;
-            
-        default:
-            ASSERT(0);
-            return( afpCallNotSupported );
+    case afpSetFlDrParms:
+        if (afp_bitmap & (kFPParentID | kFPLongName | kFPShortName |
+            kFPFileNum | kFPDFLen | kFPRFLen |
+            kFPDirGroupID | kFPDirAccess | kFPDirUnicodeName |
+            kFPExtDataForkLen | kFPExtRsrcForkLen))
+        {
+            DBGWRITE(dbg_level_trace, L"Bad bitmap!\n");
+            return afpBitmapErr;
+        }
+        break;
+
+    case afpSetDirParms:
+        if (afp_bitmap & (kFPParentID | kFPLongName | kFPShortName |
+            kFPDirOffCount | kFPDirID | kFPDirUnicodeName))
+        {
+            DBGWRITE(dbg_level_trace, L"[afp:FPSetDirParms]Bad bitmap!\n");
+            return afpBitmapErr;
+        }
+        break;
+
+    case afpSetFileParms:
+        if (afp_bitmap & (kFPParentID | kFPLongName | kFPShortName |
+            kFPFileNum | kFPDFLen | kFPRFLen |
+            kFPExtDataForkLen | kFPUnicodeName | kFPExtRsrcForkLen))
+        {
+            DBGWRITE(dbg_level_info, L"Bad bitmap!\n");
+            return afpBitmapErr;
+        }
+        break;
+
+    default:
+        ASSERT(0);
+        return afpCallNotSupported;
     }
 
+    const auto afp_entry = volume->get_index()->find(afp_dir_id, afp_pathname);
+    if (afp_entry == nullptr)
+    {
+        DBGWRITE(dbg_level_info,
+                 L"Index entry not found in FPSetFileDirParms! (dirID = %d  path = %s)\n",
+                 afp_dir_id, afp_pathname.c_str());
 
-    //
-    //Now get the index entry for the object itself.
-    //
-    afpError = AFPIndexFindEntryWithVolIDAndPath(afpVolID, afpDirID, afpPathname, &afpEntry);
-    
-    if (!AFP_SUCCESS(afpError))
-    {
-        //
-        //We couldn't find the requested object.
-        //
-        DBGWRITE(DbgLevelInfo,
-                    L"[afp:FPSetFileParms]Index entry not found in FPSetFileDirParms! (dirID = %d  path = %s)\n", 
-                    afpDirID, afpPathname);
-        
-        return( afpError );
+        return afpObjectNotFound;
     }
-    
-    //
-    //Collect attribute data on the file or folder. We need to determine
-    //whether this is a dir of a file.
-    //
-    if (!GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes))
+
+    if (!GetFileAttributesEx(afp_entry->sz_path.c_str(), GetFileExInfoStandard, &win_attributes))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPSetFileParms]GetFileAttributesEx() failed! (%d)\n", GetLastError());
-        return( afpObjectNotFound );
+        DBGWRITE(dbg_level_info, L"GetFileAttributesEx() failed! (%d)\n", GetLastError());
+        return afpObjectNotFound;
     }
-    
-    afpError = AFPSetFileDirParms(
-                    afpBitmap,
-                    afpEntry,
-                    (PCHAR)afpRequest.GetCurrentPosPtr(),
-                    winAttributes.dwFileAttributes
-                    );
-    
-    return( afpError );
+
+    const auto afp_error = afp_set_file_dir_parms(
+        afp_bitmap,
+        win_attributes.dwFileAttributes,
+        afp_entry,
+        afp_request);
+
+    return afp_error;
 }
 
 
@@ -793,181 +548,90 @@ AFPERROR FPSetFileDirParms(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPCreateDir(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+)
 {
-    AFPCHARMAPARRAY		charMap;
-    WCHAR				afpPathname[MAX_AFP_PATH];
-    WCHAR				winPath[MAX_PATH];
-    int16				afpVolumeID	= 0;
-    uint32				afpDirID	= 0;
-    int8				afpPathType	= 0;
-    AFPERROR			afpError	= AFP_OK;
-    AFP_VOLUME_INFO*	afpVolume	= NULL;
-    LPAFPINDEX			afpEntry	= NULL;
-    
-    DBGWRITE(DbgLevelAll, L"[AFP]FPCreateDir...\n");
-        
-    //
-    //Parameters start after first word (afp cmd and 0 byte)
-    //
-    afpRequest.Advance(sizeof(int16));
-    
-    //
-    //Extract the volID, dirID and pathtype parameters for the call.
-    //
-    afpVolumeID		= afpRequest.GetInt16();
-    afpDirID		= afpRequest.GetInt32();
-    afpPathType		= afpRequest.GetInt8();
+    DBGWRITE(dbg_level_trace, L"FPCreateDir...\n");
 
-    //
-    //Find the volume info block that we need to access the index.
-    //
-    afpVolume = ((AFPSession*)afpSession->afpSessionObject)->SessionFindOpenVolumeBlock(afpVolumeID);
-    if (afpVolume == NULL)
+    afp_request.advance_pos_ptr(sizeof(INT16));
+
+    const auto volume_id = afp_request.pull_num<INT16>();
+    auto dir_id = afp_request.pull_num<INT32>();
+    const auto afp_path_type = afp_request.pull_num<UINT8>();
+    const auto session = connection->get_afp_session();
+
+    const std::shared_ptr<afp_volume> volume = session->find_open_volume(volume_id);
+    if (volume == nullptr)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPCreateDir]Bad volume ID in FPCreateDir!\n");
-        return( afpParmErr );
+        DBGWRITE(dbg_level_info, L"Bad volume ID in FPCreateDir!\n");
+        return afpParmErr;
     }
 
-    //
-    //The client must have previously opened the volume we are creating
-    //the directory on.
-    //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolumeID))
+    if (volume->is_read_only())
     {
-        //
-        //The volume has not been opened, we need to return error.
-        //
-        return( afpParmErr );
-    }
-    
-    //
-    //Make sure the volume is not marked read-only.
-    //
-    afpError = AFPVolumeWriteAccessCheck(afpVolumeID);
-
-    if (!AFP_SUCCESS(afpError))
-    {
-        return( afpError );
+        return afpVolLocked;
     }
 
-    //
-    //Extract the AFP pathname to the new directory to create.
-    //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathType, charMap);
-
-    if (!AFP_SUCCESS(afpError))
+    const auto afp_pathname = afp_request.pull_path(afp_path_type);
+    if (afp_pathname.empty())
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPCreateDir]GetString failed for path!\n");
-        return( afpError );
+        DBGWRITE(dbg_level_error, L"Failed to get pathname!\n");
+        return afpParmErr;
     }
 
-    //
-    //Pathname cannot be null since it contains the new dir name.
-    //
-    if (lstrlen(afpPathname) == 0)
+    // Get the directory entry for the directory where we are creating
+    // the new one.
+    const auto afp_entry = volume->get_index()->find(dir_id);
+    if (afp_entry == nullptr)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPCreateDir]No pathname in FPCreateDir!\n");
-        return( afpParmErr );
-    }
-    
-    //
-    //Get the directory entry for the directory where we are creating the
-    //new one.
-    //
-    afpError = AFPIndexFindEntryWithPath(afpVolume, afpDirID, NULL, &afpEntry);
-        
-    if (!AFP_SUCCESS(afpError))
-    {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPCreateDir]Path not found in FPCreateDir!\n");
-        return( afpError );
-    }
-    
-    //
-    //Build the path to the new directory using the parent dir's entry.
-    //
-    StringCbPrintf(winPath, sizeof(winPath), TEXT("%s\\%s"), afpEntry->szPath, afpPathname);
-    
-    //
-    //See if a directory or file by that name already exists.
-    //
-    if (GetFileAttributes(winPath) != AFP_MAX_DWORD)
-    {
-        return( afpObjectExists );
+        DBGWRITE(dbg_level_error, L"Parent directory not found in FPCreateDir!\n");
+        return afpObjectNotFound;
     }
 
-    //
-    //Lock down so the notify thread and us don't compete.
-    //
-    AutoLock lock(&afpVolume->csNotifyQueue);
-
-    //
-    //Impersonate the logged on user. This makes sure only those who
-    //are allowed can create directories.
-    //
-    if (!AFPImpersonateUser(afpSession->hUserToken))
+    // Build the path to the new directory using the parent directory's entry.
+    // ReSharper disable once CppFunctionResultShouldBeUsed
+    const std::filesystem::path win_path = afp_entry->sz_path / afp_pathname;
+    if (GetFileAttributes(win_path.c_str()) != INVALID_FILE_ATTRIBUTES)
     {
-        return( afpAccessDenied );
+        return afpObjectExists;
     }
 
-    //
-    //Create the new directory using the Win32 API.
-    //
-    afpError = (CreateDirectory(winPath, NULL)) ? AFP_OK : AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpMiscErr));
-
-    //
-    //Revert back to the systems control and context.
-    //
-    AFPRevertToSelf(afpSession->hUserToken);
-
-    if (AFP_SUCCESS(afpError))
+    // Make sure only those who are allowed can create directories.
+    if (!afp_impersonate_user(connection->get_user_token()))
     {
-        afpEntry = NULL;
-
-        //
-        //Add the new directory to the afp index. If the call succeeds, pEntry
-        //will contain a pointer to the new index entry data.
-        //
-        afpEntry = AFPIndexAddEntry(
-                    NULL,
-                    afpVolumeID,
-                    afpDirID,
-                    afpPathname,
-                    winPath,
-                    true,
-                    &afpDirID
-                    );
-
-        if (afpEntry != NULL)
-        {
-            //
-            //Make sure there is a finder info stream created for later use.
-            //
-            AFPCheckForAndAddFinderInfoStream(afpEntry);
-            
-            //
-            //Copy the character conversion mapping table into the
-            //object's index entry.
-            //
-            AFPAddCharMapToIndexEntry(afpEntry, charMap);
-        }
-
-        //
-        //Mark the volume dirty to so other clients will see the changes
-        //
-        AFPMarkVolumeDirty(afpVolume->wVolID);
-
-        //
-        //Now build the reply block to send back to the client.
-        //
-        afpReply.AddInt32(afpDirID);
+        return afpAccessDenied;
     }
 
-    return( afpError );
+    notify_suspend suspend(volume.get());
+
+    const auto afp_error = CreateDirectory(win_path.c_str(), nullptr)
+                               ? AFP_OK
+                               : afp_map_win_error_to_afp(GetLastError(), afpMiscErr);
+
+    afp_revert_to_self(connection->get_user_token());
+
+    if (AFP_SUCCESS(afp_error))
+    {
+        const auto new_dir_entry = volume->get_index()->add_entry(
+            dir_id,
+            afp_pathname,
+            win_path,
+            true,
+            &dir_id);
+
+        create_finder_info_stream(new_dir_entry, false);
+
+        volume->set_is_dirty();
+
+        // Now build the reply block to send back to the client.
+        afp_reply.push_num(dir_id);
+    }
+
+    return afp_error;
 }
 
 
@@ -980,151 +644,105 @@ AFPERROR FPCreateDir(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPDelete(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+)
 {
-    UNREFERENCED_PARAMETER(afpReply);
+    UNREFERENCED_PARAMETER(afp_reply);
 
-    unichar				afpPathname[MAX_AFP_PATH];
-    LPAFPINDEX			afpEntry		= NULL;
-    AFP_VOLUME_INFO*	afpVolumeInfo	= NULL;
-    int16				afpVolumeID		= 0;
-    int32				afpDirID		= 0;
-    int8				afpPathType		= 0;
-    AFPERROR			afpError		= AFP_OK;
+    DBGWRITE(dbg_level_trace, L"Enter\n");
 
-    DBGWRITE(DbgLevelAll, L"[afp:FPDelete]Enter\n");
-    
-    //
-    //First word is command and padding.
-    //
-    afpRequest.Advance(sizeof(int16));
-    
-    afpVolumeID	= afpRequest.GetInt16();
-    afpDirID	= afpRequest.GetInt32();
-    afpPathType	= afpRequest.GetInt8();
-    
-    //
-    //The client must have previously opened the volume we are operating on.
-    //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolumeID))
+    afp_request.advance_pos_ptr(sizeof(INT16));
+
+    const auto afp_volume_id = afp_request.pull_num<INT16>();
+    const auto afp_dir_id = afp_request.pull_num<INT32>();
+    const auto afp_path_type = afp_request.pull_num<UINT8>();
+
+    const auto volume = connection->get_afp_session()->find_open_volume(afp_volume_id);
+    if (volume == nullptr)
     {
-        //
-        //The volume has not been opened, we need to return error.
-        //
-        return( afpParmErr );
+        return afpParmErr;
     }
 
-    //
-    //Make sure the volume is not marked read-only.
-    //
-    afpError = AFPVolumeWriteAccessCheck(afpVolumeID);
-
-    if (!AFP_SUCCESS(afpError))
+    if (volume->is_read_only())
     {
-        return( afpError );
+        return afpVolLocked;
     }
 
-    //
-    //Get the pathname of the object we're working on.
-    //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathType);
-    
-    if (!AFP_SUCCESS(afpError))
+    const auto afp_pathname = afp_request.pull_path(afp_path_type);
+    if (afp_pathname.empty())
     {
-        return( afpError );
-    }
-    
-    //
-    //Pathname cannot be null since it contains the file/dir to delete.
-    //
-    if (lstrlen(afpPathname) == 0)
-    {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPDelete]Null pathname!\n");
-        return( afpParmErr );
+        return afpParmErr;
     }
 
-    afpVolumeInfo = ((AFPSession*)afpSession->afpSessionObject)->SessionFindOpenVolumeBlock(afpVolumeID);
-
-    if (afpVolumeInfo == NULL)
+    const std::shared_ptr<afp_volume> afp_volume_info = connection->get_afp_session()->find_open_volume(afp_volume_id);
+    if (afp_volume_info == nullptr)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPDelete]Bad volume ID! (%d)\n", afpVolumeID);
-        return( afpParmErr );
+        DBGWRITE(dbg_level_info, L"Bad volume ID! (%d)\n", afp_volume_id);
+        return afpParmErr;
     }
 
-    //
-    //Get the index entry for the item we want to delete.
-    //
-    afpError = AFPIndexFindEntryWithPath(afpVolumeInfo, afpDirID, afpPathname, &afpEntry);
-    
-    if (!AFP_SUCCESS(afpError))
+    const auto afp_entry = volume->get_index()->find(afp_dir_id, afp_pathname);
+    if (afp_entry == nullptr)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPDelete]Index entry not found! (%s)\n", afpPathname);
-        return( afpError );
+        DBGWRITE(dbg_level_info, L"Index entry not found! (%s)\n", afp_pathname.c_str());
+        return afpObjectNotFound;
     }
 
-    //
-    //Don't compete with the notify thread.
-    //
-    AutoLock lock(&afpVolumeInfo->csNotifyQueue);
-        
-    //
-    //Impersonate the logged on user. This makes sure only those who
-    //are allowed can delete files.
-    //
-    if (!AFPImpersonateUser(afpSession->hUserToken))
+    if (!afp_impersonate_user(connection->get_user_token()))
     {
-        return( afpAccessDenied );
+        return afpAccessDenied;
     }
 
-    //
-    //We take 2 different approaches to deleting the object based on whether it's
-    //a directory or a file.
-    //
-    if (afpEntry->flags & FLAG_INDEX_ISDIR)
+    DBGWRITE(dbg_level_info, L"Deleting item at path: %s\n", afp_entry->sz_path.c_str());
+
+    AFPERROR afp_error = AFP_OK;
+
+    // We take 2 different approaches to deleting the object based on whether it's
+    // a directory or a file.
+    if (afp_entry->flags & flag_index_is_dir)
     {
-        if (!RemoveDirectory(afpEntry->szPath))
+        if (!RemoveDirectory(afp_entry->sz_path.c_str()))
         {
-            DBGWRITE(DbgLevelInfo,
-                    L"[afp:FPDelete]RemoveDirectory() failed on %s! (%d)\n",
-                    afpEntry->szPath,
-                    GetLastError()
-                    );
-            
-            afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
+            DBGWRITE(dbg_level_info,
+                     L"RemoveDirectory() failed on %s! (%d)\n",
+                     afp_entry->sz_path.c_str(),
+                     GetLastError()
+            );
+
+            afp_error = afp_map_win_error_to_afp(GetLastError(), afpParmErr);
+        }
+        else
+        {
+            volume->get_index()->remove_entry(afp_entry);
         }
     }
     else
     {
-        if (!DeleteFile(afpEntry->szPath))
+        if (!DeleteFile(afp_entry->sz_path.c_str()))
         {
-            DBGWRITE(DbgLevelInfo,
-                    L"[afp:FPDelete]DeleteFile failed on %s! (%d)\n",
-                    afpEntry->szPath,
-                    GetLastError()
-                    );
-            
-            afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
+            DBGWRITE(dbg_level_info,
+                     L"DeleteFile failed on %s! (%d)\n",
+                     afp_entry->sz_path.c_str(),
+                     GetLastError()
+            );
+
+            afp_error = afp_map_win_error_to_afp(GetLastError(), afpParmErr);
+        }
+        else
+        {
+            volume->get_index()->remove_entry(afp_entry);
         }
     }
 
-    AFPRevertToSelf(afpSession->hUserToken);
-    
-    //
-    //If we successfully deleted the file or directory, we need to
-    //remove it from the afp index.
-    //
-    if (AFP_SUCCESS(afpError)) {
+    afp_revert_to_self(connection->get_user_token());
 
-        AFPIndexRemoveEntry(afpVolumeInfo, afpEntry, true);
-    }
+    DBGWRITE(dbg_level_trace, L"FPDelete returning: %d\n", afp_error);
 
-    AFPMarkVolumeDirty(afpVolumeID);
-
-    return( afpError );
+    return afp_error;
 }
 
 
@@ -1137,235 +755,107 @@ AFPERROR FPDelete(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPCopyFile(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+)
 {
-    UNREFERENCED_PARAMETER(afpReply);
+    UNREFERENCED_PARAMETER(afp_reply);
 
-    unichar				afpSrcPathname[MAX_AFP_PATH];
-    unichar				afpDstPathname[MAX_AFP_PATH];
-    unichar				afpNewName[MAX_AFP_NAME];
-    unichar				newWinPath[MAX_PATH];
-    AFPCHARMAPARRAY		destCharMap;
-    AFPCHARMAPARRAY		newCharMap;
-    LPAFPINDEX			afpSrcEntry		= NULL;
-    LPAFPINDEX			afpDstEntry		= NULL;
-    int16				afpSrcVolID		= 0;
-    int32				afpSrcDirID		= 0;
-    int16				afpDstVolID		= 0;
-    int32				afpDstDirID		= 0;
-    int8				afpPathType		= 0;
-    AFPERROR			afpError		= AFP_OK;
-    
-    DBGWRITE(DbgLevelAll, L"[afp:FPCopyFile]Enter...\n");
-    
-    //
-    //Skip the first byte which is afp command.
-    //
-    afpRequest.Advance(sizeof(int16));
+    DBGWRITE(dbg_level_trace, L"Enter...\n");
 
-    afpSrcVolID		= afpRequest.GetInt16();
-    afpSrcDirID		= afpRequest.GetInt32();
-    afpDstVolID		= afpRequest.GetInt16();
-    afpDstDirID		= afpRequest.GetInt32();
-    
-    //
-    //Get the pathname of the object we're copying.
-    //
-    afpPathType	= afpRequest.GetInt8();
-    afpError 	= afpRequest.GetString(
-                                afpSrcPathname, 
-                                sizeof(afpSrcPathname), 
-                                true, 
-                                afpPathType
-                                );
-    
-    if (!AFP_SUCCESS(afpError))
+    afp_request.advance_pos_ptr(sizeof(INT16));
+
+    const auto afp_src_vol_id = afp_request.pull_num<INT16>();
+    const auto afp_src_dir_id = afp_request.pull_num<INT32>();
+    const auto afp_dst_vol_id = afp_request.pull_num<INT16>();
+    const auto afp_dst_dir_id = afp_request.pull_num<INT32>();
+
+    // Get the pathname of the object we're copying.
+    auto afp_path_type = afp_request.pull_num<INT8>();
+    const auto afp_src_pathname = afp_request.pull_path(afp_path_type);
+    if (afp_src_pathname.empty())
     {
-        return( afpError );
-    }
-    
-    //
-    //Get the destination pathname we're copying to
-    //
-    afpPathType		= afpRequest.GetInt8();
-    afpError 		= afpRequest.GetString(
-                                afpDstPathname, 
-                                sizeof(afpDstPathname), 
-                                true, 
-                                afpPathType,
-                                destCharMap
-                                );
-    
-    if (!AFP_SUCCESS(afpError))
-    {
-        return( afpError );
-    }
-    
-    //
-    //And now the [optional] new name for the file
-    //
-    afpPathType		= afpRequest.GetInt8();
-    afpError 		= afpRequest.GetString(
-                                afpNewName, 
-                                sizeof(afpNewName), 
-                                true, 
-                                afpPathType,
-                                newCharMap
-                                );
-    
-    if (!AFP_SUCCESS(afpError))
-    {
-        return( afpError );
+        return afpParmErr;
     }
 
-    //
-    //Make sure the client has opened the volumes that the file copy
-    //is happening on.
-    //
-    if (	(!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpSrcVolID))	||
-            (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpDstVolID))	)
+    // Get the destination pathname we're copying to
+    afp_path_type = afp_request.pull_num<INT8>();
+    const auto afp_dst_pathname = afp_request.pull_path(afp_path_type);
+    if (afp_dst_pathname.empty())
     {
-        //
-        //The user has not opened one or both of the volumes for access.
-        //
-        return( afpParmErr );
+        return afpParmErr;
     }
 
-    //
-    //Pathname cannot be null since it contains the name of the file to copy
-    //
-    if (lstrlen(afpSrcPathname) == 0)
+    // And now the [optional] new name for the file
+    afp_path_type = afp_request.pull_num<INT8>();
+    const auto afp_new_name = afp_request.pull_path(afp_path_type);
+
+    const auto afp_session = connection->get_afp_session();
+    const auto src_volume = afp_session->find_open_volume(afp_src_vol_id);
+    const auto dst_volume = afp_session->find_open_volume(afp_dst_vol_id);
+    if (src_volume == nullptr || dst_volume == nullptr)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPCopyFile]NULL source pathname provided\n");
-        return( afpParmErr );
+        return afpParmErr;
     }
 
-    //
-    //Get the index entry for the source file item that we want to copy
-    //
-    afpError = AFPIndexFindEntryWithVolIDAndPath(afpSrcVolID, afpSrcDirID, afpSrcPathname, &afpSrcEntry);
-    
-    if (!AFP_SUCCESS(afpError))
+    const auto afp_src_entry = src_volume->get_index()->find(afp_src_dir_id, afp_src_pathname);
+    if (afp_src_entry == nullptr)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPCopyFile]Source index entry not found!\n");
-        return( afpError );
+        DBGWRITE(dbg_level_error, L"Source index entry not found!\n");
+        return afpObjectNotFound;
     }
 
-    //
-    //Make sure the path doesn't point to a directory, we only work with
-    //files as per the spec.
-    //
-    if (afpSrcEntry->flags & FLAG_INDEX_ISDIR)
+    // Make sure the path doesn't point to a directory, we only work with
+    // files as per the spec.
+    if (afp_src_entry->flags & flag_index_is_dir)
     {
-        return( afpObjectTypeErr );
+        return afpObjectTypeErr;
     }
 
-    //
-    //Get the index entry for the destination directory.
-    //
-    afpError = AFPIndexFindEntryWithVolIDAndPath(afpDstVolID, afpDstDirID, afpDstPathname, &afpDstEntry);
-
-    if (!AFP_SUCCESS(afpError))
+    const auto afp_dst_entry = dst_volume->get_index()->find(afp_dst_dir_id, afp_dst_pathname);
+    if (afp_dst_entry == nullptr)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPCopyFile]Destination directory index entry not found!\n");
-        return( afpError );
+        DBGWRITE(dbg_level_error, L"Destination directory index entry not found!\n");
+        return afpObjectNotFound;
     }
 
-    //
-    //Build the path to the new location. If we were supplied a new name,
-    //then use it, otherwise use the old file name.
-    //
-    if (lstrlen(afpNewName) > 0)
+    // Build the path to the new location. If we were supplied a new name,
+    // then use it, otherwise use the old file name.
+    std::filesystem::path new_win_path;
+
+    if (!afp_new_name.empty())
     {
-        StringCbPrintf(newWinPath, sizeof(newWinPath), TEXT("%s\\%s"), afpDstEntry->szPath, afpNewName);
+        new_win_path = afp_dst_entry->sz_path / afp_new_name;
     }
     else
     {
-        StringCbPrintf(newWinPath, sizeof(newWinPath), TEXT("%s\\%s"), afpDstEntry->szPath, afpSrcEntry->szObjectName);
+        new_win_path = afp_dst_entry->sz_path / afp_src_entry->sz_object_name;
     }
-    
-    DBGWRITE(DbgLevelAll, L"[afp:FPCopyFile]copying from %s\n", afpSrcEntry->szPath);
-    DBGWRITE(DbgLevelAll, L"[afp:FPCopyFile]copying to %s\n", newWinPath);
-    
-    //
-    //Silence the notify thread while we do our work.
-    //
-    AFP_VOLUME_INFO* volumeInfo = nullptr;
-    AFPGetVolumeInfoBlock(nullptr, afpDstVolID, &volumeInfo);
-    AutoLock lock(&volumeInfo->csNotifyQueue);
 
-    //
-    //Setup the correct impersonation for this API call. We have to
-    //have the right credentials for copy file.
-    //
-    if (!AFPImpersonateUser(afpSession->hUserToken))
+    DBGWRITE(dbg_level_trace, L"copying from %s\n", afp_src_entry->sz_path.c_str());
+    DBGWRITE(dbg_level_trace, L"copying to %s\n", new_win_path.c_str());
+
+    // Setup the correct impersonation for this API call. We have to
+    // have the right credentials for copy file.
+    if (!afp_impersonate_user(connection->get_user_token()))
     {
-        //
-        //Impersonation failed, don't allow any further operations.
-        //
-        return( afpAccessDenied );
+        return afpAccessDenied;
     }
 
-    //
-    //Call the Windows API to do the dirty work of copying the file for us.
-    //
-    BOOL fSucceeded = CopyFile(afpSrcEntry->szPath, newWinPath, true);
+    notify_suspend suspend(afp_session->find_open_volume(afp_dst_vol_id).get());
 
-    if (!fSucceeded)
+    const BOOL copy_succeeded = CopyFile(afp_src_entry->sz_path.c_str(), new_win_path.c_str(), true);
+    if (!copy_succeeded)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPCopyFile]CopyFile() failed (%d) (%s)!\n", GetLastError(), newWinPath);
-
-        afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
+        DBGWRITE(dbg_level_info, L"CopyFile() failed (%d) (%s)!\n", GetLastError(), new_win_path.c_str());
     }
 
-    AFPRevertToSelf(afpSession->hUserToken);
+    afp_revert_to_self(connection->get_user_token());
 
-    if (AFP_SUCCESS(afpError))
-    {
-        LPAFPINDEX	pNewIndex = NULL;
-
-        //
-        //Add the new file to the afp index for tracking purposes.
-        //
-        pNewIndex = AFPIndexAddEntry(
-                        NULL,
-                        afpDstVolID,
-                        afpDstEntry->objectID,
-                        (lstrlen(afpNewName) > 0) ? afpNewName : afpSrcEntry->szObjectName,
-                        newWinPath,
-                        false,
-                        NULL
-                        );
-
-        if (pNewIndex != NULL)
-        {
-            if (lstrlen(afpNewName) > 0)
-            {
-                AFPAddCharMapToIndexEntry(afpDstEntry, newCharMap);
-            }
-            else
-            {
-                AFPAddCharMapToIndexEntry(afpDstEntry, destCharMap);
-            }
-
-            AFPMarkVolumeDirty(afpDstVolID);
-        }
-        else
-        {
-            //
-            //For some reason we failed to add the new index entry. There's not
-            //much we can do at this point. Hopefully, the notify will add the
-            //new entry.
-            //
-            DBGWRITE(DbgLevelInfo, L"[afp:FPCopyFile]Failed to add new entry!\n");
-        }
-    }
-
-    return( afpError );
+    return copy_succeeded ? AFP_OK : afp_map_win_error_to_afp(GetLastError(), afpParmErr);
 }
 
 
@@ -1378,221 +868,118 @@ AFPERROR FPCopyFile(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPMoveAndRename(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+)
 {
-    UNREFERENCED_PARAMETER(afpReply);
+    UNREFERENCED_PARAMETER(afp_reply);
 
-    unichar			afpPathname[MAX_AFP_PATH];
-    unichar			afpNewPathname[MAX_AFP_NAME];
-    unichar			winDstPath[MAX_PATH];
-    AFPCHARMAP		destCharMap[MAX_DIR_NAME];
-    AFPCHARMAP		newCharMap[MAX_DIR_NAME];
-    LPAFPINDEX		afpSrcEntry;
-    LPAFPINDEX		afpDstEntry;
-    int16			afpVolumeID		= 0;
-    int32			afpSrcDirID		= 0;
-    int32			afpDstDirID		= 0;
-    int8			afpPathType		= 0;
-    int16			afpAttributes	= 0;
-    AFPERROR		afpError		= AFP_OK;
+    WIN32_FILE_ATTRIBUTE_DATA win_attributes;
 
-    WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
-    
-    DBGWRITE(DbgLevelAll, L"[afp:FPMoveAndRename]Enter\n");
-    
-    //
-    //The first byte contains the afp command.
-    //
-    afpRequest.Advance(sizeof(int16));
-    
-    afpVolumeID		= afpRequest.GetInt16();
-    afpSrcDirID		= afpRequest.GetInt32();
-    afpDstDirID		= afpRequest.GetInt32();
-    afpPathType		= afpRequest.GetInt8();
+    DBGWRITE(dbg_level_trace, L"Enter\n");
 
-    //
-    //The client must have previously opened the volume we are creating
-    //the directory on.
-    //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolumeID))
+    afp_request.advance_pos_ptr(sizeof(INT16));
+
+    const auto afp_volume_id = afp_request.pull_num<INT16>();
+    const auto afp_src_dir_id = afp_request.pull_num<INT32>();
+    const auto afp_dst_dir_id = afp_request.pull_num<INT32>();
+    auto afp_path_type = afp_request.pull_num<UINT8>();
+
+    const auto volume = connection->get_afp_session()->find_open_volume(afp_volume_id);
+    if (volume == nullptr)
     {
-        //
-        //The volume has not been opened, we need to return error.
-        //
-        return( afpParmErr );
+        return afpParmErr;
     }
 
-    //
-    //Make sure the volume is not marked read-only.
-    //
-    afpError = AFPVolumeWriteAccessCheck(afpVolumeID);
-
-    if (!AFP_SUCCESS(afpError))
+    if (volume->is_read_only())
     {
-        return( afpError );
+        return afpVolLocked;
     }
 
     //*****************
     //Beging by getting the source file/dir entry.
     //*****************
-            
-    //
-    //Get the pathname of the object we're working on.
-    //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathType);
-    
-    if (!AFP_SUCCESS(afpError))
+
+    auto afp_pathname = afp_request.pull_path(afp_path_type);
+
+    const auto afp_src_entry = volume->find(afp_src_dir_id, afp_pathname);
+    if (afp_src_entry == nullptr)
     {
-        return( afpError );
+        DBGWRITE(dbg_level_error, L"Src Index entry not found!\n");
+        return afpObjectNotFound;
     }
 
-    //
-    //Get the index entry for the item we are moving
-    //
-    afpError = AFPIndexFindEntryWithVolIDAndPath(afpVolumeID, afpSrcDirID, afpPathname, &afpSrcEntry);
-        
-    if (!AFP_SUCCESS(afpError))
+    if (!GetFileAttributesEx(afp_src_entry->sz_path.c_str(), GetFileExInfoStandard, &win_attributes))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPMoveAndRename]Src Index entry not found!\n");
-        return( afpError );
+        DBGWRITE(dbg_level_error, L"Could not get attributes on src entry: %s\n", afp_src_entry->sz_path.c_str());
+        return afpObjectNotFound;
     }
 
-    //
-    //Check to make sure that the exiting item can be renamed.
-    //
-    if (!GetFileAttributesEx(afpSrcEntry->szPath, GetFileExInfoStandard, &winAttributes))
+    const auto afp_attributes = win_to_afp_attributes(win_attributes.dwFileAttributes);
+    if (afp_attributes & (kFileDeleteInhibit | kFileRenameInhibit))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPMoveAndRename]Could not get attributes on src entry!\n");
-        return( afpObjectNotFound );
+        DBGWRITE(dbg_level_info, L"Cannot rename, object locked!\n");
+        return afpObjectLocked;
     }
 
-    afpAttributes = AFPWinToAFPAttributes(winAttributes.dwFileAttributes, NULL);
-
-    if (afpAttributes & (kFileDeleteInhibit | kFileRenameInhibit))
-    {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPMoveAndRename]Cannot rename, object locked!\n");
-        return( afpObjectLocked );
-    }
-    
     //*****************
     //Now get the destination directory we're moving to
     //*****************
-    
-    afpPathType = afpRequest.GetInt8();
-    
-    //
-    //Get the pathname of the object we're working on.
-    //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathType, destCharMap);
-    
-    if (!AFP_SUCCESS(afpError))
+
+    afp_path_type = afp_request.pull_num<INT8>();
+    afp_pathname = afp_request.pull_path(afp_path_type);
+
+    const auto afp_dst_entry = volume->find(afp_dst_dir_id, afp_pathname);
+    if (afp_dst_entry == nullptr)
     {
-        return( afpError );
+        DBGWRITE(dbg_level_info, L"Dst dir Index entry not found!\n");
+        return afpObjectNotFound;
     }
 
-    //
-    //Get the index entry for the directory we're moving the object to.
-    //
-    afpError = AFPIndexFindEntryWithVolIDAndPath(afpVolumeID, afpDstDirID, afpPathname, &afpDstEntry);
-    
-    if (!AFP_SUCCESS(afpError))
-    {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPMoveAndRename]Dst dir Index entry not found!\n");
-        return( afpError );
-    }
+    afp_path_type = afp_request.pull_num<INT8>();
+    const auto afp_new_pathname = afp_request.pull_path(afp_path_type);
 
-    //
-    //Get the (optionally) supplied new name after the move.
-    //
-    afpPathType = afpRequest.GetInt8();
-    
-    afpError = afpRequest.GetString(afpNewPathname, sizeof(afpNewPathname), true, afpPathType, newCharMap);
-    
-    if (!AFP_SUCCESS(afpError))
+    // Build the correct path to the newly moved and/or renamed object.
+    std::filesystem::path win_dst_path;
+    if (!afp_new_pathname.empty())
     {
-        return( afpError );
-    }
-
-    //
-    //Build the correct path to the newly moved and/or renamed object.
-    //
-    if (lstrlen(afpNewPathname) > 0)
-    {
-        StringCbPrintf(winDstPath, sizeof(winDstPath), TEXT("%s\\%s"), afpDstEntry->szPath, afpNewPathname);
-        StringCbCopy(afpSrcEntry->szObjectName, sizeof(afpSrcEntry->szObjectName), afpNewPathname);
+        win_dst_path = afp_dst_entry->sz_path / afp_new_pathname;
+        afp_src_entry->sz_object_name = afp_new_pathname;
     }
     else
     {
-        StringCbPrintf(winDstPath, sizeof(winDstPath), TEXT("%s\\%s"), afpDstEntry->szPath, afpSrcEntry->szObjectName);
+        win_dst_path = afp_dst_entry->sz_path / afp_src_entry->sz_object_name;
     }
 
-    //
-    //Prevent file notifications otherwise we'll get conflicts.
-    //
-    AFP_VOLUME_INFO* volumeInfo = nullptr;
-    AFPGetVolumeInfoBlock(nullptr, afpVolumeID, &volumeInfo);
-    AutoLock lock(&volumeInfo->csNotifyQueue);
+    DBGWRITE(dbg_level_info, L"Renaming to new path = %s\n", win_dst_path.c_str());
 
-    
-    DBGWRITE(DbgLevelInfo, L"[afp:FPMoveAndRename]Renaming to new path = %s\n", winDstPath);
-
-    //
-    //Impersonate the current user for permissions sakes.
-    //
-    if (!AFPImpersonateUser(afpSession->hUserToken))
+    if (!afp_impersonate_user(connection->get_user_token()))
     {
-        //
-        //Impersonation failed, don't allow any further operations.
-        //
-        return( afpAccessDenied );
+        return afpAccessDenied;
     }
 
-    //
-    //Now use the windows API to perform the actual movement in the filesystem.
-    //
-    if (!MoveFile(afpSrcEntry->szPath, winDstPath))
+    AFPERROR afp_error = AFP_OK;
+
+    notify_suspend suspend(volume.get());
+
+    if (!MoveFile(afp_src_entry->sz_path.c_str(), win_dst_path.c_str()))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPMoveAndRename]MoveFile() failed! (%d)\n", GetLastError());
-        
-        afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
+        DBGWRITE(dbg_level_info, L"MoveFile() failed! (%d)\n", GetLastError());
+        afp_error = afp_map_win_error_to_afp(GetLastError(), afpParmErr);
     }
 
-    AFPRevertToSelf(afpSession->hUserToken);
-    
-    if (AFP_SUCCESS(afpError))
+    afp_revert_to_self(connection->get_user_token());
+
+    if (AFP_SUCCESS(afp_error))
     {
-        //
-        //Now we must update the afp index for the moved directory.
-        //
-        AFPIndexUpdateEntry(
-                NULL,
-                afpVolumeID,
-                afpSrcEntry,
-                afpDstEntry,
-                NULL
-                );
-                
-        AFPMarkVolumeDirty(afpVolumeID);
-
-        //
-        //If we changed the name of the object, then we need to update
-        //the extended char mapping table.
-        //
-        if (lstrlen(afpNewPathname) > 0)
-        {
-            AFPAddCharMapToIndexEntry(afpSrcEntry, newCharMap);
-        }
-        else
-        {
-            AFPAddCharMapToIndexEntry(afpSrcEntry, destCharMap);
-        }
+        volume->update_entry(afp_src_entry, afp_dst_entry, L"");
+        volume->set_is_dirty();
     }
-  
-    return( afpError );
+
+    return afp_error;
 }
 
 
@@ -1605,168 +992,94 @@ AFPERROR FPMoveAndRename(
  * Returns: AFPERROR
  */
 
+// ReSharper disable once CppInconsistentNaming
 AFPERROR FPRename(
-    IN	AfpBuffer&	afpRequest,
-    IN	AfpBuffer&	afpReply,
-    IN	LPSESSION	afpSession
-    )
+    IN afp_net_buffer& afp_request,
+    IN afp_net_buffer& afp_reply,
+    IN dsi::dsi_connection* connection
+)
 {
-    UNREFERENCED_PARAMETER(afpReply);
+    UNREFERENCED_PARAMETER(afp_reply);
 
-    unichar			afpPathname[MAX_AFP_PATH];
-    unichar			winPath[MAX_PATH];
-    AFPCHARMAP		newCharMap[MAX_DIR_NAME];
-    LPAFPINDEX		afpEntry		= NULL;
-    int16			afpVolumeID		= 0;
-    int32			afpDirID		= 0;
-    int8			afpPathType		= 0;
-    int16			afpAttributes	= 0;
-    AFPERROR		afpError		= AFP_OK;
+    DBGWRITE(dbg_level_trace, L"Enter\n");
 
-    WIN32_FILE_ATTRIBUTE_DATA	winAttributes;
-    
-    DBGWRITE(DbgLevelAll, L"[afp:FPRename]Enter\n");
-    
-    //
-    //First word is command and padding.
-    //
-    afpRequest.Advance(sizeof(int16));
-    
-    afpVolumeID	= afpRequest.GetInt16();
-    afpDirID	= afpRequest.GetInt32();
-    afpPathType	= afpRequest.GetInt8();
+    afp_request.advance_pos_ptr(sizeof(INT16));
 
-    //
-    //The client must have previously opened the volume we are creating
-    //the directory on.
-    //
-    if (!((AFPSession*)afpSession->afpSessionObject)->SessionHasVolumeOpen(afpVolumeID))
+    const auto afp_volume_id = afp_request.pull_num<INT16>();
+    const auto afp_dir_id = afp_request.pull_num<INT32>();
+    auto afp_path_type = afp_request.pull_num<UINT8>();
+
+    const auto volume = connection->get_afp_session()->find_open_volume(afp_volume_id);
+    if (volume == nullptr)
     {
-        //
-        //The volume has not been opened, we need to return error.
-        //
-        return( afpParmErr );
+        return afpParmErr;
     }
 
-    //
-    //Make sure the volume is not marked read-only.
-    //
-    afpError = AFPVolumeWriteAccessCheck(afpVolumeID);
-
-    if (!AFP_SUCCESS(afpError))
+    if (volume->is_read_only())
     {
-        return( afpError );
+        return afpVolLocked;
     }
 
-    //
-    //Get the pathname of the object we're working on.
-    //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathType);
-    
-    if (!AFP_SUCCESS(afpError))
+    const auto afp_pathname = afp_request.pull_path(afp_path_type);
+    if (afp_pathname.empty())
     {
-        return( afpError );
+        return afpParmErr;
     }
 
-    //
-    //Get the entry pointer in the index for this item we're renaming.
-    //
-    afpError = AFPIndexFindEntryWithVolIDAndPath(afpVolumeID, afpDirID, afpPathname, &afpEntry);
-        
-    if (!AFP_SUCCESS(afpError))
+    const auto afp_entry = volume->find(afp_dir_id, afp_pathname);
+    if (afp_entry == nullptr)
     {
-        //
-        //We couldn't find the requested object.
-        //
-        DBGWRITE(DbgLevelInfo, L"[afp:FPRename]Dst entry not found! (%s)\n", afpPathname);
-        return( afpError );
+        DBGWRITE(dbg_level_info, L"Dst entry not found! (%s)\n", afp_pathname.c_str());
+        return afpObjectNotFound;
     }
 
-    //
-    //Check to make sure that the exiting item can be renamed.
-    //
-    if (!GetFileAttributesEx(afpEntry->szPath, GetFileExInfoStandard, &winAttributes))
+    WIN32_FILE_ATTRIBUTE_DATA win_attributes;
+    if (!GetFileAttributesEx(afp_entry->sz_path.c_str(), GetFileExInfoStandard, &win_attributes))
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPMoveAndRename]Could not get attributes on src entry!\n");
-        return( afpObjectNotFound );
+        DBGWRITE(dbg_level_info, L"Could not get attributes on src entry!\n");
+        return afpObjectNotFound;
     }
 
-    afpAttributes = AFPWinToAFPAttributes(winAttributes.dwFileAttributes, NULL);
-
-    if (afpAttributes & (kFileRenameInhibit))
+    const auto afp_attributes = win_to_afp_attributes(win_attributes.dwFileAttributes);
+    if (afp_attributes & kFileRenameInhibit)
     {
-        DBGWRITE(DbgLevelInfo, L"[afp:FPMoveAndRename]Cannot rename, object locked!\n");
-        return( afpObjectLocked );
+        DBGWRITE(dbg_level_info, L"Cannot rename, object locked!\n");
+        return afpObjectLocked;
     }
 
-    //
-    //Get the pathtype for the new name.
-    //
-    afpPathType = afpRequest.GetInt8();
-    
-    //
-    //Get the new name of the object (required).
-    //
-    afpError = afpRequest.GetString(afpPathname, sizeof(afpPathname), true, afpPathType, newCharMap);
-    
-    if ((!AFP_SUCCESS(afpError)) || (lstrlen(afpPathname) == 0))
+    afp_path_type = afp_request.pull_num<INT8>();
+    const auto new_name = afp_request.pull_path(afp_path_type);
+    if (new_name.empty())
     {
-        return( afpError );
+        return afpParmErr;
     }
 
-    //
-    //Get the new full path to the renamed file.
-    //
-    StringCbPrintf(winPath, sizeof(winPath), TEXT("%s\\%s"), ((LPAFPINDEX)afpEntry->parEntry)->szPath, afpPathname); 
+    const std::filesystem::path win_path = afp_entry->par_entry->sz_path / new_name;
 
-    DBGWRITE(DbgLevelInfo, L"[afp:FPRename]Renaming to new path = %s\n", winPath);
+    DBGWRITE(dbg_level_info, L"Renaming to new path = %s\n", win_path.c_str());
 
-    //
-    //Prevent the notification routines from interfering with us.
-    //
-    AFP_VOLUME_INFO* volumeInfo = nullptr;
-    AFPGetVolumeInfoBlock(nullptr, afpVolumeID, &volumeInfo);
-    AutoLock lock(&volumeInfo->csNotifyQueue);
-
-
-    //
-    //Impersonate the currently logged on user.
-    //
-    if (!AFPImpersonateUser(afpSession->hUserToken))
+    if (!afp_impersonate_user(connection->get_user_token()))
     {
-        //
-        //Impersonation failed, don't allow any further operations.
-        //
-        return( afpAccessDenied );
+        return afpAccessDenied;
     }
 
-    //
-    //Call the windows API to do the actual rename on disk.
-    //
-    if (!MoveFile(afpEntry->szPath, winPath))
+    AFPERROR afp_error = AFP_OK;
+
+    notify_suspend suspend(volume.get());
+
+    if (!MoveFile(afp_entry->sz_path.c_str(), win_path.c_str()))
     {
-        DBGWRITE(DbgLevelInfo, L"[AFP]MoveFile() failed! (%d)\n", GetLastError());
-        
-        afpError = AFPMapWinErrorToAFP(GetLastError(), static_cast<DWORD>(afpParmErr));
+        DBGWRITE(dbg_level_info, L"MoveFile() failed! (%d)\n", GetLastError());
+        afp_error = afp_map_win_error_to_afp(GetLastError(), afpParmErr);
     }
 
-    AFPRevertToSelf(afpSession->hUserToken);
+    afp_revert_to_self(connection->get_user_token());
 
-    if (AFP_SUCCESS(afpError))
+    if (AFP_SUCCESS(afp_error))
     {
-        AFPIndexUpdateEntry(
-                NULL,
-                afpVolumeID,
-                afpEntry,
-                (LPAFPINDEX)afpEntry->parEntry,
-                afpPathname
-                );
-                
-        AFPMarkVolumeDirty(afpVolumeID);
-        AFPAddCharMapToIndexEntry(afpEntry, newCharMap);
+        volume->update_entry(afp_entry, afp_entry->par_entry, new_name);
+        volume->set_is_dirty();
     }
 
-    return( afpError );
+    return afp_error;
 }
-
-
