@@ -41,12 +41,14 @@ public:
 
     void resume()
     {
+        notify_was_suspended_ = true;
         notify_suspended_ = false;
     }
 
 private:
     INT16 volume_id_;
     std::atomic_bool notify_suspended_;
+    std::atomic_bool notify_was_suspended_;
     OVERLAPPED notify_overlapped_;
 
     std::unique_ptr<BYTE[]> result_buffer_;

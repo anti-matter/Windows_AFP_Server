@@ -12,13 +12,12 @@
 #include "afp.h"
 #include "afp_volumes.h"
 #include "afp_volume.h"
-#include "volumes.h"
 #include "fdparms.h"
 #include "fpinfo.h"
 
 extern bool server_running;
 
-change_notify::change_notify(const INT16 volume_id) : volume_id_(volume_id), notify_suspended_(false)
+change_notify::change_notify(const INT16 volume_id) : volume_id_(volume_id), notify_suspended_(false), notify_was_suspended_(false)
 {
     result_buffer_ = std::make_unique<BYTE[]>(change_notify_result_buffer_size);
 
@@ -118,6 +117,15 @@ void change_notify::afp_read_dir_changes(
         return;
     }
 
+    // If we were suspended, we need to clear out the notifications that
+    // built up while we were out.
+    if (notify_was_suspended_)
+    {
+        DBGWRITE(dbg_level_info, L"Notify was suspended, clearing out cached items...\n");
+        notify_was_suspended_ = false;
+        return;
+    }
+
     // If the number of bytes transferred is 0, then the buffer we gave to
     // ReadDirectoryChangesW() was too small to hold the change data. We're
     // supposed to handle this now by enumerating the directory structure
@@ -130,7 +138,7 @@ void change_notify::afp_read_dir_changes(
 
     auto p_info = reinterpret_cast<FILE_NOTIFY_INFORMATION*>(result_buffer);
     afp_index* index_entry = nullptr;
-
+    
     // We have a successful change notify. Flip through the array of
     // changes and take appropriate action depending on the change.
     DBGWRITE(dbg_level_trace, L"Change notify data received!! (%d bytes)\n", bytes_returned);
