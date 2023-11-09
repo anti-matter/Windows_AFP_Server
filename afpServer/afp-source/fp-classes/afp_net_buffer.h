@@ -7,8 +7,8 @@
 #include "byte_swap.h"
 #include "dsi/dsi_connection.h"
 
-const std::wstring win_illegal_path_characters = L"\\/\"?*<>|\r";
-constexpr wchar_t first_replacement_character = 161;
+const std::wstring win_illegal_path_characters = L"/\"?*<>|\r";
+constexpr wchar_t first_replacement_character = 240;
 const wchar_t period_replacement_character = first_replacement_character + static_cast<wchar_t>(win_illegal_path_characters.size()) + 1;
 constexpr size_t max_pascal_string_length = 255;
 
