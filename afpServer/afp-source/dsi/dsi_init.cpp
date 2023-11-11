@@ -5,7 +5,6 @@
 #include "dsi_init.h"
 #include "dsi_connection.h"
 #include "afpdebug.h"
-#include "afpEvents.h"
 #include "afp_volumes.h"
 #include "dsi_connections.h"
 
@@ -33,9 +32,6 @@ namespace dsi
 
 		std::thread attention_thread(dsi_attention_thread);
 		attention_thread.detach();
-
-		EventRegisterAFPServer();
-		EventWriteAFPServerEvt_ServerStarting(L"");
 	}
 
 	void dsi_listen(void* /*data*/)
@@ -130,8 +126,6 @@ namespace dsi
 
 		active_connections.close_all();
 		afp_volumes::shutdown();
-
-		EventWriteAFPServerEvt_ServerHasShutdown(L"");
 	}
 
 	void dsi_attention_thread()

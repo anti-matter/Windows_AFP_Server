@@ -8,7 +8,6 @@
 #include "targetver.h"
 
 #define WIN32_LEAN_AND_MEAN			// Exclude rarely-used stuff from Windows headers
-//#define WINVER _WIN32_WINNT_WIN8
 
 #include <windows.h>
 #include <sal.h>

@@ -858,7 +858,6 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
 
     MSG lpMsg;
-    HWND hWnd;
 
     ULONG status = ERROR_SUCCESS;
 
@@ -879,7 +878,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
     //
     EventWriteAFPServerEvt_ServerStarting(L"");
 
-    hWnd = CreateDialog(
+    [[maybe_unused]] HWND h_wnd = CreateDialog(
         hInstance,
         MAKEINTRESOURCE(IDD_MAIN_DIALOG),
         NULL,

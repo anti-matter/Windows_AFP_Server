@@ -253,6 +253,9 @@
     <ClInclude Include="afp-source\server-core\perf_counters.h">
       <Filter>Source Files\server-core</Filter>
     </ClInclude>
+    <ClInclude Include="version.h">
+      <Filter>Resource Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\afpServer.Ico">
@@ -267,9 +270,6 @@
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resources\afpserver.rc">
-      <Filter>Resource Files</Filter>
-    </ResourceCompile>
-    <ResourceCompile Include="resources\afpServerVer.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
     <ResourceCompile Include="resources\afpCounters.rc">

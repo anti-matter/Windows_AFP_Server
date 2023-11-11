@@ -3,6 +3,9 @@
 #include <algorithm>
 
 #include "dsi_connections.h"
+
+#include <afpEvents.h>
+
 #include "afpdebug.h"
 #include "afp_session.h"
 
@@ -90,7 +93,7 @@ namespace dsi
 
 				if (connection->client_lost())
 				{
-					//lock.unlock();
+					EventWriteAFPServerEvt_ClientTimeout(connection->get_user_name().c_str());
 
 					connection->kill_connection();
 					stop_tracking(connection->get_connection_id());

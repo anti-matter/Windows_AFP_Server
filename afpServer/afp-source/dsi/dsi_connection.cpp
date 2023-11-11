@@ -37,7 +37,7 @@ namespace dsi
 
 	dsi_connection::~dsi_connection()
 	{
-		DBGWRITE(dbg_level_info, L"dsi_connection closed.\n");
+		DBGWRITE(dbg_level_info, L"dsi_connection (%d) closed.\n", connection_id_);
 	}
 
     void dsi_connection::connection_thread()

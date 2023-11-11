@@ -96,7 +96,7 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
     </Manifest>
     <PostBuildEvent>
       <Message>Cleaning up manifest temp files and copy DLL...</Message>
-      <Command>del afpEvents*
+      <Command>del resources\*.bin
 copy /y $(SolutionDir)afpServer\deps\openssl-1.1\lib\libcrypto-1_1.dll "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -243,6 +243,7 @@ copy /y $(SolutionDir)afpServer\deps\openssl-1.1\lib\libcrypto-1_1.dll "$(OutDir
     <ClInclude Include="afp-source\server-core\perf_counters.h" />
     <ClInclude Include="resources\resource.h" />
     <ClInclude Include="stdafx.h" />
+    <ClInclude Include="version.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="afpServer.man">
@@ -257,7 +258,6 @@ copy /y $(SolutionDir)afpServer\deps\openssl-1.1\lib\libcrypto-1_1.dll "$(OutDir
     <ResourceCompile Include="resources\afpCounters.rc" />
     <ResourceCompile Include="resources\afpEvents.rc" />
     <ResourceCompile Include="resources\afpserver.rc" />
-    <ResourceCompile Include="resources\afpServerVer.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
