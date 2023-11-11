@@ -2,6 +2,11 @@
 // Microsoft Visual C++ generated include file.
 // Used by afpserver.rc
 //
+#define VERSION_MINOR                   0
+#define VERSION_REVISION                0
+#define VERSION_BUILD                   0
+#define VER_VER_DEBUG                   0
+#define VERSION_MAJOR                   2
 #define IDI_TRAYICON                    102
 #define IDD_SENDMESSAGE                 105
 #define IDD_MAIN_DIALOG                 107
@@ -41,14 +46,15 @@
 #define IDC_REQ_ENCRYPTION              1027
 #define IDC_STATIC6                     1028
 #define IDC_RICHEDIT21                  1029
+#define IDC_VERSION_TEXT                1030
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        126
+#define _APS_NEXT_RESOURCE_VALUE        127
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1030
+#define _APS_NEXT_CONTROL_VALUE         1031
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

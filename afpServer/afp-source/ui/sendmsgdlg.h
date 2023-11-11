@@ -1,16 +1,10 @@
-//===================================================================
-// sendmsgdlg.h
-//===================================================================
+#pragma once
 
-#include "resource.h"
-#include "afp.h"
-#include "afphelp.h"
-
-LRESULT CALLBACK SendMessageDlgProc(
-		IN HWND 	hDlg,
+LRESULT CALLBACK send_message_dlg_proc(
+		IN HWND 	h_dlg,
 		IN DWORD 	message,
-		IN WPARAM 	wParam,
-		IN LPARAM 	lParam
+		IN WPARAM 	w_param,
+		IN LPARAM 	l_param
 );
 
-void SendMessageFromUI(HWND hParent);
+void send_message_from_ui(HWND h_parent);

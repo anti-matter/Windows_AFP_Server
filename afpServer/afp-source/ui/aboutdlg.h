@@ -1,18 +1,10 @@
-/*
- *	aboutdlg.h
- *
- *	Copyright © 2005, Michael J. Conrad. All Rights Reserved.
- */
+#pragma once
 
-#include "resource.h"
-#include "afp.h"
-#include "afphelp.h"
-
-LRESULT CALLBACK AboutDlgProc(
-		IN HWND 	hDlg,
+LRESULT CALLBACK about_dlg_proc(
+		IN HWND 	h_dlg,
 		IN DWORD 	message,
-		IN WPARAM 	wParam,
-		IN LPARAM 	lParam
+		IN WPARAM 	w_param,
+		IN LPARAM 	l_param
 );
 
-void AboutDialog(HWND hParent);
+void about_dialog(HWND h_parent);

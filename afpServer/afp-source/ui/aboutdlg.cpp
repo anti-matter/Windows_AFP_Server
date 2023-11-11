@@ -1,82 +1,59 @@
-/*
- *	aboutdlg.cpp
- *
- *	Copyright © 2005, Michael J. Conrad. All Rights Reserved.
- *
- *	About dialog routines.
- */
-
 #include "stdafx.h"
 #include "aboutdlg.h"
 
-extern HINSTANCE	ghInstance;
-extern BOOL			gMainWindowVisible;
-extern WCHAR		g_server_message[message_max_length+1];
+#include "afphelp.h"
+#include "resource.h"
+#include "version.h"
+
+extern HINSTANCE gh_instance;
+extern BOOL g_main_window_visible;
+extern WCHAR g_server_message[message_max_length + 1];
 
 
-
-/*
- *	AboutDlgProc()
- *
- *	Description
- *		Dialog message proc for our about box.
- *
- *	Returns
- *		None
- */
-
-LRESULT CALLBACK AboutDlgProc(
-        IN HWND 	hDlg,
-        IN DWORD 	message,
-        IN WPARAM 	wParam,
-        IN LPARAM 	lParam
+LRESULT CALLBACK about_dlg_proc(
+    IN const HWND h_dlg,
+    IN const DWORD message,
+    IN const WPARAM w_param,
+    IN const LPARAM l_param
 )
 {
-    UNREFERENCED_PARAMETER(lParam);
+    UNREFERENCED_PARAMETER(l_param);
 
     switch (message)
     {
-        case WM_INITDIALOG:
-            break;
+    case WM_INITDIALOG:
+        {
+            const std::wstring version = string_to_wide_string(VER_FILE_SHORT_VERSION_STR);
+            SendDlgItemMessage(h_dlg, IDC_VERSION_TEXT, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(version.c_str()));
+        }
+        break;
 
-        case WM_COMMAND:
-            switch(LOWORD(wParam))
-            {
-                case IDOK:
-                    EndDialog(hDlg, LOWORD(wParam));
-                    return( true );
-            }
-
+    case WM_COMMAND:
+        switch (LOWORD(w_param))
+        {
+        case IDOK:
+            EndDialog(h_dlg, LOWORD(w_param));
+            return (true);
         default:
             break;
+        }
+        break;
+
+    default:
+        break;
     }
 
-    return( false );
+    return false;
 }
 
-
-/*
- *	AboutDialog()
- *
- *	Description
- *		Puts up the about dialog.
- *
- *	Returns
- *		None
- */
-
-void AboutDialog(HWND hParent)
+void about_dialog(const HWND h_parent)
 {
-    //
-    //No way we should get here without the main window, but
-    //just in case...
-    //
-    if (gMainWindowVisible) 
+    if (g_main_window_visible)
     {
         DialogBox(
-                ghInstance,
-                MAKEINTRESOURCE(IDD_ABOUT),
-                hParent,
-                (DLGPROC)AboutDlgProc);
+            gh_instance,
+            MAKEINTRESOURCE(IDD_ABOUT),
+            h_parent,
+            reinterpret_cast<DLGPROC>(about_dlg_proc));
     }
 }

@@ -1,9 +1,6 @@
-/*
- *	addshare.h
- *
- */
+#pragma once
 
 #include <windows.h>
 
-void AddShare(HWND hwndFrontWindow);
-int  ChooseFolder(HWND hwndFrontWindow, PTCHAR pFolderPath, PTCHAR pShareName);
+void add_share(HWND front_window);
+int  choose_folder(HWND front_window, PTCHAR folder_path, PTCHAR share_name);

@@ -256,6 +256,15 @@
     <ClInclude Include="version.h">
       <Filter>Resource Files</Filter>
     </ClInclude>
+    <ClInclude Include="afp-source\ui\aboutdlg.h">
+      <Filter>Source Files\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\ui\addshare.h">
+      <Filter>Source Files\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\ui\sendmsgdlg.h">
+      <Filter>Source Files\ui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="resources\afpServer.Ico">

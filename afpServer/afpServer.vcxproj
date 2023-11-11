@@ -241,6 +241,9 @@ copy /y $(SolutionDir)afpServer\deps\openssl-1.1\lib\libcrypto-1_1.dll "$(OutDir
     <ClInclude Include="afp-source\helpers\byte_swap.h" />
     <ClInclude Include="afp-source\server-core\change_notify.h" />
     <ClInclude Include="afp-source\server-core\perf_counters.h" />
+    <ClInclude Include="afp-source\ui\aboutdlg.h" />
+    <ClInclude Include="afp-source\ui\addshare.h" />
+    <ClInclude Include="afp-source\ui\sendmsgdlg.h" />
     <ClInclude Include="resources\resource.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="version.h" />
