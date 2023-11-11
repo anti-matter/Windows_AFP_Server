@@ -153,8 +153,8 @@
     <ROW Action="SET_SHORTCUTDIR" Type="307" Source="SHORTCUTDIR" Target="[ProgramMenuFolder][ProductName]"/>
     <ROW Action="SET_TARGETDIR_TO_APPDIR" Type="51" Source="TARGETDIR" Target="[APPDIR]"/>
     <ROW Action="StopProcess" Type="3073" Source="aicustact.dll" Target="StopProcess" Options="1" AdditionalSeq="AI_DATA_SETTER"/>
-    <ROW Action="Unlodctr" Type="66" Source="viewer.exe" Target="/RunAsAdmin /dir APPDIR\afpServer unlodctr.exe /M:afpServer.man" Options="1"/>
-    <ROW Action="Wevtutil_Uninstall" Type="66" Source="viewer.exe" Target="/EnforcedRunAsAdmin /RunAsAdmin /dir APPDIR\afpServer\afpServer wevtutil.exe um afpServer.man" Options="1"/>
+    <ROW Action="Unlodctr" Type="66" Source="viewer.exe" Target="/EnforcedRunAsAdmin /RunAsAdmin /dir &quot;[afpServer_Dir]&quot; unlodctr.exe /M:afpServer.man" Options="1"/>
+    <ROW Action="Wevtutil_Uninstall" Type="66" Source="viewer.exe" Target="/EnforcedRunAsAdmin /RunAsAdmin /dir &quot;[afpServer_Dir]&quot; wevtutil.exe um afpServer.man" Options="1"/>
     <ROW Action="Wevtutil_install" Type="1026" Source="viewer.exe" Target="/EnforcedRunAsAdmin /RunAsAdmin /dir &quot;[afpServer_Dir]&quot; wevtutil im afpServer.man" Options="1"/>
   </COMPONENT>
   <COMPONENT cid="caphyon.advinst.msicomp.MsiFeatCompsComponent">

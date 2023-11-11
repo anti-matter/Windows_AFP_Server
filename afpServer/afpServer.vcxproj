@@ -152,7 +152,7 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
     </Manifest>
     <PostBuildEvent>
       <Message>Cleaning up manifest temp files...</Message>
-      <Command>del afpEvents*
+      <Command>del resources\*.bin
 copy /y $(SolutionDir)afpServer\deps\openssl-1.1\lib\libcrypto-1_1.dll "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
