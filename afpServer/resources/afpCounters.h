@@ -15,13 +15,17 @@
 #include <winperf.h>
 #include <perflib.h>
 
+#define AFP_SERVER_CONNECTIONS (1)
+#define AFP_SERVER_BYTES_RECEIVED_PER_SECOND (2)
+#define AFP_SERVER_BYTES_SENT_PER_SECOND (3)
+#define AFP_SERVER_REQUESTS_PER_SECOND (4)
 
-EXTERN_C DECLSPEC_SELECTANY GUID AFPServerCountersGuid = { 0x17ed61c9, 0x3d2e, 0x4f44, 0x87, 0x80, 0xf, 0xc5, 0xa2, 0x7a, 0xe5, 0x69 };
+EXTERN_C DECLSPEC_SELECTANY GUID AFP_SERVER_PROVIDERGuid = { 0x17ed61c9, 0x3d2e, 0x4f44, 0x87, 0x80, 0xf, 0xc5, 0xa2, 0x7a, 0xe5, 0x69 };
 
-EXTERN_C DECLSPEC_SELECTANY GUID ServerDetailsGuid = { 0x39208a08, 0x83d2, 0x446d, 0x8e, 0x5d, 0x4f, 0xe0, 0xb4, 0xcd, 0x9b, 0x7 };
+EXTERN_C DECLSPEC_SELECTANY GUID AFP_SERVERGuid = { 0x39208a08, 0x83d2, 0x446d, 0x8e, 0x5d, 0x4f, 0xe0, 0xb4, 0xcd, 0x9b, 0x7 };
 
 
-EXTERN_C DECLSPEC_SELECTANY HANDLE AFPServerCounters = NULL;
+EXTERN_C DECLSPEC_SELECTANY HANDLE AFP_SERVER_PROVIDER = NULL;
 
 EXTERN_C DECLSPEC_SELECTANY struct {
     PERF_COUNTERSET_INFO CounterSet;
@@ -29,12 +33,12 @@ EXTERN_C DECLSPEC_SELECTANY struct {
     PERF_COUNTER_INFO Counter1;
     PERF_COUNTER_INFO Counter2;
     PERF_COUNTER_INFO Counter3;
-} ServerDetailsInfo = {
-    { { 0x39208a08, 0x83d2, 0x446d, 0x8e, 0x5d, 0x4f, 0xe0, 0xb4, 0xcd, 0x9b, 0x7 }, { 0x17ed61c9, 0x3d2e, 0x4f44, 0x87, 0x80, 0xf, 0xc5, 0xa2, 0x7a, 0xe5, 0x69 }, 4, PERF_COUNTERSET_SINGLE_INSTANCE },
+} AFP_SERVERInfo = {
+    { { 0x39208a08, 0x83d2, 0x446d, 0x8e, 0x5d, 0x4f, 0xe0, 0xb4, 0xcd, 0x9b, 0x7 }, { 0x17ed61c9, 0x3d2e, 0x4f44, 0x87, 0x80, 0xf, 0xc5, 0xa2, 0x7a, 0xe5, 0x69 }, 4, PERF_COUNTERSET_MULTI_INSTANCES },
     { 1, PERF_COUNTER_RAWCOUNT, 0, sizeof(ULONG), PERF_DETAIL_NOVICE, 1, 0 },
-    { 2, PERF_COUNTER_RAWCOUNT, 0, sizeof(ULONG), PERF_DETAIL_NOVICE, 1, 0 },
-    { 3, PERF_COUNTER_RAWCOUNT, 0, sizeof(ULONG), PERF_DETAIL_NOVICE, 1, 0 },
-    { 4, PERF_COUNTER_RAWCOUNT, 0, sizeof(ULONG), PERF_DETAIL_NOVICE, 1, 0 },
+    { 2, PERF_COUNTER_RAWCOUNT, 0, sizeof(ULONG), PERF_DETAIL_NOVICE, -4, 0 },
+    { 3, PERF_COUNTER_RAWCOUNT, 0, sizeof(ULONG), PERF_DETAIL_NOVICE, -4, 0 },
+    { 4, PERF_COUNTER_RAWCOUNT, 0, sizeof(ULONG), PERF_DETAIL_NOVICE, -1, 0 },
 };
 
 EXTERN_C FORCEINLINE
@@ -43,9 +47,9 @@ CounterCleanup(
     VOID
     )
 {
-    if (AFPServerCounters != NULL) {
-        PerfStopProvider(AFPServerCounters);
-        AFPServerCounters = NULL;
+    if (AFP_SERVER_PROVIDER != NULL) {
+        PerfStopProvider(AFP_SERVER_PROVIDER);
+        AFP_SERVER_PROVIDER = NULL;
     }
 }
 
@@ -68,17 +72,17 @@ CounterInitialize(
     ProviderContext.MemFreeRoutine = MemoryFreeFunction;
     ProviderContext.pMemContext = MemoryFunctionsContext;
 
-    Status = PerfStartProviderEx(&AFPServerCountersGuid,
+    Status = PerfStartProviderEx(&AFP_SERVER_PROVIDERGuid,
                                  &ProviderContext,
-                                 &AFPServerCounters);
+                                 &AFP_SERVER_PROVIDER);
     if (Status != ERROR_SUCCESS) {
-        AFPServerCounters = NULL;
+        AFP_SERVER_PROVIDER = NULL;
         return Status;
     }
 
-    Status = PerfSetCounterSetInfo(AFPServerCounters,
-                                   &ServerDetailsInfo.CounterSet,
-                                   sizeof ServerDetailsInfo);
+    Status = PerfSetCounterSetInfo(AFP_SERVER_PROVIDER,
+                                   &AFP_SERVERInfo.CounterSet,
+                                   sizeof AFP_SERVERInfo);
     if (Status != ERROR_SUCCESS) {
         CounterCleanup();
         return Status;

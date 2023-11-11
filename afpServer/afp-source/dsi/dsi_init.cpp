@@ -5,13 +5,14 @@
 #include "dsi_init.h"
 #include "dsi_connection.h"
 #include "afpdebug.h"
+#include "afpEvents.h"
 #include "afp_volumes.h"
 #include "dsi_connections.h"
 
 bool server_running = true;
 SOCKET listen_socket;
+
 extern dsi::dsi_connections active_connections;
-extern std::unique_ptr<afp_volumes> g_volumes;
 
 namespace dsi
 {
@@ -32,6 +33,9 @@ namespace dsi
 
 		std::thread attention_thread(dsi_attention_thread);
 		attention_thread.detach();
+
+		EventRegisterAFPServer();
+		EventWriteAFPServerEvt_ServerStarting(L"");
 	}
 
 	void dsi_listen(void* /*data*/)
@@ -126,6 +130,8 @@ namespace dsi
 
 		active_connections.close_all();
 		afp_volumes::shutdown();
+
+		EventWriteAFPServerEvt_ServerHasShutdown(L"");
 	}
 
 	void dsi_attention_thread()
@@ -134,7 +140,7 @@ namespace dsi
 	    {
 			std::vector<std::shared_ptr<afp_volume>> dirty_volumes;
 
-			g_volumes->dirty_volumes(&dirty_volumes);
+			afp_volumes::current()->dirty_volumes(&dirty_volumes);
 			if (!dirty_volumes.empty())
 			{
                 for (const auto& dirty_volume : dirty_volumes)

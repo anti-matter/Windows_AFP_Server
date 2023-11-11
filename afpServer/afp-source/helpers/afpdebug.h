@@ -52,9 +52,9 @@ void dbg_free(
 #else
 
 #define DBG_ALLOC(dwSize)		HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, dwSize)
-#define DBG_FREE(ptr)			if (ptr != NULL) {						\
+#define DBG_FREE(ptr)			if ((ptr) != NULL) {						\
                                     HeapFree(GetProcessHeap(), 0, ptr);	\
-                                    ptr = NULL;							\
+                                    (ptr) = NULL;							\
                                 }
             
 #define CHECK_DEALLOCATIONS()

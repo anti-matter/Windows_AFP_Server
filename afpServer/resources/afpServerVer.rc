@@ -8,5 +8,3 @@
 #define VER_ORIGINALFILENAME_STR        "afpServer.exe"
 
 #include "common.ver"
-#include "afpEvents.rc"
-#include "afpCounters.rc"

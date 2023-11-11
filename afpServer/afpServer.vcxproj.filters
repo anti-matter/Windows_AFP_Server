@@ -74,9 +74,6 @@
     <ClCompile Include="afp-source\server-core\change_notify.cpp">
       <Filter>Source Files\server-core</Filter>
     </ClCompile>
-    <ClCompile Include="afp-source\server-core\counters.cpp">
-      <Filter>Source Files\server-core</Filter>
-    </ClCompile>
     <ClCompile Include="afp-source\ui\aboutdlg.cpp">
       <Filter>Source Files\ui</Filter>
     </ClCompile>
@@ -134,11 +131,11 @@
     <ClCompile Include="afp-source\fp-classes\afp_desktop.cpp">
       <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
+    <ClCompile Include="afp-source\server-core\perf_counters.cpp">
+      <Filter>Source Files\server-core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="afp-source\headers\counters.h">
-      <Filter>Source Files\server-core</Filter>
-    </ClInclude>
     <ClInclude Include="resources\resource.h">
       <Filter>Resource Files</Filter>
     </ClInclude>
@@ -253,18 +250,18 @@
     <ClInclude Include="afp-source\fp-classes\afp_desktop.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
+    <ClInclude Include="afp-source\server-core\perf_counters.h">
+      <Filter>Source Files\server-core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="afpServer.exe.manifest">
-      <Filter>Resource Files</Filter>
-    </None>
-    <None Include="afpServer.man">
-      <Filter>Resource Files</Filter>
-    </None>
     <None Include="resources\afpServer.Ico">
       <Filter>Resource Files</Filter>
     </None>
     <None Include="resources\Logo2.bmp">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="afpServer.man">
       <Filter>Resource Files</Filter>
     </None>
   </ItemGroup>
@@ -273,6 +270,12 @@
       <Filter>Resource Files</Filter>
     </ResourceCompile>
     <ResourceCompile Include="resources\afpServerVer.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="resources\afpCounters.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+    <ResourceCompile Include="resources\afpEvents.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
   </ItemGroup>

@@ -7,6 +7,7 @@
 #include "afpdhxlogin.h"
 #include "afp_session.h"
 #include "dsi_connections.h"
+#include "perf_counters.h"
 
 extern dsi::dsi_connections active_connections;
 
@@ -82,6 +83,8 @@ namespace dsi
 				kill_connection();
 				break;
             }
+
+			perf_counters::current()->increment_bytes_received(bytes_received);
 
             bytes_in_buffer += static_cast<UINT16>(bytes_received);
 
@@ -230,6 +233,8 @@ namespace dsi
 					ASSERT(0);
 					break;
 				}
+
+				perf_counters::current()->increment_afp_requests(1);
 			}
 			break;
 
@@ -417,6 +422,8 @@ namespace dsi
 		} while (true);
 
 		DBGWRITE(dbg_level_info, L"Bytes sent: %d\n", bytes_sent+offset);
+
+		perf_counters::current()->increment_bytes_sent(bytes_sent + offset);
 
 		if (bytes_sent < 0)
 		{

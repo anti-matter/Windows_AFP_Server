@@ -49,7 +49,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <PreBuildEvent>
       <Message>Compile event and counter manifests...</Message>
-      <Command>MC.EXE -um afpServer.man -h resources -z afpEvents
+      <Command>MC.EXE -um afpServer.man -h resources -z afpEvents -r resources
 ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCounters.rc afpServer.man
 </Command>
     </PreBuildEvent>
@@ -87,6 +87,9 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
       <AdditionalDependencies>legacy_stdio_definitions.lib;libcrypto32MT.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+      <TypeLibraryFile>
+      </TypeLibraryFile>
+      <TypeLibraryResourceID>1</TypeLibraryResourceID>
     </Link>
     <Manifest>
       <AdditionalManifestFiles>afpServer.exe.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles>
@@ -100,7 +103,7 @@ copy /y $(SolutionDir)afpServer\deps\openssl-1.1\lib\libcrypto-1_1.dll "$(OutDir
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <PreBuildEvent>
       <Message>Compile event and counter manifests...</Message>
-      <Command>MC.EXE -um afpServer.man -h resources -z afpEvents
+      <Command>MC.EXE -um afpServer.man -h resources -z afpEvents -r resources
 ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCounters.rc afpServer.man</Command>
     </PreBuildEvent>
     <ClCompile>
@@ -164,6 +167,7 @@ copy /y $(SolutionDir)afpServer\deps\openssl-1.1\lib\libcrypto-1_1.dll "$(OutDir
     <ClCompile Include="afp-source\fp-classes\afp_volumes.cpp" />
     <ClCompile Include="afp-source\fp-classes\auto_lock.cpp" />
     <ClCompile Include="afp-source\fp-core\afpdispatch.cpp" />
+    <ClCompile Include="afp-source\server-core\perf_counters.cpp" />
     <ClCompile Include="afpServer.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -193,7 +197,6 @@ copy /y $(SolutionDir)afpServer\deps\openssl-1.1\lib\libcrypto-1_1.dll "$(OutDir
     </ClCompile>
     <ClCompile Include="afp-source\fp-classes\afp_registry.cpp" />
     <ClCompile Include="afp-source\server-core\change_notify.cpp" />
-    <ClCompile Include="afp-source\server-core\counters.cpp" />
     <ClCompile Include="afp-source\helpers\afpdebug.cpp" />
     <ClCompile Include="afp-source\helpers\afphelp.cpp" />
     <ClCompile Include="afp-source\ui\aboutdlg.cpp" />
@@ -233,21 +236,26 @@ copy /y $(SolutionDir)afpServer\deps\openssl-1.1\lib\libcrypto-1_1.dll "$(OutDir
     <ClInclude Include="afp-source\fp-imp\fpinfo.h" />
     <ClInclude Include="afp-source\fp-imp\logonimp.h" />
     <ClInclude Include="afp-source\fp-imp\volumes.h" />
-    <ClInclude Include="afp-source\headers\counters.h" />
     <ClInclude Include="afp-source\helpers\afpdebug.h" />
     <ClInclude Include="afp-source\helpers\afphelp.h" />
     <ClInclude Include="afp-source\helpers\byte_swap.h" />
     <ClInclude Include="afp-source\server-core\change_notify.h" />
+    <ClInclude Include="afp-source\server-core\perf_counters.h" />
     <ClInclude Include="resources\resource.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="afpServer.exe.manifest" />
+    <None Include="afpServer.man">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </DeploymentContent>
+      <FileType>Document</FileType>
+    </None>
     <None Include="resources\afpServer.Ico" />
-    <None Include="afpServer.man" />
     <None Include="resources\Logo2.bmp" />
   </ItemGroup>
   <ItemGroup>
+    <ResourceCompile Include="resources\afpCounters.rc" />
+    <ResourceCompile Include="resources\afpEvents.rc" />
     <ResourceCompile Include="resources\afpserver.rc" />
     <ResourceCompile Include="resources\afpServerVer.rc" />
   </ItemGroup>

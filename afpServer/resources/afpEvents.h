@@ -680,22 +680,22 @@ EXTERN_C __declspec(selectany) const GUID AFPSERVER = {0x4d75fecd, 0x638a, 0x4b4
 //
 // Event Descriptors
 //
-EXTERN_C __declspec(selectany) const EVENT_DESCRIPTOR AFPServerEvt_INT32 = {0x65, 0x0, 0x9, 0x4, 0x0, 0x0, 0x8000000000000000};
-#define AFPServerEvt_INT32_value 0x65
-EXTERN_C __declspec(selectany) const EVENT_DESCRIPTOR AFPServerEvt_UnicodeStringInfo = {0x66, 0x0, 0x9, 0x4, 0x0, 0x0, 0x8000000000000000};
-#define AFPServerEvt_UnicodeStringInfo_value 0x66
-EXTERN_C __declspec(selectany) const EVENT_DESCRIPTOR AFPServerEvt_ClientTimeout = {0x67, 0x0, 0x9, 0x3, 0x0, 0x0, 0x8000000000000000};
-#define AFPServerEvt_ClientTimeout_value 0x67
-EXTERN_C __declspec(selectany) const EVENT_DESCRIPTOR AFPServerEvt_ClientLogoff = {0x68, 0x0, 0x9, 0x4, 0x0, 0x0, 0x8000000000000000};
-#define AFPServerEvt_ClientLogoff_value 0x68
-EXTERN_C __declspec(selectany) const EVENT_DESCRIPTOR AFPServerEvt_ClientLoggedOn = {0x69, 0x0, 0x9, 0x4, 0x0, 0x0, 0x8000000000000000};
-#define AFPServerEvt_ClientLoggedOn_value 0x69
-EXTERN_C __declspec(selectany) const EVENT_DESCRIPTOR AFPServerEvt_VolIndexingComplete = {0x6a, 0x0, 0x9, 0x4, 0x0, 0x0, 0x8000000000000000};
-#define AFPServerEvt_VolIndexingComplete_value 0x6a
-EXTERN_C __declspec(selectany) const EVENT_DESCRIPTOR AFPServerEvt_ServerStarting = {0x6b, 0x0, 0x9, 0x4, 0x0, 0x0, 0x8000000000000000};
-#define AFPServerEvt_ServerStarting_value 0x6b
-EXTERN_C __declspec(selectany) const EVENT_DESCRIPTOR AFPServerEvt_ServerHasShutdown = {0x6c, 0x0, 0x9, 0x4, 0x0, 0x0, 0x8000000000000000};
-#define AFPServerEvt_ServerHasShutdown_value 0x6c
+EXTERN_C __declspec(selectany) const EVENT_DESCRIPTOR AFPServerEvt_INT32 = {0x1f4, 0x0, 0x9, 0x4, 0x0, 0x0, 0x8000000000000000};
+#define AFPServerEvt_INT32_value 0x1f4
+EXTERN_C __declspec(selectany) const EVENT_DESCRIPTOR AFPServerEvt_UnicodeStringInfo = {0x1f6, 0x0, 0x9, 0x4, 0x0, 0x0, 0x8000000000000000};
+#define AFPServerEvt_UnicodeStringInfo_value 0x1f6
+EXTERN_C __declspec(selectany) const EVENT_DESCRIPTOR AFPServerEvt_ClientTimeout = {0x1f8, 0x0, 0x9, 0x3, 0x0, 0x0, 0x8000000000000000};
+#define AFPServerEvt_ClientTimeout_value 0x1f8
+EXTERN_C __declspec(selectany) const EVENT_DESCRIPTOR AFPServerEvt_ClientLogoff = {0x1fa, 0x0, 0x9, 0x4, 0x0, 0x0, 0x8000000000000000};
+#define AFPServerEvt_ClientLogoff_value 0x1fa
+EXTERN_C __declspec(selectany) const EVENT_DESCRIPTOR AFPServerEvt_ClientLoggedOn = {0x1fc, 0x0, 0x9, 0x4, 0x0, 0x0, 0x8000000000000000};
+#define AFPServerEvt_ClientLoggedOn_value 0x1fc
+EXTERN_C __declspec(selectany) const EVENT_DESCRIPTOR AFPServerEvt_VolIndexingComplete = {0x1fe, 0x0, 0x9, 0x4, 0x0, 0x0, 0x8000000000000000};
+#define AFPServerEvt_VolIndexingComplete_value 0x1fe
+EXTERN_C __declspec(selectany) const EVENT_DESCRIPTOR AFPServerEvt_ServerStarting = {0x200, 0x0, 0x9, 0x4, 0x0, 0x0, 0x8000000000000000};
+#define AFPServerEvt_ServerStarting_value 0x200
+EXTERN_C __declspec(selectany) const EVENT_DESCRIPTOR AFPServerEvt_ServerHasShutdown = {0x202, 0x0, 0x9, 0x4, 0x0, 0x0, 0x8000000000000000};
+#define AFPServerEvt_ServerHasShutdown_value 0x202
 
 //
 // MCGEN_DISABLE_PROVIDER_CODE_GENERATION macro:
@@ -1085,14 +1085,14 @@ _mcgen_PASTE2(McTemplateU0z_, MCGEN_EVENTWRITETRANSFER)(
 }
 #endif
 
-#define MSG_event_101                        0x00000065L
-#define MSG_event_102                        0x00000066L
-#define MSG_event_103                        0x00000067L
-#define MSG_event_104                        0x00000068L
-#define MSG_event_105                        0x00000069L
-#define MSG_event_106                        0x0000006AL
-#define MSG_event_107                        0x0000006BL
-#define MSG_event_108                        0x0000006CL
+#define MSG_event_454                        0x000001F4L
+#define MSG_event_452                        0x000001F6L
+#define MSG_event_450                        0x000001F8L
+#define MSG_event_448                        0x000001FAL
+#define MSG_event_446                        0x000001FCL
+#define MSG_event_444                        0x000001FEL
+#define MSG_event_442                        0x00000200L
+#define MSG_event_440                        0x00000202L
 #define MSG_level_Warning                    0x50000003L
 #define MSG_level_Informational              0x50000004L
 #define MSG_providermessage                  0x90000001L
