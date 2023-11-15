@@ -335,14 +335,14 @@ namespace dsi
 		// Get a wrapper for the AFP reply payload.
 		afp_net_buffer reply(&reply_buffer[dsi_offset_data_start], SEND_BUFFER_SIZE);
 
-        DBGWRITE(dbg_level_info, L"Processing AFP cmd: %d\n", afp_cmd);
+        //DBGWRITE(dbg_level_info, L"Processing AFP cmd: %d\n", afp_cmd);
 
         const auto afp_error = fp_dispatch_command(request, reply, this);
 		const auto data_size = afp_cmd == afpRead || afp_cmd == afpReadExt
 			? reply.get_dsi_return_value()
 			: reply.get_data_length();
 
-		if (AFP_FAILED(afp_error))
+		if (AFP_FAILED(afp_error) && afp_error != afpEofError)
 		{
 			DBGWRITE(dbg_level_error, L"AFP error: %d\n", afp_error);
 		}
@@ -377,11 +377,16 @@ namespace dsi
 		return client_request_id_;
 	}
 
-    UINT16 dsi_connection::get_next_request_id()
+    UINT16 dsi_connection::adjust_server_request_id()
     {
-        server_request_id_ = server_request_id_ == dsi_max_request_id
-                                 ? 0
-                                 : server_request_id_++;
+		if (server_request_id_ == dsi_max_request_id)
+		{
+			server_request_id_ = 0;
+		}
+		else
+		{
+			++server_request_id_;
+		}
 
         return server_request_id_;
     }
@@ -421,7 +426,7 @@ namespace dsi
 
 		} while (true);
 
-		DBGWRITE(dbg_level_info, L"Bytes sent: %d\n", bytes_sent+offset);
+		//DBGWRITE(dbg_level_info, L"Bytes sent: %d\n", bytes_sent+offset);
 
 		perf_counters::current()->increment_bytes_sent(bytes_sent + offset);
 
@@ -459,12 +464,14 @@ namespace dsi
 		afp_net_buffer header(buffer, data_size);
 		header.push_num<UINT8>(dsi_request_flag);
 		header.push_num<UINT8>(dsi_command);
-		header.push_num(get_next_request_id());
+		header.push_num(server_request_id_);
 		header.push_num<UINT32>(0);
 		header.push_num(afp_data_size);
 		header.push_num<UINT32>(0);
 
-		DBGWRITE(dbg_level_info, L"Sending request, DSI command: %d\n", dsi_command);
+		DBGWRITE(dbg_level_info, L"Sending request, DSI command: %d, request id: %d\n", dsi_command, server_request_id_);
+
+		adjust_server_request_id();
 
 		send_(buffer, data_size);
     }

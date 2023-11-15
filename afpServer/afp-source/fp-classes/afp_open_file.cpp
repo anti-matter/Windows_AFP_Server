@@ -235,7 +235,10 @@ AFPERROR afp_open_file::read_fork(
 	if (!success)
 	{
 		afp_error = afp_map_win_error_to_afp(GetLastError(), afpParmErr);
-		DBGWRITE(dbg_level_warning, L"ReadFile() failed! (%d)\n", GetLastError());
+		if (afp_error != afpEofError)
+        {
+            DBGWRITE(dbg_level_warning, L"ReadFile() failed! (%d)\n", GetLastError());
+        }
 	}
 	else if (afp_req_count > 0 && *afp_actual_read == 0)
 	{

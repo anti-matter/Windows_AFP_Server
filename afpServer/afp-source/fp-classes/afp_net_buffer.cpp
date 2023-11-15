@@ -200,7 +200,9 @@ void afp_net_buffer::pull_raw_data(void* buffer, const size_t amount)
 {
 	if (current_buffer_ptr_ + amount > buffer_ + buffer_size_)
 	{
-		DBGWRITE(dbg_level_error, L"Reading past end of buffer!\n");
+		DBGWRITE(dbg_level_error, L"Reading past end of buffer (%d bytes to read, exceeded by: %d).\n",
+			amount,
+			(current_buffer_ptr_ + amount) - (buffer_ + buffer_size_));
 		ASSERT(0);
 
 		return;

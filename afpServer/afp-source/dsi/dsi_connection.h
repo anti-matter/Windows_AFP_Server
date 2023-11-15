@@ -84,7 +84,7 @@ namespace dsi
 		void dsi_process_command(char* receive_buffer, char* reply_buffer, UINT8 dsi_cmd, UINT16 client_request_id, UINT8 afp_cmd);
 
 		UINT16 adjust_client_request_id(UINT16 id_from_client);
-		UINT16 get_next_request_id();
+		UINT16 adjust_server_request_id();
 
         void send_(const char* buffer, INT32 send_size);
 		void send_reply(char* reply_buffer, UINT8 dsi_command, UINT16 client_request_id, INT32 afp_error, INT32 afp_data_size);
@@ -134,8 +134,8 @@ namespace dsi
 		std::unique_ptr<char[]> receive_buffer_;
 		std::unique_ptr<afp_session> afp_session_;
 
-		std::atomic_uint16_t client_request_id_;
-		std::atomic_uint16_t server_request_id_;
+		UINT16 client_request_id_;
+		UINT16 server_request_id_;
 
 		ULONGLONG last_tickle_;
 
