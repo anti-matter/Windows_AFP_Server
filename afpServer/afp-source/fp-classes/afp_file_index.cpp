@@ -50,6 +50,7 @@ afp_index* afp_file_index::add_entry(
     const std::wstring& p_object_name,
     const std::filesystem::path& p_object_path,
     const bool is_directory,
+	const char_map_data* char_map,
 	INT32* p_new_dir_id
 )
 {
@@ -69,6 +70,23 @@ afp_index* afp_file_index::add_entry(
 	// We get a hash to the path string so that we can perform faster,
 	// more efficient searches for full paths.
 	entry->path_hash = std::hash<std::wstring>{}(p_object_path);
+
+	// Take this opportunity to save or read in the char map data.
+	if (char_map != nullptr)
+    {
+        entry->char_map = *char_map;
+		memcpy(&entry->char_map, char_map, sizeof(entry->char_map));
+        afp_char_map::write_char_map(entry->sz_path, entry->char_map);
+    }
+	else
+	{
+	    // Try reading it from the file stream. It's okay if this fails,
+		// it just means there are no mappings.
+        if (const auto temp_map = afp_char_map::read_char_map(entry->sz_path); temp_map != nullptr)
+		{
+			entry->char_map = *temp_map;
+		}
+	}
 
 	// Save as the std::move() makes the entry confusing.
 	const auto result = entry.get();
@@ -139,7 +157,7 @@ void afp_file_index::remove_entry(const INT32 object_id)
 }
 
 
-void afp_file_index::update_entry(afp_index* entry, afp_index* new_parent, const std::wstring& new_name)
+void afp_file_index::update_entry(afp_index* entry, afp_index* new_parent, const std::wstring& new_name, const char_map_data* char_map)
 {
 	DBGWRITE(
 		dbg_level_info,
@@ -167,6 +185,13 @@ void afp_file_index::update_entry(afp_index* entry, afp_index* new_parent, const
 	{
 		entry->par_id = new_parent->object_id;
 		entry->par_entry = new_parent;
+	}
+
+	// Take this opportunity to save or read in the char map data.
+	if (char_map != nullptr)
+	{
+		entry->char_map = *char_map;
+		afp_char_map::write_char_map(entry->sz_path, *char_map);
 	}
 
 	// If the entry that was moved is a directory, then we have to update the

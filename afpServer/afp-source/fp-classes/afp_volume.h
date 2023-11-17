@@ -33,7 +33,10 @@ public:
     [[nodiscard]] afp_index* find(const INT32 directory_id) const { return index_->find(directory_id); }
     [[nodiscard]] afp_index* find(const std::wstring& full_path) const { return index_->find(full_path); }
     [[nodiscard]] afp_index* find(const INT32 directory_id, const std::wstring& path) const { return index_->find(directory_id, path); }
-    void update_entry(afp_index* entry, afp_index* new_parent, const std::wstring& new_name) const { index_->update_entry(entry, new_parent, new_name); }
+    void update_entry(afp_index* entry, afp_index* new_parent, const std::wstring& new_name, const char_map_data* char_map = nullptr) const
+    {
+        index_->update_entry(entry, new_parent, new_name, char_map);
+    }
 
     [[nodiscard]] afp_file_index* get_index() const { return index_.get(); }
 

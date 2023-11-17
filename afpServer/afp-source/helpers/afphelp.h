@@ -9,6 +9,8 @@ constexpr auto num_100_ns_per_second = 10000000L;
 
 std::string wide_string_to_string(const std::wstring & wide_string);
 std::wstring string_to_wide_string(const std::string & string);
+std::wstring u8string_to_wstring(const std::u8string& str);
+std::u8string wstring_to_u8string(const std::wstring& str);
 
 enum
 {

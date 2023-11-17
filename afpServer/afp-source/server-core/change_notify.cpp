@@ -184,7 +184,8 @@ void change_notify::afp_read_dir_changes(
                 ZeroMemory(new_name, sizeof(new_name));
                 afp_get_object_name_from_path(file_name, new_name, sizeof(new_name));
 
-                volume->get_index()->update_entry(index_entry, static_cast<afp_index*>(index_entry->par_entry), file_name);
+                char_map_data char_map;
+                volume->get_index()->update_entry(index_entry, index_entry->par_entry, file_name, &char_map);
                 volume->set_is_dirty();
             }
             break;
@@ -259,11 +260,13 @@ void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_no
 
     // Finally, add the new file object into the afp index.
     INT32 new_object_id;
+    const char_map_data char_map;
     const auto new_entry = volume->get_index()->add_entry(
         parent_entry->object_id,
         new_item_name,
         new_full_path,
         (attribute_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0,
+        &char_map,
         &new_object_id);
 
     DBGWRITE(

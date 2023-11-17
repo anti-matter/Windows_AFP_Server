@@ -170,7 +170,7 @@ void afp_volumes::remove_all_volumes()
 }
 
 
-bool afp_volumes::index_build(std::filesystem::path& share_path, const UINT32  parent_dir_id, const std::shared_ptr<afp_volume>& volume)
+bool afp_volumes::index_build(std::filesystem::path& share_path, const INT32  parent_dir_id, const std::shared_ptr<afp_volume>& volume)
 {
     if (parent_dir_id == kRootDirID)
     {
@@ -205,6 +205,7 @@ bool afp_volumes::index_build(std::filesystem::path& share_path, const UINT32  p
             file_name,
             item_path,
             is_directory,
+            nullptr, // null will force the index to read it from file stream.
             &new_item_id);
 
         if (entry == nullptr)

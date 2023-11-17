@@ -160,6 +160,7 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
       <DebugInformationFormat Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">EditAndContinue</DebugInformationFormat>
     </ClCompile>
     <ClCompile Include="afp-source\dsi\dsi_init.cpp" />
+    <ClCompile Include="afp-source\fp-classes\afp_char_map.cpp" />
     <ClCompile Include="afp-source\fp-classes\afp_desktop.cpp" />
     <ClCompile Include="afp-source\fp-classes\afp_volume.cpp" />
     <ClCompile Include="afp-source\fp-classes\afp_volumes.cpp" />
@@ -207,6 +208,7 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
     <ClInclude Include="afp-source\dsi\dsi_connection.h" />
     <ClInclude Include="afp-source\dsi\dsi_connections.h" />
     <ClInclude Include="afp-source\dsi\dsi_init.h" />
+    <ClInclude Include="afp-source\fp-classes\afp_char_map.h" />
     <ClInclude Include="afp-source\fp-classes\afp_desktop.h" />
     <ClInclude Include="afp-source\fp-classes\afp_desk_item.h" />
     <ClInclude Include="afp-source\fp-classes\afp_registry.h" />
@@ -242,6 +244,7 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
     <ClInclude Include="afp-source\ui\aboutdlg.h" />
     <ClInclude Include="afp-source\ui\addshare.h" />
     <ClInclude Include="afp-source\ui\sendmsgdlg.h" />
+    <ClInclude Include="afp_char_map.h" />
     <ClInclude Include="resources\resource.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="version.h" />

@@ -576,7 +576,8 @@ AFPERROR FPCreateDir(
         return afpVolLocked;
     }
 
-    const auto afp_pathname = afp_request.pull_path(afp_path_type);
+    char_map_data char_map;
+    const auto afp_pathname = afp_request.pull_path(afp_path_type, &char_map);
     if (afp_pathname.empty())
     {
         DBGWRITE(dbg_level_error, L"Failed to get pathname!\n");
@@ -621,6 +622,7 @@ AFPERROR FPCreateDir(
             afp_pathname,
             win_path,
             true,
+            &char_map,
             &dir_id);
 
         create_finder_info_stream(new_dir_entry, false);
@@ -848,12 +850,23 @@ AFPERROR FPCopyFile(
     notify_suspend suspend(afp_session->find_open_volume(afp_dst_vol_id).get());
 
     const BOOL copy_succeeded = CopyFile(afp_src_entry->sz_path.c_str(), new_win_path.c_str(), true);
-    if (!copy_succeeded)
+
+    afp_revert_to_self(connection->get_user_token());
+
+    if (copy_succeeded)
+    {
+        dst_volume->get_index()->add_entry(
+            afp_dst_entry->object_id,
+            afp_src_entry->sz_object_name,
+            new_win_path,
+            false,
+            &afp_src_entry->char_map,
+            nullptr);
+    }
+    else
     {
         DBGWRITE(dbg_level_info, L"CopyFile() failed (%d) (%s)!\n", GetLastError(), new_win_path.c_str());
     }
-
-    afp_revert_to_self(connection->get_user_token());
 
     return copy_succeeded ? AFP_OK : afp_map_win_error_to_afp(GetLastError(), afpParmErr);
 }
@@ -939,8 +952,9 @@ AFPERROR FPMoveAndRename(
         return afpObjectNotFound;
     }
 
+    char_map_data char_map;
     afp_path_type = afp_request.pull_num<INT8>();
-    const auto afp_new_pathname = afp_request.pull_path(afp_path_type);
+    const auto afp_new_pathname = afp_request.pull_path(afp_path_type, &char_map);
 
     // Build the correct path to the newly moved and/or renamed object.
     std::filesystem::path win_dst_path;
@@ -975,7 +989,7 @@ AFPERROR FPMoveAndRename(
 
     if (AFP_SUCCESS(afp_error))
     {
-        volume->update_entry(afp_src_entry, afp_dst_entry, L"");
+        volume->update_entry(afp_src_entry, afp_dst_entry, L"", &char_map);
         volume->set_is_dirty();
     }
 
@@ -1047,8 +1061,9 @@ AFPERROR FPRename(
         return afpObjectLocked;
     }
 
+    char_map_data char_map;
     afp_path_type = afp_request.pull_num<INT8>();
-    const auto new_name = afp_request.pull_path(afp_path_type);
+    const auto new_name = afp_request.pull_path(afp_path_type, &char_map);
     if (new_name.empty())
     {
         return afpParmErr;
@@ -1077,7 +1092,7 @@ AFPERROR FPRename(
 
     if (AFP_SUCCESS(afp_error))
     {
-        volume->update_entry(afp_entry, afp_entry->par_entry, new_name);
+        volume->update_entry(afp_entry, afp_entry->par_entry, new_name, &char_map);
         volume->set_is_dirty();
     }
 

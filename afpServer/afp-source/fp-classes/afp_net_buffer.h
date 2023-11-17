@@ -7,27 +7,24 @@
 #include "byte_swap.h"
 #include "dsi/dsi_connection.h"
 
-const std::wstring win_illegal_path_characters = L"/\"?*<>|\r";
-constexpr wchar_t first_replacement_character = 240;
-const wchar_t period_replacement_character = first_replacement_character + static_cast<wchar_t>(win_illegal_path_characters.size()) + 1;
+struct afp_index;
+struct char_map_data;
 constexpr size_t max_pascal_string_length = 255;
 
-typedef std::basic_string<unsigned char> ustring;
 
 class afp_net_buffer // NOLINT(cppcoreguidelines-special-member-functions)
 {
 public:
 	afp_net_buffer(_In_ char* afp_buffer, _In_ size_t cb_buffer);
 
-	std::wstring pull_path(UINT8 path_type);
-	AFPERROR push_path(UINT8 path_type, const std::wstring& path);
+	std::wstring pull_path(UINT8 path_type, char_map_data* char_map = nullptr);
+	AFPERROR push_path(UINT8 path_type, const afp_index* index_entry);
 
 	std::wstring pull_string(UINT8 path_type = kLongNames);
 	void push_string(const std::wstring& str, UINT8 path_type = kLongNames);
 	void push_string(const std::string& str, UINT8 path_type = kLongNames);
 
-    static std::wstring convert_to_windows_path(const std::string& mac_path);
-	static std::string convert_to_mac_path(const std::wstring& win_path);
+    static std::wstring convert_to_windows_path(const std::string& mac_path, char_map_data* char_map);
 
 	std::wstring pull_wide_string();
 

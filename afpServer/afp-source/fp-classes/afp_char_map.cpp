@@ -1,0 +1,132 @@
+#include "stdafx.h"
+#include "afp_char_map.h"
+
+#include <filesystem>
+
+#include "afpdebug.h"
+#include "afphelp.h"
+
+std::wstring afp_char_map::generate_map_from_mac_path(const std::string& mac_path, char_map_data& map_data)
+{
+	// Save the raw mac path for quicker conversion later (cache).
+	memcpy_s(map_data.mac_file_name, sizeof(map_data.mac_file_name), mac_path.data(), mac_path.size());
+
+	auto win_path = string_to_wide_string(mac_path);
+	UINT8 map_index = 0;
+
+	// First take care of windows illegal path characters.
+	for (const wchar_t win_illegal_path_character : win_illegal_path_characters)
+	{
+		if (const auto position = win_path.find(win_illegal_path_character); position != std::wstring::npos)
+		{
+			map_data.map[map_index++].set(win_path[position], position);
+			win_path[position] = replacement_char;
+		}
+	}
+
+	for (std::wstring::size_type i = 0; i < win_path.size(); i++)
+	{
+		if (win_path[i] < 32 || win_path[i] > CHAR_MAX + 1)
+		{
+			map_data.map[map_index++].set(win_path[i], i);
+			win_path[i] = replacement_char;
+		}
+	}
+
+	// Windows explorer does not like file names to end with a '.' or a ' '.
+	if (win_path.back() == L'.' || win_path.back() == L' ')
+	{
+		map_data.map[map_index++].set(win_path[win_path.size() - 1], win_path.size() - 1);
+		win_path[win_path.size() - 1] = replacement_char;
+	}
+
+	DBGWRITE(dbg_level_info, L"Mappings count: %d\n", map_index);
+
+	map_data.num_mappings = map_index;
+
+	return win_path;
+}
+
+std::string afp_char_map::win_path_to_mac_path(const std::wstring& win_path)
+{
+	const auto map_data = read_char_map(win_path);
+	if (map_data == nullptr)
+	{
+		return wide_string_to_string(win_path);
+	}
+
+	return win_path_to_mac_path(win_path, map_data.get());
+}
+
+std::string afp_char_map::win_path_to_mac_path(const std::wstring& win_path, const char_map_data* map_data)
+{
+	auto wide_path = win_path;
+
+	for (UINT8 mapping = 0; mapping < map_data->num_mappings; mapping++)
+	{
+		wide_path[map_data->map[mapping].position] = map_data->map[mapping].replaced;
+	}
+
+	return wide_string_to_string(wide_path);
+}
+
+std::shared_ptr<char_map_data> afp_char_map::read_char_map(const std::wstring& file_path)
+{
+	if (!std::filesystem::exists(file_path))
+	{
+		DBGWRITE(dbg_level_error, L"Path not found reading char map! (%s)\n", file_path.c_str());
+		return nullptr;
+	}
+
+	std::filesystem::path path = file_path;
+	path.concat(map_stream_name);
+
+	FILE* file;
+	const auto success = _wfopen_s(&file, path.c_str(), L"rb");
+	if (success != 0 || file == nullptr)
+	{
+		//DBGWRITE(dbg_level_error, L"Failed to read char_map_data from file (%s)\n", file_path.c_str());
+		return nullptr;
+	}
+
+    auto char_map = std::make_shared<char_map_data>();
+
+	if (fread(char_map.get(), sizeof(char_map_data), 1, file) == 0)
+	{
+		DBGWRITE(dbg_level_error, L"Reading char map failed, empty file (%s)\n", file_path.c_str());
+		return nullptr;
+	}
+
+	fclose(file);  // NOLINT(cert-err33-c)
+
+	return char_map;
+}
+
+void afp_char_map::write_char_map(const std::wstring& file_path, const char_map_data& map)
+{
+	if (!std::filesystem::exists(file_path))
+	{
+		DBGWRITE(dbg_level_error, L"Path not found writing char map! (%s)\n", file_path.c_str());
+		ASSERT(0);
+
+		return;
+	}
+
+	std::filesystem::path path = file_path;
+	path.concat(map_stream_name);
+
+	FILE* file;
+	const auto success = _wfopen_s(&file, path.c_str(), L"wb");
+	if (success != 0 || file == nullptr)
+	{
+		return;
+	}
+
+	const auto wrote = fwrite(&map, sizeof(char_map_data), 1, file);
+	if (wrote != 1)
+	{
+		DBGWRITE(dbg_level_error, L"Failed to write char_map_data to file. (%s)\n", file_path.c_str());
+	}
+
+	fclose(file);  // NOLINT(cert-err33-c)
+}

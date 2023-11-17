@@ -4,6 +4,9 @@
 #include "afphelp.h"
 #include "afp_net_buffer.h"
 
+#include "afp_char_map.h"
+#include "afp_file_index.h"
+
 
 afp_net_buffer::afp_net_buffer(_In_ char* afp_buffer, _In_ const size_t cb_buffer)
 	: buffer_(afp_buffer)
@@ -14,17 +17,17 @@ afp_net_buffer::afp_net_buffer(_In_ char* afp_buffer, _In_ const size_t cb_buffe
 {
 }
 
-std::wstring afp_net_buffer::pull_path(const UINT8 path_type)
+std::wstring afp_net_buffer::pull_path(const UINT8 path_type, char_map_data* char_map)
 {
 	std::wstring result_str;
 
 	switch(path_type)
 	{
 	case kLongNames:
-		result_str = convert_to_windows_path(pull_multi_byte_string<UINT8>());
+		result_str = convert_to_windows_path(pull_multi_byte_string<UINT8>(), char_map);
 		return result_str;
 	case kUnicodeNames:
-		result_str = convert_to_windows_path(pull_multi_byte_string<UINT16>(true));
+		result_str = convert_to_windows_path(pull_multi_byte_string<UINT16>(true), char_map);
 		return result_str;
 	default:
 		break;
@@ -33,8 +36,10 @@ std::wstring afp_net_buffer::pull_path(const UINT8 path_type)
 	return L"";
 }
 
-AFPERROR afp_net_buffer::push_path(const UINT8 path_type, const std::wstring& path)
+AFPERROR afp_net_buffer::push_path(const UINT8 path_type, const afp_index* index_entry)
 {
+	const auto path = afp_char_map::win_path_to_mac_path(index_entry->sz_object_name, &index_entry->char_map);
+
 	if (not_enough_space(path.length()) || path.length() > 255)
 	{
 		return afpParmErr;
@@ -43,10 +48,10 @@ AFPERROR afp_net_buffer::push_path(const UINT8 path_type, const std::wstring& pa
 	switch (path_type)
 	{
 	case kLongNames:
-		push_multi_byte_string<UINT8>(convert_to_mac_path(path));
+		push_multi_byte_string<UINT8>(path);
 		break;
 	case kUnicodeNames:
-		push_multi_byte_string<INT16>(convert_to_mac_path(path));
+		push_multi_byte_string<INT16>(path);
 		break;
 	default:
 		return afpParmErr;
@@ -87,56 +92,22 @@ void afp_net_buffer::push_string(const std::string& str, const UINT8 path_type)
 	}
 }
 
-std::wstring afp_net_buffer::convert_to_windows_path(const std::string& mac_path)
+std::wstring afp_net_buffer::convert_to_windows_path(const std::string& mac_path, char_map_data* char_map)
 {
 	if (mac_path.empty())
 	{
 		return L"";
 	}
 
-	auto win_path = string_to_wide_string(mac_path);
-	auto replacement = first_replacement_character;
+	char_map_data map_data;
+    auto win_path = afp_char_map::generate_map_from_mac_path(mac_path, map_data);
 
-	for (auto win_illegal_path_character : win_illegal_path_characters)
+	if (char_map != nullptr)
 	{
-		std::ranges::replace(win_path, win_illegal_path_character, replacement);
-		replacement++;
+		memcpy(char_map, &map_data, sizeof(char_map_data));
 	}
-
-	// Windows explorer does not like file names to end with a '.'.
-	if (win_path.back() == L'.')
-	{
-		win_path[win_path.size() - 1] = period_replacement_character;
-	}
-
-	// Mac uses ':' as the path separator, convert to windows.
-	std::ranges::replace(win_path, kPathDelimiter, L'\\');
 
 	return win_path;
-}
-
-std::string afp_net_buffer::convert_to_mac_path(const std::wstring& win_path)
-{
-	if (win_path.empty())
-	{
-		return "";
-	}
-
-	auto wide_path = win_path;
-	wchar_t replacement = first_replacement_character;
-
-	for (auto win_illegal_path_character : win_illegal_path_characters)
-	{
-		std::ranges::replace(wide_path, replacement, win_illegal_path_character);
-		replacement++;
-	}
-
-	if (wide_path.back() == period_replacement_character)
-	{
-		wide_path[wide_path.size() - 1] = L'.';
-	}
-
-	return wide_string_to_string(wide_path);
 }
 
 std::wstring afp_net_buffer::pull_wide_string()

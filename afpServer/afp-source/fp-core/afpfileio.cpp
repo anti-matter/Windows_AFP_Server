@@ -3,7 +3,6 @@
 #include "StdAfx.h"
 #include "afpfileio.h"
 #include "afp_open_file.h"
-#include "afp_volumes.h"
 #include "change_notify.h"
 #include "fdparms.h"
 #include "fpinfo.h"
@@ -380,7 +379,8 @@ AFPERROR FPCreateFile(
         return afpVolLocked;
     }
 
-    const auto pathname = afp_request.pull_path(path_type);
+    char_map_data char_map;
+    const auto pathname = afp_request.pull_path(path_type, &char_map);
     if (pathname.empty())
     {
         return afpParmErr;
@@ -430,6 +430,7 @@ AFPERROR FPCreateFile(
         pathname,
         win_path,
         false,
+        &char_map,
         nullptr);
 
     if (new_entry != nullptr)

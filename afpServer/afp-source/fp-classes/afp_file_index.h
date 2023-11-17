@@ -1,6 +1,9 @@
 #pragma once
 #include <filesystem>
 
+#include "afp_char_map.h"
+#include "afp_net_buffer.h"
+
 constexpr INT32 hash_multiplier = 1024;
 
 // These flags are used to keep state of file objects in the index.
@@ -20,13 +23,13 @@ enum
 struct afp_index
 {
 	afp_index()
-	    : par_id(0)
-	    , par_entry(nullptr)
-	    , object_id(0)
-	    , flags(0)
-	    , path_hash(0)
-	{
-	}
+        : par_id(0)
+          , par_entry(nullptr)
+          , object_id(0)
+          , flags(0)
+          , path_hash(0)
+    {
+    }
 
 	INT32 par_id;
 	afp_index* par_entry;
@@ -35,6 +38,8 @@ struct afp_index
 	std::filesystem::path sz_path;
 	WORD flags;
 	DWORD path_hash;
+
+	char_map_data char_map;
 };
 
 class afp_file_index  // NOLINT(cppcoreguidelines-special-member-functions)
@@ -48,13 +53,14 @@ public:
         const std::wstring& p_object_name,
         const std::filesystem::path& p_object_path,
 		bool is_directory,
+		const char_map_data* char_map = nullptr,
 		INT32* p_new_dir_id = nullptr
 	);
 
 	void remove_entry(const afp_index* entry);
 	void remove_entry(INT32 object_id);
 
-	void update_entry(afp_index* entry, afp_index* new_parent, const std::wstring& new_name);
+	void update_entry(afp_index* entry, afp_index* new_parent, const std::wstring& new_name, const char_map_data* char_map = nullptr);
 
 	static void update_entry_flags(afp_index* p_entry, UINT16 flags);
 	static size_t hash_string(PWCHAR string);

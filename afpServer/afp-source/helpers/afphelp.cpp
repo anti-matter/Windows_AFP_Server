@@ -8,6 +8,9 @@
 #include <winnt.h>
 
 #include "afphelp.h"
+
+#include <codecvt>
+
 #include "afpdebug.h"
 #include "afp.h"
 #include "afp_array.h"
@@ -24,14 +27,14 @@ std::string wide_string_to_string(const std::wstring& wide_string)
 		return "";
 	}
 
-	const auto size_needed = WideCharToMultiByte(CP_ACP, 0, &wide_string.at(0), static_cast<int>(wide_string.size()), nullptr, 0, nullptr, nullptr);
+	const auto size_needed = WideCharToMultiByte(CP_MACCP, 0, &wide_string.at(0), static_cast<int>(wide_string.size()), nullptr, 0, nullptr, nullptr);
 	if (size_needed <= 0)
 	{
 		throw std::runtime_error("WideCharToMultiByte() failed: " + std::to_string(size_needed));
 	}
 
 	std::string result(size_needed, 0);
-	WideCharToMultiByte(CP_ACP, 0, &wide_string.at(0), static_cast<int>(wide_string.size()), &result.at(0), size_needed, nullptr, nullptr);
+	WideCharToMultiByte(CP_MACCP, 0, &wide_string.at(0), static_cast<int>(wide_string.size()), &result.at(0), size_needed, nullptr, nullptr);
 	return result;
 }
 
@@ -42,14 +45,14 @@ std::wstring string_to_wide_string(const std::string& string)
 		return L"";
 	}
 
-	const auto size_needed = MultiByteToWideChar(CP_ACP, 0, &string.at(0), static_cast<int>(string.size()), nullptr, 0);
+	const auto size_needed = MultiByteToWideChar(CP_MACCP, 0, &string.at(0), static_cast<int>(string.size()), nullptr, 0);
 	if (size_needed <= 0)
 	{
 		throw std::runtime_error("MultiByteToWideChar() failed: " + std::to_string(size_needed));
 	}
 
 	std::wstring result(size_needed, 0);
-	MultiByteToWideChar(CP_ACP, 0, &string.at(0), static_cast<int>(string.size()), &result.at(0), size_needed);
+	MultiByteToWideChar(CP_MACCP, 0, &string.at(0), static_cast<int>(string.size()), &result.at(0), size_needed);
 	return result;
 }
 

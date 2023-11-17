@@ -1,4 +1,6 @@
 #pragma once
+#include <mutex>
+
 #include "afp_desk_item.h"
 
 constexpr UINT32 desktop_file_error = MAXUINT32;
@@ -44,7 +46,7 @@ public:
 
     afp_desk_item* find(const afp_desk_item* match_item, const UINT16 search_index = 0);
 
-    INT16 get_volume_id() const { return volume_id_; }
+    [[nodiscard]] INT16 get_volume_id() const { return volume_id_; }
 
 private:
     std::recursive_mutex desk_items_mutex_;

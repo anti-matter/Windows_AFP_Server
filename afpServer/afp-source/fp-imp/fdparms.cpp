@@ -287,13 +287,13 @@ AFPERROR afp_get_object_parms(
         if (bitmap & kFPLongName)
         {
             *long_name_offset = htons(static_cast<UINT16>(reply.get_current_pos_ptr() - parms_start));
-            reply.push_path(kLongNames, entry->sz_object_name);
+            reply.push_path(kLongNames, entry);
         }
 
         if (bitmap & kFPUnicodeName)
         {
             *uni_name_offset = htons(static_cast<UINT16>(reply.get_current_pos_ptr() - parms_start));
-            reply.push_path(kUnicodeNames, entry->sz_object_name);
+            reply.push_path(kUnicodeNames, entry);
         }
     }
 
