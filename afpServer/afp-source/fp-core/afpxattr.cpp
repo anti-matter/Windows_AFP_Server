@@ -479,7 +479,7 @@ AFPERROR FPListExtAttribute(
                                     stream_name);
 
 
-                            const auto ansi_string = wide_string_to_string(stream_name);
+                            const auto ansi_string = wide_string_to_string(stream_name, afpPathtype);
                             afpReply.push_raw_data(ansi_string.data(), ansi_string.size() + sizeof(char));
                         }
                         else

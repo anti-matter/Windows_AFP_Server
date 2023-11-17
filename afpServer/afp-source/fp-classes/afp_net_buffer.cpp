@@ -24,10 +24,10 @@ std::wstring afp_net_buffer::pull_path(const UINT8 path_type, char_map_data* cha
 	switch(path_type)
 	{
 	case kLongNames:
-		result_str = convert_to_windows_path(pull_multi_byte_string<UINT8>(), char_map);
+		result_str = convert_to_windows_path(pull_multi_byte_string<UINT8>(), path_type, char_map);
 		return result_str;
 	case kUnicodeNames:
-		result_str = convert_to_windows_path(pull_multi_byte_string<UINT16>(true), char_map);
+		result_str = convert_to_windows_path(pull_multi_byte_string<UINT16>(true), path_type, char_map);
 		return result_str;
 	default:
 		break;
@@ -38,7 +38,7 @@ std::wstring afp_net_buffer::pull_path(const UINT8 path_type, char_map_data* cha
 
 AFPERROR afp_net_buffer::push_path(const UINT8 path_type, const afp_index* index_entry)
 {
-	const auto path = afp_char_map::win_path_to_mac_path(index_entry->sz_object_name, &index_entry->char_map);
+	const auto path = afp_char_map::win_path_to_mac_path(index_entry->sz_object_name, path_type, &index_entry->char_map);
 
 	if (not_enough_space(path.length()) || path.length() > 255)
 	{
@@ -65,9 +65,9 @@ std::wstring afp_net_buffer::pull_string(const UINT8 path_type)
 	switch (path_type)
 	{
 	case kLongNames:
-		return pull_wide_string();
+		return string_to_wide_string(pull_multi_byte_string<UINT8>(), path_type);
 	case kUnicodeNames:
-		return string_to_wide_string(pull_multi_byte_string<UINT16>());
+		return string_to_wide_string(pull_multi_byte_string<UINT16>(), path_type);
 	default:
 		break;
 	}
@@ -77,7 +77,7 @@ std::wstring afp_net_buffer::pull_string(const UINT8 path_type)
 
 void afp_net_buffer::push_string(const std::wstring& str, const UINT8 path_type)
 {
-	push_string(wide_string_to_string(str), path_type);
+	push_string(wide_string_to_string(str, path_type));
 }
 
 void afp_net_buffer::push_string(const std::string& str, const UINT8 path_type)
@@ -92,7 +92,7 @@ void afp_net_buffer::push_string(const std::string& str, const UINT8 path_type)
 	}
 }
 
-std::wstring afp_net_buffer::convert_to_windows_path(const std::string& mac_path, char_map_data* char_map)
+std::wstring afp_net_buffer::convert_to_windows_path(const std::string& mac_path, UINT8 path_type, char_map_data* char_map)
 {
 	if (mac_path.empty())
 	{
@@ -100,7 +100,7 @@ std::wstring afp_net_buffer::convert_to_windows_path(const std::string& mac_path
 	}
 
 	char_map_data map_data;
-    auto win_path = afp_char_map::generate_map_from_mac_path(mac_path, map_data);
+    auto win_path = afp_char_map::generate_map_from_mac_path(mac_path, path_type, map_data);
 
 	if (char_map != nullptr)
 	{
@@ -108,12 +108,6 @@ std::wstring afp_net_buffer::convert_to_windows_path(const std::string& mac_path
 	}
 
 	return win_path;
-}
-
-std::wstring afp_net_buffer::pull_wide_string()
-{
-	const auto mb_string = pull_multi_byte_string<UINT8>();
-    return string_to_wide_string(mb_string);
 }
 
 template <class T>

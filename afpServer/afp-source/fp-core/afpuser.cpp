@@ -395,7 +395,7 @@ AFPERROR FPLogin(
 			// The password is sent to us as an 8 byte array. This array is not length
 			// byte preceded or null terminated.
 			afp_request.pull_raw_data(afp_password, UAM_CLRTXTPWDLEN);
-			password = string_to_wide_string(afp_password);
+			password = string_to_wide_string(afp_password, kLongNames);
 
 			DBGWRITE(dbg_level_info, L"Cleartext password = %s\n", password.c_str());
 			break;
@@ -505,7 +505,7 @@ AFPERROR FPContLogin(
 			// convert the password to a unicode string and authenticate this user
 			// using the Windows Logon API.
 
-			auto password = string_to_wide_string(sz_password);
+			auto password = string_to_wide_string(sz_password, kUnicodeNames);
 			afp_error = afp_imp_user_logon(connection, afp_reply, password);
 
 		    password.clear();
@@ -665,7 +665,7 @@ AFPERROR FPChangePassword(
 
 			if (AFP_SUCCESS(afp_error))
 			{
-				const std::wstring new_password = string_to_wide_string(sz_new_password);
+				const std::wstring new_password = string_to_wide_string(sz_new_password, kUnicodeNames);
 
                 //**** TO BE IMPLEMENTED ****
                 //afpError = afpImpChangePswd(

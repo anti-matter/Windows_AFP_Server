@@ -20,39 +20,39 @@ users_and_groups_array g_user_and_group_id;
 DWORD g_next_user_id = 1;
 DWORD g_next_group_id = 1;
 
-std::string wide_string_to_string(const std::wstring& wide_string)
+std::string wide_string_to_string(const std::wstring& wide_string, const UINT code_page)
 {
 	if (wide_string.empty())
 	{
 		return "";
 	}
 
-	const auto size_needed = WideCharToMultiByte(CP_MACCP, 0, &wide_string.at(0), static_cast<int>(wide_string.size()), nullptr, 0, nullptr, nullptr);
+	const auto size_needed = WideCharToMultiByte(code_page, 0, &wide_string.at(0), static_cast<int>(wide_string.size()), nullptr, 0, nullptr, nullptr);
 	if (size_needed <= 0)
 	{
 		throw std::runtime_error("WideCharToMultiByte() failed: " + std::to_string(size_needed));
 	}
 
 	std::string result(size_needed, 0);
-	WideCharToMultiByte(CP_MACCP, 0, &wide_string.at(0), static_cast<int>(wide_string.size()), &result.at(0), size_needed, nullptr, nullptr);
+	WideCharToMultiByte(code_page, 0, &wide_string.at(0), static_cast<int>(wide_string.size()), &result.at(0), size_needed, nullptr, nullptr);
 	return result;
 }
 
-std::wstring string_to_wide_string(const std::string& string)
+std::wstring string_to_wide_string(const std::string& string, const UINT code_page)
 {
 	if (string.empty())
 	{
 		return L"";
 	}
 
-	const auto size_needed = MultiByteToWideChar(CP_MACCP, 0, &string.at(0), static_cast<int>(string.size()), nullptr, 0);
+	const auto size_needed = MultiByteToWideChar(code_page, 0, &string.at(0), static_cast<int>(string.size()), nullptr, 0);
 	if (size_needed <= 0)
 	{
 		throw std::runtime_error("MultiByteToWideChar() failed: " + std::to_string(size_needed));
 	}
 
 	std::wstring result(size_needed, 0);
-	MultiByteToWideChar(CP_MACCP, 0, &string.at(0), static_cast<int>(string.size()), &result.at(0), size_needed);
+	MultiByteToWideChar(code_page, 0, &string.at(0), static_cast<int>(string.size()), &result.at(0), size_needed);
 	return result;
 }
 

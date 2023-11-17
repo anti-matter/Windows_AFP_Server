@@ -6,27 +6,42 @@
 #include "afpdebug.h"
 #include "afphelp.h"
 
-std::wstring afp_char_map::generate_map_from_mac_path(const std::string& mac_path, char_map_data& map_data)
-{
-	// Save the raw mac path for quicker conversion later (cache).
-	memcpy_s(map_data.mac_file_name, sizeof(map_data.mac_file_name), mac_path.data(), mac_path.size());
 
-	auto win_path = string_to_wide_string(mac_path);
+UINT code_page_for_path_type(const UINT path_type)
+{
+	return path_type == kLongNames ? CP_MACCP : CP_UTF8;
+}
+
+std::wstring afp_char_map::generate_map_from_mac_path(const std::string& mac_path, UINT8 path_type, char_map_data& map_data)
+{
+	auto win_path = string_to_wide_string(mac_path, code_page_for_path_type(path_type));
 	UINT8 map_index = 0;
 
 	// First take care of windows illegal path characters.
 	for (const wchar_t win_illegal_path_character : win_illegal_path_characters)
 	{
-		if (const auto position = win_path.find(win_illegal_path_character); position != std::wstring::npos)
+		size_t position;
+
+		do
 		{
-			map_data.map[map_index++].set(win_path[position], position);
-			win_path[position] = replacement_char;
-		}
+			position = win_path.find(win_illegal_path_character);
+			if (position != std::wstring::npos)
+			{
+				map_data.map[map_index++].set(win_path[position], position);
+				win_path[position] = replacement_char;
+			}
+		} while (position != std::wstring::npos);
 	}
 
 	for (std::wstring::size_type i = 0; i < win_path.size(); i++)
 	{
-		if (win_path[i] < 32 || win_path[i] > CHAR_MAX + 1)
+		if (win_path[i] < 32) // || win_path[i] > CHAR_MAX + 1)
+		{
+			map_data.map[map_index++].set(win_path[i], i);
+			win_path[i] = replacement_char;
+		}
+
+		if (win_path[i] == '.' && i + 1 < win_path.size() && win_path[i+1] == '.')
 		{
 			map_data.map[map_index++].set(win_path[i], i);
 			win_path[i] = replacement_char;
@@ -47,18 +62,18 @@ std::wstring afp_char_map::generate_map_from_mac_path(const std::string& mac_pat
 	return win_path;
 }
 
-std::string afp_char_map::win_path_to_mac_path(const std::wstring& win_path)
+std::string afp_char_map::win_path_to_mac_path(const std::wstring& win_path, const UINT8 path_type)
 {
 	const auto map_data = read_char_map(win_path);
 	if (map_data == nullptr)
 	{
-		return wide_string_to_string(win_path);
+		return wide_string_to_string(win_path, code_page_for_path_type(path_type));
 	}
 
-	return win_path_to_mac_path(win_path, map_data.get());
+	return win_path_to_mac_path(win_path, path_type, map_data.get());
 }
 
-std::string afp_char_map::win_path_to_mac_path(const std::wstring& win_path, const char_map_data* map_data)
+std::string afp_char_map::win_path_to_mac_path(const std::wstring& win_path, UINT8 path_type, const char_map_data* map_data)
 {
 	auto wide_path = win_path;
 
@@ -67,7 +82,7 @@ std::string afp_char_map::win_path_to_mac_path(const std::wstring& win_path, con
 		wide_path[map_data->map[mapping].position] = map_data->map[mapping].replaced;
 	}
 
-	return wide_string_to_string(wide_path);
+	return wide_string_to_string(wide_path, code_page_for_path_type(path_type));
 }
 
 std::shared_ptr<char_map_data> afp_char_map::read_char_map(const std::wstring& file_path)

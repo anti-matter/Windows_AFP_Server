@@ -24,9 +24,7 @@ public:
 	void push_string(const std::wstring& str, UINT8 path_type = kLongNames);
 	void push_string(const std::string& str, UINT8 path_type = kLongNames);
 
-    static std::wstring convert_to_windows_path(const std::string& mac_path, char_map_data* char_map);
-
-	std::wstring pull_wide_string();
+    static std::wstring convert_to_windows_path(const std::string& mac_path, UINT8 path_type, char_map_data* char_map);
 
 	void pull_raw_data(void* buffer, size_t amount);
 	void push_raw_data(const void* data, size_t size);

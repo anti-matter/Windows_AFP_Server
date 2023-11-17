@@ -40,7 +40,7 @@ void afp_debug_write(_In_ const dbg_level debug_level, _In_ const std::string& f
 		break;
     }
 
-	const std::wstring combined = level + L"[" + string_to_wide_string(function) + L"]" + format;
+	const std::wstring combined = level + L"[" + string_to_wide_string(function, kUnicodeNames) + L"]" + format;
 
 	// Len + terminating character
 	const auto len = _vscwprintf(combined.c_str(), args) + 1;

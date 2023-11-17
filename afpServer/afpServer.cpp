@@ -455,7 +455,7 @@ BOOL CALLBACK main_dialog_proc(
         ShowWindow(h_dlg, SW_HIDE);
         initialize_tray_icon(h_dlg);
 
-        const std::wstring version = string_to_wide_string(VER_FILE_SHORT_VERSION_STR);
+        const std::wstring version = string_to_wide_string(VER_FILE_SHORT_VERSION_STR, kUnicodeNames);
         SendDlgItemMessage(h_dlg, IDC_VERSION_TEXT, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(version.c_str()));
 
         dsi::dsi_init();
