@@ -62,6 +62,8 @@ namespace dsi
 	{
 		UINT16 bytes_in_buffer = 0;
 
+		memset(receive_buffer_.get(), 0, RECV_BUFFER_SIZE);
+
 	    do
 		{
 			const auto bytes_received = recv(
@@ -122,8 +124,9 @@ namespace dsi
 
 					DBGWRITE(dbg_level_info, L"Processing overflow bytes!!! (%d)\n", bytes_in_buffer);
 
-					memcpy(
+					memcpy_s(
 						receive_buffer_.get(),
+						RECV_BUFFER_SIZE,
 						&receive_buffer_[dsi_header_size + afp_data_length],
 						bytes_in_buffer);
 
@@ -324,7 +327,12 @@ namespace dsi
 		kill_connection();
 	}
 
-	void dsi_connection::dsi_process_command(char* receive_buffer, char* reply_buffer, const UINT8 dsi_cmd, const UINT16 client_request_id, const UINT8 afp_cmd)
+	void dsi_connection::dsi_process_command(
+		char* receive_buffer, 
+		char* reply_buffer, 
+		const UINT8 dsi_cmd, 
+		const UINT16 client_request_id, 
+		const UINT8 afp_cmd)
 	{
 		// Get a wrapper for the AFP request payload.
 		afp_net_buffer request(
@@ -334,8 +342,6 @@ namespace dsi
 
 		// Get a wrapper for the AFP reply payload.
 		afp_net_buffer reply(&reply_buffer[dsi_offset_data_start], SEND_BUFFER_SIZE);
-
-        //DBGWRITE(dbg_level_info, L"Processing AFP cmd: %d\n", afp_cmd);
 
         const auto afp_error = fp_dispatch_command(request, reply, this);
 		const auto data_size = afp_cmd == afpRead || afp_cmd == afpReadExt

@@ -712,8 +712,8 @@ AFPERROR FPWrite(
     switch (afp_command)
     {
     case afpWrite:
-        offset = afp_request.pull_num<UINT32>();
-        req_count = afp_request.pull_num<UINT32>();
+        offset = afp_request.pull_num<INT32>();
+        req_count = afp_request.pull_num<INT32>();
         break;
 
     case afpWriteExt:
@@ -743,7 +743,7 @@ AFPERROR FPWrite(
         afp_request,
         offset,
         req_count,
-        (afp_flag & kWriteStartEndFlag) ? FALSE : TRUE,
+        (afp_flag & kWriteStartEndFlag) == 1 ? FALSE : TRUE,
         &act_count
     );
 

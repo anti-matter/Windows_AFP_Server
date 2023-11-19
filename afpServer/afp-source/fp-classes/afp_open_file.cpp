@@ -272,12 +272,14 @@ AFPERROR afp_open_file::write_fork(
 	afp_request.advance_to(static_cast<INT32>(afp_request.get_dsi_data_offset()));
 
 	// Set the file position to the desired offset before writing.
-	auto afp_error = file_seek(afp_offset, (afp_from_start) ? FILE_BEGIN : FILE_END);
+	auto afp_error = file_seek(afp_offset, afp_from_start ? FILE_BEGIN : FILE_END);
 
 	if (AFP_SUCCESS(afp_error))
 	{
 		DWORD afp_actual = 0;
 		const auto req_count = static_cast<UINT32>(afp_req_count);
+
+		const auto save_buffer = afp_request.get_current_pos_ptr();
 
 		// Call the Windows API to do all the work for us.
 		const auto success = WriteFile(
@@ -295,7 +297,7 @@ AFPERROR afp_open_file::write_fork(
 		}
 		else
 		{
-			ASSERT(afp_actual >= afp_req_count);
+			ASSERT(afp_actual <= afp_req_count);
 
 			*afp_last_byte_written = afp_offset + afp_actual;
 

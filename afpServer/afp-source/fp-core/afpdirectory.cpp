@@ -28,6 +28,8 @@ AFPERROR FPResolveID(
 {
     WIN32_FILE_ATTRIBUTE_DATA win_attributes;
 
+    DBGWRITE(dbg_level_trace, L"Enter...\n");
+
     afp_request.advance_pos_ptr(sizeof(INT16));
 
     const auto afp_volume_id = afp_request.pull_num<INT16>();
@@ -37,46 +39,54 @@ AFPERROR FPResolveID(
     // Get a pointer to the volume info structure for this volume.
     const auto afp_session = connection->get_afp_session();
     const std::shared_ptr<afp_volume> afp_volume_info = afp_session->find_open_volume(afp_volume_id);
+    if (afp_volume_info == nullptr)
+    {
+        DBGWRITE(dbg_level_error, L"Bad volume id provided!\n");
+        return afpParmErr;
+    }
+
     const std::filesystem::path path;
     const auto afp_entry = afp_volume_info->get_index()->find(afp_file_id,path);
-
-    AFPERROR afp_error = AFP_OK;
-
-    if (afp_entry != nullptr)
+    if (afp_entry == nullptr)
     {
-        // We don't support the following bitmaps, so we clear them.
-        if (connection->get_afp_version() < afpVersion30)
-        {
-            if (afp_bitmap & kFPProDos) afp_bitmap &= ~kFPProDos;
-            if (afp_bitmap & kFPShortName) afp_bitmap &= ~kFPShortName;
-        }
+        DBGWRITE(dbg_level_error, L"File entry not found (%d)\n", afp_file_id);
+        afp_volume_info->get_index()->dump_index();
 
-        // Add in the bitmap and new refnum id.
-        afp_reply.push_num(afp_bitmap);
+        return afpObjectNotFound;
+    }
 
-        // Collect attribute data on the file or folder.
-        if (!GetFileAttributesEx(afp_entry->sz_path.c_str(), GetFileExInfoStandard, &win_attributes))
-        {
-            DBGWRITE(dbg_level_info, L"GetFileAttributesEx() failed! (%d)\n", GetLastError());
-            DBGWRITE(dbg_level_info, L"path = %s\n", afp_entry->sz_path.c_str());
+    // We don't support the following bitmaps, so we clear them.
+    if (connection->get_afp_version() < afpVersion30)
+    {
+        if (afp_bitmap & kFPProDos) afp_bitmap &= ~kFPProDos;
+        if (afp_bitmap & kFPShortName) afp_bitmap &= ~kFPShortName;
+    }
 
-            return afpObjectNotFound;
-        }
+    // Add in the bitmap and new refnum id.
+    afp_reply.push_num(afp_bitmap);
 
-        afp_error = afp_get_object_parms(
-            afp_reply,
-            afp_bitmap,
-            afp_volume_id,
-            afp_entry->par_id,
-            connection,
-            afp_entry,
-            win_attributes
-        );
+    // Collect attribute data on the file or folder.
+    if (!GetFileAttributesEx(afp_entry->sz_path.c_str(), GetFileExInfoStandard, &win_attributes))
+    {
+        DBGWRITE(dbg_level_info, L"GetFileAttributesEx() failed! (%d)\n", GetLastError());
+        DBGWRITE(dbg_level_info, L"path = %s\n", afp_entry->sz_path.c_str());
 
-        if (AFP_FAILED(afp_error))
-        {
-            DBGWRITE(dbg_level_info, L"AFPGetObjectParms() failed %d\n", afp_error);
-        }
+        return afpObjectNotFound;
+    }
+
+    const AFPERROR afp_error = afp_get_object_parms(
+        afp_reply,
+        afp_bitmap,
+        afp_volume_id,
+        afp_entry->par_id,
+        connection,
+        afp_entry,
+        win_attributes
+    );
+
+    if (AFP_FAILED(afp_error))
+    {
+        DBGWRITE(dbg_level_info, L"AFPGetObjectParms() failed %d\n", afp_error);
     }
 
     return afp_error;
