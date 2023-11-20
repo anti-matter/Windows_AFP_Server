@@ -35,7 +35,7 @@ std::wstring afp_char_map::generate_map_from_mac_path(const std::string& mac_pat
 
 	for (std::wstring::size_type i = 0; i < win_path.size(); i++)
 	{
-		if (win_path[i] < 32) // || win_path[i] > CHAR_MAX + 1)
+		if (win_path[i] < 32)
 		{
 			map_data.map[map_index++].set(win_path[i], i);
 			win_path[i] = replacement_char;

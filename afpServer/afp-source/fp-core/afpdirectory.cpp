@@ -796,10 +796,6 @@ AFPERROR FPCopyFile(
     // Get the destination pathname we're copying to
     afp_path_type = afp_request.pull_num<INT8>();
     const auto afp_dst_pathname = afp_request.pull_path(afp_path_type);
-    if (afp_dst_pathname.empty())
-    {
-        return afpParmErr;
-    }
 
     // And now the [optional] new name for the file
     afp_path_type = afp_request.pull_num<INT8>();

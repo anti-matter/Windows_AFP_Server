@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<DOCUMENT Type="Advanced Installer" CreateVersion="21.2.1" version="21.2.1" PreviousModules="simple" Modules="professional" RootPath="." Language="en" Id="{37E28192-6FAF-4ECD-8449-623668A2B3F4}">
+<DOCUMENT Type="Advanced Installer" CreateVersion="21.2.1" version="21.2.2" PreviousModules="simple" Modules="professional" RootPath="." Language="en" Id="{37E28192-6FAF-4ECD-8449-623668A2B3F4}">
   <COMPONENT cid="caphyon.advinst.msicomp.ProjectOptionsComponent">
     <ROW Name="HiddenItems" Value="AppXProductDetailsComponent;AppXDependenciesComponent;AppXAppDetailsComponent;AppXVisualAssetsComponent;AppXCapabilitiesComponent;AppXAppDeclarationsComponent;AppXUriRulesComponent;FixupComponent;MsiXDiffComponent;MsixManifestEditorComponent"/>
   </COMPONENT>
   <COMPONENT cid="caphyon.advinst.msicomp.MsiPropsComponent">
     <ROW Property="AI_BITMAP_DISPLAY_MODE" Value="0"/>
     <ROW Property="AI_FINDEXE_TITLE" Value="Select the installation package for [|ProductName]" ValueLocId="AI.Property.FindExeTitle"/>
-    <ROW Property="AI_PROPPATH_DIR_PERBUILD_afpServer.exe" Value="..\afpServer\Debug"/>
+    <ROW Property="AI_PROPPATH_DIR_PERBUILD_afpServer.exe" Value="..\afpServer\Release"/>
     <ROW Property="AI_PROPPATH_FILENAME_PERBUILD_afpServer.exe" Value="afpServer.exe"/>
     <ROW Property="ALLUSERS" Value="1"/>
     <ROW Property="ARPCOMMENTS" Value="This installer database contains the logic and data required to install [|ProductName]." ValueLocId="*"/>

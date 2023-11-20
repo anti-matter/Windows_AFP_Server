@@ -279,9 +279,6 @@ AFPERROR afp_open_file::write_fork(
 		DWORD afp_actual = 0;
 		const auto req_count = static_cast<UINT32>(afp_req_count);
 
-		const auto save_buffer = afp_request.get_current_pos_ptr();
-
-		// Call the Windows API to do all the work for us.
 		const auto success = WriteFile(
 			m_file_handle_,
 			afp_request.get_current_pos_ptr(),
