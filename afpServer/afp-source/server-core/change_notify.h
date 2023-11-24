@@ -43,6 +43,7 @@ public:
     {
         notify_was_suspended_ = true;
         notify_suspended_ = false;
+        SetEvent(notify_overlapped_.hEvent);
     }
 
 private:

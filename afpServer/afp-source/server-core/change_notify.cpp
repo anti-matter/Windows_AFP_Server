@@ -210,18 +210,15 @@ void change_notify::afp_read_dir_changes(
 void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_notify_info, const std::shared_ptr<afp_volume>& volume)
 {
     WCHAR new_item_pathname[MAX_PATH]{};
-    WCHAR new_item_name[MAX_PATH]{};
     WIN32_FILE_ATTRIBUTE_DATA attribute_data;
 
     lstrcpyn(new_item_pathname, file_notify_info->FileName, static_cast<int>(file_notify_info->FileNameLength));
-
-    // Extract just the name of the new file object from the pathname.
-    afp_get_object_name_from_path(new_item_pathname, new_item_name, sizeof(new_item_name));
 
     // First step: we need to find the index entry that is the parent
     // directory of the new object we're adding.
     std::filesystem::path new_item_path(new_item_pathname);
     const std::filesystem::path new_item_parent_path = new_item_path.parent_path();
+    const std::filesystem::path new_item_name = new_item_path.filename();
 
     DBGWRITE(dbg_level_info, L"New item pathname = %s\n", new_item_pathname);
 
@@ -240,7 +237,7 @@ void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_no
     DBGWRITE(dbg_level_info, L"Parent dir path = %s\n", parent_entry->sz_path.c_str());
 
     // Build full path to the new item.
-    const std::filesystem::path new_full_path = parent_entry->sz_path / new_item_path;
+    const std::filesystem::path new_full_path = parent_entry->sz_path / new_item_name;
 
     // See if there is already an index entry for this object. If so, then we
     // don't need to do anything.
@@ -254,7 +251,7 @@ void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_no
     // determine if the object is a file or directory.
     if (!GetFileAttributesEx(new_full_path.c_str(), GetFileExInfoStandard, &attribute_data))
     {
-        DBGWRITE(dbg_level_info, L"Item not found on disk!\n");
+        DBGWRITE(dbg_level_info, L"Item not found on disk! (%s)\n", new_full_path.c_str());
         return;
     }
 
