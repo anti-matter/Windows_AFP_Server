@@ -269,18 +269,28 @@ void afp_volumes::index_queue_thread()
             switch(element->task)
             {
             case task_index_directory:
-                index_build(element->path, element->item_id, element->volume);
-                break;
+                {
+                    index_build(element->path, element->item_id, element->volume);
+                    break;
+                }
 
             case task_index_complete:
-                auto flags = element->volume->get_internal_flags();
-                flags |= flag_volume_indexing_complete;
-                element->volume->set_internal_flags(flags);
+                {
+                    auto flags = element->volume->get_internal_flags();
+                    flags |= flag_volume_indexing_complete;
+                    element->volume->set_internal_flags(flags);
 
-                EventWriteAFPServerEvt_VolIndexingComplete(element->volume->get_share_name().c_str());
-                SendMessage(HWND_BROADCAST, AFPWM_INDEXING_COMPLETE, NULL, NULL);
-                DBGWRITE(dbg_level_info, L"Indexing complete for volume: %s\n", element->volume->get_share_name().c_str());
-                break;
+                    EventWriteAFPServerEvt_VolIndexingComplete(element->volume->get_share_name().c_str());
+                    SendMessage(HWND_BROADCAST, AFPWM_INDEXING_COMPLETE, NULL, NULL);
+                    DBGWRITE(dbg_level_info, L"Indexing complete for volume: %s\n", element->volume->get_share_name().c_str());
+                    break;
+                }
+            case task_index_remove_dir:
+                {
+                    const auto volume_index = element->volume->get_index();
+                    volume_index->remove_entry(element->item_id);
+                    break;
+                }
             }
         }
     }
@@ -290,7 +300,7 @@ void afp_volumes::index_queue_thread()
 void afp_volumes::index_queue_task(
     const index_queue_tasks task,
     const std::shared_ptr<afp_volume>& volume,
-    const UINT32 item_id,
+    const INT32 item_id,
     std::filesystem::path& path)
 {
     auto element = std::make_unique<index_queue_element>();

@@ -237,7 +237,7 @@ void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_no
     DBGWRITE(dbg_level_info, L"Parent dir path = %s\n", parent_entry->sz_path.c_str());
 
     // Build full path to the new item.
-    const std::filesystem::path new_full_path = parent_entry->sz_path / new_item_name;
+    std::filesystem::path new_full_path = parent_entry->sz_path / new_item_name;
 
     // See if there is already an index entry for this object. If so, then we
     // don't need to do anything.
@@ -280,7 +280,7 @@ void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_no
     {
         // If the item is a directory, we add all of its contents
         // to the volume index as well.
-        afp_volumes::current()->index_queue_task(task_index_directory, volume, new_object_id, new_item_path);
+        afp_volumes::current()->index_queue_task(task_index_directory, volume, new_object_id, new_full_path);
     }
     else
     {

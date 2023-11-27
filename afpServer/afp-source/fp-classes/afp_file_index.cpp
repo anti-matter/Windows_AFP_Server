@@ -4,6 +4,8 @@
 #include "afpdebug.h"
 #include "afp_file_index.h"
 
+#include "afp_volumes.h"
+
 constexpr int first_directory_id = 1;
 
 /*
@@ -16,8 +18,8 @@ constexpr int first_directory_id = 1;
  *		None
  */
 
-afp_file_index::afp_file_index()
-	: m_next_id_(first_directory_id)
+afp_file_index::afp_file_index(const INT16 volume_id)
+    : volume_id_(volume_id), m_next_id_(first_directory_id)
 {
 }
 
@@ -151,6 +153,30 @@ void afp_file_index::remove_entry(const INT32 object_id)
 			L"Failed to find objectID to remove! (%d)\n", object_id);
 
 		return;
+	}
+
+	// Remove children if it's a directory.
+	if (it->get()->flags & flag_index_is_dir)
+	{
+		DBGWRITE(dbg_level_trace, L"Removing children of directory: %s.\n", it->get()->sz_path.c_str());
+
+		for (auto children_it = m_index_.begin(); children_it < m_index_.end(); ++children_it)
+		{
+			const auto sub_entry = children_it->get();
+			if (sub_entry->par_id != object_id)
+				continue;
+
+			DBGWRITE(dbg_level_trace, L"Removing item in directory: %s\n", sub_entry->sz_path.c_str());
+
+			// Directories could be huge, so we add this child directory to a queue
+			// to be process later in a worker thead.
+
+			const auto volumes = afp_volumes::current();
+			const auto volume = volumes->find(volume_id_);
+			std::filesystem::path temp;
+				
+			volumes->index_queue_task(task_index_remove_dir, volume, sub_entry->object_id, temp);
+		}
 	}
 
 	m_index_.erase(it);

@@ -16,7 +16,7 @@ afp_volume::afp_volume(std::wstring share_name, std::filesystem::path share_path
     , index_(nullptr)
     , desktop_(nullptr)
 {
-    index_ = std::make_unique<afp_file_index>();
+    index_ = std::make_unique<afp_file_index>(id_);
     notify_ = std::make_unique<change_notify>(id_);
     desktop_ = std::make_unique<afp_desktop>(this);
 }

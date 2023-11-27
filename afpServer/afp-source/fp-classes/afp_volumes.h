@@ -6,14 +6,15 @@
 enum index_queue_tasks : UINT8
 {
     task_index_directory = 0,
-    task_index_complete
+    task_index_complete,
+    task_index_remove_dir
 };
 
 struct index_queue_element
 {
     index_queue_tasks task;
     std::shared_ptr<afp_volume> volume;
-    UINT32 item_id;
+    INT32 item_id;
     std::filesystem::path path;
 
     index_queue_element()
@@ -62,7 +63,7 @@ public:
     void index_queue_thread();
 
     // Add a new task element to the queue for thread processing.
-    void index_queue_task(index_queue_tasks task, const std::shared_ptr<afp_volume>& volume, UINT32 item_id, std::filesystem::path& path);
+    void index_queue_task(index_queue_tasks task, const std::shared_ptr<afp_volume>& volume, INT32 item_id, std::filesystem::path& path);
 
     std::shared_ptr<afp_volume> find(const std::wstring& name);
     std::shared_ptr<afp_volume> find(const INT16 id);

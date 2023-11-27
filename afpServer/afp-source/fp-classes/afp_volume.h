@@ -19,7 +19,7 @@ enum volume_flags
     flag_volume_shared = 0x10
 };
 
-class afp_volume
+class afp_volume  // NOLINT(cppcoreguidelines-special-member-functions)
 {
 public:
     afp_volume(std::wstring share_name, std::filesystem::path share_path, INT16 volume_id, BYTE afp_flags, UINT32 internal_flags);

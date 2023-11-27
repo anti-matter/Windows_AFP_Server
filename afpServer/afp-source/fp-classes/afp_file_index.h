@@ -45,7 +45,7 @@ struct afp_index
 class afp_file_index  // NOLINT(cppcoreguidelines-special-member-functions)
 {
 public:
-	afp_file_index();
+    explicit afp_file_index(INT16 volume_id);
 	~afp_file_index();
 
 	afp_index* add_entry(
@@ -82,6 +82,8 @@ public:
 #endif
 
 private:
+	INT16 volume_id_;
+
 	std::recursive_mutex mutex_;
 	std::vector<std::unique_ptr<afp_index>> m_index_;
 
