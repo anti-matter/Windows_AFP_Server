@@ -291,6 +291,12 @@ void afp_volumes::index_queue_thread()
                     volume_index->remove_entry(element->item_id);
                     break;
                 }
+            case task_index_update_parent:
+                {
+                    const auto volume_index = element->volume->get_index();
+                    volume_index->update_entry(element->item_id, element->new_parent_id);
+                    break;
+                }
             }
         }
     }
@@ -308,6 +314,26 @@ void afp_volumes::index_queue_task(
     element->volume = volume;
     element->item_id = item_id;
     element->path = std::move(path);
+
+    {
+        std::lock_guard lock(index_queue_mutex_);
+        index_queue_.push(std::move(element));
+    }
+
+    SetEvent(index_event_);
+}
+
+void afp_volumes::index_queue_task(
+    const index_queue_tasks task,
+    const std::shared_ptr<afp_volume>& volume,
+    const INT32 item_id,
+    const INT32 new_parent_id)
+{
+    auto element = std::make_unique<index_queue_element>();
+    element->task = task;
+    element->volume = volume;
+    element->item_id = item_id;
+    element->new_parent_id = new_parent_id;
 
     {
         std::lock_guard lock(index_queue_mutex_);

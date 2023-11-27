@@ -60,6 +60,7 @@ public:
 	void remove_entry(const afp_index* entry);
 	void remove_entry(INT32 object_id);
 
+	void update_entry(INT32 object_id, INT32 new_parent_id);
 	void update_entry(afp_index* entry, afp_index* new_parent, const std::wstring& new_name, const char_map_data* char_map = nullptr);
 
 	static void update_entry_flags(afp_index* p_entry, UINT16 flags);

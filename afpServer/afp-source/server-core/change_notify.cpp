@@ -17,9 +17,15 @@
 
 extern bool server_running;
 
-change_notify::change_notify(const INT16 volume_id) : volume_id_(volume_id), notify_suspended_(false), notify_was_suspended_(false)
+change_notify::change_notify(const INT16 volume_id) : volume_id_(volume_id), notify_suspended_(false)
 {
     result_buffer_ = std::make_unique<BYTE[]>(change_notify_result_buffer_size);
+    resume_notify();
+}
+
+void change_notify::resume_notify()
+{
+    notify_suspended_ = false;
 
     std::thread change_notify_thread(&change_notify::afp_notify_thread, this);
     change_notify_thread.detach();
@@ -27,6 +33,8 @@ change_notify::change_notify(const INT16 volume_id) : volume_id_(volume_id), not
 
 void change_notify::afp_notify_thread()
 {
+    DBGWRITE(dbg_level_trace, L"Notify thread started...\n");
+
     std::shared_ptr<afp_volume> volume;
     do
     {
@@ -61,14 +69,8 @@ void change_notify::afp_notify_thread()
         return;
     }
 
-    while (server_running && volume->get_internal_flags() & flag_volume_shared)
+    while (server_running && volume->get_internal_flags() & flag_volume_shared && !notify_suspended_)
     {
-        if (notify_suspended_)
-        {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            continue;
-        }
-
         afp_read_dir_changes(volume, h_directory, result_buffer_.get());
         ZeroMemory(result_buffer_.get(), change_notify_result_buffer_size);
     }
@@ -111,18 +113,15 @@ void change_notify::afp_read_dir_changes(
         return;
     }
 
-    if (!GetOverlappedResult(h_directory, &notify_overlapped_, &bytes_returned, FALSE) || notify_suspended_)
+    if (notify_suspended_)
     {
-        DBGWRITE(dbg_level_info, L"Notify thread suspended, or error (%d)\n", GetLastError());
+        DBGWRITE(dbg_level_trace, L"Change notify has been suspended.\n");
         return;
     }
 
-    // If we were suspended, we need to clear out the notifications that
-    // built up while we were out.
-    if (notify_was_suspended_)
+    if (!GetOverlappedResult(h_directory, &notify_overlapped_, &bytes_returned, FALSE))
     {
-        DBGWRITE(dbg_level_info, L"Notify was suspended, clearing out cached items...\n");
-        notify_was_suspended_ = false;
+        DBGWRITE(dbg_level_info, L"GetOverlappedResult() returned error (%d)\n", GetLastError());
         return;
     }
 
@@ -216,7 +215,7 @@ void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_no
 
     // First step: we need to find the index entry that is the parent
     // directory of the new object we're adding.
-    std::filesystem::path new_item_path(new_item_pathname);
+    const std::filesystem::path new_item_path(new_item_pathname);
     const std::filesystem::path new_item_parent_path = new_item_path.parent_path();
     const std::filesystem::path new_item_name = new_item_path.filename();
 

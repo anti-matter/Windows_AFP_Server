@@ -15,6 +15,7 @@ class change_notify
 public:
     explicit change_notify(INT16 volume_id);
 
+    void resume_notify();
     void afp_notify_thread();
 
     void afp_read_dir_changes(
@@ -33,23 +34,17 @@ public:
         IN const std::shared_ptr<afp_volume>& volume
     );
 
+    // We don't need or want to be notified of changes being made by
+    // the server, so we stop the change notify listening.
     void suspend()
     {
         notify_suspended_ = true;
         SetEvent(notify_overlapped_.hEvent);
     }
 
-    void resume()
-    {
-        notify_was_suspended_ = true;
-        notify_suspended_ = false;
-        SetEvent(notify_overlapped_.hEvent);
-    }
-
 private:
     INT16 volume_id_;
     std::atomic_bool notify_suspended_;
-    std::atomic_bool notify_was_suspended_;
     OVERLAPPED notify_overlapped_;
 
     std::unique_ptr<BYTE[]> result_buffer_;
@@ -68,7 +63,7 @@ public:
 
     ~notify_suspend()
     {
-        notify_->resume();
+        notify_->resume_notify();
     }
 
 private:

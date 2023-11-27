@@ -182,6 +182,28 @@ void afp_file_index::remove_entry(const INT32 object_id)
 	m_index_.erase(it);
 }
 
+void afp_file_index::update_entry(const INT32 object_id, const INT32 new_parent_id)
+{
+    const auto entry = find(object_id);
+	if (entry == nullptr)
+	{
+		DBGWRITE(dbg_level_error, L"Failed to find entry for update (%d)\n", object_id);
+		ASSERT(0);
+
+		return;
+	}
+
+    const auto parent = find(new_parent_id);
+	if (parent == nullptr)
+	{
+		DBGWRITE(dbg_level_error, L"Failed to find parent for update (%d)\n", new_parent_id);
+		ASSERT(0);
+
+		return;
+	}
+
+	update_entry(entry, parent, L"", nullptr);
+}
 
 void afp_file_index::update_entry(afp_index* entry, afp_index* new_parent, const std::wstring& new_name, const char_map_data* char_map)
 {
@@ -230,7 +252,9 @@ void afp_file_index::update_entry(afp_index* entry, afp_index* new_parent, const
 			if (sub_entry->par_id != entry->object_id)
 				continue;
 
-			update_entry(sub_entry, entry, L"");
+			const auto volumes = afp_volumes::current();
+			const auto volume = volumes->find(volume_id_);
+			volumes->index_queue_task(task_index_update_parent, volume, sub_entry->object_id, entry->object_id);
 		}
 	}
 }

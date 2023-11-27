@@ -7,7 +7,8 @@ enum index_queue_tasks : UINT8
 {
     task_index_directory = 0,
     task_index_complete,
-    task_index_remove_dir
+    task_index_remove_dir,
+    task_index_update_parent
 };
 
 struct index_queue_element
@@ -17,9 +18,12 @@ struct index_queue_element
     INT32 item_id;
     std::filesystem::path path;
 
+    // This is used for task_index_update_parent when an entry's
+    // parent directory has changed.
+    INT32 new_parent_id;
+
     index_queue_element()
-        : task(task_index_directory)
-        , item_id(0)
+        : task(task_index_directory) , item_id(0), new_parent_id(0)
     {
     }
 };
@@ -64,6 +68,7 @@ public:
 
     // Add a new task element to the queue for thread processing.
     void index_queue_task(index_queue_tasks task, const std::shared_ptr<afp_volume>& volume, INT32 item_id, std::filesystem::path& path);
+    void index_queue_task(index_queue_tasks task, const std::shared_ptr<afp_volume>& volume, INT32 item_id, INT32 new_parent_id);
 
     std::shared_ptr<afp_volume> find(const std::wstring& name);
     std::shared_ptr<afp_volume> find(const INT16 id);
