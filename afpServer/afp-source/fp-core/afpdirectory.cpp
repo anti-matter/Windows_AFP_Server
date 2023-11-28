@@ -50,8 +50,6 @@ AFPERROR FPResolveID(
     if (afp_entry == nullptr)
     {
         DBGWRITE(dbg_level_error, L"File entry not found (%d)\n", afp_file_id);
-        afp_volume_info->get_index()->dump_index();
-
         return afpObjectNotFound;
     }
 

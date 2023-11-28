@@ -137,6 +137,9 @@
     <ClCompile Include="afp-source\fp-classes\afp_char_map.cpp">
       <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
+    <ClCompile Include="afp-source\server-core\power_config.cpp">
+      <Filter>Source Files\server-core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resources\resource.h">
@@ -271,6 +274,10 @@
     <ClInclude Include="afp_char_map.h" />
     <ClInclude Include="afp-source\fp-classes\afp_char_map.h">
       <Filter>Source Files\fp-classes</Filter>
+    </ClInclude>
+    <ClInclude Include="power_config.h" />
+    <ClInclude Include="afp-source\server-core\power_config.h">
+      <Filter>Source Files\server-core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -20,12 +20,6 @@ extern bool server_running;
 change_notify::change_notify(const INT16 volume_id) : volume_id_(volume_id), notify_suspended_(false)
 {
     result_buffer_ = std::make_unique<BYTE[]>(change_notify_result_buffer_size);
-    resume_notify();
-}
-
-void change_notify::resume_notify()
-{
-    notify_suspended_ = false;
 
     std::thread change_notify_thread(&change_notify::afp_notify_thread, this);
     change_notify_thread.detach();
@@ -36,6 +30,7 @@ void change_notify::afp_notify_thread()
     DBGWRITE(dbg_level_trace, L"Notify thread started...\n");
 
     std::shared_ptr<afp_volume> volume;
+
     do
     {
         std::this_thread::sleep_for(std::chrono::seconds(1));
@@ -69,7 +64,7 @@ void change_notify::afp_notify_thread()
         return;
     }
 
-    while (server_running && volume->get_internal_flags() & flag_volume_shared && !notify_suspended_)
+    while (server_running && volume->get_internal_flags() & flag_volume_shared)
     {
         afp_read_dir_changes(volume, h_directory, result_buffer_.get());
         ZeroMemory(result_buffer_.get(), change_notify_result_buffer_size);

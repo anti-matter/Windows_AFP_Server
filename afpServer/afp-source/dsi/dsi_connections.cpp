@@ -8,9 +8,11 @@
 
 #include "afpdebug.h"
 #include "afp_session.h"
+#include "power_config.h"
 
 
 dsi::dsi_connections active_connections;
+power_config power_manage;
 
 namespace dsi
 {
@@ -36,6 +38,10 @@ namespace dsi
 	{
 		std::lock_guard guard(connections_mutex_);
 		connections_.push_back(std::move(connection));
+
+		// Tell the power manager that we need system power since we have
+		// active connections to our server.
+		power_manage.power_system_required();
 	}
 
 	void dsi_connections::stop_tracking(const UINT32 connection_id)
@@ -51,6 +57,13 @@ namespace dsi
 			DBGWRITE(dbg_level_info, L"Stopping tracking of connection: %d\n", itr->get()->get_connection_id());
 
 			connections_.erase(itr);
+
+			// See if we need to restore system power config.
+			if (active_connections.count() == 0)
+			{
+				power_manage.power_restore();
+			}
+
 			return;
 		}
 

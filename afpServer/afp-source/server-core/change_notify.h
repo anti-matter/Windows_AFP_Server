@@ -15,7 +15,6 @@ class change_notify
 public:
     explicit change_notify(INT16 volume_id);
 
-    void resume_notify();
     void afp_notify_thread();
 
     void afp_read_dir_changes(
@@ -38,13 +37,31 @@ public:
     // the server, so we stop the change notify listening.
     void suspend()
     {
+        std::lock_guard lock(suspend_mutex_);
+        if (notify_suspended_)
+        {
+            return;
+        }
+
         notify_suspended_ = true;
         SetEvent(notify_overlapped_.hEvent);
+    }
+
+    void resume()
+    {
+        std::lock_guard lock(suspend_mutex_);
+        if (!notify_suspended_)
+        {
+            return;
+        }
+
+        notify_suspended_ = false;
     }
 
 private:
     INT16 volume_id_;
     std::atomic_bool notify_suspended_;
+    std::mutex suspend_mutex_;
     OVERLAPPED notify_overlapped_;
 
     std::unique_ptr<BYTE[]> result_buffer_;
@@ -63,7 +80,7 @@ public:
 
     ~notify_suspend()
     {
-        notify_->resume_notify();
+        notify_->resume();
     }
 
 private:
