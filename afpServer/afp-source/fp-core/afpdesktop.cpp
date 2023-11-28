@@ -91,6 +91,8 @@ AFPERROR FPAddIcon(
 {
 	UNREFERENCED_PARAMETER(afp_reply);
 
+	DBGWRITE(dbg_level_trace, L"Enter\n");
+
 	// The first work contains the command and padding byte.
 	afp_request.advance_pos_ptr(sizeof(INT16));
 
@@ -116,7 +118,7 @@ AFPERROR FPAddIcon(
 	// we get the size of the data we'll be storing.
 	icon_entry.tag = afp_request.pull_num<UINT32>();
 	icon_entry.data_size = afp_request.pull_num<UINT16>();
-	icon_entry.icon_type = entry_type_icon;
+	icon_entry.item_type = entry_type_icon;
 
 	// Advance in the buffer to the offset where the icon data is
 	// being stored.
@@ -159,12 +161,15 @@ AFPERROR FPGetIcon(
 	IN dsi_connection* connection
 )
 {
+	DBGWRITE(dbg_level_trace, L"Enter\n");
+
 	afp_desk_item search_entry;
 
 	afp_request.advance_pos_ptr(sizeof(UINT16));
 
 	const auto afp_dt_ref_num = afp_request.pull_num<UINT16>();
 
+	search_entry.item_type = entry_type_icon;
 	search_entry.file_creator = afp_request.pull_num<UINT32>();
 	search_entry.file_type = afp_request.pull_num<UINT32>();
 	search_entry.icon_type = afp_request.pull_num<INT8>();
@@ -213,6 +218,8 @@ AFPERROR FPGetIconInfo(
 	IN dsi_connection* connection
 )
 {
+	DBGWRITE(dbg_level_trace, L"Enter\n");
+
 	afp_desk_item search_entry;
 
 	afp_request.advance_pos_ptr(sizeof(UINT16));
@@ -269,7 +276,13 @@ AFPERROR FPAddComment(
 	afp_request.advance_pos_ptr(sizeof(INT16));
 
 	const auto afp_dt_ref_num = afp_request.pull_num<INT16>();
-	desk_item.dir_id = afp_request.pull_num<INT32>();
+	const auto desktop = connection->get_afp_session()->get_desktop(afp_dt_ref_num);
+	if (desktop == nullptr)
+	{
+		return afpParmErr;
+	}
+
+    desk_item.dir_id = afp_request.pull_num<INT32>();
 	desk_item.path_type = afp_request.pull_num<INT8>();
 
 	const auto pathname = afp_request.pull_path(desk_item.path_type);
@@ -281,16 +294,12 @@ AFPERROR FPAddComment(
 	wcscpy_s(desk_item.path_name, pathname.c_str());
 
 	afp_request.advance_if_odd();
-	afp_request.pull_raw_data(desk_item.data, sizeof(desk_item.data));
+
+	const auto comment_len = afp_request.pull_num<UINT8>();
+	afp_request.pull_raw_data(desk_item.data, comment_len);
 
 	desk_item.item_type = entry_type_comment;
-	desk_item.data_size = static_cast<UINT16>(strlen(desk_item.data));
-
-	const auto desktop = connection->get_afp_session()->get_desktop(afp_dt_ref_num);
-	if (desktop == nullptr)
-	{
-		return afpParmErr;
-	}
+	desk_item.data_size = static_cast<UINT16>(comment_len);
 
 	const auto volume = connection->get_afp_session()->find_open_volume(desktop->get_volume_id());
 	if (volume == nullptr)
@@ -310,8 +319,7 @@ AFPERROR FPAddComment(
 		return afpObjectNotFound;
 	}
 
-	const auto wide_name = string_to_wide_string(desk_item.data, kUnicodeNames);
-	DBGWRITE(dbg_level_info, L"Adding comment, pathname=%s, comment=%s\n", desk_item.path_name, wide_name.c_str());
+	DBGWRITE(dbg_level_info, L"Adding comment, pathname=%s, comment=%s\n", desk_item.path_name, string_to_wide_string(desk_item.data, kUnicodeNames).c_str());
 
 	desktop->add(&desk_item);
 
@@ -409,6 +417,8 @@ AFPERROR FPRemoveComment(
 {
 	UNREFERENCED_PARAMETER(afp_reply);
 
+	DBGWRITE(dbg_level_trace, L"Enter\n");
+
 	afp_desk_item search_entry;
 
 	afp_request.advance_pos_ptr(sizeof(INT16));
@@ -416,7 +426,7 @@ AFPERROR FPRemoveComment(
 	const auto afp_dt_refnum = afp_request.pull_num<UINT16>();
 	search_entry.dir_id = afp_request.pull_num<INT32>();
 	search_entry.path_type = afp_request.pull_num<INT8>();
-	search_entry.item_type = entry_type_icon;
+	search_entry.item_type = entry_type_comment;
 
 	const auto pathname = afp_request.pull_path(search_entry.path_type);
 	if (pathname.empty())
@@ -538,6 +548,7 @@ AFPERROR FPAddAPPL(
 )
 {
 	UNREFERENCED_PARAMETER(afp_reply);
+	DBGWRITE(dbg_level_trace, L"Enter\n");
 
 	afp_desk_item new_entry;
 
@@ -589,6 +600,7 @@ AFPERROR FPRemoveAPPL(
 )
 {
 	UNREFERENCED_PARAMETER(afp_reply);
+	DBGWRITE(dbg_level_trace, L"Enter\n");
 
 	afp_desk_item search_entry;
 

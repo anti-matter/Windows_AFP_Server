@@ -1,5 +1,4 @@
 #pragma once
-#include <filesystem>
 
 #include "afp.h"
 
@@ -63,18 +62,51 @@ struct afp_desk_item
     WCHAR path_name[MAX_AFP_NAME];
     char data[max_desktop_data_size];
 
-#pragma warning (push)
-#pragma warning(disable: 6386)
-    bool operator==(const afp_desk_item* item) const
+    bool equal_comment(const afp_desk_item* item) const
     {
-        return
-            std::tie(item_type, file_type, file_creator, tag, dir_id, icon_type, data_size, path_type) ==
-            std::tie(item->item_type, item->file_type, item->file_creator, item->tag, item->dir_id, item->icon_type,
-                     item->data_size, item->path_type) &&
-            wcscmp(this->path_name, item->path_name) == 0 &&
-            memcmp(this->data, item->data, data_size) == 0;
+        return item_type == entry_type_comment && item->item_type == entry_type_comment &&
+            dir_id == item->dir_id &&
+            lstrcmp(path_name, item->path_name) == 0;
     }
 
+    bool equal_aapl(const afp_desk_item* item) const
+    {
+        return item_type == entry_type_appl && item->item_type == entry_type_appl &&
+            file_creator == item->file_creator;
+    }
+
+    bool equal_icon(const afp_desk_item* item) const
+    {
+        return item_type == entry_type_icon && item->item_type == entry_type_icon &&
+            file_creator == item->file_creator &&
+            file_type == item->file_type &&
+            icon_type == item->icon_type;
+    }
+
+    static std::wstring convert_to_os_type(const DWORD value)
+    {
+        std::wstring result;
+
+        result.push_back(static_cast<WCHAR>(value & 0xFF000000));
+        result.push_back(static_cast<WCHAR>(value & 0x00FF0000));
+        result.push_back(static_cast<WCHAR>(value & 0x0000FF00));
+        result.push_back(static_cast<WCHAR>(value & 0x000000FF));
+
+        return result;
+    }
+
+    [[nodiscard]] std::wstring creator_as_string() const
+    {
+        return convert_to_os_type(file_creator);
+    }
+
+    [[nodiscard]] std::wstring file_type_as_string() const
+    {
+        return convert_to_os_type(file_type);
+    }
+
+#pragma warning (push)
+#pragma warning(disable: 6386)
     afp_desk_item* operator=(const afp_desk_item* item)  // NOLINT(misc-unconventional-assign-operator)
     {
         this->item_type = item->item_type;
@@ -86,7 +118,7 @@ struct afp_desk_item
         this->data_size = item->data_size;
         this->path_type = item->path_type;
         wcscpy_s(this->path_name, sizeof(this->path_name), item->path_name);
-        memcpy_s(this->data, sizeof(data), item->data, item->data_size);
+        memcpy_s(this->data, sizeof(data), item->data, sizeof(data));
 
         return this;
     }

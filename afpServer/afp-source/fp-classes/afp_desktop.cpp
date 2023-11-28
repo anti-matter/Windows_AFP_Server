@@ -19,7 +19,7 @@ UINT32 afp_desktop::load_from_file()
 {
     std::lock_guard guard(desk_items_mutex_);
 
-    if (!exists(desktop_file_path_))
+    if (!std::filesystem::exists(desktop_file_path_))
     {
         return desktop_file_not_found;
     }
@@ -124,6 +124,9 @@ void afp_desktop::add(const afp_desk_item* item)
     // See afp_desk_item.h for operator.
     *n_item = item;
 
+    DBGWRITE(dbg_level_trace, L"Adding desktop item:\n");
+    DUMP_ITEM(n_item.get());
+
     add(n_item);
 }
 
@@ -139,7 +142,21 @@ bool afp_desktop::remove(const afp_desk_item* item)
 
     const auto it = std::ranges::remove_if(desk_items_, [=](const std::unique_ptr<afp_desk_item>& i)
     {
-        return item == i.get();
+        switch(item->item_type)
+        {
+        case entry_type_comment:
+            return item->equal_comment(i.get());
+        case entry_type_empty:
+            break;
+        case entry_type_icon:
+            return item->equal_icon(i.get());
+        case entry_type_appl:
+            return item->equal_aapl(i.get());
+        case entry_type_reserved:
+            break;
+        }
+
+        return false;
     });
 
     desk_items_.erase(it.begin(), it.end());
@@ -152,63 +169,62 @@ afp_desk_item* afp_desktop::find(const afp_desk_item* match_item, const UINT16 s
     std::lock_guard guard(desk_items_mutex_);
     UINT16 index = 0;
 
-    const auto num_icons = std::ranges::count_if(desk_items_, [=](const std::unique_ptr<afp_desk_item>& i2)
-        {
-            return i2->item_type == entry_type_icon && i2->file_creator == match_item->file_creator;
-        });
+    if (match_item->item_type == entry_type_icon)
+    {
+        const auto num_icons = std::ranges::count_if(desk_items_, [=](const std::unique_ptr<afp_desk_item>& i2)
+            {
+                // When using index, only use file_creator to find matching icons.
+                return i2->item_type == entry_type_icon && i2->file_creator == match_item->file_creator;
+            });
 
-    const auto num_appl = std::ranges::count_if(desk_items_, [=](const std::unique_ptr<afp_desk_item>& i2)
+        if (search_index > num_icons)
         {
-            return i2->item_type == entry_type_appl && i2->file_creator == match_item->file_creator;
-        });
-    
+            DBGWRITE(dbg_level_warning, L"Icon search index out of range! (%d vs %d)\n", search_index, num_icons);
+            return nullptr;
+        }
+    }
+
+    if (match_item->item_type == entry_type_appl)
+    {
+        const auto num_appl = std::ranges::count_if(desk_items_, [=](const std::unique_ptr<afp_desk_item>& i2)
+            {
+                return i2->equal_aapl(match_item);
+            });
+
+        if (search_index > num_appl)
+        {
+            DBGWRITE(dbg_level_warning, L"APPL search index out of range! (%d vs %d)\n", search_index, num_appl);
+            return nullptr;
+        }
+    }
+
     const auto it = std::ranges::find_if(desk_items_, [&](const std::unique_ptr<afp_desk_item>& i)
     {
         switch (match_item->item_type)
         {
         case entry_type_empty:
+            ASSERT(0);
             break;
         case entry_type_icon:
             {
-                // data_size will be 0 if performing a search for icon info.
+                // data_size will be 0 if performing a search for FPGetIconInfo. Otherwise,
+                // we're looking for FPGetIcon.
                 if (match_item->data_size != 0)
                 {
-                    if (std::tie(match_item->file_creator, match_item->file_type, match_item->icon_type,
-                                 match_item->data_size) ==
-                        std::tie(i->file_creator, i->file_type, i->icon_type, i->data_size))
-                    {
-                        DBGWRITE(dbg_level_trace, L"Found icon entry:\n");
-                        return true;
-                    }
-
-                    return false;
+                    DBGWRITE(dbg_level_trace, L"Looking for icon creator: %s, type: %s\n", i->creator_as_string().c_str(), i->file_type_as_string().c_str());
+                    return match_item->equal_icon(i.get());
                 }
 
-                // Make sure the provided search index is in range.
-                if (index > num_icons)
-                {
-                    DBGWRITE(dbg_level_warning, L"Icon search index out of range! (%d vs %d)\n", search_index, num_icons);
-                    return true;
-                }
-
-                //const auto itr = std::ranges::find_if(desk_items_, [&](const std::unique_ptr<afp_desk_item>& i3)
                 ++index;
-                const auto result =
-                    i->file_creator == match_item->file_creator &&
-                    index == search_index;
 
-                return result;
+                DBGWRITE(dbg_level_trace, L"Looking for icon creator: %s, index: %d\n", i->creator_as_string().c_str(), search_index);
+                return i->file_creator == match_item->file_creator && index == search_index;
             }
         case entry_type_appl:
             {
-                if (index > num_appl)
-                {
-                    DBGWRITE(dbg_level_warning, L"APPL search index out of range! (%d vs %d)\n", search_index, num_appl);
-                    return true;
-                }
-
                 ++index;
-                if (i->file_creator == match_item->file_creator && index == search_index)
+
+                if (i->equal_aapl(match_item) && index == search_index)
                 {
                     DBGWRITE(dbg_level_trace, L"Found APPL for: %s\n", i->path_name);
                     return true;
@@ -217,9 +233,10 @@ afp_desk_item* afp_desktop::find(const afp_desk_item* match_item, const UINT16 s
                 return false;
             }
         case entry_type_comment:
-            if (match_item->dir_id == i->dir_id && lstrcmp(match_item->path_name, i->path_name))
+            if (i->equal_comment(match_item))
             {
                 DBGWRITE(dbg_level_trace, L"Found comment:\n");
+                return true;
             }
             break;
         case entry_type_reserved:
@@ -232,6 +249,7 @@ afp_desk_item* afp_desktop::find(const afp_desk_item* match_item, const UINT16 s
 
     if (it != desk_items_.end())
     {
+        DUMP_ITEM(it->get());
         return it->get();
     }
 

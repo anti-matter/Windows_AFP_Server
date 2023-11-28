@@ -1,4 +1,5 @@
 #pragma once
+#include <filesystem>
 #include <mutex>
 
 #include "afp_desk_item.h"
@@ -19,7 +20,7 @@ class afp_volume;
 
 // This class manages an open desktop. It points to a specific desktop database
 // file and serves client requests to modifications to it.
-class afp_desktop
+class afp_desktop  // NOLINT(cppcoreguidelines-special-member-functions)
 {
 public:
     // A desktop file is associated with a specific volume. A volume
