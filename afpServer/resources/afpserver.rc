@@ -120,7 +120,7 @@ BEGIN
     GROUPBOX        "Users",IDC_STATIC,268,8,174,107
     LTEXT           "No share selected",IDC_VOLPATH,18,85,235,8
     CONTROL         "Volume is read only",IDC_VOLREADONLY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,18,99,77,10
-    CONTROL         "Disable clear text logins (require encryption)",IDC_REQ_ENCRYPTION,
+    CONTROL         "Disable clear text logins/require encryption",IDC_REQ_ENCRYPTION,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,279,37,156,10
     PUSHBUTTON      "About",IDC_ABOUT,302,153,104,14
 END
