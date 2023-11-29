@@ -18,7 +18,7 @@ constexpr dbg_level current_debug_level = dbg_level_trace;
 #define DBGWRITE(level, message, ...) afp_debug_write(level, __func__, message, __VA_ARGS__)
 #define ASSERT(exp) assert(exp)
 
-#define DBG_DUMP_BUFFER(buffer, cb_buffer) hex_dump_buffer(buffer, cb_buffer)
+#define DBG_DUMP_BUFFER(buffer, cb_buffer) hex_dump(buffer, cb_buffer)
 
 
 void afp_debug_write(_In_ const dbg_level debug_level, _In_ const std::string& function, _In_ const WCHAR* format, ...);
@@ -27,27 +27,7 @@ void dump_bitmap(
 	IN DWORD bitmap
 );
 
-void hex_dump_buffer(
-	IN const CHAR* p_buffer,
-	IN DWORD length
-);
-
-void dbg_output_buffer_to_debugger(
-	IN PBYTE p_buffer,
-	IN DWORD size
-);
-
-void dbg_check_deallocations(void);
-
-PVOID dbg_alloc(
-	IN DWORD size,
-	IN DWORD line,
-	IN const CHAR* file_name
-);
-
-void dbg_free(
-	IN PBYTE ptr
-);
+void hex_dump(const char* buffer, const size_t length);
 
 #else
 

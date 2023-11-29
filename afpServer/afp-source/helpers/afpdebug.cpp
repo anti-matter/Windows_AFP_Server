@@ -100,157 +100,80 @@ void dump_bitmap(const DWORD bitmap)
 	// ReSharper restore CppFunctionResultShouldBeUsed
 }
 
-
-void hex_dump_buffer(const CHAR* p_buffer, const DWORD length)
+std::string char_to_hex(const char n)
 {
-	CHAR line[128];
-	CHAR little[16];
-	CHAR foo[2];
-	DWORD j = 0;
-	line[0] = 0;
+    constexpr char hex_chars[16] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
+	std::string result;
 
-	// ReSharper disable CppFunctionResultShouldBeUsed
+	result.push_back(hex_chars[(n & 0xF0) >> 4]);
+	result.push_back(hex_chars[(n & 0x0F) >> 0]);
 
-	for (DWORD i = 0; i < length; i++)
+	return result;
+}
+
+void hex_dump(const char* buffer, const size_t length)
+{
+	std::string line;
+	std::string readable;
+    DWORD j = 0;
+
+    for (DWORD i = 0; i < length; i++)
 	{
-		CHAR part[16];
-
-		if (!(i % 16) && j)
-		{
-			StringCbCatA(line, sizeof(line), "   ");
+	    if (i % 16 == 0 && j > 0)
+	    {
+			line.append("    ");
 
 			for (DWORD k = 0; k < j; k++)
 			{
-				if (little[k] < -1)
-				{
-					StringCbCatA(line, sizeof(line), foo);
-					continue;
-				}
-				if (std::isprint(little[k]))
-				{
-					foo[0] = little[k];
-					foo[1] = 0;
-					StringCbCatA(line, sizeof(line), foo);
-				}
-				else
-					StringCbCatA(line, sizeof(line), ".");
+				line.push_back(std::isprint(readable[k]) ? readable[k] : '.');
 			}
 
-			StringCbCatA(line, sizeof(line), "\n");
-			OutputDebugStringA(line);
+			DBGWRITE(dbg_level_trace, L"%s\n", string_to_wide_string(line, CP_ACP).c_str());
 
-			line[0] = 0;
+			line.erase();
+			readable.erase();
+
 			j = 0;
+	    }
+
+		char ch = buffer[i];
+		if (ch < 0)
+		{
+			ch = 0;
 		}
 
-		StringCbPrintfA(part, sizeof(part), "%02x ", static_cast<UCHAR>(p_buffer[i] & 0xFF));
-		StringCbCatA(line, sizeof(line), part);
-		little[j++] = p_buffer[i];
+        if (std::string part = char_to_hex(ch); part.length() == 1)
+		{
+			line.push_back('0');
+			line.append(part);
+			line.push_back(' ');
+		}
+		else
+		{
+			line.append(part);
+			line.push_back(' ');
+		}
+
+		readable.push_back(ch);
+		j++;
 	}
 
-	if (j)
+	if (j != 0)
 	{
-		for (DWORD i = j; i < 16; i++)
-		{
-			StringCbCatA(line, sizeof(line), "   ");
-		}
+	    for (DWORD i = j; i <= 15; i++)
+	    {
+			line.append("   ");
+	    }
 
-		StringCbCatA(line, sizeof(line), "    ");
+		line.append("    ");
 
 		for (DWORD k = 0; k < j; k++)
 		{
-			if (little[k] >= 0 && std::isprint(little[k]))
-			{
-				foo[0] = little[k];
-				foo[1] = 0;
-				StringCbCatA(line, sizeof(line), foo);
-			}
-			else
-            {
-                StringCbCatA(line, sizeof(line), ".");
-            }
+			line.push_back(std::isprint(readable[k]) ? readable[k] : '.');
 		}
 
-		StringCbCatA(line, sizeof(line), "\n");
-		OutputDebugStringA(line);
+		DBGWRITE(dbg_level_trace, L"%s\n", string_to_wide_string(line, CP_ACP).c_str());
 	}
-
-	// ReSharper restore CppFunctionResultShouldBeUsed
-}
-
-
-void dbg_output_buffer_to_debugger(
-	IN const PBYTE p_buffer,
-	IN const DWORD size
-)
-{
-	for (DWORD i = 0; i < size; i++)
-	{
-		CHAR c[15];
-		const auto result = StringCbPrintfA(c, sizeof(c), "%-4x ", p_buffer[i]);
-		if (SUCCEEDED(result) && (i + 1) % 8 == 0)
-		{
-			// ReSharper disable once CppFunctionResultShouldBeUsed
-			StringCbCatA(c, sizeof(c), "\n");
-		}
-
-		OutputDebugStringA(c);
-	}
-
-	OutputDebugStringA("\n");
-}
-
-
-void dbg_free(
-	IN const PBYTE ptr
-)
-{
-	if (ptr == nullptr)
-	{
-		DBGWRITE(dbg_level_info, L"Attempted to free NULL block!\n");
-		ASSERT(0);
-
-		return;
-	}
-
-	HeapFree(GetProcessHeap(), 0, ptr);
-}
-
-
-PVOID dbg_alloc(
-	IN const DWORD size,
-	IN const DWORD line,
-	IN const CHAR* file_name
-)
-{
-	const auto return_buff = static_cast<PBYTE>(HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, size));
-
-	if (return_buff == nullptr)
-	{
-		WCHAR temps[1024];
-		size_t numconv;
-
-		mbstowcs_s( // NOLINT(cert-err33-c)
-			&numconv,
-			temps,
-			sizeof(temps) / 2,
-			file_name,
-			strlen(file_name)
-		);
-
-		DBGWRITE(
-			dbg_level_info,
-			L"Mem alloc of %d bytes failed in file: %s line: %d error: %d\n",
-			temps,
-			line,
-			size,
-			GetLastError()
-		);
-
-		return nullptr;
-	}
-
-	return return_buff;
 }
 #endif
 

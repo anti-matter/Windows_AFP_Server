@@ -211,13 +211,11 @@ afp_desk_item* afp_desktop::find(const afp_desk_item* match_item, const UINT16 s
                 // we're looking for FPGetIcon.
                 if (match_item->data_size != 0)
                 {
-                    DBGWRITE(dbg_level_trace, L"Looking for icon creator: %s, type: %s\n", i->creator_as_string().c_str(), i->file_type_as_string().c_str());
                     return match_item->equal_icon(i.get());
                 }
 
                 ++index;
 
-                DBGWRITE(dbg_level_trace, L"Looking for icon creator: %s, index: %d\n", i->creator_as_string().c_str(), search_index);
                 return i->file_creator == match_item->file_creator && index == search_index;
             }
         case entry_type_appl:
@@ -270,8 +268,8 @@ void afp_desktop::dump_db()
 void afp_desktop::dump_item(afp_desk_item* item, bool include_data)
 {
     DBGWRITE(dbg_level_trace, L"item_type:    %d\n", item->item_type);
-    DBGWRITE(dbg_level_trace, L"file_type:    %d\n", item->file_type);
-    DBGWRITE(dbg_level_trace, L"file_creator: %d\n", item->file_creator);
+    DBGWRITE(dbg_level_trace, L"file_type:    %s\n", item->file_type_as_string().c_str());
+    DBGWRITE(dbg_level_trace, L"file_creator: %s\n", item->creator_as_string().c_str());
     DBGWRITE(dbg_level_trace, L"tag:          %d\n", item->tag);
     DBGWRITE(dbg_level_trace, L"dir_id:       %d\n", item->dir_id);
     DBGWRITE(dbg_level_trace, L"icon_type:    %d\n", item->icon_type);

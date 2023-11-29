@@ -1,6 +1,7 @@
 #pragma once
 
 #include "afp.h"
+#include "afphelp.h"
 
 // ReSharper disable CppInconsistentNaming
 using FILE_TYPE = DWORD;
@@ -85,14 +86,23 @@ struct afp_desk_item
 
     static std::wstring convert_to_os_type(const DWORD value)
     {
-        std::wstring result;
+        union union_char
+        {
+            DWORD d_word;
+            char c_array[4];
+        };
 
-        result.push_back(static_cast<WCHAR>(value & 0xFF000000));
-        result.push_back(static_cast<WCHAR>(value & 0x00FF0000));
-        result.push_back(static_cast<WCHAR>(value & 0x0000FF00));
-        result.push_back(static_cast<WCHAR>(value & 0x000000FF));
+        std::string result;
+        union union_char temp;
 
-        return result;
+        temp.d_word = value;
+
+        result.push_back(temp.c_array[3]);
+        result.push_back(temp.c_array[2]);
+        result.push_back(temp.c_array[1]);
+        result.push_back(temp.c_array[0]);
+
+        return string_to_wide_string(result, CP_ACP);
     }
 
     [[nodiscard]] std::wstring creator_as_string() const
