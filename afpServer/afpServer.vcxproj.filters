@@ -169,17 +169,11 @@
     <ClInclude Include="afp-source\fp-classes\auto_lock.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
-    <ClInclude Include="afp-source\fp-classes\users_and_groups_array.h">
+    <ClInclude Include="afp-source\fp-classes\users_and_groups_cache.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
     <ClInclude Include="afp-source\server-core\change_notify.h">
       <Filter>Source Files\server-core</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\fp-classes\afp_array.h">
-      <Filter>Source Files\fp-classes</Filter>
-    </ClInclude>
-    <ClInclude Include="afp-source\fp-classes\afp_critical_section.h">
-      <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
     <ClInclude Include="afp-source\fp-classes\afp_file_index.h">
       <Filter>Source Files\fp-classes</Filter>

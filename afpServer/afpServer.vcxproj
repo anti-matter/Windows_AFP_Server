@@ -218,10 +218,8 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
     <ClInclude Include="afp-source\fp-classes\afp_volumes.h" />
     <ClInclude Include="afp-source\fp-classes\auto_lock.h" />
     <ClInclude Include="afp-source\fp-classes\afp_session.h" />
-    <ClInclude Include="afp-source\fp-classes\afp_critical_section.h" />
     <ClInclude Include="afp-source\fp-classes\afp_open_file.h" />
-    <ClInclude Include="afp-source\fp-classes\users_and_groups_array.h" />
-    <ClInclude Include="afp-source\fp-classes\afp_array.h" />
+    <ClInclude Include="afp-source\fp-classes\users_and_groups_cache.h" />
     <ClInclude Include="afp-source\fp-classes\afp_file_index.h" />
     <ClInclude Include="afp-source\fp-core\afp.h" />
     <ClInclude Include="afp-source\fp-core\afpdesktop.h" />

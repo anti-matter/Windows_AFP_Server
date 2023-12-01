@@ -13,10 +13,9 @@
 
 #include "afpdebug.h"
 #include "afp.h"
-#include "afp_array.h"
-#include "users_and_groups_array.h"
+#include "users_and_groups_cache.h"
 
-users_and_groups_array g_user_and_group_id;
+users_and_groups_cache g_user_and_group_cache;
 DWORD g_next_user_id = 1;
 DWORD g_next_group_id = 1;
 
@@ -180,7 +179,7 @@ PSID afp_get_sid_for_user(
 			//
 			//For some reason we failed to get the account SID.
 			//
-			DBGWRITE(dbg_level_info, L"[AFPHELP]LookupAccountName() failed getting user SID for [%s] (%d)\n", user_name,
+			DBGWRITE(dbg_level_info, L"LookupAccountName() failed getting user SID for [%s] (%d)\n", user_name,
 			         GetLastError());
 
 			LocalFree(p_sid);
@@ -217,8 +216,8 @@ DWORD afp_get_directory_rights(
 	ACCESS_MASK access_rights = 0;
 	TRUSTEE trustee = {};
 
-	DBGWRITE(dbg_level_trace, L"[AFPHELP]AFPGetDirectoryRights() enter...\n");
-	DBGWRITE(dbg_level_trace, L"[AFPHELP]user name = %s\n", p_user_name);
+	DBGWRITE(dbg_level_trace, L"AFPGetDirectoryRights() enter...\n");
+	DBGWRITE(dbg_level_trace, L"user name = %s\n", p_user_name);
 
 	*afp_rights = 0;
 
@@ -249,8 +248,8 @@ DWORD afp_get_directory_rights(
 		{
 			if (EqualSid(user_sid, p_sid_owner))
 			{
-				DBGWRITE(dbg_level_trace, L"[AFPHELP]Logged on user is owner!!\n");
-				DBGWRITE(dbg_level_trace, L"[AFPHELP]Checking access rights for owner\n");
+				DBGWRITE(dbg_level_trace, L"Logged on user is owner!!\n");
+				DBGWRITE(dbg_level_trace, L"Checking access rights for owner\n");
 
 				//
 				//Use the handy-dandy routine to build the trustee for us.
@@ -258,18 +257,18 @@ DWORD afp_get_directory_rights(
 				BuildTrusteeWithSid(&trustee, p_sid_owner);
 				error = GetEffectiveRightsFromAcl(p_dacl, &trustee, &access_rights);
 
-				DBGWRITE(dbg_level_trace, L"[AFPHELP]GetEffectiveRightsFromAcl() returned %d\n", error);
+				DBGWRITE(dbg_level_trace, L"GetEffectiveRightsFromAcl() returned %d\n", error);
 
 				if (access_rights & (WRITE_OWNER | WRITE_DAC | DELETE))
 				{
 					*afp_rights |= (kAccess_OW | kAccess_UAW);
-					DBGWRITE(dbg_level_trace, L"[AFPHELP]Owner has write access!\n");
+					DBGWRITE(dbg_level_trace, L"Owner has write access!\n");
 				}
 
 				if (access_rights & READ_CONTROL)
 				{
 					*afp_rights |= (kAccess_OS | kAccess_OR | kAccess_UAS | kAccess_UAR);
-					DBGWRITE(dbg_level_trace, L"[AFPHELP]Owner has read access!\n");
+					DBGWRITE(dbg_level_trace, L"Owner has read access!\n");
 				}
 
 				*afp_rights |= kAccess_Owner;
@@ -289,13 +288,13 @@ DWORD afp_get_directory_rights(
 					if (access_rights & (WRITE_OWNER | WRITE_DAC | DELETE))
 					{
 						*afp_rights |= kAccess_UAW;
-						DBGWRITE(dbg_level_trace, L"[AFPHELP]User has write access!\n");
+						DBGWRITE(dbg_level_trace, L"User has write access!\n");
 					}
 
 					if (access_rights & READ_CONTROL)
 					{
 						*afp_rights |= kAccess_UAS | kAccess_UAR;
-						DBGWRITE(dbg_level_trace, L"[AFPHELP]User has read access!\n");
+						DBGWRITE(dbg_level_trace, L"User has read access!\n");
 					}
 
 					//
@@ -336,13 +335,13 @@ DWORD afp_get_directory_rights(
 				if (access_rights & (WRITE_OWNER | WRITE_DAC | DELETE))
 				{
 					*afp_rights |= kAccess_WW;
-					DBGWRITE(dbg_level_trace, L"[AFPHELP]Guest has write access!\n");
+					DBGWRITE(dbg_level_trace, L"Guest has write access!\n");
 				}
 
 				if (access_rights & READ_CONTROL)
 				{
 					*afp_rights |= kAccess_WS | kAccess_WR;
-					DBGWRITE(dbg_level_trace, L"[AFPHELP]Guest has read access!\n");
+					DBGWRITE(dbg_level_trace, L"Guest has read access!\n");
 				}
 			}
 
@@ -361,20 +360,20 @@ DWORD afp_get_directory_rights(
         BuildTrusteeWithSid(&trustee, pSidGroup);
         dwError = GetEffectiveRightsFromAcl(pDACL, &trustee, &accessRights);
 
-        DBGWRITE(DbgLevelAll, L"[AFPHELP]GetEffectiveRightsFromAcl() returned %d\n", dwError);
+        DBGWRITE(DbgLevelAll, L"GetEffectiveRightsFromAcl() returned %d\n", dwError);
 
         if (SUCCEEDED(dwError))
         {
             if (accessRights & (WRITE_OWNER | WRITE_DAC | DELETE))
             {
                 *afpRights |= kAccess_GW;
-                DBGWRITE(DbgLevelAll, L"[AFPHELP]Group has write access!\n");
+                DBGWRITE(DbgLevelAll, L"Group has write access!\n");
             }
 
             if (accessRights & READ_CONTROL)
             {
                 *afpRights |= kAccess_GS | kAccess_GR;
-                DBGWRITE(DbgLevelAll, L"[AFPHELP]Group has read access!\n");
+                DBGWRITE(DbgLevelAll, L"Group has read access!\n");
             }
         }
 #endif
@@ -390,7 +389,7 @@ DWORD afp_get_directory_rights(
 	}
 	else
 	{
-		DBGWRITE(dbg_level_info, L"[AFPHELP]GetNamedSecurityInfo() failed getting dir rights (%d)!\n", error);
+		DBGWRITE(dbg_level_info, L"GetNamedSecurityInfo() failed getting dir rights (%d)!\n", error);
 	}
 
 	return error;
@@ -402,11 +401,9 @@ AFPERROR afp_get_user_name_by_id(
 	IN const PWCHAR name
 )
 {
-	const auto user_and_group = g_user_and_group_id.find_by_id(id);
-
-	if (user_and_group != nullptr)
+	if (const auto user_and_group = g_user_and_group_cache.find_by_id(id); user_and_group != nullptr)
 	{
-		lstrcpyn(name, user_and_group->name, lstrlen(user_and_group->name) + 1);
+		lstrcpyn(name, user_and_group->name.c_str(), static_cast<int>(user_and_group->name.size()));
 		return AFP_OK;
 	}
 
@@ -414,168 +411,128 @@ AFPERROR afp_get_user_name_by_id(
 }
 
 DWORD afp_get_directory_owner_and_group_id(
-	IN const PWCHAR p_dir_win_path,
+	IN const PWCHAR dir_win_path,
 	OUT DWORD* owner_id,
 	OUT DWORD* group_id
 )
 {
-	PSID p_sid_group = nullptr;
-	PSID p_sid_owner = nullptr;
-	PSECURITY_DESCRIPTOR pSecurityDescriptor = nullptr;
+	PSID sid_group = nullptr;
+	PSID sid_owner = nullptr;
+	PSECURITY_DESCRIPTOR security_descriptor = nullptr;
 
 	ASSERT(owner_id != nullptr);
 	ASSERT(group_id != nullptr);
 
-	//
-	//Initialize ID's to zero, this means no owner or group assigned.
-	//
+	// Initialize ID's to zero, this means no owner or group assigned.
 	*owner_id = 0;
 	*group_id = 0;
 
-	//
-	//First step is to get the security descriptor and SIDs for
-	//the directory.
-	//
+	// First step is to get the security descriptor and SIDs for
+	// the directory.
 	DWORD error = GetNamedSecurityInfo(
-		p_dir_win_path,
+		dir_win_path,
 		SE_FILE_OBJECT,
 		GROUP_SECURITY_INFORMATION | OWNER_SECURITY_INFORMATION,
-		&p_sid_owner,
-		&p_sid_group,
+		&sid_owner,
+		&sid_group,
 		nullptr,
 		nullptr,
-		&pSecurityDescriptor
+		&security_descriptor
 	);
 
-	if (SUCCEEDED(error))
+	if (FAILED(error) || security_descriptor == nullptr)
 	{
-		WCHAR sz_name[64];
-		WCHAR sz_domain_name[64];
-		DWORD cb_name = sizeof(sz_name) / 2;
-		DWORD cb_domain_name = sizeof(sz_domain_name) / 2;
-		DWORD sid_type = 0;
-
-		//
-		//First we get the name of the owner of the directory.
-		//
-		auto succeeded = LookupAccountSid(
-			nullptr,
-			p_sid_owner,
-			sz_name,
-			&cb_name,
-			sz_domain_name,
-			&cb_domain_name,
-			reinterpret_cast<PSID_NAME_USE>(&sid_type)
+		DBGWRITE(dbg_level_error, L"GetNamedSecurityInfo failed getting owner and group info for %s, error code: %d\n",
+			dir_win_path,
+			error
 		);
 
-		if (succeeded)
-		{
-			//
-			//We successfully got the owner name from the directory SID. Now we
-			//need to convert it to an AFP user ID.
-			//
-			DBGWRITE(dbg_level_info, L"[AFPHELP]Owner name from SID = %s for dir %s\n", sz_name, p_dir_win_path);
+		LocalFree(security_descriptor);
 
-			//
-			//We only care about user SID's, check to make sure that's what we got.
-			//
-			if (sid_type == SidTypeUser)
-			{
-				//
-				//First, search to see if the user name is already in our tables with
-				//a valid afp user ID.
-				//
-				const auto user_and_group = g_user_and_group_id.find_by_name(sz_name, afp_user_name_type);
-				if (user_and_group != nullptr)
-				{
-					*owner_id = user_and_group->id;
-				}
-
-				//
-				//If a matching user name wasn't found in the list, then add it.
-				//
-				if (*owner_id == 0)
-				{
-					auto user_or_group_name = std::make_unique<afp_user_group_name>();
-
-					if (user_or_group_name)
-					{
-						*owner_id = g_next_user_id++;
-						user_or_group_name->id = *owner_id;
-						user_or_group_name->type = afp_user_name_type;
-
-						lstrcpyn(user_or_group_name->name, sz_name, lstrlen(sz_name) + 1);
-
-						g_user_and_group_id.add_item(user_or_group_name);
-
-						DBGWRITE(dbg_level_info, L"[AFPHELP]Added username %s to the array\n", user_or_group_name->name);
-					}
-				}
-			}
-		}
-		else
-		{
-			//
-			//We failed to get the owner name. Report it but only in debug.
-			//
-			error = GetLastError();
-
-			DBGWRITE(dbg_level_info, L"[AFPHELP]****Error getting owner name for [%s], error code: %d\n",
-			         p_dir_win_path,
-			         error
-			);
-		}
-
-		cb_name = sizeof(sz_name) / 2;
-		cb_domain_name = sizeof(sz_domain_name) / 2;
-
-		//
-		//Get the name of the group that owns the directory.
-		//
-		succeeded = LookupAccountSid(
-			nullptr,
-			p_sid_group,
-			sz_name,
-			&cb_name,
-			sz_domain_name,
-			&cb_domain_name,
-			reinterpret_cast<PSID_NAME_USE>(&sid_type)
-		);
-
-		if (succeeded)
-		{
-			//
-			//We successfully got the group name from the directory SID. Now we
-			//need to convert it to an AFP group ID.
-			//
-			DBGWRITE(dbg_level_trace, L"[AFPHELP]Group name from SID = %s for dir %s\n", sz_name, p_dir_win_path);
-
-			//
-			//We only care about group SID's, check to make sure that's what we got.
-			//
-			if (sid_type == SidTypeGroup)
-			{
-			}
-		}
-		else
-		{
-			//
-			//We failed to get the group name. Report it but only in debug.
-			//
-			error = GetLastError();
-
-			DBGWRITE(dbg_level_info, L"[AFPHELP]****Error getting group name! (%d)\n", error);
-		}
-
-		if (pSecurityDescriptor)
-		{
-			//
-			//This pointer was allocate on our behalf by GetNamedSecurityInfo().
-			//Clear it now that we're done with it.
-			//
-			LocalFree(pSecurityDescriptor);
-		}
+		return error;
 	}
+
+	constexpr int max_name = 256;
+
+	WCHAR account_name[max_name];
+	WCHAR domain_name[max_name];
+	DWORD cch_name = max_name;
+	DWORD cch_domain_name = max_name;
+	DWORD sid_type = 0;
+
+	// First we get the name of the owner of the directory.
+	auto succeeded = LookupAccountSid(
+		nullptr,
+		sid_owner,
+		account_name,
+		&cch_name,
+		domain_name,
+		&cch_domain_name,
+		reinterpret_cast<PSID_NAME_USE>(&sid_type)
+	);
+
+	if (!succeeded)
+	{
+		// We failed to get the owner name.
+		error = GetLastError();
+		DBGWRITE(dbg_level_error, L"LookupAccountSid failed getting owner name for [%s], error code: %d\n",
+		         dir_win_path,
+		         error
+		);
+
+		LocalFree(security_descriptor);
+
+		return error;
+	}
+
+	// We successfully got the owner name from the directory SID. Now we
+	// need to convert it to an AFP user ID.
+	DBGWRITE(dbg_level_info, L"Owner name from SID = %s for dir %s\n", account_name, dir_win_path);
+
+	// We only care about user SID's, check to make sure that's what we got.
+	if (sid_type == SidTypeUser)
+	{
+		g_user_and_group_cache.add(afp_user_name_type, account_name, g_next_user_id);
+		DBGWRITE(dbg_level_info, L"Added username %s to the cache\n", account_name);
+	}
+
+	cch_name = max_name;
+	cch_domain_name = max_name;
+
+	// Get the name of the group that owns the directory.
+	succeeded = LookupAccountSid(
+		nullptr,
+		sid_group,
+		account_name,
+		&cch_name,
+		domain_name,
+		&cch_domain_name,
+		reinterpret_cast<PSID_NAME_USE>(&sid_type)
+	);
+
+	if (!succeeded)
+	{
+		// We failed to get the group name. Report it but only in debug.
+		error = GetLastError();
+		DBGWRITE(dbg_level_info, L"****Error getting group name! (%d)\n", error);
+
+		LocalFree(security_descriptor);
+
+		return error;
+	}
+
+	// We successfully got the group name from the directory SID. Now we
+	// need to convert it to an AFP group ID.
+	DBGWRITE(dbg_level_trace, L"Group name from SID = %s for dir %s\n", account_name, dir_win_path);
+
+	// We only care about group SID's
+	if (sid_type == SidTypeGroup)
+	{
+		g_user_and_group_cache.add(afp_group_name_type, account_name, g_next_group_id);
+		DBGWRITE(dbg_level_info, L"Added groupname %s to the cache\n", account_name);
+	}
+
+	LocalFree(security_descriptor);
 
 	return error;
 }
