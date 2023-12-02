@@ -10,7 +10,7 @@ constexpr auto num_100_ns_per_second = 10000000L;
 std::string wide_string_to_string(const std::wstring & wide_string, UINT code_page);
 std::wstring string_to_wide_string(const std::string & string, UINT code_page);
 
-enum
+enum users_and_group_name_type : BYTE
 {
 	afp_user_name_type = 0,
 	afp_group_name_type
@@ -20,7 +20,7 @@ typedef struct
 {
 	BYTE type;
 	DWORD id;
-	WCHAR name[64];
+	std::wstring name;
 } afp_user_group_name;
 
 // Returns the SID for the logged in access token
@@ -55,7 +55,7 @@ AFPERROR afp_get_user_name_by_id(
 );
 
 DWORD afp_get_directory_owner_and_group_id(
-	IN PWCHAR p_dir_win_path,
+	IN PWCHAR dir_win_path,
 	OUT DWORD* owner_id,
 	OUT DWORD* group_id
 );
