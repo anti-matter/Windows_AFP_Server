@@ -10,6 +10,7 @@
 #include "afp_open_file.h"
 #include "afp_volumes.h"
 #include "afp_file_index.h"
+#include "windows_security.h"
 
 void afp_check_for_and_create_rsrc_stream(
     IN const afp_index* index_entry
@@ -171,7 +172,7 @@ AFPERROR afp_get_object_parms(
             DWORD owner_id = 0;
             DWORD group_id = 0;
 
-            const auto error = afp_get_directory_owner_and_group_id(entry->sz_path, &owner_id, &group_id);
+            const auto error = afp_get_directory_owner_and_group_id(entry->sz_path, dsi_session->get_user_name(), &owner_id, &group_id);
             if (error == NO_ERROR)
             {
                 if (bitmap & kFPDirOwnerID)
@@ -205,11 +206,9 @@ AFPERROR afp_get_object_parms(
             const auto user_name = _wcsdup(dsi_session->get_user_name().c_str());
             const auto domain_name = _wcsdup(dsi_session->get_domain_name().c_str());
 
-            const auto win_error = afp_get_directory_rights(
-                dsi_session->get_user_token(),
-                const_cast<wchar_t*>(entry->sz_path.c_str()),
-                user_name,
-                lstrlen(domain_name) > 0 ? domain_name : nullptr,
+            const auto win_error = get_directory_rights(
+               entry->sz_path.c_str(),
+               user_name,
                 &rights
             );
 

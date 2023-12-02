@@ -168,6 +168,7 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
     <ClCompile Include="afp-source\fp-core\afpdispatch.cpp" />
     <ClCompile Include="afp-source\server-core\perf_counters.cpp" />
     <ClCompile Include="afp-source\server-core\power_config.cpp" />
+    <ClCompile Include="afp-source\server-core\windows_security.cpp" />
     <ClCompile Include="afpServer.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -241,6 +242,7 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
     <ClInclude Include="afp-source\server-core\change_notify.h" />
     <ClInclude Include="afp-source\server-core\perf_counters.h" />
     <ClInclude Include="afp-source\server-core\power_config.h" />
+    <ClInclude Include="afp-source\server-core\windows_security.h" />
     <ClInclude Include="afp-source\ui\aboutdlg.h" />
     <ClInclude Include="afp-source\ui\addshare.h" />
     <ClInclude Include="afp-source\ui\sendmsgdlg.h" />
@@ -249,6 +251,7 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
     <ClInclude Include="resources\resource.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="version.h" />
+    <ClInclude Include="windows_security.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="afpServer.man">

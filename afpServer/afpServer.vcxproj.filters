@@ -140,6 +140,9 @@
     <ClCompile Include="afp-source\server-core\power_config.cpp">
       <Filter>Source Files\server-core</Filter>
     </ClCompile>
+    <ClCompile Include="afp-source\server-core\windows_security.cpp">
+      <Filter>Source Files\server-core</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resources\resource.h">
@@ -271,6 +274,10 @@
     </ClInclude>
     <ClInclude Include="power_config.h" />
     <ClInclude Include="afp-source\server-core\power_config.h">
+      <Filter>Source Files\server-core</Filter>
+    </ClInclude>
+    <ClInclude Include="windows_security.h" />
+    <ClInclude Include="afp-source\server-core\windows_security.h">
       <Filter>Source Files\server-core</Filter>
     </ClInclude>
   </ItemGroup>

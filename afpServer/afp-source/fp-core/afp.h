@@ -352,15 +352,19 @@ enum
 
 enum afp_access_rights : unsigned int
 {
+    // Owners
     kAccess_OS = 0x00000001,
     kAccess_OR = 0x00000002,
     kAccess_OW = 0x00000004,
+    // Groups
     kAccess_GS = 0x00000100,
     kAccess_GR = 0x00000200,
     kAccess_GW = 0x00000400,
+    // Guests (Other)
     kAccess_WS = 0x00010000,
     kAccess_WR = 0x00020000,
     kAccess_WW = 0x00040000,
+    // Users
     kAccess_UAS = 0x01000000,
     kAccess_UAR = 0x02000000,
     kAccess_UAW = 0x04000000,

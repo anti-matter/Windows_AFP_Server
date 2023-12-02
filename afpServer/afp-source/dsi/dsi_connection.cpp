@@ -33,6 +33,12 @@ namespace dsi
 
 		receive_buffer_ = std::make_unique<char[]>(RECV_BUFFER_SIZE);
 		afp_session_ = std::make_unique<afp_session>(this);
+
+		if (!afp_adjust_privilege(const_cast<PWCHAR>(SE_IMPERSONATE_NAME), TRUE))
+		{
+			DBGWRITE(dbg_level_error, L"Setting impersonation privilage failed (%d)\n", GetLastError());
+			ASSERT(0);
+		}
 	}
 
 	dsi_connection::~dsi_connection()

@@ -14,7 +14,7 @@ public:
 
     void add(const users_and_group_name_type type, const std::wstring& name, const DWORD id)
     {
-        if (find_by_id(id, type) != nullptr)
+        if (find_by_id(id) != nullptr)
         {
             // Already cached.
             return;
@@ -28,13 +28,13 @@ public:
         users_and_groups_.push_back(std::move(user_or_group));
     }
 
-    afp_user_group_name* find_by_name(const std::wstring& name, const users_and_group_name_type name_type)
+    afp_user_group_name* find_by_name(const std::wstring& name)
     {
         std::lock_guard lock(mutex_);
 
         const auto it = std::ranges::find_if(users_and_groups_, [=](const std::unique_ptr<afp_user_group_name>& ug)
             {
-                return ug->type == name_type && ug->name == name;
+                return ug->name == name;
             });
 
         if (it != users_and_groups_.end())
@@ -46,13 +46,13 @@ public:
         return nullptr;
     }
 
-    afp_user_group_name* find_by_id(const DWORD id, const users_and_group_name_type name_type)
+    afp_user_group_name* find_by_id(const DWORD id)
     {
         std::lock_guard lock(mutex_);
 
         const auto it = std::ranges::find_if(users_and_groups_, [=](const std::unique_ptr<afp_user_group_name>& ug)
             {
-                return ug->type == name_type && ug->id == id;
+                return ug->id == id;
             });
 
         if (it != users_and_groups_.end())

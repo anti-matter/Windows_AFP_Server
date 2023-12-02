@@ -25,32 +25,6 @@ typedef struct
 	std::wstring name;
 } afp_user_group_name;
 
-// Returns the SID for the logged in access token
-std::shared_ptr<PSID> afp_get_logon_sid(
-	IN HANDLE h_token
-);
-
-// This routine returns TRUE if the caller's process
-// is a member of the Administrators local group.Caller is NOT expected to
-// be impersonating anyone and is expected to be able to open their own process
-// and process token.
-BOOL is_user_admin(
-	IN HANDLE token
-);
-
-PSID afp_get_sid_for_user(
-	IN PWCHAR user_name,
-	IN PWCHAR domain_name
-);
-
-DWORD afp_get_directory_rights(
-	IN HANDLE token, //login token
-	IN PWCHAR p_dir_win_path, //directory to check
-	IN PWCHAR p_user_name,
-	IN PWCHAR p_domain_name,
-	IN DWORD* afp_rights
-);
-
 AFPERROR afp_get_user_name_by_id(
 	IN users_and_group_name_type type,
 	IN DWORD id,
@@ -59,6 +33,7 @@ AFPERROR afp_get_user_name_by_id(
 
 DWORD afp_get_directory_owner_and_group_id(
 	IN const std::filesystem::path& dir_win_path,
+	IN const std::wstring& logged_on_user_name,
 	OUT DWORD* owner_id,
 	OUT DWORD* group_id
 );
