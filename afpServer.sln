@@ -4,8 +4,6 @@ VisualStudioVersion = 17.7.34221.43
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "afpServer", "afpServer\afpServer.vcxproj", "{E106A5F0-1AB4-4532-8B8B-349275E1E9D6}"
 EndProject
-Project("{840C416C-B8F3-42BC-B0DD-F6BB14C9F8CB}") = "AFP Server Installer", "AFP Server Installer\AFP Server Installer.aiproj", "{D10D02E7-6ADE-4D28-9E5D-1ED328472074}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		All|x86 = All|x86
@@ -19,12 +17,6 @@ Global
 		{E106A5F0-1AB4-4532-8B8B-349275E1E9D6}.Debug|x86.Build.0 = Debug|Win32
 		{E106A5F0-1AB4-4532-8B8B-349275E1E9D6}.Release|x86.ActiveCfg = Release|Win32
 		{E106A5F0-1AB4-4532-8B8B-349275E1E9D6}.Release|x86.Build.0 = Release|Win32
-		{D10D02E7-6ADE-4D28-9E5D-1ED328472074}.All|x86.ActiveCfg = DefaultBuild
-		{D10D02E7-6ADE-4D28-9E5D-1ED328472074}.All|x86.Build.0 = DefaultBuild
-		{D10D02E7-6ADE-4D28-9E5D-1ED328472074}.Debug|x86.ActiveCfg = DefaultBuild
-		{D10D02E7-6ADE-4D28-9E5D-1ED328472074}.Debug|x86.Build.0 = DefaultBuild
-		{D10D02E7-6ADE-4D28-9E5D-1ED328472074}.Release|x86.ActiveCfg = DefaultBuild
-		{D10D02E7-6ADE-4D28-9E5D-1ED328472074}.Release|x86.Build.0 = DefaultBuild
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
