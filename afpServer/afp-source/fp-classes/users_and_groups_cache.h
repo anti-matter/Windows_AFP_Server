@@ -14,6 +14,12 @@ public:
 
     void add(const users_and_group_name_type type, const std::wstring& name, const DWORD id)
     {
+        if (find_by_id(id, type) != nullptr)
+        {
+            // Already cached.
+            return;
+        }
+
         auto user_or_group = std::make_unique<afp_user_group_name>();
         user_or_group->id = id;
         user_or_group->name = name;
@@ -28,7 +34,7 @@ public:
 
         const auto it = std::ranges::find_if(users_and_groups_, [=](const std::unique_ptr<afp_user_group_name>& ug)
             {
-                return ug->name == name;
+                return ug->type == name_type && ug->name == name;
             });
 
         if (it != users_and_groups_.end())
@@ -40,18 +46,18 @@ public:
         return nullptr;
     }
 
-    afp_user_group_name* find_by_id(const DWORD id)
+    afp_user_group_name* find_by_id(const DWORD id, const users_and_group_name_type name_type)
     {
         std::lock_guard lock(mutex_);
 
         const auto it = std::ranges::find_if(users_and_groups_, [=](const std::unique_ptr<afp_user_group_name>& ug)
             {
-                return ug->id == id;
+                return ug->type == name_type && ug->id == id;
             });
 
         if (it != users_and_groups_.end())
         {
-            DBGWRITE(dbg_level_info, L"Found user name by id (%s)(%d)\n", it->get()->name.c_str(), it->get()->id);
+            DBGWRITE(dbg_level_info, L"Found user/group name by id (%s)(%d)(%d)\n", it->get()->name.c_str(), it->get()->id, it->get()->type);
             return it->get();
         }
 

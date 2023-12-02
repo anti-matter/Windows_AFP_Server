@@ -1,5 +1,7 @@
 #pragma once
 
+#include <filesystem>
+
 #include "afp.h"
 
 constexpr auto days_from_1980_2000 = 7305L; // (20*365 + 5);
@@ -50,12 +52,13 @@ DWORD afp_get_directory_rights(
 );
 
 AFPERROR afp_get_user_name_by_id(
+	IN users_and_group_name_type type,
 	IN DWORD id,
 	IN PWCHAR name
 );
 
 DWORD afp_get_directory_owner_and_group_id(
-	IN PWCHAR dir_win_path,
+	IN const std::filesystem::path& dir_win_path,
 	OUT DWORD* owner_id,
 	OUT DWORD* group_id
 );

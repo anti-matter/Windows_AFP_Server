@@ -168,16 +168,33 @@ AFPERROR afp_get_object_parms(
 
         if (bitmap & (kFPDirOwnerID | kFPDirGroupID))
         {
-            if (bitmap & kFPDirOwnerID)
-            {
-                constexpr DWORD owner_id = 0;
-                reply.push_num<UINT32>(owner_id);
-            }
+            DWORD owner_id = 0;
+            DWORD group_id = 0;
 
-            if (bitmap & kFPDirGroupID)
+            const auto error = afp_get_directory_owner_and_group_id(entry->sz_path, &owner_id, &group_id);
+            if (error == NO_ERROR)
             {
-                constexpr DWORD group_id = 0;
-                reply.push_num<UINT32>(group_id);
+                if (bitmap & kFPDirOwnerID)
+                {
+                    reply.push_num<UINT32>(owner_id);
+                }
+
+                if (bitmap & kFPDirGroupID)
+                {
+                    reply.push_num<UINT32>(group_id);
+                }
+            }
+            else
+            {
+                if (bitmap & kFPDirOwnerID)
+                {
+                    reply.push_num<UINT32>(0);
+                }
+
+                if (bitmap & kFPDirGroupID)
+                {
+                    reply.push_num<UINT32>(0);
+                }
             }
         }
 
@@ -282,8 +299,6 @@ AFPERROR afp_get_object_parms(
 
     if (bitmap & kFPLongName || bitmap & kFPUnicodeName)
     {
-        //get_char_map_for_index_entry(entry, char_map);
-
         if (bitmap & kFPLongName)
         {
             *long_name_offset = htons(static_cast<UINT16>(reply.get_current_pos_ptr() - parms_start));

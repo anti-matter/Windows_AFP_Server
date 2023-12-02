@@ -761,43 +761,50 @@ AFPERROR FPMapID(
 	const auto afp_sub_func = afp_request.pull_num<INT8>();
 
 	// Retrieve the id of the user or group to obtain.
-	const auto afp_user_id = afp_request.pull_num<UINT32>();
+	const auto id = afp_request.pull_num<UINT32>();
 
-	DBGWRITE(dbg_level_info, L"Looking for ID %d\n", afp_user_id);
+	DBGWRITE(dbg_level_info, L"Looking for ID %d\n", id);
 
 	switch (afp_sub_func)
 	{
 	//Looking for user name
 	case 1:
-		afp_error = afp_get_user_name_by_id(afp_user_id, sz_name);
-
+		afp_error = afp_get_user_name_by_id(afp_user_name_type, id, sz_name);
 		if (AFP_SUCCESS(afp_error))
 		{
-			DBGWRITE(dbg_level_info, L"Mapped id to name %s\n", sz_name);
+			DBGWRITE(dbg_level_info, L"Mapped id to user name %s\n", sz_name);
 			afp_reply.push_string(sz_name);
 		}
 		break;
 
 	//Looking for group name
 	case 2:
-		afp_reply.push_string(L"Everyone");
+		afp_error = afp_get_user_name_by_id(afp_group_name_type, id, sz_name);
+		if (AFP_SUCCESS(afp_error))
+		{
+			DBGWRITE(dbg_level_info, L"Mapped id to group name %s\n", sz_name);
+			afp_reply.push_string(sz_name);
+		}
 		break;
 
 	//Unicode user name
 	case 3:
-		afp_error = afp_get_user_name_by_id(afp_user_id, sz_name);
-
+		afp_error = afp_get_user_name_by_id(afp_user_name_type, id, sz_name);
 		if (AFP_SUCCESS(afp_error))
 		{
-			DBGWRITE(dbg_level_info, L"Mapped id to name %s\n", sz_name);
+			DBGWRITE(dbg_level_info, L"Mapped id to user name %s\n", sz_name);
 			afp_reply.push_string(sz_name, kUnicodeNames);
 		}
 		break;
 
 	//Unicode group name
 	case 4:
-		// ReSharper disable once CppStringLiteralToCharPointerConversion
-		afp_reply.push_string(TEXT("Everyone"), kUnicodeNames);
+		afp_error = afp_get_user_name_by_id(afp_group_name_type, id, sz_name);
+		if (AFP_SUCCESS(afp_error))
+		{
+			DBGWRITE(dbg_level_info, L"Mapped id to group name %s\n", sz_name);
+			afp_reply.push_string(sz_name, kUnicodeNames);
+		}
 		break;
 
 	default:

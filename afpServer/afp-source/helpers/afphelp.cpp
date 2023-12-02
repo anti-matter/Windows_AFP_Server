@@ -395,13 +395,13 @@ DWORD afp_get_directory_rights(
 	return error;
 }
 
-
 AFPERROR afp_get_user_name_by_id(
+	IN users_and_group_name_type type,
 	IN const DWORD id,
 	IN const PWCHAR name
 )
 {
-	if (const auto user_and_group = g_user_and_group_cache.find_by_id(id); user_and_group != nullptr)
+	if (const auto user_and_group = g_user_and_group_cache.find_by_id(id, type); user_and_group != nullptr)
 	{
 		lstrcpyn(name, user_and_group->name.c_str(), static_cast<int>(user_and_group->name.size()));
 		return AFP_OK;
@@ -411,7 +411,7 @@ AFPERROR afp_get_user_name_by_id(
 }
 
 DWORD afp_get_directory_owner_and_group_id(
-	IN const PWCHAR dir_win_path,
+	IN const std::filesystem::path& dir_win_path,
 	OUT DWORD* owner_id,
 	OUT DWORD* group_id
 )
@@ -430,7 +430,7 @@ DWORD afp_get_directory_owner_and_group_id(
 	// First step is to get the security descriptor and SIDs for
 	// the directory.
 	DWORD error = GetNamedSecurityInfo(
-		dir_win_path,
+		dir_win_path.c_str(),
 		SE_FILE_OBJECT,
 		GROUP_SECURITY_INFORMATION | OWNER_SECURITY_INFORMATION,
 		&sid_owner,
@@ -443,7 +443,7 @@ DWORD afp_get_directory_owner_and_group_id(
 	if (FAILED(error) || security_descriptor == nullptr)
 	{
 		DBGWRITE(dbg_level_error, L"GetNamedSecurityInfo failed getting owner and group info for %s, error code: %d\n",
-			dir_win_path,
+			dir_win_path.c_str(),
 			error
 		);
 
@@ -476,7 +476,7 @@ DWORD afp_get_directory_owner_and_group_id(
 		// We failed to get the owner name.
 		error = GetLastError();
 		DBGWRITE(dbg_level_error, L"LookupAccountSid failed getting owner name for [%s], error code: %d\n",
-		         dir_win_path,
+		         dir_win_path.c_str(),
 		         error
 		);
 
@@ -487,12 +487,14 @@ DWORD afp_get_directory_owner_and_group_id(
 
 	// We successfully got the owner name from the directory SID. Now we
 	// need to convert it to an AFP user ID.
-	DBGWRITE(dbg_level_info, L"Owner name from SID = %s for dir %s\n", account_name, dir_win_path);
+	DBGWRITE(dbg_level_info, L"Owner name from SID = %s for dir %s\n", account_name, dir_win_path.c_str());
 
 	// We only care about user SID's, check to make sure that's what we got.
-	if (sid_type == SidTypeUser)
+	if (sid_type == SidTypeUser || sid_type == SidTypeAlias)
 	{
-		g_user_and_group_cache.add(afp_user_name_type, account_name, g_next_user_id);
+		*owner_id = g_next_user_id++;
+		g_user_and_group_cache.add(afp_user_name_type, account_name, *owner_id);
+
 		DBGWRITE(dbg_level_info, L"Added username %s to the cache\n", account_name);
 	}
 
@@ -523,12 +525,14 @@ DWORD afp_get_directory_owner_and_group_id(
 
 	// We successfully got the group name from the directory SID. Now we
 	// need to convert it to an AFP group ID.
-	DBGWRITE(dbg_level_trace, L"Group name from SID = %s for dir %s\n", account_name, dir_win_path);
+	DBGWRITE(dbg_level_trace, L"Group name from SID = %s for dir %s\n", account_name, dir_win_path.c_str());
 
 	// We only care about group SID's
 	if (sid_type == SidTypeGroup)
 	{
-		g_user_and_group_cache.add(afp_group_name_type, account_name, g_next_group_id);
+		*group_id = g_next_group_id++;
+		g_user_and_group_cache.add(afp_group_name_type, account_name, *group_id);
+
 		DBGWRITE(dbg_level_info, L"Added groupname %s to the cache\n", account_name);
 	}
 
