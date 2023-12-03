@@ -102,7 +102,7 @@ AFPERROR set_finder_info(
         //
         h_file = CreateFile(
             path.c_str(),
-            GENERIC_WRITE,
+            FILE_WRITE_DATA,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             nullptr,
             create_always ? OPEN_ALWAYS : OPEN_EXISTING,

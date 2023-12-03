@@ -9,6 +9,8 @@
 #include "afpdhxlogin.h"
 #include "afp_registry.h"
 #include "afp_session.h"
+#include "users_and_groups_cache.h"
+#include "windows_security.h"
 #include "dsi/dsi_connections.h"
 
 
@@ -769,7 +771,7 @@ AFPERROR FPMapID(
 	{
 	//Looking for user name
 	case 1:
-		afp_error = afp_get_user_name_by_id(afp_user_name_type, id, sz_name);
+		afp_error = get_user_name_by_id(id, sz_name);
 		if (AFP_SUCCESS(afp_error))
 		{
 			DBGWRITE(dbg_level_info, L"Mapped id to user name %s\n", sz_name);
@@ -779,7 +781,7 @@ AFPERROR FPMapID(
 
 	//Looking for group name
 	case 2:
-		afp_error = afp_get_user_name_by_id(afp_group_name_type, id, sz_name);
+		afp_error = get_user_name_by_id(id, sz_name);
 		if (AFP_SUCCESS(afp_error))
 		{
 			DBGWRITE(dbg_level_info, L"Mapped id to group name %s\n", sz_name);
@@ -789,7 +791,7 @@ AFPERROR FPMapID(
 
 	//Unicode user name
 	case 3:
-		afp_error = afp_get_user_name_by_id(afp_user_name_type, id, sz_name);
+		afp_error = get_user_name_by_id(id, sz_name);
 		if (AFP_SUCCESS(afp_error))
 		{
 			DBGWRITE(dbg_level_info, L"Mapped id to user name %s\n", sz_name);
@@ -799,7 +801,7 @@ AFPERROR FPMapID(
 
 	//Unicode group name
 	case 4:
-		afp_error = afp_get_user_name_by_id(afp_group_name_type, id, sz_name);
+		afp_error = get_user_name_by_id(id, sz_name);
 		if (AFP_SUCCESS(afp_error))
 		{
 			DBGWRITE(dbg_level_info, L"Mapped id to group name %s\n", sz_name);

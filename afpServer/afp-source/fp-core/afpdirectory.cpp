@@ -9,6 +9,7 @@
 #include "change_notify.h"
 #include "fdparms.h"
 #include "fpinfo.h"
+#include "windows_security.h"
 
 /*
  * FPResolveID()
@@ -610,7 +611,7 @@ AFPERROR FPCreateDir(
     }
 
     // Make sure only those who are allowed can create directories.
-    if (!afp_impersonate_user(connection->get_user_token()))
+    if (!impersonate_user(connection->get_user_token()))
     {
         return afpAccessDenied;
     }
@@ -621,7 +622,7 @@ AFPERROR FPCreateDir(
                                ? AFP_OK
                                : afp_map_win_error_to_afp(GetLastError(), afpMiscErr);
 
-    afp_revert_to_self(connection->get_user_token());
+    revert_to_self(connection->get_user_token());
 
     if (AFP_SUCCESS(afp_error))
     {
@@ -702,7 +703,7 @@ AFPERROR FPDelete(
         return afpObjectNotFound;
     }
 
-    if (!afp_impersonate_user(connection->get_user_token()))
+    if (!impersonate_user(connection->get_user_token()))
     {
         return afpAccessDenied;
     }
@@ -748,7 +749,7 @@ AFPERROR FPDelete(
         }
     }
 
-    afp_revert_to_self(connection->get_user_token());
+    revert_to_self(connection->get_user_token());
 
     DBGWRITE(dbg_level_trace, L"FPDelete returning: %d\n", afp_error);
 
@@ -846,7 +847,7 @@ AFPERROR FPCopyFile(
 
     // Setup the correct impersonation for this API call. We have to
     // have the right credentials for copy file.
-    if (!afp_impersonate_user(connection->get_user_token()))
+    if (!impersonate_user(connection->get_user_token()))
     {
         return afpAccessDenied;
     }
@@ -855,7 +856,7 @@ AFPERROR FPCopyFile(
 
     const BOOL copy_succeeded = CopyFile(afp_src_entry->sz_path.c_str(), new_win_path.c_str(), true);
 
-    afp_revert_to_self(connection->get_user_token());
+    revert_to_self(connection->get_user_token());
 
     if (copy_succeeded)
     {
@@ -974,7 +975,7 @@ AFPERROR FPMoveAndRename(
 
     DBGWRITE(dbg_level_info, L"Renaming to new path = %s\n", win_dst_path.c_str());
 
-    if (!afp_impersonate_user(connection->get_user_token()))
+    if (!impersonate_user(connection->get_user_token()))
     {
         return afpAccessDenied;
     }
@@ -989,7 +990,7 @@ AFPERROR FPMoveAndRename(
         afp_error = afp_map_win_error_to_afp(GetLastError(), afpParmErr);
     }
 
-    afp_revert_to_self(connection->get_user_token());
+    revert_to_self(connection->get_user_token());
 
     if (AFP_SUCCESS(afp_error))
     {
@@ -1077,7 +1078,7 @@ AFPERROR FPRename(
 
     DBGWRITE(dbg_level_info, L"Renaming to new path = %s\n", win_path.c_str());
 
-    if (!afp_impersonate_user(connection->get_user_token()))
+    if (!impersonate_user(connection->get_user_token()))
     {
         return afpAccessDenied;
     }
@@ -1092,7 +1093,7 @@ AFPERROR FPRename(
         afp_error = afp_map_win_error_to_afp(GetLastError(), afpParmErr);
     }
 
-    afp_revert_to_self(connection->get_user_token());
+    revert_to_self(connection->get_user_token());
 
     if (AFP_SUCCESS(afp_error))
     {

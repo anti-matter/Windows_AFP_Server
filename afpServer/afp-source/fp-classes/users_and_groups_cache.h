@@ -4,7 +4,19 @@
 #include <mutex>
 
 #include "afpdebug.h"
-#include "afphelp.h"
+
+enum users_and_group_name_type : BYTE
+{
+    afp_user_name_type = 0,
+    afp_group_name_type
+};
+
+typedef struct
+{
+    BYTE type;
+    DWORD id;
+    std::wstring name;
+} afp_user_group_name;
 
 class users_and_groups_cache
 {

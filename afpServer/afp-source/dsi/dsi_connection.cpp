@@ -8,6 +8,7 @@
 #include "afp_session.h"
 #include "dsi_connections.h"
 #include "perf_counters.h"
+#include "windows_security.h"
 
 extern dsi::dsi_connections active_connections;
 
@@ -34,7 +35,7 @@ namespace dsi
 		receive_buffer_ = std::make_unique<char[]>(RECV_BUFFER_SIZE);
 		afp_session_ = std::make_unique<afp_session>(this);
 
-		if (!afp_adjust_privilege(const_cast<PWCHAR>(SE_IMPERSONATE_NAME), TRUE))
+		if (!adjust_privilege(const_cast<PWCHAR>(SE_IMPERSONATE_NAME), TRUE))
 		{
 			DBGWRITE(dbg_level_error, L"Setting impersonation privilage failed (%d)\n", GetLastError());
 			ASSERT(0);

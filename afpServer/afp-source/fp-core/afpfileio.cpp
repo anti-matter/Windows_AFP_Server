@@ -6,6 +6,7 @@
 #include "change_notify.h"
 #include "fdparms.h"
 #include "fpinfo.h"
+#include "windows_security.h"
 
 /*
  * FPFlushFork()
@@ -142,14 +143,14 @@ AFPERROR FPOpenFork(
     AFPERROR afp_error = opened_file == nullptr ? afpMiscErr : AFP_OK;
     if (AFP_SUCCESS(afp_error))
     {
-        if (!afp_impersonate_user(connection->get_user_token()))
+        if (!impersonate_user(connection->get_user_token()))
         {
             return afpAccessDenied;
         }
 
         afp_error = opened_file->afp_open_file_fork();
 
-        afp_revert_to_self(connection->get_user_token());
+        revert_to_self(connection->get_user_token());
 
         // If we successfully open the file, then return whatever object parms
         // the caller has asked for.
@@ -396,7 +397,7 @@ AFPERROR FPCreateFile(
 
     const std::filesystem::path win_path = afp_entry->sz_path / pathname;
 
-    if (!afp_impersonate_user(connection->get_user_token()))
+    if (!impersonate_user(connection->get_user_token()))
     {
         return afpAccessDenied;
     }
@@ -405,7 +406,7 @@ AFPERROR FPCreateFile(
 
     const auto h_file = CreateFile(
         win_path.c_str(),
-        GENERIC_READ | GENERIC_WRITE,
+        GENERIC_WRITE,
         0,
         nullptr,
         (create_flag & kHardCreate) ? CREATE_ALWAYS : CREATE_NEW,
@@ -413,7 +414,7 @@ AFPERROR FPCreateFile(
         nullptr
     );
 
-    afp_revert_to_self(connection->get_user_token());
+    revert_to_self(connection->get_user_token());
 
     if (h_file == INVALID_HANDLE_VALUE)
     {
@@ -424,6 +425,8 @@ AFPERROR FPCreateFile(
 
         return afp_map_win_error_to_afp(GetLastError(), afpParmErr);
     }
+
+    CloseHandle(h_file);
 
     const auto new_entry = volume->get_index()->add_entry(
         dir_id,
@@ -440,8 +443,6 @@ AFPERROR FPCreateFile(
     }
 
     volume->set_is_dirty();
-
-    CloseHandle(h_file);
 
     return AFP_OK;
 }
@@ -656,7 +657,7 @@ AFPERROR FPRead(
     {
         const auto user_token = connection->get_user_token();
 
-        if (!afp_impersonate_user(user_token))
+        if (!impersonate_user(user_token))
         {
             // Impersonation failed, don't allow any further operations.
             return afpAccessDenied;
@@ -669,7 +670,7 @@ AFPERROR FPRead(
             &afp_act_count
         );
 
-        afp_revert_to_self(user_token);
+        revert_to_self(user_token);
     }
 
     // FPRead is a special case in that the return value is returned
@@ -734,7 +735,7 @@ AFPERROR FPWrite(
     }
 
     const HANDLE user_token = connection->get_user_token();
-    if (!afp_impersonate_user(user_token))
+    if (!impersonate_user(user_token))
     {
         return afpAccessDenied;
     }
@@ -747,7 +748,7 @@ AFPERROR FPWrite(
         &act_count
     );
 
-    afp_revert_to_self(user_token);
+    revert_to_self(user_token);
 
     if (AFP_SUCCESS(afp_error))
     {

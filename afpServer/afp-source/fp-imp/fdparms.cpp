@@ -172,7 +172,7 @@ AFPERROR afp_get_object_parms(
             DWORD owner_id = 0;
             DWORD group_id = 0;
 
-            const auto error = afp_get_directory_owner_and_group_id(entry->sz_path, dsi_session->get_user_name(), &owner_id, &group_id);
+            const auto error = get_directory_owner_and_group_id(entry->sz_path, dsi_session->get_user_name(), &owner_id, &group_id);
             if (error == NO_ERROR)
             {
                 if (bitmap & kFPDirOwnerID)

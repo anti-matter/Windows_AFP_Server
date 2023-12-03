@@ -6,6 +6,8 @@
 
 #include <ntsecapi.h>
 
+#include "windows_security.h"
+
 
 AFPERROR afp_imp_user_logon(
     dsi::dsi_connection* connection,
@@ -55,7 +57,7 @@ AFPERROR afp_imp_user_logon(
     CloseHandle(token);
 
     // ReSharper disable once CppStringLiteralToCharPointerConversion
-    afp_adjust_privilege(const_cast<wchar_t*>(SE_IMPERSONATE_NAME), TRUE, dupe_handle);
+    adjust_privilege(const_cast<wchar_t*>(SE_IMPERSONATE_NAME), TRUE, dupe_handle);
 
     connection->set_session_authenticated(true);
 

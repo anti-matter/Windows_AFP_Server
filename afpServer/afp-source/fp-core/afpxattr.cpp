@@ -12,6 +12,7 @@
 #include "afp_volumes.h"
 
 #include "AltStreams.h"
+#include "windows_security.h"
 
 /*
  * FPGetExtAttribute()
@@ -114,7 +115,7 @@ AFPERROR FPGetExtAttribute(
                     afpPathname.concat(":");
                     afpPathname.concat(afpAttrName);
 
-                    if (!afp_impersonate_user(connection->get_user_token()))
+                    if (!impersonate_user(connection->get_user_token()))
                     {
                         //
                         //Impersonation failed, don't allow any further operations.
@@ -163,7 +164,7 @@ AFPERROR FPGetExtAttribute(
                         }
                     }
 
-                    afp_revert_to_self(connection->get_user_token());
+                    revert_to_self(connection->get_user_token());
                 }
                 else
                 {
@@ -301,7 +302,7 @@ AFPERROR FPSetExtAttribute(
         afpPathname.concat(":");
         afpPathname.concat(afpAttrName);
 
-        if (!afp_impersonate_user(connection->get_user_token()))
+        if (!impersonate_user(connection->get_user_token()))
         {
             //
             //Impersonation failed, don't allow any further operations.
@@ -334,7 +335,7 @@ AFPERROR FPSetExtAttribute(
             );
         }
 
-        afp_revert_to_self(connection->get_user_token());
+        revert_to_self(connection->get_user_token());
 
         //
         //As a last check, make sure the right amount of bytes were
@@ -419,7 +420,7 @@ AFPERROR FPListExtAttribute(
             dbg_level_info,
             L"Getting stream list for %s\n", afpEntry->sz_path.c_str());
 
-        if (!afp_impersonate_user(connection->get_user_token()))
+        if (!impersonate_user(connection->get_user_token()))
         {
             //
             //Impersonation failed, don't allow any further operations.
@@ -513,7 +514,7 @@ AFPERROR FPListExtAttribute(
             *saveDL = htonl(afpDataLen);
         }
 
-        afp_revert_to_self(connection->get_user_token());
+        revert_to_self(connection->get_user_token());
     }
 
     DBGWRITE(dbg_level_info, L"Name list datalen = %d\n", afpDataLen);
@@ -611,7 +612,7 @@ AFPERROR FPRemoveExtAttribute(
 
     AFPERROR afpError = afpMiscErr;
 
-    if (!afp_impersonate_user(connection->get_user_token()))
+    if (!impersonate_user(connection->get_user_token()))
     {
         //
         //Impersonation failed, don't allow any further operations.
@@ -630,7 +631,7 @@ AFPERROR FPRemoveExtAttribute(
         afpError = afp_map_win_error_to_afp(GetLastError(), afpParmErr);
     }
 
-    afp_revert_to_self(connection->get_user_token());
+    revert_to_self(connection->get_user_token());
 
     DBGWRITE(dbg_level_info, L"Returning %d\n", afpError);
 

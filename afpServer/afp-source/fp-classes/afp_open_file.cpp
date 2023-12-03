@@ -49,9 +49,9 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 	INT16 afp_flags = flag_index_set_item;
 	DWORD dw_flags_and_attr = FILE_ATTRIBUTE_NORMAL;
 
-	if (m_access_mode_ & kReadMode)
+	if ((m_access_mode_ & kReadMode) != 0 && (m_access_mode_ & kDenyRead) == 0)
 	{
-		desired_access |= GENERIC_READ;
+		desired_access |= FILE_READ_DATA;
 	}
 
 	if (m_access_mode_ & kWriteMode)
@@ -61,12 +61,17 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 			return afpVolLocked;
 		}
 
-        desired_access |= GENERIC_WRITE;
+		if (m_access_mode_ & kDenyWrite)
+		{
+			desired_access = FILE_WRITE_DATA | FILE_APPEND_DATA;
+		}
+		else
+		{
+			desired_access = GENERIC_WRITE;
+		}
 	}
 
-	// ReSharper disable CppFunctionResultShouldBeUsed
-
-	StringCbCopy(sz_file_path, sizeof(sz_file_path), m_windows_path_);
+    [[maybe_unused]] auto ignore = StringCbCopy(sz_file_path, sizeof(sz_file_path), m_windows_path_);
 
 	switch (m_fork_)
 	{
@@ -75,9 +80,9 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 		break;
 
 	case kRsrcFork:
-		StringCbCat(sz_file_path, sizeof(sz_file_path), AFP_RESOURCE_FORK_NAME);
-		afp_flags |= flag_index_resource_fork_open;
-		break;
+        StringCbCat(sz_file_path, sizeof(sz_file_path), AFP_RESOURCE_FORK_NAME);
+        afp_flags |= flag_index_resource_fork_open;
+        break;
 
 	case kAttrFork:
 		DBGWRITE(dbg_level_info, L"[AFPOpenFile:AFPOpenFileFork]Opening stream %s\n", stream_name);
