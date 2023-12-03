@@ -284,7 +284,7 @@ AFPERROR FPGetForkParms(
 
     WIN32_FILE_ATTRIBUTE_DATA win_attributes;
 
-    DBGWRITE(dbg_level_trace, L"nter\n");
+    DBGWRITE(dbg_level_trace, L"Enter\n");
 
     // The first byte contains the afp command.
     afp_request.advance_pos_ptr(sizeof(INT16));

@@ -49,9 +49,11 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 	INT16 afp_flags = flag_index_set_item;
 	DWORD dw_flags_and_attr = FILE_ATTRIBUTE_NORMAL;
 
-	if ((m_access_mode_ & kReadMode) != 0 && (m_access_mode_ & kDenyRead) == 0)
+	dump_bitmap(m_access_mode_);
+
+	if (m_access_mode_ & kReadMode)
 	{
-		desired_access |= FILE_READ_DATA;
+		desired_access |= GENERIC_READ;
 	}
 
 	if (m_access_mode_ & kWriteMode)
@@ -61,14 +63,7 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 			return afpVolLocked;
 		}
 
-		if (m_access_mode_ & kDenyWrite)
-		{
-			desired_access = FILE_WRITE_DATA | FILE_APPEND_DATA;
-		}
-		else
-		{
-			desired_access = GENERIC_WRITE;
-		}
+	    desired_access |= GENERIC_WRITE;
 	}
 
     [[maybe_unused]] auto ignore = StringCbCopy(sz_file_path, sizeof(sz_file_path), m_windows_path_);
