@@ -47,6 +47,13 @@ set servername=AfpServer
 set installpath=%ProgramFiles(x86)%\%productname%\
 set linkpath=%DESKTOP%\%servername%.lnk
 
+:: Cannot install or uninstall if the server currently running.
+tasklist /fi "ImageName eq %servername%.exe" /fo csv 2>NUL | find /I "%servername%.exe">NUL
+if "%ERRORLEVEL%"=="0" (
+    echo ERROR: Program is running, please shutdown the server and try again.
+    goto end
+)
+
 if "%~1" == "-u" goto uninstall
 
 echo Installing Personal AFP Server for Windows...
@@ -81,10 +88,9 @@ del %SCRIPT%
 
 :: Enable PerfMon and Event Viewer instruments
 echo Setting up PerfMon counters and Event Viewer output...
-wevtutil im afpServer.man
-lodctr.exe /M:afpServer.man
+wevtutil im afpServer.man >nul
+lodctr.exe /M:afpServer.man >nul
 
-echo .
 echo Installation complete!
 
 goto end
@@ -92,13 +98,6 @@ goto end
 :: Uninstall components
 :uninstall
 echo Uninstalling Personal AFP Server for Windows tools...
-
-:: Cannot uninstall if the server currently running.
-tasklist /fi "ImageName eq %servername%.exe" /fo csv 2>NUL | find /I "%servername%.exe">NUL
-if "%ERRORLEVEL%"=="0" (
-    echo ERROR: Program is running, please quit the server and try again.
-    goto end
-)
 
 wevtutil.exe um afpServer.man
 unlodctr.exe /M:afpServer.man

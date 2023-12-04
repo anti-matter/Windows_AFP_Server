@@ -241,7 +241,8 @@ bool get_directory_rights(
                     DBGWRITE(dbg_level_trace, L"Owner has read access!\n");
                     *afp_rights |= kAccess_OR | kAccess_UAR;
                 }
-                if ((access_rights & GENERIC_WRITE) == GENERIC_WRITE || (access_rights & FILE_GENERIC_WRITE) == FILE_GENERIC_WRITE)
+                if ((access_rights & GENERIC_WRITE) == GENERIC_WRITE || (access_rights & FILE_GENERIC_WRITE) == FILE_GENERIC_WRITE ||
+                    (access_rights & FILE_WRITE_DATA) == FILE_WRITE_DATA)
                 {
                     DBGWRITE(dbg_level_trace, L"Owner has write access!\n");
                     *afp_rights |= kAccess_OW | kAccess_UAW;
@@ -292,7 +293,8 @@ bool get_directory_rights(
         DBGWRITE(dbg_level_trace, L"Guest has read access!\n");
         *afp_rights |= kAccess_WR;
     }
-    if ((access_rights & GENERIC_WRITE) == GENERIC_WRITE || (access_rights & FILE_GENERIC_WRITE) == FILE_GENERIC_WRITE)
+    if ((access_rights & GENERIC_WRITE) == GENERIC_WRITE || (access_rights & FILE_GENERIC_WRITE) == FILE_GENERIC_WRITE ||
+        (access_rights & FILE_WRITE_DATA) == FILE_WRITE_DATA)
     {
         DBGWRITE(dbg_level_trace, L"Guest has write access!\n");
         *afp_rights |= kAccess_WW;
