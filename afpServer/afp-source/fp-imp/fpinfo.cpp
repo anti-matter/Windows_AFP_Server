@@ -97,9 +97,7 @@ AFPERROR set_finder_info(
 
     for (;;)
     {
-        //
-        //Now open the AFP_Info stream to write to it.
-        //
+        // Now open the AFP_Info stream to write to it.
         h_file = CreateFile(
             path.c_str(),
             FILE_WRITE_DATA,

@@ -1,7 +1,3 @@
-//===================================================================
-// volumes.c
-//===================================================================
-
 #include "stdafx.h"
 #include "afpdebug.h"
 #include "afphelp.h"
@@ -44,16 +40,6 @@ DWORD AFPRemoveVolumeFromUI(
     return afp_registry::remove_volume(share_name);
 }
 
-
-//---------------------------------------------------------------------
-// AFPGetVolumeParameters()
-//---------------------------------------------------------------------
-// Returns volume parameters according to the provided bitmap. pBuffer
-// needs to be big enough to handle all the parameters requested.
-//
-// This call is used primarily by the FPOpenVol and FPGetVolParms AFP
-// API calls.
-//
 
 AFPERROR AFPGetVolumeParameters(
     IN const INT16 afp_volume_id,

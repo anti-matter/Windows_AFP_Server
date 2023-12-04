@@ -49,8 +49,6 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 	INT16 afp_flags = flag_index_set_item;
 	DWORD dw_flags_and_attr = FILE_ATTRIBUTE_NORMAL;
 
-	dump_bitmap(m_access_mode_);
-
 	if (m_access_mode_ & kReadMode)
 	{
 		desired_access |= GENERIC_READ;

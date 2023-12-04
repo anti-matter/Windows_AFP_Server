@@ -49,15 +49,6 @@ std::wstring string_to_wide_string(const std::string& string, const UINT code_pa
     return result;
 }
 
-/*
- * afp_extract_domain_and_user_name()
- *
- * Description:
- *  Extracts the domain and user name from a string. The string can
- *  consist of "domain\username" or just "username". *
- *
- *	Return Value: none
- */
 void afp_extract_domain_and_user_name(
     IN std::wstring& user_name,
     OUT std::wstring& domain_name
@@ -156,7 +147,6 @@ bool is_white_space(const char c)
     return (c == ' ' || c == '\t' || c == '\r' || c == '\n');
 }
 
-
 void afp_get_object_name_from_path(
     IN const PWCHAR p_path,
     OUT const PWCHAR p_name_buff,
@@ -170,10 +160,8 @@ void afp_get_object_name_from_path(
         return;
     }
 
-    //
-    //When this loop completes, szTemp should contain the
-    //object name.
-    //
+    // When this loop completes, szTemp should contain the
+    // object name.
     auto i = path_len - 1;
 
     do
@@ -191,11 +179,8 @@ void afp_get_object_name_from_path(
     // ReSharper disable once CppFunctionResultShouldBeUsed
     StringCbCopy(p_name_buff, cb_name_buff, &p_path[max(0, i)]);
 
-    //
-    //BUGBUG: Add code here to check for proper length of filename!
-    //
+    // TODO: Add code here to check for proper length of filename!
 }
-
 
 void afp_get_object_dot3_extension(
     IN const PWCHAR p_path,
@@ -210,10 +195,8 @@ void afp_get_object_dot3_extension(
         return;
     }
 
-    //
-    //When this loop completes, szTemp should contain the
-    //object extension.
-    //
+    // When this loop completes, szTemp should contain the
+    // object extension.
     auto i = path_len - 1;
     auto j = 0;
 
@@ -238,7 +221,6 @@ void afp_get_object_dot3_extension(
         StringCbCopy(p_name_buff, cb_name_buff, &p_path[max(0, i)]);
     }
 }
-
 
 void afp_get_object_path(
     IN const PWCHAR p_path,
@@ -275,7 +257,6 @@ void afp_get_object_path(
 
     lstrcpyn(p_path_buff, p_path, path_len - i);
 }
-
 
 AFPERROR afp_map_win_error_to_afp(
     IN const DWORD win_error,

@@ -31,14 +31,6 @@ void hex_dump(const char* buffer, const size_t length);
 
 #else
 
-#define DBG_ALLOC(dwSize)		HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, dwSize)
-#define DBG_FREE(ptr)			if ((ptr) != NULL) {						\
-                                    HeapFree(GetProcessHeap(), 0, ptr);	\
-                                    (ptr) = NULL;							\
-                                }
-            
-#define CHECK_DEALLOCATIONS()
-
 #define DBGWRITE(level, message, ...)
 #define ASSERT(exp)
 #define DBG_DUMP_BUFFER(buffer, cb_buffer)

@@ -3,8 +3,7 @@
 #include "afp.h"
 #include "afp_net_buffer.h"
 
-DWORD
-AFPAddNewVolumeFromUI(
+DWORD AFPAddNewVolumeFromUI(
     IN WCHAR* share_name,
     IN WCHAR* share_path,
     IN WCHAR* share_password

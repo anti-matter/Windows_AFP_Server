@@ -203,12 +203,9 @@ AFPERROR afp_get_object_parms(
         {
             DWORD rights = 0;
 
-            const auto user_name = _wcsdup(dsi_session->get_user_name().c_str());
-            const auto domain_name = _wcsdup(dsi_session->get_domain_name().c_str());
-
             const auto win_error = get_directory_rights(
                entry->sz_path.c_str(),
-               user_name,
+                dsi_session->get_user_name(),
                 &rights
             );
 
@@ -216,9 +213,6 @@ AFPERROR afp_get_object_parms(
             {
                 reply.push_num(rights);
             }
-
-            free(user_name);
-            free(domain_name);
         }
 
         if (bitmap & kFPUnicodeName)
