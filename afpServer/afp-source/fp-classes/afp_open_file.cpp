@@ -44,7 +44,7 @@ afp_open_file::~afp_open_file()
 
 AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD creation_disposition)
 {
-	WCHAR sz_file_path[MAX_PATH];
+	std::filesystem::path file_path(m_windows_path_);
 	UINT32 desired_access = 0;
 	INT16 afp_flags = flag_index_set_item;
 	DWORD dw_flags_and_attr = FILE_ATTRIBUTE_NORMAL;
@@ -64,8 +64,6 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 	    desired_access |= GENERIC_WRITE;
 	}
 
-    [[maybe_unused]] auto ignore = StringCbCopy(sz_file_path, sizeof(sz_file_path), m_windows_path_);
-
 	switch (m_fork_)
 	{
 	case kDataFork:
@@ -73,18 +71,18 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 		break;
 
 	case kRsrcFork:
-        StringCbCat(sz_file_path, sizeof(sz_file_path), AFP_RESOURCE_FORK_NAME);
+		file_path.concat(AFP_RESOURCE_FORK_NAME);
         afp_flags |= flag_index_resource_fork_open;
         break;
 
 	case kAttrFork:
-		DBGWRITE(dbg_level_info, L"[AFPOpenFile:AFPOpenFileFork]Opening stream %s\n", stream_name);
+		DBGWRITE(dbg_level_info, L"Opening stream %s\n", stream_name);
 		ASSERT(stream_name != nullptr);
 
 		if (stream_name != nullptr)
 		{
-			StringCbCat(sz_file_path, sizeof(sz_file_path), TEXT(":"));
-			StringCbCat(sz_file_path, sizeof(sz_file_path), stream_name);
+			file_path.concat(L":");
+			file_path.concat(stream_name);
 
 			afp_flags |= flag_index_attribute_open;
 			dw_flags_and_attr = FILE_FLAG_BACKUP_SEMANTICS;
@@ -98,10 +96,10 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 
 	// ReSharper restore CppFunctionResultShouldBeUsed
 
-	DBGWRITE(dbg_level_trace, L"Opening file %s\n", sz_file_path);
+	DBGWRITE(dbg_level_trace, L"Opening file %s\n", file_path.c_str());
 
 	const auto h_file = CreateFile(
-		sz_file_path,
+		file_path.c_str(),
 		desired_access,
 		FILE_SHARE_READ | FILE_SHARE_WRITE,
 		nullptr,
@@ -113,7 +111,7 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 	if (h_file == INVALID_HANDLE_VALUE)
 	{
 		const auto dw_error = GetLastError();
-		DBGWRITE(dbg_level_info, L"CreateFile() failed! (%d) (%s)\n", dw_error, sz_file_path);
+		DBGWRITE(dbg_level_info, L"CreateFile() failed! (%d) (%s)\n", dw_error, file_path.c_str());
 
 		return afp_map_win_error_to_afp(dw_error, afpParmErr);
 	}
@@ -377,7 +375,7 @@ LONGLONG afp_open_file::get_stream_length(const PWCHAR stream_name) const
  * Returns: afpError code
  */
 
-AFPERROR afp_open_file::get_stream_list(std::vector<afp_attr_info>& streams)
+AFPERROR afp_open_file::get_stream_list(std::vector<afp_attr_info>& streams) const
 {
 	// Call the extended attribute helper functions for the dirty work.
 	return GetStreams(m_windows_path_, streams);

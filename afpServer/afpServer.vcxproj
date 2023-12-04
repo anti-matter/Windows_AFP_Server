@@ -152,22 +152,9 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
     <PostBuildEvent>
       <Message>Cleaning up manifest temp files...</Message>
       <Command>copy /y $(SolutionDir)afpServer\deps\openssl-1.1\lib\libcrypto-1_1.dll "$(OutDir)"
+$(SolutionDir)deploy.cmd $(SolutionDir)
 
-if exist "$(SolutionDir)PersonalAfpServer\" (
-  echo Deleting existing deploy folder...
-  rd /s /q "$(SolutionDir)PersonalAfpServer\"
-) else (
-  echo Didn't find existing deploy folder
-)
-
-echo Creating new directory...
-mkdir "$(SolutionDir)PersonalAfpServer"
-
-echo Copy files...
-copy /y "$(SolutionDir)afpServer\Release\AfpServer.exe" "$(SolutionDir)PersonalAfpServer\"
-copy /y "$(SolutionDir)afpServer\AfpServer.man" "$(SolutionDir)PersonalAfpServer\"
-copy /y "$(SolutionDir)install.cmd" "$(SolutionDir)PersonalAfpServer\"
-copy /y "$(SolutionDir)afpServer\deps\openssl-1.1\lib\libcrypto-1_1.dll" "$(SolutionDir)PersonalAfpServer\"</Command>
+</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

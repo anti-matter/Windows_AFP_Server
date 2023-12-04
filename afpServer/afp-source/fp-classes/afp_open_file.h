@@ -51,7 +51,7 @@ public:
 	bool is_fork_open() const { return m_file_handle_ != INVALID_HANDLE_VALUE; }
 
 	LONGLONG get_stream_length(PWCHAR stream_name = nullptr) const;
-	AFPERROR get_stream_list(std::vector<afp_attr_info>& streams);
+	AFPERROR get_stream_list(std::vector<afp_attr_info>& streams) const;
 
     [[nodiscard]] HANDLE get_file_handle() const { return m_file_handle_; }
     [[nodiscard]] INT16 get_file_ref_num() const { return m_file_ref_num_; }
