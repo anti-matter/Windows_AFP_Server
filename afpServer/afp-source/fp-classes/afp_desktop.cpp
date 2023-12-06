@@ -53,7 +53,7 @@ UINT32 afp_desktop::load_from_file()
         return desktop_file_error;
     }
 
-    DBGWRITE(dbg_level_trace, L"Desktop file contains %d items.\n", item_count);
+    DBGWRITE(dbg_level_trace, L"Desktop file for %s contains %d items.\n", desktop_file_path_.c_str(), item_count);
 
     for (std::vector<std::unique_ptr<afp_desk_item>>::size_type i = 0; i < item_count; ++i)
     {
@@ -278,7 +278,7 @@ void afp_desktop::dump_item(afp_desk_item* item, bool include_data)
 
     if (include_data)
     {
-        DBG_DUMP_BUFFER(item->data, item->data_size);
+        DBG_DUMP_BUFFER(item->data, item->data_size, dbg_level_trace);
     }
 }
 #endif

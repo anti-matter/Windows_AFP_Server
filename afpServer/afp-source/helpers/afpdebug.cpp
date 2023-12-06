@@ -36,11 +36,27 @@ void afp_debug_write(_In_ const dbg_level debug_level, _In_ const std::string& f
 		level = L"[INFO]";
 		break;
     case dbg_level_trace:
-		level = L"[ALL]";
+		level = L"[TRACE]";
 		break;
+    case dbg_level_dump_in:
+		level = L"[DUMP_IN]";
+        break;
+    case dbg_level_dump_out:
+		level = L"[DUMP_OUT]";
+        break;
     }
 
-	const std::wstring combined = level + L"[" + string_to_wide_string(function, kUnicodeNames) + L"]" + format;
+	std::wstring combined;
+
+	if (debug_level != dbg_level_dump_in && debug_level != dbg_level_dump_out)
+	{
+		combined = level + L"[" + string_to_wide_string(function, kUnicodeNames) + L"]" + format;
+	}
+	else
+	{
+		// Dumping buffer.
+		combined = level + L" " + format;
+	}
 
 	// Len + terminating character
 	const auto len = _vscwprintf(combined.c_str(), args) + 1;
@@ -111,8 +127,13 @@ std::string char_to_hex(const char n)
 	return result;
 }
 
-void hex_dump(const char* buffer, const size_t length)
+void hex_dump(const char* buffer, const size_t length, const dbg_level level)
 {
+	if (level > current_debug_level)
+	{
+		return;
+	}
+
 	std::string line;
 	std::string readable;
     DWORD j = 0;
@@ -128,7 +149,7 @@ void hex_dump(const char* buffer, const size_t length)
 				line.push_back(std::isprint(readable[k]) ? readable[k] : '.');
 			}
 
-			DBGWRITE(dbg_level_trace, L"%s\n", string_to_wide_string(line, CP_ACP).c_str());
+			DBGWRITE(level, L"%s\n", string_to_wide_string(line, CP_ACP).c_str());
 
 			line.erase();
 			readable.erase();
@@ -172,7 +193,7 @@ void hex_dump(const char* buffer, const size_t length)
 			line.push_back(std::isprint(readable[k]) ? readable[k] : '.');
 		}
 
-		DBGWRITE(dbg_level_trace, L"%s\n", string_to_wide_string(line, CP_ACP).c_str());
+		DBGWRITE(level, L"%s\n", string_to_wide_string(line, CP_ACP).c_str());
 	}
 }
 #endif

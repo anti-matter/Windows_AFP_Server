@@ -191,7 +191,7 @@ afp_open_file* afp_session::open_file(
  * Returns: AFP error code.
  */
 
-AFPERROR afp_session::open_volume(const UINT16 volume_id)
+AFPERROR afp_session::open_volume(const INT16 volume_id)
 {
     auto_lock lock(&m_mutex_);
     const std::shared_ptr<afp_volume> volume = g_volumes->find(volume_id);
@@ -219,7 +219,7 @@ AFPERROR afp_session::open_volume(const UINT16 volume_id)
  * Returns: AFP error code.
  */
 
-AFPERROR afp_session::close_volume(const UINT16 volume_id)
+AFPERROR afp_session::close_volume(const INT16 volume_id)
 {
     auto_lock lock(&m_mutex_);
 

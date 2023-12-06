@@ -28,8 +28,8 @@ public:
 	AFPERROR close_file(INT16 file_reference);
 	afp_open_file* find_open_file(INT16 file_reference);
 
-	AFPERROR open_volume(UINT16 volume_id);
-	AFPERROR close_volume(UINT16 volume_id);
+	AFPERROR open_volume(INT16 volume_id);
+	AFPERROR close_volume(INT16 volume_id);
 	std::shared_ptr<afp_volume> find_open_volume(UINT16 volume_id);
 	BOOL session_has_volume_open(UINT16 inVolumeID) { return find_open_volume(inVolumeID) != nullptr; }
 

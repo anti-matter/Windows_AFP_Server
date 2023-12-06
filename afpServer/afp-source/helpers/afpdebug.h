@@ -10,15 +10,17 @@ enum dbg_level
 	dbg_level_error = 1,
 	dbg_level_warning,
 	dbg_level_info,
+	dbg_level_dump_in,	// incoming data
+	dbg_level_dump_out, // outgoing data
 	dbg_level_trace
 };
 
-constexpr dbg_level current_debug_level = dbg_level_trace;
+constexpr dbg_level current_debug_level = dbg_level_info;
 
 #define DBGWRITE(level, message, ...) afp_debug_write(level, __func__, message, __VA_ARGS__)
 #define ASSERT(exp) assert(exp)
 
-#define DBG_DUMP_BUFFER(buffer, cb_buffer) hex_dump(buffer, cb_buffer)
+#define DBG_DUMP_BUFFER(buffer, cb_buffer, level) hex_dump(buffer, cb_buffer, level)
 
 
 void afp_debug_write(_In_ const dbg_level debug_level, _In_ const std::string& function, _In_ const WCHAR* format, ...);
@@ -27,7 +29,7 @@ void dump_bitmap(
 	IN DWORD bitmap
 );
 
-void hex_dump(const char* buffer, const size_t length);
+void hex_dump(const char* buffer, const size_t length, const dbg_level level);
 
 #else
 

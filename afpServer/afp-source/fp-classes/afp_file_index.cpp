@@ -67,7 +67,9 @@ afp_index* afp_file_index::add_entry(
 	entry->sz_path = p_object_path;
 	entry->object_id = m_next_id_++;
 	entry->par_id = par_id;
-	entry->par_entry = find(par_id);
+
+	// Root doesn't have a parent entry.
+	entry->par_entry = par_id == -1 ? nullptr : find(par_id);
 
 	// We get a hash to the path string so that we can perform faster,
 	// more efficient searches for full paths.
@@ -355,8 +357,8 @@ afp_index* afp_file_index::find(const INT32 object_id)
 	}
 
 	DBGWRITE(
-		dbg_level_info,
-		L"Failed to find objectID! (%d)\n", object_id);
+		dbg_level_warning,
+		L"objectID not found! (%d)\n", object_id);
 
 	return nullptr;
 }
@@ -383,7 +385,7 @@ afp_index* afp_file_index::find(const std::wstring& full_path)
 
 	if (it == m_index_.end())
 	{
-		DBGWRITE(dbg_level_info, L"Failed to find indexed object! (%s)\n", full_path.c_str());
+		DBGWRITE(dbg_level_warning, L"Indexed object not found! (%s)\n", full_path.c_str());
 		return nullptr;
 	}
 

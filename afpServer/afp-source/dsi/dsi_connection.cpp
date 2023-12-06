@@ -113,6 +113,8 @@ namespace dsi
 
 			do
 			{
+				DBG_DUMP_BUFFER(receive_buffer_.get(), bytes_in_buffer, dbg_level_dump_in);
+
 				// We have the entire DSI header and AFP payload.
 				process_dsi_packet(receive_buffer_.get());
 
@@ -129,7 +131,7 @@ namespace dsi
 					// Move the bits to the top of the receive buffer.
 					bytes_in_buffer -= static_cast<UINT16>(dsi_header_size + afp_data_length);
 
-					DBGWRITE(dbg_level_info, L"Processing overflow bytes!!! (%d)\n", bytes_in_buffer);
+					DBGWRITE(dbg_level_trace, L"Processing overflow bytes!!! (%d)\n", bytes_in_buffer);
 
 					memcpy_s(
 						receive_buffer_.get(),
@@ -355,10 +357,12 @@ namespace dsi
 			? reply.get_dsi_return_value()
 			: reply.get_data_length();
 
-		if (AFP_FAILED(afp_error) && afp_error != afpEofError)
+#ifdef _DEBUG
+		if (AFP_FAILED(afp_error) && afp_error != afpEofError && afp_error != afpObjectNotFound && afp_error != afpItemNotFound)
 		{
 			DBGWRITE(dbg_level_error, L"AFP error: %d\n", afp_error);
 		}
+#endif
 
 		send_reply(
 			reply_buffer,
@@ -439,7 +443,8 @@ namespace dsi
 
 		} while (true);
 
-		//DBGWRITE(dbg_level_info, L"Bytes sent: %d\n", bytes_sent+offset);
+		DBGWRITE(dbg_level_trace, L"Bytes sent: %d\n", bytes_sent+offset);
+		DBG_DUMP_BUFFER(buffer, send_size, dbg_level_dump_out);
 
 		perf_counters::current()->increment_bytes_sent(bytes_sent + offset);
 
@@ -482,7 +487,7 @@ namespace dsi
 		header.push_num(afp_data_size);
 		header.push_num<UINT32>(0);
 
-		DBGWRITE(dbg_level_info, L"Sending request, DSI command: %d, request id: %d\n", dsi_command, server_request_id_);
+		DBGWRITE(dbg_level_trace, L"Sending request, DSI command: %d, request id: %d\n", dsi_command, server_request_id_);
 
 		adjust_server_request_id();
 
@@ -493,7 +498,7 @@ namespace dsi
 	{
         char reply_buffer[dsi_header_size] = {};
 
-		DBGWRITE(dbg_level_info, L"Sending tickle to connection (%d)\n", connection_id_);
+		DBGWRITE(dbg_level_trace, L"Sending tickle to connection (%d)\n", connection_id_);
 
 		send_request(reply_buffer, dsi_cmd_tickle, 0);
 		last_tickle_ = GetTickCount64();
