@@ -15,7 +15,7 @@ std::unique_ptr<afp_volumes> g_volumes = std::make_unique<afp_volumes>();
 const std::wstring parent_directory_name = L"Parent";
 
 afp_volumes::afp_volumes()
-    : next_volume_id_(MAXSHORT)
+    : next_volume_id_(1)
     , index_queue_running_(true)
 {
     index_event_ = CreateEvent(nullptr, TRUE, TRUE, nullptr);
@@ -88,7 +88,7 @@ void afp_volumes::add_volume(const std::wstring& share_name, std::filesystem::pa
         return;
     }
 
-    const auto new_volume = std::make_shared<afp_volume>(share_name, share_path, next_volume_id_--, static_cast<BYTE>(0), flags);
+    const auto new_volume = std::make_shared<afp_volume>(share_name, share_path, next_volume_id_++, static_cast<BYTE>(0), flags);
     new_volume->set_create_date(win_attributes.ftCreationTime);
     new_volume->set_modified_date(win_attributes.ftLastWriteTime);
     new_volume->set_backup_date(default_backup_time);
@@ -421,14 +421,11 @@ void afp_volumes::dirty_volumes(std::vector<std::shared_ptr<afp_volume>>* dirty_
     std::lock_guard guard(volumes_mutex_);
     std::vector<std::shared_ptr<afp_volume>> result;
 
-    const auto it = std::ranges::find_if(volumes_, [=](const std::shared_ptr<afp_volume>& v)
+    for (auto v : volumes_)
     {
         if (v->is_dirty())
         {
             dirty_volumes->push_back(v);
-            return true;
         }
-
-        return false;
-    });
+    }
 }
