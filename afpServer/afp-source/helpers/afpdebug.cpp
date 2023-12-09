@@ -39,7 +39,7 @@ void afp_debug_write(_In_ const dbg_level debug_level, _In_ const std::string& f
 		level = L"[TRACE]";
 		break;
     case dbg_level_dump_in:
-		level = L"[DUMP_IN]";
+		level = L"[DUMP__IN]";
         break;
     case dbg_level_dump_out:
 		level = L"[DUMP_OUT]";

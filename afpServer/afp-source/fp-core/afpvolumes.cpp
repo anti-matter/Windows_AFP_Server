@@ -43,7 +43,7 @@ AFPERROR FPOpenVol(
     }
 
     // Get the volume parameters requested in the open call via the bitmap.
-    AFPERROR afp_error = AFPGetVolumeParameters(afp_volume_id, afp_bitmap, afp_reply);
+    AFPERROR afp_error = AFPGetVolumeParameters(afp_volume_id, afp_bitmap, connection->get_afp_version(), afp_reply);
 
     if (AFP_SUCCESS(afp_error))
     {
@@ -80,8 +80,11 @@ AFPERROR FPCloseVol(
     UNREFERENCED_PARAMETER(afp_reply);
 
     afp_request.advance_pos_ptr(sizeof(INT16));
+
     const auto afp_volume_id = afp_request.pull_num<INT16>();
     const auto afp_session = connection->get_afp_session();
+
+    DBGWRITE(dbg_level_trace, L"Closing volume: %d\n", afp_volume_id);
 
     return afp_session->close_volume(afp_volume_id);
 }
@@ -151,7 +154,7 @@ AFPERROR FPGetVolParms(
     const auto afp_bitmap = afp_request.pull_num<INT16>();
 
     // Get the volume parameters requested in the open call via the bitmap.
-    const AFPERROR afp_error = AFPGetVolumeParameters(afp_volume_id, afp_bitmap, afp_reply);
+    const AFPERROR afp_error = AFPGetVolumeParameters(afp_volume_id, afp_bitmap, connection->get_afp_version(), afp_reply);
 
     if (AFP_FAILED(afp_error))
     {

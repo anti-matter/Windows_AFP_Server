@@ -252,7 +252,7 @@ AFPERROR afp_session::close_volume(const INT16 volume_id)
  * Returns: Ptr to the block or nullptr
  */
 
-std::shared_ptr<afp_volume> afp_session::find_open_volume(const UINT16 volume_id)
+std::shared_ptr<afp_volume> afp_session::find_open_volume(const INT16 volume_id)
 {
     auto_lock lock(&m_mutex_);
 
@@ -280,7 +280,7 @@ std::shared_ptr<afp_volume> afp_session::find_open_volume(const UINT16 volume_id
  * Returns: AFP error code.
  */
 
-UINT16 afp_session::open_desk(const UINT16 volume_id)
+INT16 afp_session::open_desk(const INT16 volume_id)
 {
     const auto open_volume = find_open_volume(volume_id);
     if (open_volume == nullptr)
@@ -302,7 +302,7 @@ UINT16 afp_session::open_desk(const UINT16 volume_id)
  * Returns: AFP error code.
  */
 
-AFPERROR afp_session::close_desk(const UINT16 desk_ref_num)
+AFPERROR afp_session::close_desk(const INT16 desk_ref_num)
 {
     auto_lock lock(&m_mutex_);
 
@@ -326,7 +326,7 @@ AFPERROR afp_session::close_desk(const UINT16 desk_ref_num)
  * Returns: AFP error code.
  */
 
-afp_desktop* afp_session::get_desktop(const UINT16 desk_ref_num)
+afp_desktop* afp_session::get_desktop(const INT16 desk_ref_num)
 {
     auto_lock lock(&m_mutex_);
 

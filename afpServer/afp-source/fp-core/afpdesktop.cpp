@@ -32,7 +32,7 @@ AFPERROR FPOpenDT(
 	//
 	afp_request.advance_pos_ptr(sizeof(INT16));
 
-	const auto afp_volume_id = afp_request.pull_num<UINT16>();
+	const auto afp_volume_id = afp_request.pull_num<INT16>();
 	const auto afp_dt_ref_num = connection->get_afp_session()->open_desk(afp_volume_id);
 
 	if (afp_dt_ref_num == 0)
@@ -66,7 +66,7 @@ AFPERROR FPCloseDT(
 
 	afp_request.advance_pos_ptr(sizeof(INT16));
 
-	const auto afp_dt_ref_num = afp_request.pull_num<UINT16>();
+	const auto afp_dt_ref_num = afp_request.pull_num<INT16>();
 	const AFPERROR afp_error = connection->get_afp_session()->close_desk(afp_dt_ref_num);
 
 	return afp_error;
@@ -96,7 +96,7 @@ AFPERROR FPAddIcon(
 	// The first work contains the command and padding byte.
 	afp_request.advance_pos_ptr(sizeof(INT16));
 
-	const auto afp_dt_ref_num = afp_request.pull_num<UINT16>();
+	const auto afp_dt_ref_num = afp_request.pull_num<INT16>();
 
 	afp_desk_item icon_entry;
 
@@ -167,7 +167,7 @@ AFPERROR FPGetIcon(
 
 	afp_request.advance_pos_ptr(sizeof(UINT16));
 
-	const auto afp_dt_ref_num = afp_request.pull_num<UINT16>();
+	const auto afp_dt_ref_num = afp_request.pull_num<INT16>();
 
 	search_entry.item_type = entry_type_icon;
 	search_entry.file_creator = afp_request.pull_num<UINT32>();
@@ -223,7 +223,7 @@ AFPERROR FPGetIconInfo(
 	afp_desk_item search_entry;
 
 	afp_request.advance_pos_ptr(sizeof(UINT16));
-	const auto afp_dt_ref_num = afp_request.pull_num<UINT16>();
+	const auto afp_dt_ref_num = afp_request.pull_num<INT16>();
 
 	search_entry.file_creator = afp_request.pull_num<UINT32>();
 	const auto afp_icon_index = afp_request.pull_num<UINT16>();
@@ -423,7 +423,7 @@ AFPERROR FPRemoveComment(
 
 	afp_request.advance_pos_ptr(sizeof(INT16));
 
-	const auto afp_dt_refnum = afp_request.pull_num<UINT16>();
+	const auto afp_dt_refnum = afp_request.pull_num<INT16>();
 	search_entry.dir_id = afp_request.pull_num<INT32>();
 	search_entry.path_type = afp_request.pull_num<INT8>();
 	search_entry.item_type = entry_type_comment;
@@ -474,7 +474,7 @@ AFPERROR FPGetAPPL(
 	DBGWRITE(dbg_level_trace, L"Enter\n");
 
 	afp_request.advance_pos_ptr(sizeof(INT16));
-	const auto afp_dt_refnum = afp_request.pull_num<UINT16>();
+	const auto afp_dt_refnum = afp_request.pull_num<INT16>();
 
 	afp_request.pull_raw_data(&search_entry.file_creator, sizeof(FILE_CREATOR));
 
@@ -554,7 +554,7 @@ AFPERROR FPAddAPPL(
 
 	afp_request.advance_pos_ptr(sizeof(INT16));
 
-	const auto afp_dt_refnum = afp_request.pull_num<UINT16>();
+	const auto afp_dt_refnum = afp_request.pull_num<INT16>();
 
 	new_entry.dir_id = afp_request.pull_num<INT32>();
 	new_entry.file_creator = afp_request.pull_num<UINT32>();
@@ -606,7 +606,7 @@ AFPERROR FPRemoveAPPL(
 
 	afp_request.advance_pos_ptr(sizeof(INT16));
 
-	const auto afp_dt_refnum = afp_request.pull_num<UINT16>();
+	const auto afp_dt_refnum = afp_request.pull_num<INT16>();
 	search_entry.dir_id = afp_request.pull_num<INT32>();
 	search_entry.file_creator = afp_request.pull_num<UINT32>();
 	search_entry.path_type = afp_request.pull_num<UINT8>();

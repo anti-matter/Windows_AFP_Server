@@ -44,6 +44,7 @@ DWORD AFPRemoveVolumeFromUI(
 AFPERROR AFPGetVolumeParameters(
     IN const INT16 afp_volume_id,
     IN const INT16 afp_bitmap,
+    IN UINT8 afp_version,
     IN afp_net_buffer& afp_reply
 )
 {
@@ -61,6 +62,8 @@ AFPERROR AFPGetVolumeParameters(
 
     // Always send back the bitmap we were provided.
     afp_reply.push_num(afp_bitmap);
+
+    const auto param_start = afp_reply.get_current_pos_ptr();
 
     if (afp_bitmap & (kFPVolBytesFreeBit | kFPVolBytesTotalBit |
         kFPVolExtBytesFree | kFPVolExtBytesTotal | kFPVolBlockSize))
@@ -87,7 +90,7 @@ AFPERROR AFPGetVolumeParameters(
 
     if (afp_bitmap & kFPVolAttributeBit)
     {
-        UINT16 attributes = kFPVolSupportsUnicodeNames | kFPVolSupportsFileIDs | kNoExchangeFiles | kSupportsExtAttrs;
+        UINT16 attributes = 0;
         WCHAR volume_name[32]{};
         WCHAR file_system_name[32]{};
         DWORD max_file_name_len = 0;
@@ -114,9 +117,21 @@ AFPERROR AFPGetVolumeParameters(
             attributes |= kFPVolReadOnly;
         }
 
+        attributes |= kFPVolSupportsFileIDs | kNoExchangeFiles;
+
         if (afp_volume->get_internal_flags() & flag_volume_has_password)
         {
             attributes |= kFPVolHasVolumePassword;
+        }
+
+        if (afp_version >= afpVersion30)
+        {
+            attributes |= kFPVolSupportsUnicodeNames;
+        }
+
+        if (afp_version >= afpVersion32)
+        {
+            attributes |= kSupportsExtAttrs;
         }
 
         afp_reply.push_num(attributes);
@@ -179,6 +194,7 @@ AFPERROR AFPGetVolumeParameters(
         afp_reply.advance_pos_ptr(sizeof(UINT16));
     }
 
+
     // The following 3 bits will only be set if the caller
     // is using AFP 2.2 or later.
     if (afp_bitmap & kFPVolExtBytesFree)
@@ -224,7 +240,8 @@ AFPERROR AFPGetVolumeParameters(
 
     if (afp_bitmap & kFPVolNameBit)
     {
-        *volume_name_offset = htons(static_cast<u_short>(afp_reply.get_data_length() - sizeof(UINT16)));
+        // Offset is start of parameters (not start of bitmap).
+        *volume_name_offset = htons(static_cast<INT16>(afp_reply.get_current_pos_ptr() - param_start));
         afp_reply.push_string(afp_volume->get_share_name());
     }
 

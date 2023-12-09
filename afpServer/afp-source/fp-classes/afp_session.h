@@ -30,12 +30,12 @@ public:
 
 	AFPERROR open_volume(INT16 volume_id);
 	AFPERROR close_volume(INT16 volume_id);
-	std::shared_ptr<afp_volume> find_open_volume(UINT16 volume_id);
-	BOOL session_has_volume_open(UINT16 inVolumeID) { return find_open_volume(inVolumeID) != nullptr; }
+	std::shared_ptr<afp_volume> find_open_volume(INT16 volume_id);
+	BOOL session_has_volume_open(INT16 inVolumeID) { return find_open_volume(inVolumeID) != nullptr; }
 
-	UINT16 open_desk(UINT16 volume_id);
-	AFPERROR close_desk(UINT16 desk_ref_num);
-	afp_desktop* get_desktop(UINT16 desk_ref_num);
+	INT16 open_desk(INT16 volume_id);
+	AFPERROR close_desk(INT16 desk_ref_num);
+	afp_desktop* get_desktop(INT16 desk_ref_num);
 
 	UINT32 get_token() const { return m_token_; }
 
@@ -57,7 +57,7 @@ private:
 
     std::vector<std::unique_ptr<afp_open_file>> m_afp_open_files_;
 	std::vector<std::shared_ptr<afp_volume>> m_open_volumes_;
-	std::vector<UINT16> m_open_desks_;
+	std::vector<INT16> m_open_desks_;
 
 	// These are used so the AFP client can reference this session in
 	// the event of a client crash or disconnection.

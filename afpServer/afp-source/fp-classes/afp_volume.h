@@ -56,7 +56,7 @@ public:
 
     std::filesystem::path& get_share_path() { return share_path_; }
     std::wstring& get_share_name() { return share_name_; }
-    [[nodiscard]]UINT32 get_internal_flags() const { return internal_flags_; }
+    [[nodiscard]] UINT32 get_internal_flags() const { return internal_flags_; }
     [[nodiscard]] BYTE get_afp_flags() const { return afp_flags_; }
 
     [[nodiscard]] afp_desktop* get_desktop() const { return desktop_.get(); }
