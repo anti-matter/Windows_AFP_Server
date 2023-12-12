@@ -2,9 +2,6 @@
 // Microsoft Visual C++ generated include file.
 // Used by afpserver.rc
 //
-#define VERSION_MINOR                   0
-#define VERSION_REVISION                0
-#define VERSION_BUILD                   0
 #define VER_VER_DEBUG                   0
 #define VERSION_MAJOR                   2
 #define IDI_TRAYICON                    102

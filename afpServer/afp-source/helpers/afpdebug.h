@@ -15,7 +15,7 @@ enum dbg_level
 	dbg_level_trace
 };
 
-constexpr dbg_level current_debug_level = dbg_level_trace;
+constexpr dbg_level current_debug_level = dbg_level_info;
 
 #define DBGWRITE(level, message, ...) afp_debug_write(level, __func__, message, __VA_ARGS__)
 #define ASSERT(exp) assert(exp)
@@ -35,9 +35,10 @@ void hex_dump(const char* buffer, const size_t length, const dbg_level level);
 
 #define DBGWRITE(level, message, ...)
 #define ASSERT(exp)
-#define DBG_DUMP_BUFFER(buffer, cb_buffer)
+#define DBG_DUMP_BUFFER(buffer, cb_buffer, level)
 
 #endif
 
 #define ERROR_DLG_TITLE TEXT("AFP Error")
 void report_error(CHAR* sz_error, DWORD dw_error);
+ 

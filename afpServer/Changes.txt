@@ -1,0 +1,6 @@
+===============================================================================
+Personal AFP Server Change Log
+
+Version 2.0.1:
+- New installer (Microsoft Installer Project) to have a more Windows-like installation
+- Check file name length when enumerating a directory. Prevent Finder crash.

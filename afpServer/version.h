@@ -1,6 +1,7 @@
 // ReSharper disable IdentifierTypo
 // ReSharper disable CppClangTidyClangDiagnosticUnusedMacros
 // ReSharper disable CppClangTidyModernizeMacroToEnum
+// ReSharper disable CppClangTidyClangDiagnosticMacroRedefined
 #pragma once
 
 #define STRINGIZE2(s) #s
@@ -8,7 +9,7 @@
 
 #define VERSION_MAJOR               2
 #define VERSION_MINOR               0
-#define VERSION_REVISION            0
+#define VERSION_REVISION            1
 #define VERSION_BUILD               0
 
 #define VER_FILE_DESCRIPTION_STR    "Apple Filing Protocol Server for Windows."

@@ -448,14 +448,16 @@ UINT32 afp_file_index::get_offspring(const INT32 par_id)
 *		None
 */
 
-void afp_file_index::dump_index()
+void afp_file_index::dump_index(const INT32 par_id)
 {
-	DBGWRITE(dbg_level_info, L"Dumping index...\n");
+	std::vector<afp_index*> offspring;
+	const auto count = get_offspring(par_id, offspring);
 
-	for (auto it = m_index_.begin(); it < m_index_.end(); ++it)
+	DBGWRITE(dbg_level_info, L"Dumping index with %d elements.\n", count);
+
+	for (const auto it : offspring)
 	{
-		const auto entry = it->get();
-		dump_entry(entry);
+		dump_entry(it);
 	}
 }
 
@@ -469,6 +471,7 @@ void afp_file_index::dump_entry(const afp_index* entry)
 	DBGWRITE(dbg_level, L"Object name: %s\n", entry->sz_object_name.c_str());
 	DBGWRITE(dbg_level, L"Flags:       %d\n", entry->flags);
 	DBGWRITE(dbg_level, L"Hash:        %lu\n", entry->path_hash);
+	DBGWRITE(dbg_level, L"---------------\n", entry->path_hash);
 }
 
 #endif

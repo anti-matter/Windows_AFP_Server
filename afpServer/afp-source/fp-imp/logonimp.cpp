@@ -33,7 +33,7 @@ AFPERROR afp_imp_user_logon(
         DBGWRITE(dbg_level_info, L"LogonUser() failed (%d)\n", GetLastError());
 
         // If we had a failure to logon, close the session down.
-        connection->kill_connection();
+        //connection->kill_connection();
 
         afp_error = afp_map_win_error_to_afp(GetLastError(), afpUserNotAuth);
 

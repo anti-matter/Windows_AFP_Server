@@ -11,12 +11,14 @@ enum users_and_group_name_type : BYTE
     afp_group_name_type
 };
 
-typedef struct
+struct afp_user_group_name
 {
+    afp_user_group_name() : type(afp_user_name_type), id(0) { }
+
     BYTE type;
     DWORD id;
     std::wstring name;
-} afp_user_group_name;
+};
 
 class users_and_groups_cache
 {

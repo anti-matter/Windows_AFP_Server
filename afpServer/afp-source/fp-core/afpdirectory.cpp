@@ -317,7 +317,8 @@ AFPERROR FPEnumerate(
 
         // We don't include some files (like the desktop db) since they
         // are server specific and the macs shouldn't see or edit them.
-        if (!lstrcmp(index_item->sz_object_name.c_str(), desktop_file_name.c_str()))
+        // Also, check for names too long as they'll crash the Finder.
+        if (index_item->sz_object_name == desktop_file_name || index_item->sz_object_name.size() > APPLETALK_NAME_LEN)
         {
             return;
         }

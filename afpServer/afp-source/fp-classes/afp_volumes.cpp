@@ -1,15 +1,14 @@
 #include "stdafx.h"
 #include <thread>
-
-#include "afp_volumes.h"
-
 #include <afpEvents.h>
 
+#include "afp_volumes.h"
 #include "fpinfo.h"
 #include "afpdebug.h"
 #include "afpServer.h"
 #include "afp_registry.h"
 #include "fdparms.h"
+#include "afphelp.h"
 
 std::unique_ptr<afp_volumes> g_volumes = std::make_unique<afp_volumes>();
 const std::wstring parent_directory_name = L"Parent";
@@ -96,7 +95,14 @@ void afp_volumes::add_volume(const std::wstring& share_name, std::filesystem::pa
     const auto new_index = new_volume->get_index();
 
     // Add parent of root.
-    new_index->add_entry(MAXDWORD, parent_directory_name, share_path.parent_path(), true);
+    const std::filesystem::path parent_path = share_path.parent_path();
+    std::wstring parent_of_root_name = parent_path.filename();
+    if (parent_of_root_name.empty())
+    {
+        parent_of_root_name = get_root_drive_of_file_path(parent_path);
+    }
+
+    new_index->add_entry(kParentOfRoot, parent_of_root_name, share_path.parent_path(), true);
 
     // Add root directory.
     const auto root_index = new_index->add_entry(kParentOfRoot, share_name, share_path, true);
@@ -238,6 +244,7 @@ bool afp_volumes::index_build(std::filesystem::path& share_path, const INT32  pa
     if (parent_dir_id == kRootDirID)
     {
         index_queue_task(task_index_complete, volume, kRootDirID, share_path);
+        volume->get_index()->dump_index(kRootDirID);
     }
 
     return true;
