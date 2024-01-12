@@ -78,7 +78,7 @@ public:
 	[[nodiscard]] std::reference_wrapper<std::recursive_mutex> get_mutex() { return std::ref(mutex_); }
 
 #ifdef _DEBUG
-	void dump_index();
+	void dump_index(INT32 par_id);
     static void dump_entry(const afp_index* entry);
 #endif
 

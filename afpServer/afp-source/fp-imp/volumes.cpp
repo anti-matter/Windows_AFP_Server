@@ -44,7 +44,7 @@ DWORD AFPRemoveVolumeFromUI(
 AFPERROR AFPGetVolumeParameters(
     IN const INT16 afp_volume_id,
     IN const INT16 afp_bitmap,
-    IN UINT8 afp_version,
+    IN const UINT8 afp_version,
     IN afp_net_buffer& afp_reply
 )
 {
@@ -163,7 +163,7 @@ AFPERROR AFPGetVolumeParameters(
         // The max allowable on AFP 2.2 clients is 2GB.
         if (free_bytes_available.QuadPart > MAXLONG)
         {
-            afp_reply.push_num(MAXLONG);
+            afp_reply.push_num<UINT32>(MAXLONG/2);
         }
         else
         {
@@ -178,7 +178,7 @@ AFPERROR AFPGetVolumeParameters(
         // minus 4GB.
         if (num_bytes_in_disk.QuadPart > MAXLONG)
         {
-            afp_reply.push_num(MAXLONG);
+            afp_reply.push_num<UINT32>(MAXLONG/2);
         }
         else
         {

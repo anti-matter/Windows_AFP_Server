@@ -159,6 +159,8 @@ AFPERROR fp_dispatch_command(
 				break;
 
 			default:
+				DBGWRITE(dbg_level_info, L"Call not implemented (%d)\n", afp_command);
+				DBG_DUMP_BUFFER(afp_request.get_buffer(), afp_request.get_buffer_size(), dbg_level_trace);
 				break;
 			}
 		}

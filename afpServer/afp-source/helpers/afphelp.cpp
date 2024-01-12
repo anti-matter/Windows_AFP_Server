@@ -4,6 +4,8 @@
 #include <winerror.h>
 #include <Aclapi.h>
 #include <winnt.h>
+#include <Shlwapi.h>
+#pragma comment(lib, "Shlwapi.lib")
 
 #include "afphelp.h"
 #include "afpdebug.h"
@@ -49,6 +51,21 @@ std::wstring string_to_wide_string(const std::string& string, const UINT code_pa
     return result;
 }
 
+std::wstring get_root_drive_of_file_path(const std::wstring& file_path)
+{
+    const int drive_number = PathGetDriveNumber(file_path.c_str());
+    if (drive_number == -1)
+    {
+	    return L"";
+    }
+
+    wchar_t buff[4] = {};
+
+    PathBuildRoot(buff, drive_number);
+
+    return { buff };
+}
+
 void afp_extract_domain_and_user_name(
     IN std::wstring& user_name,
     OUT std::wstring& domain_name
@@ -76,16 +93,12 @@ ULONG afp_windows_to_mac_time(
 {
     ULARGE_INTEGER seconds;
     ULARGE_INTEGER time;
-    LARGE_INTEGER seconds_to_start_of1980;
-
-    seconds_to_start_of1980.LowPart = 0xc8df3700;
-    seconds_to_start_of1980.HighPart = 0x00000002;
 
     time.LowPart = file_time->dwLowDateTime;
     time.HighPart = file_time->dwHighDateTime;
 
     seconds.QuadPart = time.QuadPart / num_100_ns_per_second;
-    seconds.QuadPart = seconds.QuadPart - seconds_to_start_of1980.QuadPart;
+    seconds.QuadPart = seconds.QuadPart - seconds_to_start_of_1980.QuadPart;
 
     return seconds.LowPart - seconds_from_1980_2000;
 }
@@ -96,15 +109,11 @@ ULONG afp_windows_to_mac_local_time(
 {
     LARGE_INTEGER local_time;
     LARGE_INTEGER seconds;
-    LARGE_INTEGER seconds_to_start_of1980;
-
-    seconds_to_start_of1980.LowPart = 0xc8df3700;
-    seconds_to_start_of1980.HighPart = 0x00000002;
 
     FileTimeToLocalFileTime(file_time, reinterpret_cast<PFILETIME>(&local_time));
 
     seconds.QuadPart = local_time.QuadPart / num_100_ns_per_second;
-    seconds.QuadPart = seconds.QuadPart - seconds_to_start_of1980.QuadPart;
+    seconds.QuadPart = seconds.QuadPart - seconds_to_start_of_1980.QuadPart;
 
     return seconds.LowPart - seconds_from_1980_2000;
 }
@@ -115,14 +124,10 @@ void afp_mac_to_windows_time(
 )
 {
     LARGE_INTEGER local_time;
-    LARGE_INTEGER seconds_to_start_of1980;
-
-    seconds_to_start_of1980.LowPart = 0xc8df3700;
-    seconds_to_start_of1980.HighPart = 0x00000002;
 
     mac_time += seconds_from_1980_2000;
 
-    local_time.QuadPart = mac_time + seconds_to_start_of1980.QuadPart;
+    local_time.QuadPart = mac_time + seconds_to_start_of_1980.QuadPart;
     local_time.QuadPart = local_time.QuadPart * num_100_ns_per_second;
 
     file_time->dwLowDateTime = local_time.LowPart;

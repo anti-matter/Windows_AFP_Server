@@ -1,9 +1,8 @@
 :: Install/Uninstall components for the Personal AFP Server
 :: This script performs the following:
-::   1. Copies the server binary, necessary support DLL, and other misc. files to Program Files (x86)
-::   2. Sets up the configuration needed to enable event logging (viewed from the EventViewer app)
+::   1. Sets up the configuration needed to enable event logging (viewed from the EventViewer app)
 ::      and counters in the Performance Monitor (PerfMon).
-::   3. Puts a shortcut to the AFP Server on the user's desktop.
+::   2. Puts a shortcut to the AFP Server on the user's desktop.
 ::
 :: To uninstall, use the -u switch, e.g. install.cmd -u
 
@@ -42,17 +41,9 @@ if '%errorlevel%' NEQ '0' (
 for /f "usebackq tokens=1,2,*" %%B IN (`reg query "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" /v Desktop`) do set DESKTOP=%%D
 
 :: Locations and names of our items
-set productname=AfpServer
-set servername=AfpServer
-set installpath=%ProgramFiles(x86)%\%productname%\
-set linkpath=%DESKTOP%\%servername%.lnk
-
-:: Cannot install or uninstall if the server currently running.
-tasklist /fi "ImageName eq %servername%.exe" /fo csv 2>NUL | find /I "%servername%.exe">NUL
-if "%ERRORLEVEL%"=="0" (
-    echo ERROR: Program is running, please shutdown the server and try again.
-    goto end
-)
+set productname=Personal AFP Server
+set manufacturer=AfpServer
+set installpath="%ProgramFiles(x86)%\%manufacturer%\%productname%\"
 
 if "%~1" == "-u" goto uninstall
 
@@ -60,36 +51,18 @@ echo Installing Personal AFP Server for Windows...
 echo Installing into %installpath%
 
 if exist "%installpath%" (
-    goto copyfiles
+    goto setuptools
 ) else (
     echo No existing installation found
+    goto end
 )
 
-mkdir "%installpath%"
-
-:: Copy the files to the correct location, overwrite any existing.
-:copyfiles
-copy /y *.* "%installpath%"
-
-:: Create a shortcut on the desktop using VB
-:: From https://superuser.com/questions/455364/how-to-create-a-shortcut-using-a-batch-script
-echo Creating shortcut on the Desktop...
-
-set SCRIPT="%TEMP%\afp-shrtcut.vbs"
-
-echo Set oWS = WScript.CreateObject("WScript.Shell") >> %SCRIPT%
-echo sLinkFile = "%DESKTOP%\%servername%.lnk" >> %SCRIPT%
-echo Set oLink = oWS.CreateShortcut(sLinkFile) >> %SCRIPT%
-echo oLink.TargetPath = "%installpath%%servername%.exe" >> %SCRIPT%
-echo oLink.Save >> %SCRIPT%
-
-cscript /nologo %SCRIPT%
-del %SCRIPT%
+:setuptools
 
 :: Enable PerfMon and Event Viewer instruments
 echo Setting up PerfMon counters and Event Viewer output...
-wevtutil im afpServer.man >nul
-lodctr.exe /M:afpServer.man >nul
+wevtutil im afpServer.man
+lodctr.exe /M:afpServer.man
 
 echo Installation complete!
 
@@ -101,9 +74,6 @@ echo Uninstalling Personal AFP Server for Windows tools...
 
 wevtutil.exe um afpServer.man
 unlodctr.exe /M:afpServer.man
-
-del /q "%DESKTOP%\%servername%.lnk"
-rd /s /q "%installpath%"
 
 echo .
 echo Uninstall complete.
