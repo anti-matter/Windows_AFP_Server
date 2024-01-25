@@ -7,6 +7,7 @@
 #include "afp_desktop.h"
 #include "afp_volumes.h"
 #include "afp_volume.h"
+#include "windows_security.h"
 
 extern std::unique_ptr<afp_volumes> g_volumes;
 
@@ -200,6 +201,31 @@ AFPERROR afp_session::open_volume(const INT16 volume_id)
     {
         DBGWRITE(dbg_level_error, L"Bad volume ID\n");
         return afpParmErr;
+    }
+
+    DWORD rights;
+    const auto win_error = get_directory_rights(
+        volume->get_share_path().c_str(),
+        m_dsi_session_->get_user_name(),
+        &rights
+    );
+
+    if (!win_error)
+    {
+        DBGWRITE(dbg_level_error, L"Failed to get volume access rights.\n", volume->get_share_name().c_str());
+        return afpAccessDenied;
+    }
+
+    if ((rights & kAccess_OR) == 0 &&
+        (rights & kAccess_GR) == 0 &&
+        (rights & kAccess_WR) == 0 &&
+        (rights & kAccess_UAR) == 0)
+    {
+        DBGWRITE(dbg_level_error, L"User (%s) does not have access rights to open volume (%s).\n",
+            m_dsi_session_->get_user_name().c_str(),
+            volume->get_share_name().c_str());
+
+        return afpAccessDenied;
     }
 
     m_open_volumes_.push_back(volume);
