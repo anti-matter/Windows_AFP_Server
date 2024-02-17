@@ -649,6 +649,7 @@ AFPERROR FPRead(
     // 68K machines running MacOS8.x will ask for a negative offset.
     if (afp_offset < 0)
     {
+        DBGWRITE(dbg_level_error, L"Read offset supplied by client is negative!\n");
         return afpParmErr;
     }
 
