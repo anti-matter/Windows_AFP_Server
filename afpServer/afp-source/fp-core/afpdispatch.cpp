@@ -88,7 +88,14 @@ afp_function_table afp_table[] = {
 	{FPGetExtAttribute},
 	{FPSetExtAttribute},
 	{FPRemoveExtAttribute},
-	{FPListExtAttribute}
+	{FPListExtAttribute}, // 72
+	{fp_unimplemented}, //73
+	{fp_unimplemented}, //74
+	{fp_unimplemented}, //75
+	{fp_unimplemented}, //FPSpotlightRPC
+	{fp_unimplemented}, //77
+	{fp_unimplemented}, //FPSyncDir
+	{fp_unimplemented}  //FPSyncFork
 #endif
 };
 
