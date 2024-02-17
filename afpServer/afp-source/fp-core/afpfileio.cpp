@@ -633,8 +633,8 @@ AFPERROR FPRead(
     switch (afp_command)
     {
     case afpRead:
-        afp_offset = afp_request.pull_num<UINT32>();
-        afp_req_count = afp_request.pull_num<UINT32>();
+        afp_offset = afp_request.pull_num<INT32>();
+        afp_req_count = afp_request.pull_num<INT32>();
         break;
 
     case afpReadExt:
@@ -644,6 +644,12 @@ AFPERROR FPRead(
 
     default:
         return (afpParmErr);
+    }
+
+    // 68K machines running MacOS8.x will ask for a negative offset.
+    if (afp_offset < 0)
+    {
+        return afpParmErr;
     }
 
     // Here is where we would normally get the newLineMask and char, however,
