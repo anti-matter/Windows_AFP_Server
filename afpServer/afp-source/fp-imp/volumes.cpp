@@ -163,7 +163,7 @@ AFPERROR AFPGetVolumeParameters(
         // The max allowable on AFP 2.2 clients is 2GB.
         if (free_bytes_available.QuadPart > MAXLONG)
         {
-            afp_reply.push_num<UINT32>(MAXLONG/2);
+            afp_reply.push_num<INT32>(MAXLONG/2);
         }
         else
         {
@@ -178,7 +178,7 @@ AFPERROR AFPGetVolumeParameters(
         // minus 4GB.
         if (num_bytes_in_disk.QuadPart > MAXLONG)
         {
-            afp_reply.push_num<UINT32>(MAXLONG/2);
+            afp_reply.push_num<INT32>(MAXLONG/2);
         }
         else
         {

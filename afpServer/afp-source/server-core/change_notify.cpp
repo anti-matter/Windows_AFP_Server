@@ -169,8 +169,6 @@ void change_notify::afp_read_dir_changes(
         case FILE_ACTION_RENAMED_NEW_NAME:
             lstrcpyn(file_name, p_info->FileName, static_cast<int>(p_info->FileNameLength));
 
-            DBGWRITE(dbg_level_trace, L"File renamed, new name = %s\n", file_name);
-
             if (index_entry != nullptr)
             {
                 WCHAR new_name[64];
@@ -178,8 +176,10 @@ void change_notify::afp_read_dir_changes(
                 ZeroMemory(new_name, sizeof(new_name));
                 afp_get_object_name_from_path(file_name, new_name, sizeof(new_name));
 
+                DBGWRITE(dbg_level_trace, L"File renamed, new name = %s\n", new_name);
+
                 char_map_data char_map;
-                volume->get_index()->update_entry(index_entry, index_entry->par_entry, file_name, &char_map);
+                volume->get_index()->update_entry(index_entry, index_entry->par_entry, new_name, &char_map);
                 volume->set_is_dirty();
             }
             break;
