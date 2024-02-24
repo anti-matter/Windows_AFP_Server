@@ -68,8 +68,8 @@ afp_index* afp_file_index::add_entry(
 	entry->object_id = m_next_id_++;
 	entry->par_id = par_id;
 
-	// Root doesn't have a parent entry.
-	entry->par_entry = par_id == -1 ? nullptr : find(par_id);
+	// The parent of root doesn't have a parent entry.
+	entry->par_entry = par_id == kNoParent ? nullptr : find(par_id);
 
 	// We get a hash to the path string so that we can perform faster,
 	// more efficient searches for full paths.

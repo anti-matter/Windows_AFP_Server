@@ -249,12 +249,9 @@ $(SolutionDir)deploy.cmd $(SolutionDir)
     <ClInclude Include="afp-source\ui\aboutdlg.h" />
     <ClInclude Include="afp-source\ui\addshare.h" />
     <ClInclude Include="afp-source\ui\sendmsgdlg.h" />
-    <ClInclude Include="afp_char_map.h" />
-    <ClInclude Include="power_config.h" />
     <ClInclude Include="resources\resource.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="version.h" />
-    <ClInclude Include="windows_security.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="afpServer.man">

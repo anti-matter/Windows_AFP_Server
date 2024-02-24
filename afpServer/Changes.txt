@@ -7,3 +7,4 @@ Version 2.0.1:
 - Fixed volume parent folder entry in index, use drive letter for path if required.
 - FPRead should read INT32 for offset, not UINT32. Also, check for positive value.
 - Correctly write char_map to dir/file that are created via Windows explorer.
+- Some programs would hang in StdPutFile enumerating a file share (looking for parent of root).

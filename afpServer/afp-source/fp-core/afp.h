@@ -29,6 +29,7 @@ enum
     kPathDelimiter = L':',
     kRootDirID = 2,
     kParentOfRoot = 1,
+    kNoParent = -1,
     kReadMode = 0x0001,
     kWriteMode = 0x0002,
 };

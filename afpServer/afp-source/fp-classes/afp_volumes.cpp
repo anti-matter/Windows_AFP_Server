@@ -102,7 +102,7 @@ void afp_volumes::add_volume(const std::wstring& share_name, std::filesystem::pa
         parent_of_root_name = get_root_drive_of_file_path(parent_path);
     }
 
-    new_index->add_entry(kParentOfRoot, parent_of_root_name, share_path.parent_path(), true);
+    new_index->add_entry(kNoParent, parent_of_root_name, share_path.parent_path(), true);
 
     // Add root directory.
     const auto root_index = new_index->add_entry(kParentOfRoot, share_name, share_path, true);
@@ -244,7 +244,6 @@ bool afp_volumes::index_build(std::filesystem::path& share_path, const INT32  pa
     if (parent_dir_id == kRootDirID)
     {
         index_queue_task(task_index_complete, volume, kRootDirID, share_path);
-        volume->get_index()->dump_index(kRootDirID);
     }
 
     return true;
