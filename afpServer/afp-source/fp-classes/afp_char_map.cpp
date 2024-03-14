@@ -55,7 +55,7 @@ std::wstring afp_char_map::generate_map_from_mac_path(const std::string& mac_pat
 		win_path[win_path.size() - 1] = replacement_char;
 	}
 
-	DBGWRITE(dbg_level_info, L"Mappings count: %d\n", map_index);
+	DBGWRITE(dbg_level_trace, L"Mappings count: %d\n", map_index);
 
 	map_data.num_mappings = map_index;
 

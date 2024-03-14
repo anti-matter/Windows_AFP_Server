@@ -37,23 +37,23 @@ public:
 	AFPERROR close_desk(INT16 desk_ref_num);
 	afp_desktop* get_desktop(INT16 desk_ref_num);
 
-	UINT32 get_token() const { return m_token_; }
+    [[nodiscard]] UINT32 get_token() const { return m_token_; }
 
-	INT16 get_num_files_open() const { return static_cast<INT16>(m_afp_open_files_.size()); }
-	INT16 get_num_volumes_open() const { return static_cast<INT16>(m_open_volumes_.size()); }
-	INT16 get_num_desks_open() const { return static_cast<INT16>(m_open_desks_.size()); }
+    [[nodiscard]] INT16 get_num_files_open() const { return static_cast<INT16>(m_afp_open_files_.size()); }
+    [[nodiscard]] INT16 get_num_volumes_open() const { return static_cast<INT16>(m_open_volumes_.size()); }
+    [[nodiscard]] INT16 get_num_desks_open() const { return static_cast<INT16>(m_open_desks_.size()); }
 
 	void set_session_id(std::unique_ptr<char[]>& id, UINT32 id_size);
-	char* get_afp_id() const { return afp_id_.get(); }
-	UINT32 get_afp_id_size() const { return afp_id_size_; }
+    [[nodiscard]] char* get_afp_id() const { return afp_id_.get(); }
+    [[nodiscard]] UINT32 get_afp_id_size() const { return afp_id_size_; }
 	void set_afp_time_stamp(UINT32 inTime) { m_afp_time_stamp_ = inTime; }
-	UINT32 get_afp_time_stamp() const { return m_afp_time_stamp_; }
+    [[nodiscard]] UINT32 get_afp_time_stamp() const { return m_afp_time_stamp_; }
 
-	dsi::dsi_connection* get_dsi_session() const { return m_dsi_session_; }
+    [[nodiscard]] dsi::dsi_connection* get_dsi_session() const { return m_dsi_session_; }
 
 private:
 
-    CRITICAL_SECTION m_mutex_;
+	std::recursive_mutex m_mutex_;
 
     std::vector<std::unique_ptr<afp_open_file>> m_afp_open_files_;
 	std::vector<std::shared_ptr<afp_volume>> m_open_volumes_;

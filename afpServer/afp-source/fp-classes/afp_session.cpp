@@ -2,7 +2,6 @@
 #include <algorithm>
 
 #include "afp_session.h"
-#include "auto_lock.h"
 #include "afp_open_file.h"
 #include "afp_desktop.h"
 #include "afp_volumes.h"
@@ -27,7 +26,6 @@ afp_session::afp_session(dsi::dsi_connection* dsi_session)
       , m_afp_time_stamp_(0)
       , m_dsi_session_(dsi_session)
 {
-    InitializeCriticalSection(&m_mutex_);
 }
 
 
@@ -42,9 +40,9 @@ afp_session::afp_session(dsi::dsi_connection* dsi_session)
 
 afp_session::~afp_session()
 {
-    EnterCriticalSection(&m_mutex_);
+    std::lock_guard lock(m_mutex_);
 
-    std::ranges::for_each(m_afp_open_files_, [=, this](const std::unique_ptr<afp_open_file>& of)
+    std::ranges::for_each(m_afp_open_files_, [this](const std::unique_ptr<afp_open_file>& of)
         {
             if (of != nullptr)
             {
@@ -52,13 +50,10 @@ afp_session::~afp_session()
             }
         });
 
-    std::ranges::for_each(m_open_volumes_, [=, this](const std::shared_ptr<afp_volume>& ov)
+    std::ranges::for_each(m_open_volumes_, [this](const std::shared_ptr<afp_volume>& ov)
         {
             close_volume(ov->get_volume_id());
         });
-
-    LeaveCriticalSection(&m_mutex_);
-    DeleteCriticalSection(&m_mutex_);
 }
 
 
@@ -73,7 +68,7 @@ afp_session::~afp_session()
 
 void afp_session::associate_open_file(afp_open_file* open_file)
 {
-    auto_lock lock(&m_mutex_);
+   std::lock_guard lock(m_mutex_);
 
     ASSERT(open_file != nullptr);
     DBGWRITE(dbg_level_trace, L"[AFPSession:SessionAssociateAFPOpenFile]opening fileobject %x\n", open_file);
@@ -94,7 +89,7 @@ void afp_session::associate_open_file(afp_open_file* open_file)
 
 AFPERROR afp_session::close_file(const INT16 file_reference)
 {
-    auto_lock lock(&m_mutex_);
+    std::lock_guard lock(m_mutex_);
 
     const auto it =
         std::ranges::find_if(m_afp_open_files_, [=](const std::unique_ptr<afp_open_file>& f)
@@ -124,7 +119,7 @@ AFPERROR afp_session::close_file(const INT16 file_reference)
 
 afp_open_file* afp_session::find_open_file(const INT16 file_reference)
 {
-    auto_lock lock(&m_mutex_);
+    std::lock_guard lock(m_mutex_);
 
     const auto it =
         std::ranges::find_if(m_afp_open_files_, [=](const std::unique_ptr<afp_open_file>& f)
@@ -194,7 +189,7 @@ afp_open_file* afp_session::open_file(
 
 AFPERROR afp_session::open_volume(const INT16 volume_id)
 {
-    auto_lock lock(&m_mutex_);
+    std::lock_guard lock(m_mutex_);
     const std::shared_ptr<afp_volume> volume = g_volumes->find(volume_id);
 
     if (volume == nullptr)
@@ -247,7 +242,7 @@ AFPERROR afp_session::open_volume(const INT16 volume_id)
 
 AFPERROR afp_session::close_volume(const INT16 volume_id)
 {
-    auto_lock lock(&m_mutex_);
+    std::lock_guard lock(m_mutex_);
 
     const auto it =
         std::ranges::find_if(m_open_volumes_, [=](const std::shared_ptr<afp_volume>& v)
@@ -280,7 +275,7 @@ AFPERROR afp_session::close_volume(const INT16 volume_id)
 
 std::shared_ptr<afp_volume> afp_session::find_open_volume(const INT16 volume_id)
 {
-    auto_lock lock(&m_mutex_);
+    std::lock_guard lock(m_mutex_);
 
     const auto it =
         std::ranges::find_if(m_open_volumes_, [=](const std::shared_ptr<afp_volume>& v)
@@ -330,7 +325,7 @@ INT16 afp_session::open_desk(const INT16 volume_id)
 
 AFPERROR afp_session::close_desk(const INT16 desk_ref_num)
 {
-    auto_lock lock(&m_mutex_);
+    std::lock_guard lock(m_mutex_);
 
     if (const auto it = std::ranges::find(m_open_desks_, desk_ref_num); it != m_open_desks_.end())
     {
@@ -354,7 +349,7 @@ AFPERROR afp_session::close_desk(const INT16 desk_ref_num)
 
 afp_desktop* afp_session::get_desktop(const INT16 desk_ref_num)
 {
-    auto_lock lock(&m_mutex_);
+    std::lock_guard lock(m_mutex_);
 
     const auto open_volume = find_open_volume(desk_ref_num);
     if (open_volume == nullptr)

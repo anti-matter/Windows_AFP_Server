@@ -117,7 +117,7 @@ AFPERROR AFPGetVolumeParameters(
             attributes |= kFPVolReadOnly;
         }
 
-        attributes |= kFPVolSupportsFileIDs | kNoExchangeFiles;
+        attributes |= kFPVolSupportsFileIDs | kNoExchangeFiles | kFPVolSupportsBlankAccessPrivileges | kDefaultPrivsFromParent;
 
         if (afp_volume->get_internal_flags() & flag_volume_has_password)
         {

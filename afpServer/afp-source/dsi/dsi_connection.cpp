@@ -299,7 +299,7 @@ namespace dsi
 			DBGWRITE(dbg_level_info, L"Attention quantum size: %d\n", attention_quantum_size_);
 		}
 
-		// Get a buffer wrapper for out AFP payload.
+		// Get a buffer wrapper for our AFP payload.
 		afp_net_buffer reply(&reply_buffer[dsi_offset_data_start], dsi_server_request_quantum_size);
 		reply.push_num<UINT8>(server_request_quantum);
 		reply.push_num<UINT8>(sizeof(UINT32));

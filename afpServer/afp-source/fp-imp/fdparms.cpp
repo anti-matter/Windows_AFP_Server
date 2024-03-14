@@ -102,12 +102,12 @@ AFPERROR afp_get_object_parms(
             }
         }
 
-        reply.push_num<UINT16>(attributes);
+        reply.push_num(attributes);
     }
 
     if (bitmap & kFPParentID)
     {
-        reply.push_num<UINT32>(entry->par_id);
+        reply.push_num(entry->par_id);
     }
 
     if (bitmap & kFPCreateDate)
