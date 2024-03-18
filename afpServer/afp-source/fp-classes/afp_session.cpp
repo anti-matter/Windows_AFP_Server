@@ -124,7 +124,10 @@ afp_open_file* afp_session::find_open_file(const INT16 file_reference)
     const auto it =
         std::ranges::find_if(m_afp_open_files_, [=](const std::unique_ptr<afp_open_file>& f)
         {
-            return f->get_file_ref_num() == file_reference;
+            return f->get_file_ref_num() == file_reference &&
+                f->get_entry()->sz_path.empty() == false &&
+                f->is_fork_open() &&
+                f->get_file_handle() != INVALID_HANDLE_VALUE;
         });
 
     if (it != m_afp_open_files_.end())

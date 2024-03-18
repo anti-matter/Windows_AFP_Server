@@ -291,6 +291,11 @@ AFPERROR FPGetForkParms(
 
     // Get the parameters for the file we're opening.
     const auto afp_fork_ref = afp_request.pull_num<INT16>();
+    if (afp_fork_ref <= 0)
+    {
+        return afpParmErr;
+    }
+
     auto afp_bitmap = afp_request.pull_num<UINT16>();
 
     afp_open_file* open_file = afp_session->find_open_file(afp_fork_ref);
