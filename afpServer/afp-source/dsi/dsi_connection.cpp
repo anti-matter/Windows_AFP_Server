@@ -204,7 +204,7 @@ namespace dsi
 				if (!dsi_session_open_ &&
 					(dsi_command != dsi_cmd_open_session && dsi_command != dsi_cmd_get_status))
 				{
-					// If we are in a weird situation and we received a tickle here,
+					// If we are in a weird situation, and we received a tickle here,
 					// we must consider that we don't have a return buffer to send an
 					// error to the caller.
 					if (dsi_command != dsi_cmd_tickle)

@@ -3,7 +3,6 @@
 
 #include "afphelp.h"
 #include "afp_net_buffer.h"
-
 #include "afp_char_map.h"
 #include "afp_file_index.h"
 
@@ -177,22 +176,4 @@ void afp_net_buffer::pull_raw_data(void* buffer, const size_t amount)
 	current_buffer_ptr_ += amount;
 }
 
-bool afp_net_buffer::check_space_needed(const size_t space_needed) const
-{
-	if (get_current_pos_ptr() - get_buffer() + space_needed > buffer_size_)
-	{
-		return false;
-	}
 
-	return true;
-}
-
-bool afp_net_buffer::not_enough_space(const size_t space_needed) const
-{
-	return !check_space_needed(space_needed);
-}
-
-bool afp_net_buffer::will_overflow(const UINT32 value) const
-{
-	return buffer_ + value > buffer_ + buffer_size_;
-}

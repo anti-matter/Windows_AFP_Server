@@ -667,13 +667,13 @@ AFPERROR FPRead(
 
     if (AFP_SUCCESS(afp_error))
     {
-        const auto user_token = connection->get_user_token();
+        //const auto user_token = connection->get_user_token();
 
-        if (!impersonate_user(user_token))
-        {
-            // Impersonation failed, don't allow any further operations.
-            return afpAccessDenied;
-        }
+        //if (!impersonate_user(user_token))
+        //{
+        //    // Impersonation failed, don't allow any further operations.
+        //    return afpAccessDenied;
+        //}
 
         afp_error = open_file->read_fork(
             afp_reply,
@@ -682,7 +682,7 @@ AFPERROR FPRead(
             &afp_act_count
         );
 
-        revert_to_self(user_token);
+        //revert_to_self(user_token);
     }
 
     // FPRead is a special case in that the return value is returned
@@ -746,11 +746,11 @@ AFPERROR FPWrite(
         return afp_error;
     }
 
-    const HANDLE user_token = connection->get_user_token();
-    if (!impersonate_user(user_token))
-    {
-        return afpAccessDenied;
-    }
+    //const HANDLE user_token = connection->get_user_token();
+    //if (!impersonate_user(user_token))
+    //{
+    //    return afpAccessDenied;
+    //}
 
     afp_error = open_file->write_fork(
         afp_request,
@@ -760,7 +760,7 @@ AFPERROR FPWrite(
         &act_count
     );
 
-    revert_to_self(user_token);
+    //revert_to_self(user_token);
 
     if (AFP_SUCCESS(afp_error))
     {

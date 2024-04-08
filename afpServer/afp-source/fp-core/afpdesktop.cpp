@@ -101,20 +101,20 @@ AFPERROR FPAddIcon(
 	afp_desk_item icon_entry;
 
 	// Grab the file type and creator that will be associated with
-	// this icon. Note that in MacOS X, they appear to be doing away
+	// this icon. Note that in Mac OS X, they appear to be doing away
 	// from creators and types.
 	icon_entry.file_creator = afp_request.pull_num<UINT32>();
 	icon_entry.file_type = afp_request.pull_num<UINT32>();
 
-	// Next bytes contains the icon type we'll be storing. We don't
-	// care what it is, its for the client to know.
+	// Next bytes contain the icon type we'll be storing. We don't
+	// care what it is, it's for the client to know.
     // ReSharper disable once CppAssignedValueIsNeverUsed
     icon_entry.icon_type = afp_request.pull_num<INT8>();
 
 	// A padding byte, skip it.
 	afp_request.advance_pos_ptr(sizeof(INT8));
 
-	// Get the next 2 parameters; We don't know or care what the tag is and
+	// Get the next 2 parameters; We don't know or care what the tag is, but
 	// we get the size of the data we'll be storing.
 	icon_entry.tag = afp_request.pull_num<UINT32>();
 	icon_entry.data_size = afp_request.pull_num<UINT16>();
@@ -242,7 +242,7 @@ AFPERROR FPGetIconInfo(
 	}
 
     afp_reply.push_num(found_entry->tag);
-    afp_reply.push_raw_data(&found_entry->file_type, sizeof(FILE_TYPE));
+	afp_reply.push_num<UINT32>(found_entry->file_type);
     afp_reply.push_num(found_entry->icon_type);
     afp_reply.push_num<INT8>(0);
     afp_reply.push_num(found_entry->data_size);

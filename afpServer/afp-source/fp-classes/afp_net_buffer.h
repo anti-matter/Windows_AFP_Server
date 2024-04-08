@@ -1,7 +1,5 @@
 #pragma once
 
-#include <filesystem>
-
 #include "afp.h"
 #include "afpdebug.h"
 #include "byte_swap.h"
@@ -30,7 +28,7 @@ public:
 	void push_raw_data(const void* data, size_t size);
 
 	template <class T>
-	AFPERROR push_num(T value);
+	void push_num(T value);
 
 	template <class T>
 	T pull_num();
@@ -114,13 +112,8 @@ T afp_net_buffer::peek_num()
 }
 
 template <class T>
-AFPERROR afp_net_buffer::push_num(T value)
+void afp_net_buffer::push_num(T value)
 {
-	if (not_enough_space(sizeof(T)))
-	{
-		return afpParmErr;
-	}
-
 	if (sizeof(T) > 1)
 	{
 		*reinterpret_cast<T*>(current_buffer_ptr_) = byte_swap<T>(value);
@@ -130,9 +123,7 @@ AFPERROR afp_net_buffer::push_num(T value)
 		*reinterpret_cast<T*>(current_buffer_ptr_) = value;
 	}
 
-	advance_pos_ptr(sizeof(T));
-
-	return AFP_OK;
+	current_buffer_ptr_ += sizeof(T);
 }
 
 template <class T>
@@ -149,12 +140,32 @@ T afp_net_buffer::pull_num()
 		result = *reinterpret_cast<T*>(current_buffer_ptr_);
 	}
 
-	advance_pos_ptr(sizeof(T));
+	current_buffer_ptr_ += sizeof(T);
 
 	return result;
 }
 
 __pragma(warning(pop))
+
+inline bool afp_net_buffer::check_space_needed(const size_t space_needed) const
+{
+	if (current_buffer_ptr_ - buffer_ + space_needed > buffer_size_)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+inline bool afp_net_buffer::not_enough_space(const size_t space_needed) const
+{
+	return !check_space_needed(space_needed);
+}
+
+inline bool afp_net_buffer::will_overflow(const UINT32 value) const
+{
+	return buffer_ + value > buffer_ + buffer_size_;
+}
 
 inline size_t afp_net_buffer::get_data_length() const
 {
@@ -206,7 +217,7 @@ inline void afp_net_buffer::push_raw_data(const void* data, const size_t size)
 	}
 
 	memcpy(current_buffer_ptr_, data, size);
-	advance_pos_ptr(size);
+	current_buffer_ptr_ += size;
 }
 
 inline void afp_net_buffer::advance_if_odd()
