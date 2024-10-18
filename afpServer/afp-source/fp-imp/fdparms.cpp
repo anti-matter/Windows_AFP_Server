@@ -203,13 +203,13 @@ AFPERROR afp_get_object_parms(
         {
             DWORD rights = 0;
 
-            const auto win_error = get_directory_rights(
+            const auto succeeded = get_directory_rights(
                entry->sz_path.c_str(),
                 dsi_session->get_user_name(),
                 &rights
             );
 
-            if (SUCCEEDED(win_error))
+            if (succeeded)
             {
                 reply.push_num(rights);
             }
