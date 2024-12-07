@@ -17,7 +17,10 @@
 
 extern bool server_running;
 
-change_notify::change_notify(const INT16 volume_id) : volume_id_(volume_id), notify_suspended_(false)
+change_notify::change_notify(const INT16 volume_id)
+    : volume_id_(volume_id)
+    , notify_suspended_(false)
+    , notify_overlapped_({})
 {
     result_buffer_ = std::make_unique<BYTE[]>(change_notify_result_buffer_size);
 
@@ -38,6 +41,8 @@ void change_notify::afp_notify_thread()
 
     } while (volume == nullptr);
 
+    DBGWRITE(dbg_level_info, L"Change notify activating for %s\n", volume->get_share_path().c_str());
+
     const auto h_directory = CreateFile(
         volume->get_share_path().c_str(),
         FILE_LIST_DIRECTORY,
@@ -50,7 +55,7 @@ void change_notify::afp_notify_thread()
 
     if (h_directory == INVALID_HANDLE_VALUE)
     {
-        DBGWRITE(dbg_level_info,
+        DBGWRITE(dbg_level_error,
                  L"Error opening directory at %s (%d)\n",
                  volume->get_share_path().c_str(),
                  GetLastError());
@@ -83,10 +88,10 @@ void change_notify::afp_read_dir_changes(
     IN const PBYTE result_buffer
 )
 {
-    constexpr DWORD notify_filter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME;
+    constexpr DWORD notify_filter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_CREATION;
     DWORD bytes_returned = 0;
 
-    // This call will put the thread into a wait state until an change
+    // This call will put the thread into a wait state until a change
     // happens to our directory.
     if (!ReadDirectoryChangesW(
         h_directory,
@@ -94,11 +99,11 @@ void change_notify::afp_read_dir_changes(
         change_notify_result_buffer_size,
         TRUE,
         notify_filter,
-        nullptr,
+        &bytes_returned,
         &notify_overlapped_,
         nullptr))
     {
-        DBGWRITE(dbg_level_info, L"ReadDirectoryChangesW() failed! (%d)\n", GetLastError());
+        DBGWRITE(dbg_level_error, L"ReadDirectoryChangesW() failed! (%d)\n", GetLastError());
         ASSERT(0);
         return;
     }
@@ -110,7 +115,7 @@ void change_notify::afp_read_dir_changes(
 
     if (notify_suspended_)
     {
-        DBGWRITE(dbg_level_trace, L"Change notify has been suspended.\n");
+        DBGWRITE(dbg_level_info, L"Change notify has been suspended.\n");
         return;
     }
 
@@ -300,7 +305,7 @@ void change_notify::afp_change_notify_remove(
     // string buffer for later use.
     lstrcpyn(remove_item_pathname, file_notify_info->FileName, static_cast<int>(file_notify_info->FileNameLength));
 
-    DBGWRITE(dbg_level_info, L"Removing %s\n", remove_item_pathname);
+    DBGWRITE(dbg_level_info, L"Removing %s from index.\n", remove_item_pathname);
 
     // Search the afp index for the entry corresponding to the removed object.
     const auto entry = volume->get_index()->find(kRootDirID, remove_item_pathname);

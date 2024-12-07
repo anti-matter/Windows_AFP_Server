@@ -17,9 +17,7 @@
 //
 // From: https://learn.microsoft.com/en-us/windows/win32/api/aclapi/nf-aclapi-geteffectiverightsfromacla
 
-users_and_groups_cache g_user_and_group_cache;
-DWORD g_next_user_group_id = 1;
-
+static users_and_groups_cache g_user_and_group_cache;
 
 PSID get_sid_for_user(IN const std::wstring& user_name)
 {
@@ -410,10 +408,7 @@ DWORD get_directory_owner_and_group_id(
     // We only care about user SID's, check to make sure that's what we got.
     if (sid_type == SidTypeUser || sid_type == SidTypeAlias)
     {
-        *owner_id = g_next_user_group_id++;
-        g_user_and_group_cache.add(afp_user_name_type, account_name, *owner_id);
-
-        DBGWRITE(dbg_level_info, L"Added username %s to the cache\n", account_name);
+        *owner_id = g_user_and_group_cache.add(afp_user_name_type, account_name);
     }
 
     cch_name = max_name;
@@ -448,18 +443,14 @@ DWORD get_directory_owner_and_group_id(
     // We only care about group SID's
     if (sid_type == SidTypeGroup)
     {
-        *group_id = g_next_user_group_id++;
-        g_user_and_group_cache.add(afp_group_name_type, account_name, *group_id);
-
-        DBGWRITE(dbg_level_info, L"Added groupname %s to the cache\n", account_name);
+        *group_id = g_user_and_group_cache.add(afp_group_name_type, account_name);
     }
     else if (sid_type == SidTypeUser || sid_type == SidTypeAlias)
     {
-        const auto user = g_user_and_group_cache.find_by_name(account_name);
+        const auto user = g_user_and_group_cache.find_by_name(afp_group_name_type, account_name);
         if (user == nullptr)
         {
-            *group_id = g_next_user_group_id++;
-            g_user_and_group_cache.add(afp_user_name_type, account_name, *group_id);
+            *group_id = g_user_and_group_cache.add(afp_user_name_type, account_name);
         }
         else
         {
@@ -469,7 +460,7 @@ DWORD get_directory_owner_and_group_id(
 
     LocalFree(security_descriptor);
 
-    g_user_and_group_cache.add(afp_user_name_type, logged_on_user_name, g_next_user_group_id++);
+    g_user_and_group_cache.add(afp_user_name_type, logged_on_user_name);
 
     return error;
 }

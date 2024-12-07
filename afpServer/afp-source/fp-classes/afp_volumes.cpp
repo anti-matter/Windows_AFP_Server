@@ -195,7 +195,7 @@ bool afp_volumes::index_build(std::filesystem::path& share_path, const INT32  pa
     do
     {
         std::wstring file_name = find_data.cFileName;
-        if (file_name == L"." || file_name == L"..")
+        if (file_name == L"." || file_name == L".." || file_name[0] == L'.')
         {
             continue;
         }
@@ -216,7 +216,7 @@ bool afp_volumes::index_build(std::filesystem::path& share_path, const INT32  pa
 
         if (entry == nullptr)
         {
-            DBGWRITE(dbg_level_info, L"Failed to add entry to index: %s\n", item_path.c_str());
+            DBGWRITE(dbg_level_error, L"Failed to add entry to index: %s\n", item_path.c_str());
             ASSERT(0);
 
             continue;
