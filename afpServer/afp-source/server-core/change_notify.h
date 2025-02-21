@@ -23,12 +23,12 @@ public:
         IN PBYTE result_buffer 
     );
 
-    static void afp_change_notify_add(
+    void afp_change_notify_add(
         IN const FILE_NOTIFY_INFORMATION* file_notify_info,
         IN const std::shared_ptr<afp_volume>& volume
     );
 
-    static void afp_change_notify_remove(
+    void afp_change_notify_remove(
         IN const FILE_NOTIFY_INFORMATION* file_notify_info,
         IN const std::shared_ptr<afp_volume>& volume
     );

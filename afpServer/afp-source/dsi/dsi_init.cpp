@@ -40,7 +40,7 @@ namespace dsi
 		{
 			std::this_thread::sleep_for(std::chrono::seconds(1));
 
-			DBGWRITE(dbg_level_info, L"Inializing listening socket.\n");
+			DBGWRITE(dbg_level_info, L"Initializing listening socket.\n");
 
 			listen_socket = socket(AF_INET, SOCK_STREAM, 0);
 			if (listen_socket == INVALID_SOCKET)

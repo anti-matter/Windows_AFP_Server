@@ -52,9 +52,10 @@ AFPERROR FPOpenVol(
         // bad data (see above).
         afp_error = afp_session->open_volume(afp_volume_id);
     }
-    else
+    
+    if (!AFP_SUCCESS(afp_error))
     {
-        DBGWRITE(dbg_level_warning, L"AFPGetVolumeParameters() failed (%d)\n", afp_error);
+        DBGWRITE(dbg_level_warning, L"Opening volume failed (%d)\n", afp_error);
         afp_reply.rewind();
     }
 
