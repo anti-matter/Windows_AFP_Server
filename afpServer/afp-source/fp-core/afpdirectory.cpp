@@ -676,24 +676,19 @@ AFPERROR FPDelete(
     const auto volume = connection->get_afp_session()->find_open_volume(afp_volume_id);
     if (volume == nullptr)
     {
+        DBGWRITE(dbg_level_error, L"Bad volume ID! (%d)\n", afp_volume_id);
         return afpParmErr;
     }
 
     if (volume->is_read_only())
     {
+        DBGWRITE(dbg_level_warning, L"Cannot delete, volume is read-only!\n", afp_volume_id);
         return afpVolLocked;
     }
 
     const auto afp_pathname = afp_request.pull_path(afp_path_type);
     if (afp_pathname.empty())
     {
-        return afpParmErr;
-    }
-
-    const std::shared_ptr<afp_volume> afp_volume_info = connection->get_afp_session()->find_open_volume(afp_volume_id);
-    if (afp_volume_info == nullptr)
-    {
-        DBGWRITE(dbg_level_info, L"Bad volume ID! (%d)\n", afp_volume_id);
         return afpParmErr;
     }
 
