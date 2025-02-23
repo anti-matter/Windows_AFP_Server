@@ -185,7 +185,7 @@ AFPERROR FPOpenFork(
     // If we have an error opening the file, make sure we dispose
     // of the file object or we'll leak memory as well as leak
     // open file counts.
-    if (AFP_FAILED(afp_error))
+    if (AFP_FAILED(afp_error) && opened_file != nullptr)
     {
         afp_afp_session->close_file(opened_file->get_file_ref_num());
     }
@@ -222,12 +222,13 @@ AFPERROR FPSetForkParms(
 
     const auto afp_fork_ref = afp_request.pull_num<INT16>();
     const auto afp_bitmap = afp_request.pull_num<UINT16>();
+    const auto afp_fork_length = afp_request.pull_num<UINT32>();
 
     // Fork length bytes
     afp_request.advance_pos_ptr(sizeof(UINT32));
 
     const afp_open_file* open_file = afp_afp_session->find_open_file(afp_fork_ref);
-    const AFPERROR afp_error = open_file == nullptr ? afpParmErr : AFP_OK;
+    AFPERROR afp_error = open_file == nullptr ? afpParmErr : AFP_OK;
 
     if (AFP_SUCCESS(afp_error))
     {
@@ -244,6 +245,10 @@ AFPERROR FPSetForkParms(
                 DBGWRITE(dbg_level_trace, L"Data fork is not open!\n");
                 return afpBitmapErr;
             }
+
+            DBGWRITE(dbg_level_info, L"Setting DATA fork length to: %d\n", afp_fork_length);
+
+            afp_error = open_file->set_fork_length(afp_fork_length);
         }
 
         if (afp_bitmap & kFPRFLen || afp_bitmap & kFPExtRsrcForkLen)
@@ -253,6 +258,10 @@ AFPERROR FPSetForkParms(
                 DBGWRITE(dbg_level_error, L"Resource fork is not open! (%x)\n");
                 return afpBitmapErr;
             }
+
+            DBGWRITE(dbg_level_info, L"Setting RSRC fork length to: %d\n", afp_fork_length);
+
+            afp_error = open_file->set_fork_length(afp_fork_length);
         }
     }
     else
@@ -746,12 +755,6 @@ AFPERROR FPWrite(
         return afp_error;
     }
 
-    //const HANDLE user_token = connection->get_user_token();
-    //if (!impersonate_user(user_token))
-    //{
-    //    return afpAccessDenied;
-    //}
-
     afp_error = open_file->write_fork(
         afp_request,
         offset,
@@ -759,8 +762,6 @@ AFPERROR FPWrite(
         (afp_flag & kWriteStartEndFlag) == 1 ? FALSE : TRUE,
         &act_count
     );
-
-    //revert_to_self(user_token);
 
     if (AFP_SUCCESS(afp_error))
     {

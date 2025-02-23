@@ -224,16 +224,10 @@ AFPERROR afp_get_object_parms(
     {
         if (bitmap & (kFPDFLen | kFPExtDataForkLen))
         {
-            data_size64.LowPart = GetCompressedFileSize(entry->sz_path.c_str(), reinterpret_cast<LPDWORD>(&data_size64.HighPart));
-            if (data_size64.LowPart == INVALID_FILE_SIZE && GetLastError() != NO_ERROR)
-            {
-                data_size64.LowPart = 0;
-                DBGWRITE(dbg_level_warning, L"GetCompressedFileSize() failed! (%d)\n", GetLastError());
-            }
-            else
-            {
-                DBGWRITE(dbg_level_trace, L"Data fork size =  (%d)\n", data_size64.LowPart);
-            }
+            data_size64.HighPart = win_attributes.nFileSizeHigh;
+            data_size64.LowPart = win_attributes.nFileSizeLow;
+
+            DBGWRITE(dbg_level_trace, L"Data fork size =  (%I64d)\n", data_size64.QuadPart);
 
             if (bitmap & kFPDFLen)
             {

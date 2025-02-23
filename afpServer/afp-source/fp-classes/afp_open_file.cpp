@@ -275,6 +275,8 @@ AFPERROR afp_open_file::write_fork(
 		DWORD afp_actual = 0;
 		const auto req_count = static_cast<UINT32>(afp_req_count);
 
+		DBGWRITE(dbg_level_trace, L"WRITE: Writing (%I64d) bytes from offet (%I64d)\n", afp_req_count, afp_offset);
+
 		const auto success = WriteFile(
 			m_file_handle_,
 			afp_request.get_current_pos_ptr(),
@@ -292,9 +294,17 @@ AFPERROR afp_open_file::write_fork(
 		{
 			ASSERT(afp_actual <= afp_req_count);
 
-			*afp_last_byte_written = afp_offset + afp_actual;
+			auto filePointer = SetFilePointer(m_file_handle_, 0, nullptr, FILE_CURRENT);
+			if (filePointer == INVALID_SET_FILE_POINTER)
+			{
+				// Call failed for some reason.
+				DBGWRITE(dbg_level_error, L"WRITE: Failed to obtain current file position after write!\n");
+				return afpParmErr;
+			}
 
-			DBGWRITE(dbg_level_trace,
+			*afp_last_byte_written = filePointer;
+
+			DBGWRITE(dbg_level_info,
 			         L"WRITE: Actual written: %d, Last Byte: %d\n",
 			         afp_actual,
 			         *afp_last_byte_written
@@ -324,6 +334,29 @@ AFPERROR afp_open_file::file_seek(
 	}
 
 	return afp_error;
+}
+
+AFPERROR afp_open_file::set_fork_length(UINT32 length) const
+{
+	auto error = file_seek(length, FILE_BEGIN);
+	if (AFP_FAILED(error))
+	{
+		DBGWRITE(dbg_level_error, L"Seeking fork length to (%d) failed with error (%d)\n", length, error);
+		return error;
+	}
+
+	if (!SetEndOfFile(m_file_handle_))
+	{
+		// Failed to set end of file...
+		auto win_error = GetLastError();
+
+		DBGWRITE(dbg_level_error, L"Setting end of file failed with (%d)\n", win_error);
+		return afp_map_win_error_to_afp(win_error, afpParmErr);
+	}
+
+	DBGWRITE(dbg_level_trace, L"Fork length set to (%d)\n", length);
+
+	return AFP_OK;
 }
 
 

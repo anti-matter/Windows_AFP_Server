@@ -162,30 +162,31 @@ void change_notify::afp_read_dir_changes(
         // An object is being renamed. Here is where we are given a chance
         // to get a grip on the object before the rename actually happens.
         case FILE_ACTION_RENAMED_OLD_NAME:
-            lstrcpyn(file_name, p_info->FileName, static_cast<int>(p_info->FileNameLength));
-
-            DBGWRITE(dbg_level_trace, L"File renamed, old name = %s\n", file_name);
-
-            index_entry = volume->find(kRootDirID, file_name);
+            if (lstrcpyn(file_name, p_info->FileName, static_cast<int>(p_info->FileNameLength)) != nullptr)
+            {
+                DBGWRITE(dbg_level_trace, L"File renamed, old name = %s\n", file_name);
+                index_entry = volume->find(kRootDirID, file_name);
+            }
             break;
 
         // The object is now renamed. Update the afp index with the
         // newly changed name.
         case FILE_ACTION_RENAMED_NEW_NAME:
-            lstrcpyn(file_name, p_info->FileName, static_cast<int>(p_info->FileNameLength));
-
-            if (index_entry != nullptr)
+            if (lstrcpyn(file_name, p_info->FileName, static_cast<int>(p_info->FileNameLength)) != nullptr)
             {
-                WCHAR new_name[64];
+                if (index_entry != nullptr)
+                {
+                    WCHAR new_name[64];
 
-                ZeroMemory(new_name, sizeof(new_name));
-                afp_get_object_name_from_path(file_name, new_name, sizeof(new_name));
+                    ZeroMemory(new_name, sizeof(new_name));
+                    afp_get_object_name_from_path(file_name, new_name, sizeof(new_name));
 
-                DBGWRITE(dbg_level_trace, L"File renamed, new name = %s\n", new_name);
+                    DBGWRITE(dbg_level_trace, L"File renamed, new name = %s\n", new_name);
 
-                char_map_data char_map;
-                volume->get_index()->update_entry(index_entry, index_entry->par_entry, new_name, &char_map);
-                volume->set_is_dirty();
+                    char_map_data char_map;
+                    volume->get_index()->update_entry(index_entry, index_entry->par_entry, new_name, &char_map);
+                    volume->set_is_dirty();
+                }
             }
             break;
 
@@ -211,7 +212,10 @@ void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_no
     WCHAR new_item_pathname[MAX_PATH]{};
     WIN32_FILE_ATTRIBUTE_DATA attribute_data;
 
-    lstrcpyn(new_item_pathname, file_notify_info->FileName, static_cast<int>(file_notify_info->FileNameLength));
+    if (lstrcpyn(new_item_pathname, file_notify_info->FileName, static_cast<int>(file_notify_info->FileNameLength)) == nullptr)
+    {
+        return;
+    }
 
     // First step: we need to find the index entry that is the parent
     // directory of the new object we're adding.
@@ -303,7 +307,10 @@ void change_notify::afp_change_notify_remove(
 
     // Copy the pathname (path plus object name) into a null terminated
     // string buffer for later use.
-    lstrcpyn(remove_item_pathname, file_notify_info->FileName, static_cast<int>(file_notify_info->FileNameLength));
+    if (lstrcpyn(remove_item_pathname, file_notify_info->FileName, static_cast<int>(file_notify_info->FileNameLength)) == nullptr)
+    {
+        return;
+    }
 
     DBGWRITE(dbg_level_info, L"Removing %s from index.\n", remove_item_pathname);
 
