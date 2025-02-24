@@ -33,6 +33,12 @@ public:
         IN const std::shared_ptr<afp_volume>& volume
     );
 
+    static bool copy_file_name(
+        IN const FILE_NOTIFY_INFORMATION* file_notify_info,
+        OUT WCHAR* file_name,
+        IN const size_t file_name_size_in_bytes
+    );
+
     // We don't need or want to be notified of changes being made by
     // the server, so we stop the change notify listening.
     void suspend()

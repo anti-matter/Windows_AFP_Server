@@ -163,7 +163,7 @@ void change_notify::afp_read_dir_changes(
         // An object is being renamed. Here is where we are given a chance
         // to get a grip on the object before the rename actually happens.
         case FILE_ACTION_RENAMED_OLD_NAME:
-            if (lstrcpyn(file_name, p_info->FileName, sizeof(file_name)) != nullptr)
+            if (copy_file_name(p_info, file_name, sizeof(file_name)))
             {
                 DBGWRITE(dbg_level_trace, L"File renamed, old name = %s\n", file_name);
                 index_entry = volume->find(kRootDirID, file_name);
@@ -173,7 +173,7 @@ void change_notify::afp_read_dir_changes(
         // The object is now renamed. Update the afp index with the
         // newly changed name.
         case FILE_ACTION_RENAMED_NEW_NAME:
-            if (lstrcpyn(file_name, p_info->FileName, sizeof(file_name)) != nullptr)
+            if (copy_file_name(p_info, file_name, sizeof(file_name)))
             {
                 if (index_entry != nullptr)
                 {
@@ -213,7 +213,7 @@ void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_no
     WCHAR new_item_pathname[MAX_PATH]{};
     WIN32_FILE_ATTRIBUTE_DATA attribute_data;
 
-    if (lstrcpyn(new_item_pathname, file_notify_info->FileName, sizeof(new_item_pathname)) == nullptr)
+    if (!copy_file_name(file_notify_info, new_item_pathname, sizeof(new_item_pathname)))
     {
         return;
     }
@@ -308,7 +308,7 @@ void change_notify::afp_change_notify_remove(
 
     // Copy the pathname (path plus object name) into a null terminated
     // string buffer for later use.
-    if (lstrcpyn(remove_item_pathname, file_notify_info->FileName, sizeof(remove_item_pathname)) == nullptr)
+    if (!copy_file_name(file_notify_info, remove_item_pathname, sizeof(remove_item_pathname)))
     {
         return;
     }
@@ -341,4 +341,33 @@ void change_notify::afp_change_notify_remove(
 
     // Tell the attention mechanism to notify clients the volume has changed.
     volume->set_is_dirty();
+}
+
+/// <summary>
+/// Copy the file name from the file notify information (safely).
+/// </summary>
+/// <param name="file_notify_info"></param>
+/// <param name="file_name"></param>
+/// <param name="file_name_size"></param>
+/// <returns></returns>
+bool change_notify::copy_file_name(
+    IN const FILE_NOTIFY_INFORMATION* file_notify_info,
+    OUT WCHAR* file_name,
+    IN const size_t file_name_size_in_bytes)
+{
+    if (file_notify_info == nullptr || file_name == nullptr)
+    {
+        return false;
+    }
+
+    // Get size of destination buffer in characters
+    size_t file_name_size_in_chars = (file_name_size_in_bytes / sizeof(WCHAR)) - sizeof(WCHAR);
+
+    // Ensure the length to copy does not exceed the buffer size
+    size_t length_to_copy = min( file_notify_info->FileNameLength / sizeof(WCHAR), file_name_size_in_chars);
+
+    wcsncpy_s(file_name, file_name_size_in_chars, file_notify_info->FileName, length_to_copy);
+    file_name[length_to_copy] = L'\0';
+
+    return true;
 }
