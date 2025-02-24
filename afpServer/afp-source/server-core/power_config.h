@@ -1,7 +1,5 @@
 #pragma once
 
-const std::wstring simple_reason = L"AFP Server has connections.";
-
 class power_config  // NOLINT(cppcoreguidelines-special-member-functions)
 {
 public:
@@ -14,5 +12,7 @@ public:
 private:
     HANDLE power_request_;
     std::unique_ptr<REASON_CONTEXT> reason_context_;
+
+    const std::wstring simple_reason_ = L"AFP Server has connections.";
 };
 

@@ -17,7 +17,9 @@
 //
 // From: https://learn.microsoft.com/en-us/windows/win32/api/aclapi/nf-aclapi-geteffectiverightsfromacla
 
-static users_and_groups_cache g_user_and_group_cache;
+namespace {
+	users_and_groups_cache g_user_and_group_cache;
+}
 
 PSID get_sid_for_user(IN const std::wstring& user_name)
 {
@@ -541,7 +543,7 @@ BOOL adjust_privilege(
         DBGWRITE(dbg_level_error, L"AdjustTokenPrivileges() failed! (%d)\n", error);
 
         // If we have an invalid handle, we don't want to make a call on
-        // it at this stage or we'll die. Only close if we created the token
+        // it at this stage, or we'll die. Only close if we created the token
         // handle locally.
         if (error != ERROR_INVALID_HANDLE && h_token == INVALID_HANDLE_VALUE)
         {
@@ -555,7 +557,7 @@ BOOL adjust_privilege(
 
     // We only want to close the Token handle if we created it
     // locally with OpenCurrentToken().
-    if (h_token == INVALID_HANDLE_VALUE)
+    if (h_token == INVALID_HANDLE_VALUE && token != INVALID_HANDLE_VALUE)
     {
         CloseHandle(token);
     }

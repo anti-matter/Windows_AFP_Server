@@ -8,7 +8,7 @@ power_config::power_config(): power_request_(nullptr)
     reason_context_ = std::make_unique<REASON_CONTEXT>();
     reason_context_->Version = POWER_REQUEST_CONTEXT_VERSION;
     reason_context_->Flags = POWER_REQUEST_CONTEXT_SIMPLE_STRING;
-    reason_context_->Reason.SimpleReasonString = const_cast<LPWSTR>(simple_reason.c_str());
+    reason_context_->Reason.SimpleReasonString = const_cast<LPWSTR>(simple_reason_.c_str());
 }
 
 power_config::~power_config()
@@ -46,4 +46,6 @@ void power_config::power_restore()
 
         DBGWRITE(dbg_level_trace, L"Power configuration restored.\n");
     }
+
+	reason_context_.reset();
 }
