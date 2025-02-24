@@ -65,6 +65,7 @@ void change_notify::afp_notify_thread()
     notify_overlapped_.hEvent = CreateEvent(nullptr, FALSE, TRUE, nullptr);
     if (notify_overlapped_.hEvent == nullptr)
     {
+        CloseHandle(h_directory);
         ASSERT(0);
         return;
     }
@@ -162,7 +163,7 @@ void change_notify::afp_read_dir_changes(
         // An object is being renamed. Here is where we are given a chance
         // to get a grip on the object before the rename actually happens.
         case FILE_ACTION_RENAMED_OLD_NAME:
-            if (lstrcpyn(file_name, p_info->FileName, static_cast<int>(p_info->FileNameLength)) != nullptr)
+            if (lstrcpyn(file_name, p_info->FileName, static_cast<int>(p_info->FileNameLength / sizeof(WCHAR))) != nullptr)
             {
                 DBGWRITE(dbg_level_trace, L"File renamed, old name = %s\n", file_name);
                 index_entry = volume->find(kRootDirID, file_name);
@@ -172,7 +173,7 @@ void change_notify::afp_read_dir_changes(
         // The object is now renamed. Update the afp index with the
         // newly changed name.
         case FILE_ACTION_RENAMED_NEW_NAME:
-            if (lstrcpyn(file_name, p_info->FileName, static_cast<int>(p_info->FileNameLength)) != nullptr)
+            if (lstrcpyn(file_name, p_info->FileName, static_cast<int>(p_info->FileNameLength / sizeof(WCHAR))) != nullptr)
             {
                 if (index_entry != nullptr)
                 {
@@ -212,7 +213,7 @@ void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_no
     WCHAR new_item_pathname[MAX_PATH]{};
     WIN32_FILE_ATTRIBUTE_DATA attribute_data;
 
-    if (lstrcpyn(new_item_pathname, file_notify_info->FileName, static_cast<int>(file_notify_info->FileNameLength)) == nullptr)
+    if (lstrcpyn(new_item_pathname, file_notify_info->FileName, static_cast<int>(file_notify_info->FileNameLength / sizeof(WCHAR))) == nullptr)
     {
         return;
     }
@@ -307,7 +308,7 @@ void change_notify::afp_change_notify_remove(
 
     // Copy the pathname (path plus object name) into a null terminated
     // string buffer for later use.
-    if (lstrcpyn(remove_item_pathname, file_notify_info->FileName, static_cast<int>(file_notify_info->FileNameLength)) == nullptr)
+    if (lstrcpyn(remove_item_pathname, file_notify_info->FileName, static_cast<int>(file_notify_info->FileNameLength / sizeof(WCHAR))) == nullptr)
     {
         return;
     }
