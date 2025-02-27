@@ -185,7 +185,7 @@ AFPERROR FPOpenFork(
     }
 
     // If we have an error opening the file, make sure we dispose
-    // of the file object or we'll leak memory as well as leak
+    // of the file object, or we'll leak memory as well as leak
     // open file counts.
     if (AFP_FAILED(afp_error) && opened_file != nullptr)
     {
@@ -224,10 +224,16 @@ AFPERROR FPSetForkParms(
 
     const auto afp_fork_ref = afp_request.pull_num<INT16>();
     const auto afp_bitmap = afp_request.pull_num<UINT16>();
-    const auto afp_fork_length = afp_request.pull_num<UINT32>();
+	INT64 afp_fork_length;
 
-    // Fork length bytes
-    afp_request.advance_pos_ptr(sizeof(UINT32));
+    if (afp_bitmap & kFPDFLen || afp_bitmap & kFPRFLen)
+    {
+        afp_fork_length = afp_request.pull_num<UINT32>();
+    }
+    else
+    {
+	    afp_fork_length = afp_request.pull_num<INT64>();
+    }
 
     const afp_open_file* open_file = afp_afp_session->find_open_file(afp_fork_ref);
     AFPERROR afp_error = open_file == nullptr ? afpParmErr : AFP_OK;
@@ -408,7 +414,7 @@ AFPERROR FPCreateFile(
     if (afp_entry == nullptr)
     {
         // We couldn't find the requested object.
-        DBGWRITE(dbg_level_error, L"Path not found in FPCreatFile!\n");
+        DBGWRITE(dbg_level_error, L"Path not found in FPCreateFile!\n");
         return afpObjectNotFound;
     }
 

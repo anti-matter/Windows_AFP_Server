@@ -48,7 +48,7 @@ public:
 		UINT32 method
 	) const;
 
-	AFPERROR set_fork_length(UINT32 length) const;
+	AFPERROR set_fork_length(INT64 length) const;
 
 	bool is_fork_open() const { return m_file_handle_ != INVALID_HANDLE_VALUE; }
 

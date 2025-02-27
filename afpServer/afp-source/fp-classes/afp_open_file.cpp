@@ -336,7 +336,7 @@ AFPERROR afp_open_file::file_seek(
 	return afp_error;
 }
 
-AFPERROR afp_open_file::set_fork_length(UINT32 length) const
+AFPERROR afp_open_file::set_fork_length(const INT64 length) const
 {
 	auto error = file_seek(length, FILE_BEGIN);
 	if (AFP_FAILED(error))
@@ -348,7 +348,7 @@ AFPERROR afp_open_file::set_fork_length(UINT32 length) const
 	if (!SetEndOfFile(m_file_handle_))
 	{
 		// Failed to set end of file...
-		auto win_error = GetLastError();
+		const auto win_error = GetLastError();
 
 		DBGWRITE(dbg_level_error, L"Setting end of file failed with (%d)\n", win_error);
 		return afp_map_win_error_to_afp(win_error, afpParmErr);
