@@ -90,7 +90,6 @@ private:
 __pragma(warning(push))
 __pragma(warning(disable:4127))
 
-
 template <class T>
 T* afp_net_buffer::get_ptr_offset()
 {
@@ -111,9 +110,18 @@ T afp_net_buffer::peek_num()
 	return value;
 }
 
+// Adds the numerical value at the current ptr offset
 template <class T>
 void afp_net_buffer::push_num(T value)
 {
+	if (!check_space_needed(sizeof(T)))
+	{
+		DBGWRITE(dbg_level_error, L"Not enough space in buffer to push num!\n");
+		ASSERT(0);
+
+		return;
+	}
+
 	if (sizeof(T) > 1)
 	{
 		*reinterpret_cast<T*>(current_buffer_ptr_) = byte_swap<T>(value);
@@ -126,10 +134,19 @@ void afp_net_buffer::push_num(T value)
 	current_buffer_ptr_ += sizeof(T);
 }
 
+// Returns the numerical value at the current ptr offset
 template <class T>
 T afp_net_buffer::pull_num()
 {
 	T result;
+
+	if (!check_space_needed(sizeof(T)))
+	{
+		DBGWRITE(dbg_level_error, L"Not enough space in buffer to pull num!\n");
+		ASSERT(0);
+
+		return 0;
+	}
 
 	if (sizeof(T) > 1)
 	{
@@ -164,7 +181,7 @@ inline bool afp_net_buffer::not_enough_space(const size_t space_needed) const
 
 inline bool afp_net_buffer::will_overflow(const UINT32 value) const
 {
-	return buffer_ + value > buffer_ + buffer_size_;
+	return current_buffer_ptr_ + value > buffer_ + buffer_size_;
 }
 
 inline size_t afp_net_buffer::get_data_length() const
@@ -222,7 +239,10 @@ inline void afp_net_buffer::push_raw_data(const void* data, const size_t size)
 
 inline void afp_net_buffer::advance_if_odd()
 {
-	if ((current_buffer_ptr_ - (buffer_ + dsi_header_size)) % 2) advance_pos_ptr(sizeof(INT8));
+	if ((current_buffer_ptr_ - (buffer_ + dsi_header_size)) % 2)
+	{
+		advance_pos_ptr(sizeof(INT8));
+	}
 }
 
 inline void afp_net_buffer::advance_to(const INT32 offset)

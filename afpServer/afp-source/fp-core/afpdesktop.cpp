@@ -163,7 +163,7 @@ AFPERROR FPGetIcon(
 {
 	DBGWRITE(dbg_level_trace, L"Enter\n");
 
-	afp_desk_item search_entry;
+	afp_desk_item search_entry = {};
 
 	afp_request.advance_pos_ptr(sizeof(UINT16));
 
@@ -291,7 +291,10 @@ AFPERROR FPAddComment(
 		return afpParmErr;
 	}
 
-	wcscpy_s(desk_item.path_name, pathname.c_str());
+    if (pathname.size() >= std::size(desk_item.path_name)) {
+        return afpParmErr;
+    }
+    wcscpy_s(desk_item.path_name, pathname.c_str());
 
 	afp_request.advance_if_odd();
 
@@ -360,6 +363,9 @@ AFPERROR FPGetComment(
 		return afpParmErr;
 	}
 
+	if (pathname.size() >= std::size(search_entry.path_name)) {
+		return afpParmErr;
+	}
 	wcscpy_s(search_entry.path_name, pathname.c_str());
 
 	const auto desktop = connection->get_afp_session()->get_desktop(afp_dt_refnum);
@@ -434,6 +440,9 @@ AFPERROR FPRemoveComment(
 		return afpParmErr;
 	}
 
+	if (pathname.size() >= std::size(search_entry.path_name)) {
+		return afpParmErr;
+	}
 	wcscpy_s(search_entry.path_name, pathname.c_str());
 
 	const auto desktop = connection->get_afp_session()->get_desktop(afp_dt_refnum);
@@ -569,6 +578,9 @@ AFPERROR FPAddAPPL(
 		return afpParmErr;
 	}
 
+	if (pathname.size() >= std::size(new_entry.path_name)) {
+		return afpParmErr;
+	}
 	wcscpy_s(new_entry.path_name, pathname.c_str());
 
 	const auto desktop = connection->get_afp_session()->get_desktop(afp_dt_refnum);
@@ -618,6 +630,9 @@ AFPERROR FPRemoveAPPL(
 		return afpParmErr;
 	}
 
+	if (pathname.size() >= std::size(search_entry.path_name)) {
+		return afpParmErr;
+	}
 	wcscpy_s(search_entry.path_name, pathname.c_str());
 
 	// Although the spec says to, we don't check to make sure that

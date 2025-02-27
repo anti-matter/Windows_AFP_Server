@@ -348,7 +348,7 @@ void change_notify::afp_change_notify_remove(
 /// </summary>
 /// <param name="file_notify_info"></param>
 /// <param name="file_name"></param>
-/// <param name="file_name_size"></param>
+/// <param name="file_name_size_in_bytes"></param>
 /// <returns></returns>
 bool change_notify::copy_file_name(
     IN const FILE_NOTIFY_INFORMATION* file_notify_info,

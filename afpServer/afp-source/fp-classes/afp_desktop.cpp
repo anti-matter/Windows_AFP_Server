@@ -2,7 +2,6 @@
 #include "afpdebug.h"
 #include "afp_desktop.h"
 #include "afp_volume.h"
-#include "afp_volumes.h"
 
 
 afp_desktop::afp_desktop(afp_volume* volume) : volume_id_(volume->get_volume_id())
@@ -19,7 +18,7 @@ UINT32 afp_desktop::load_from_file()
 {
     std::lock_guard guard(desk_items_mutex_);
 
-    if (!std::filesystem::exists(desktop_file_path_))
+    if (!exists(desktop_file_path_))
     {
         return desktop_file_not_found;
     }
@@ -33,7 +32,7 @@ UINT32 afp_desktop::load_from_file()
     }
 
     BYTE version = 0;
-    if (fread(&version, sizeof(version), 1, file) == 0)
+    if (fread(&version, sizeof(version), 1, file) != 1)
     {
         DBGWRITE(dbg_level_error, L"Failed to read desktop file version!\n", errno);
         return desktop_file_error;
@@ -47,7 +46,7 @@ UINT32 afp_desktop::load_from_file()
     }
 
     std::vector<std::unique_ptr<afp_desk_item>>::size_type item_count;
-    if (fread(&item_count, sizeof(item_count), 1, file) == 0)
+    if (fread(&item_count, sizeof(item_count), 1, file) != 1)
     {
         DBGWRITE(dbg_level_error, L"Failed to read desktop item count.\n", errno);
         return desktop_file_error;
@@ -59,7 +58,7 @@ UINT32 afp_desktop::load_from_file()
     {
         afp_desk_item item;
 
-        if (fread(&item, sizeof(item), 1, file) != 0)
+        if (fread(&item, sizeof(item), 1, file) == 1)
         {
             auto ep = std::make_unique<afp_desk_item>();
             memcpy(ep.get(), &item, sizeof(afp_desk_item));
@@ -122,7 +121,7 @@ void afp_desktop::add(const afp_desk_item* item)
     auto n_item = std::make_unique<afp_desk_item>();
 
     // See afp_desk_item.h for operator.
-    *n_item = item;
+    *n_item = *item;
 
     DBGWRITE(dbg_level_trace, L"Adding desktop item:\n");
     DUMP_ITEM(n_item.get());
@@ -159,7 +158,11 @@ bool afp_desktop::remove(const afp_desk_item* item)
         return false;
     });
 
-    desk_items_.erase(it.begin(), it.end());
+    if (it.begin() != it.end())
+    {
+        desk_items_.erase(it.begin(), it.end());
+        return AFP_OK;
+    }
 
     return AFP_OK;
 }
@@ -214,19 +217,25 @@ afp_desk_item* afp_desktop::find(const afp_desk_item* match_item, const UINT16 s
                     return match_item->equal_icon(i.get());
                 }
 
-                ++index;
+                if (i->file_creator == match_item->file_creator)
+                {
+                    ++index;
+                    return index == search_index;
+                }
 
-                return i->file_creator == match_item->file_creator && index == search_index;
+                return false;
             }
         case entry_type_appl:
             {
-                ++index;
-
-                if (i->equal_aapl(match_item) && index == search_index)
-                {
-                    DBGWRITE(dbg_level_trace, L"Found APPL for: %s\n", i->path_name);
-                    return true;
-                }
+	            if (i->equal_aapl(match_item))
+	            {
+	                ++index;
+	                if (index == search_index)
+	                {
+	                    DBGWRITE(dbg_level_trace, L"Found APPL for: %s\n", i->path_name);
+	                    return true;
+	                }
+	            }
 
                 return false;
             }

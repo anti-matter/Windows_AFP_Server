@@ -5,7 +5,6 @@
 
 #include "afp_desktop.h"
 #include "afp_session.h"
-#include "afp_volumes.h"
 #include "change_notify.h"
 #include "fdparms.h"
 #include "fpinfo.h"
@@ -307,123 +306,123 @@ AFPERROR FPEnumerate(
     std::unique_lock<std::recursive_mutex> lock(afp_volume_info->get_index()->get_mutex());
 
     // Go through the entire index and find entries that have the dirID as their parent.
-    const auto it = std::ranges::for_each(offspring.begin(), offspring.end(), [&](afp_index* index_item)
+    [[maybe_unused]] const auto it = std::ranges::for_each(offspring.begin(), offspring.end(), [&](afp_index* index_item)
     {
-        // If we've gotten as much data as the client requested, then exit this beast.
-        if (afp_act_count >= afp_req_count || afp_reply.get_data_length() >= afp_max_reply_size)
-        {
-            return;
-        }
+	    // If we've gotten as much data as the client requested, then exit this beast.
+	    if (afp_act_count >= afp_req_count || afp_reply.get_data_length() >= afp_max_reply_size)
+	    {
+		    return;
+	    }
 
-        // We don't include some files (like the desktop db) since they
-        // are server specific and the macs shouldn't see or edit them.
-        // Also, check for names too long as they'll crash the Finder.
-        if (index_item->sz_object_name == desktop_file_name || index_item->sz_object_name.size() > APPLETALK_NAME_LEN)
-        {
-            return;
-        }
+	    // We don't include some files (like the desktop db) since they
+	    // are server specific and the macs shouldn't see or edit them.
+	    // Also, check for names too long as they'll crash the Finder.
+	    if (index_item->sz_object_name == desktop_file_name || index_item->sz_object_name.size() > APPLETALK_NAME_LEN)
+	    {
+		    return;
+	    }
 
-        if (GetFileAttributesEx(index_item->sz_path.c_str(), GetFileExInfoStandard, &win_attributes) == 0)
-        {
-            DBGWRITE(dbg_level_error, L"File does not exist on disk: %s\n", index_item->sz_path.c_str());
-            return;
-        }
+	    if (GetFileAttributesEx(index_item->sz_path.c_str(), GetFileExInfoStandard, &win_attributes) == 0)
+	    {
+		    DBGWRITE(dbg_level_error, L"File does not exist on disk: %s\n", index_item->sz_path.c_str());
+		    return;
+	    }
 
-        afp_net_buffer parameter_buffer(temp_buffer.get(), temp_buffer_size);
+	    afp_net_buffer parameter_buffer(temp_buffer.get(), temp_buffer_size);
 
-        afp_objects_found++;
-        if (afp_objects_found < afp_start_index)
-        {
-            return;
-        }
+	    afp_objects_found++;
+	    if (afp_objects_found < afp_start_index)
+	    {
+		    return;
+	    }
 
-        DBGWRITE(dbg_level_trace, L"Enumerating, dir id: %d, pathname: %s\n", afp_dir_id, index_item->sz_object_name.c_str());
+	    DBGWRITE(dbg_level_trace, L"Enumerating, dir id: %d, pathname: %s\n", afp_dir_id, index_item->sz_object_name.c_str());
 
-        const bool is_directory = index_item->flags & flag_index_is_dir;
-        if (afp_dir_bitmap == kFPDirNone && is_directory || afp_file_bitmap == kFPFileNone && !is_directory)
-        {
-            return;
-        }
+	    const bool is_directory = index_item->flags & flag_index_is_dir;
+	    if (afp_dir_bitmap == kFPDirNone && is_directory || afp_file_bitmap == kFPFileNone && !is_directory)
+	    {
+		    return;
+	    }
 
-        UINT8 afp_attributes = 0;
-        if (is_directory)
-        {
-            DBGWRITE(dbg_level_trace, L"Is directory: %s\n", is_directory ? L"TRUE" : L"FALSE");
-            afp_attributes |= kFileDirIsDir;
-        }
+	    UINT8 afp_attributes = 0;
+	    if (is_directory)
+	    {
+		    DBGWRITE(dbg_level_trace, L"Is directory: %s\n", is_directory ? L"TRUE" : L"FALSE");
+		    afp_attributes |= kFileDirIsDir;
+	    }
 
-        afp_error = afp_get_object_parms(
-            parameter_buffer,
-            is_directory ? afp_dir_bitmap : afp_file_bitmap,
-            afp_vol_id,
-            afp_dir_id,
-            connection,
-            index_item,
-            win_attributes);
+	    afp_error = afp_get_object_parms(
+		    parameter_buffer,
+		    is_directory ? afp_dir_bitmap : afp_file_bitmap,
+		    afp_vol_id,
+		    afp_dir_id,
+		    connection,
+		    index_item,
+		    win_attributes);
 
-        if (AFP_FAILED(afp_error))
-        {
-            DBGWRITE(dbg_level_error, L"AFPGetObjectParms() failed: %s\n", index_item->sz_path.c_str());
-            return;
-        }
+	    if (AFP_FAILED(afp_error))
+	    {
+		    DBGWRITE(dbg_level_error, L"AFPGetObjectParms() failed: %s\n", index_item->sz_path.c_str());
+		    return;
+	    }
 
-        UINT8* struct_len = nullptr;
-        UINT16* ext_struct_len = nullptr;
+	    UINT8* struct_len = nullptr;
+	    UINT16* ext_struct_len = nullptr;
 
-        // Check to make sure there is enough room in the buffer to add the
-        // file/dir information. There are items after the file dirs parms that are
-        // added to the buffer, so we add a little extra to be safe.
-        const size_t size_required = parameter_buffer.get_data_length() + afp_reply.get_data_length() + sizeof(UINT32);
+	    // Check to make sure there is enough room in the buffer to add the
+	    // file/dir information. There are items after the file dirs parms that are
+	    // added to the buffer, so we add a little extra to be safe.
+	    const size_t size_required = parameter_buffer.get_data_length() + afp_reply.get_data_length() + sizeof(UINT32);
 
-        // afp_max_reply_size is the maximum size our return buffer can be.
-        if (size_required >= afp_max_reply_size || size_required > afp_reply.get_buffer_size())
-        {
-            DBGWRITE(dbg_level_warning, L"Breaking out, size required too big!\n");
-            return;
-        }
+	    // afp_max_reply_size is the maximum size our return buffer can be.
+	    if (size_required >= afp_max_reply_size || size_required > afp_reply.get_buffer_size())
+	    {
+		    DBGWRITE(dbg_level_warning, L"Breaking out, size required too big!\n");
+		    return;
+	    }
 
-        afp_act_count++;
+	    afp_act_count++;
 
-        // The first byte (or word for AFP3.x) contains the struct len.
-        if (afp_command > afpEnumerate)
-        {
-            ext_struct_len = reinterpret_cast<UINT16*>(afp_reply.get_current_pos_ptr());
-            afp_reply.advance_pos_ptr(sizeof(UINT16));
-        }
-        else
-        {
-            struct_len = reinterpret_cast<UINT8*>(afp_reply.get_current_pos_ptr());
-            afp_reply.advance_pos_ptr(sizeof(UINT8));
-        }
+	    // The first byte (or word for AFP3.x) contains the struct len.
+	    if (afp_command > afpEnumerate)
+	    {
+		    ext_struct_len = reinterpret_cast<UINT16*>(afp_reply.get_current_pos_ptr());
+		    afp_reply.advance_pos_ptr(sizeof(UINT16));
+	    }
+	    else
+	    {
+		    struct_len = reinterpret_cast<UINT8*>(afp_reply.get_current_pos_ptr());
+		    afp_reply.advance_pos_ptr(sizeof(UINT8));
+	    }
 
-        afp_reply.push_num(afp_attributes);
-        if (afp_command > afpEnumerate)
-        {
-            afp_reply.push_num<UINT8>(0);
-        }
+	    afp_reply.push_num(afp_attributes);
+	    if (afp_command > afpEnumerate)
+	    {
+		    afp_reply.push_num<UINT8>(0);
+	    }
 
-        afp_reply.push_raw_data(parameter_buffer.get_buffer(), parameter_buffer.get_data_length());
+	    afp_reply.push_raw_data(parameter_buffer.get_buffer(), parameter_buffer.get_data_length());
 
-        // Set the structure length byte in the buffer. The extra bytes are
-        // for the first params in the structure (structLen, attributes and padding).
-        auto len = static_cast<UINT16>(parameter_buffer.get_data_length() + (afp_command > afpEnumerate ? 4 : 2));
+	    // Set the structure length byte in the buffer. The extra bytes are
+	    // for the first params in the structure (structLen, attributes and padding).
+	    auto len = static_cast<UINT16>(parameter_buffer.get_data_length() + (afp_command > afpEnumerate ? 4 : 2));
 
-        // This entry must end on an even boundary.
-        if (len % 2)
-        {
-            afp_reply.push_num<UINT8>(0);
-            len++;
-        }
+	    // This entry must end on an even boundary.
+	    if (len % 2)
+	    {
+		    afp_reply.push_num<UINT8>(0);
+		    len++;
+	    }
 
-        // AFP3.x uses a word to describe the struct length vs. a byte
-        if (afp_command > afpEnumerate)
-        {
-            *ext_struct_len = htons(len);
-        }
-        else
-        {
-            *struct_len = static_cast<UINT8>(len);
-        }
+	    // AFP3.x uses a word to describe the struct length vs. a byte
+	    if (afp_command > afpEnumerate)
+	    {
+		    *ext_struct_len = htons(len);
+	    }
+	    else
+	    {
+		    *struct_len = static_cast<UINT8>(len);
+	    }
     });
 
     // Set the actual number of objects found and in the buffer.
@@ -841,7 +840,7 @@ AFPERROR FPCopyFile(
     DBGWRITE(dbg_level_trace, L"copying from %s\n", afp_src_entry->sz_path.c_str());
     DBGWRITE(dbg_level_trace, L"copying to %s\n", new_win_path.c_str());
 
-    // Setup the correct impersonation for this API call. We have to
+    // Set up the correct impersonation for this API call. We have to
     // have the right credentials for copy file.
     if (!impersonate_user(connection->get_user_token()))
     {
@@ -914,7 +913,7 @@ AFPERROR FPMoveAndRename(
     }
 
     //*****************
-    //Beging by getting the source file/dir entry.
+    //Begin by getting the source file/dir entry.
     //*****************
 
     auto afp_pathname = afp_request.pull_path(afp_path_type);

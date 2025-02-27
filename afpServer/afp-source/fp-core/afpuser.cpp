@@ -1,5 +1,6 @@
 // ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
 // ReSharper disable CppParameterMayBeConstPtrOrRef
+// ReSharper disable CppClangTidyMiscUseAnonymousNamespace
 #include "StdAfx.h"
 #include "afpuser.h"
 
@@ -13,16 +14,14 @@
 #include "windows_security.h"
 #include "dsi/dsi_connections.h"
 
-
-WCHAR g_server_message[message_max_length + 1];
-BOOL g_allow_guests = TRUE;
-DWORD g_max_sessions = 0;
-BOOL g_force_encrypted_logon = FALSE;
-
 extern dsi::dsi_connections active_connections;
 
+WCHAR g_server_message[message_max_length + 1];  // NOLINT(misc-use-internal-linkage)
+DWORD g_max_sessions = 0;						 // NOLINT(misc-use-internal-linkage)
+BOOL  g_allow_guests = TRUE;					 // NOLINT(misc-use-internal-linkage)
+BOOL  g_force_encrypted_logon = FALSE;			 // NOLINT(misc-use-internal-linkage)
 
-UINT8 get_afp_version_as_int(const WCHAR* version)
+static UINT8 get_afp_version_as_int(const WCHAR* version)
 {
 	INT8 result = 0;
 
@@ -43,7 +42,7 @@ UINT8 get_afp_version_as_int(const WCHAR* version)
 }
 
 
-INT8 get_uam_type_as_int(const WCHAR* uam_string)
+static INT8 get_uam_type_as_int(const WCHAR* uam_string)
 {
 	INT8 result = -1;
 
@@ -60,7 +59,6 @@ INT8 get_uam_type_as_int(const WCHAR* uam_string)
 
 	return (result);
 }
-
 
 /*
  * FPGetSessionToken()
@@ -178,7 +176,7 @@ AFPERROR FPGetSessionToken(
 		session->set_session_id(afp_id, afp_id_size);
 		break;
 
-	// All these id's are unsupported by this AFP Server.
+	// All these ids are unsupported by this AFP Server.
 	case kRecon1Login:
 	case kRecon1ReconnectLogin:
 	case kRecon1Refresh:
@@ -203,7 +201,7 @@ AFPERROR FPGetSessionToken(
  * FPDisconnectOldSession()
  *
  * Description:
- *		AFP clients call this when they are inadvertently cutoff from
+ *		AFP clients call this when they are inadvertently cut off from
  *		the file server. The client calls this to transfer all resources
  *		from the old session to this new one.
  *
@@ -236,7 +234,7 @@ AFPERROR FPDisconnectOldSession(
 
 	if (afp_lost_session != nullptr)
 	{
-		DBGWRITE(dbg_level_info, L"Found diconnected session!\n");
+		DBGWRITE(dbg_level_info, L"Found disconnected session!\n");
 		afp_lost_session->get_dsi_session()->kill_connection();
 	}
 
@@ -328,7 +326,7 @@ AFPERROR FPLogin(
 	std::wstring sz_user_name;
 	std::wstring sz_domain_name;
 
-	// Every UAM other then guest requires the user name, so retrieve it now.
+	// Every UAM other than guest requires the username, so retrieve it now.
 	if (afp_uam_type != afpUAMNone)
 	{
 		if (afp_command == afpLoginExt)
@@ -432,7 +430,7 @@ AFPERROR FPLogin(
 				// it's bad news.
 				if (connection->get_extended_logon_info() != nullptr)
 				{
-					DBGWRITE(dbg_level_warning, L"WARNING: Alread have extended login info!\n");
+					DBGWRITE(dbg_level_warning, L"WARNING: Already have extended login info!\n");
 					ASSERT(0);
 
 					connection->free_extended_logon_info();
@@ -619,7 +617,7 @@ AFPERROR FPChangePassword(
                 const auto dhx_info = new DHXInfo;
 				if (dhx_info == nullptr)
 				{
-					// We failed to allocated the necessary block of data to store information
+					// We failed to allocate the necessary block of data to store information
 					// between login api calls. No choice but to bail out.
 
 					DBGWRITE(dbg_level_warning, L"Failed to allocate DHXInfo structure, exiting.\n");
@@ -650,7 +648,7 @@ AFPERROR FPChangePassword(
 			if (afp_error == afpAuthContinue)
 			{
 				// We've only complete the first step in the key exchange/encryption
-				// process. Returning afpAuthContinue and we'll be called again with
+				// process. Returning afpAuthContinue, and we'll be called again with
 				// the new/old password encrypted payload.
 
 				return afp_error;
@@ -740,7 +738,7 @@ AFPERROR FPLogout(
  * FPMapID()
  *
  * Description:
- *		Map a user ID to a user name.
+ *		Map a user ID to a username.
  *
  * Returns: AFPERROR
  */
@@ -769,7 +767,7 @@ AFPERROR FPMapID(
 
 	switch (afp_sub_func)
 	{
-	//Looking for user name
+	//Looking for username
 	case 1:
 		afp_error = get_user_name_by_id(id, sz_name);
 		if (AFP_SUCCESS(afp_error))

@@ -33,8 +33,9 @@ LRESULT CALLBACK send_message_dlg_proc(
                                sizeof(g_server_message), reinterpret_cast<LPARAM>(g_server_message));
 
             active_connections.broadcast_attention(dsi_attention_server_message);
+            // Intentional fallthrough to IDCANCEL
 
-        case IDCANCEL: // NOLINT(clang-diagnostic-implicit-fallthrough)
+        case IDCANCEL:  // NOLINT(clang-diagnostic-implicit-fallthrough)
             EndDialog(h_dlg, LOWORD(w_param));
             return TRUE;
 
@@ -57,6 +58,6 @@ void send_message_from_ui(const HWND h_parent)
             gh_instance,
             MAKEINTRESOURCE(IDD_SENDMESSAGE),
             h_parent,
-            reinterpret_cast<DLGPROC>(send_message_dlg_proc));
+            reinterpret_cast<DLGPROC>(send_message_dlg_proc));  // NOLINT(clang-diagnostic-cast-function-type-strict)
     }
 }

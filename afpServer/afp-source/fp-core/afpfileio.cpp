@@ -145,40 +145,42 @@ AFPERROR FPOpenFork(
     {
         if (!impersonate_user(connection->get_user_token()))
         {
-            return afpAccessDenied;
+            afp_error = afpAccessDenied;
         }
-
-        afp_error = opened_file->afp_open_file_fork();
-
-        revert_to_self(connection->get_user_token());
-
-        // If we successfully open the file, then return whatever object parms
-        // the caller has asked for.
-        if (AFP_SUCCESS(afp_error))
+        else
         {
-            // We need to return the file ref num to the caller.
-            const auto afp_new_ref_num = opened_file->get_file_ref_num();
+            afp_error = opened_file->afp_open_file_fork();
 
-            // We don't support the following bitmaps, so we clear them.
-            if (connection->get_afp_version() < afpVersion30)
+            revert_to_self(connection->get_user_token());
+
+            // If we successfully open the file, then return whatever object parms
+            // the caller has asked for.
+            if (AFP_SUCCESS(afp_error))
             {
-                if (afp_bitmap & kFPProDos) afp_bitmap &= ~kFPProDos;
-                if (afp_bitmap & kFPShortName) afp_bitmap &= ~kFPShortName;
+                // We need to return the file ref num to the caller.
+                const auto afp_new_ref_num = opened_file->get_file_ref_num();
+
+                // We don't support the following bitmaps, so we clear them.
+                if (connection->get_afp_version() < afpVersion30)
+                {
+                    if (afp_bitmap & kFPProDos) afp_bitmap &= ~kFPProDos;
+                    if (afp_bitmap & kFPShortName) afp_bitmap &= ~kFPShortName;
+                }
+
+                // Add in the bitmap and new refnum id.
+                afp_reply.push_num(afp_bitmap);
+                afp_reply.push_num(afp_new_ref_num);
+
+                afp_error = afp_get_object_parms(
+                    afp_reply,
+                    afp_bitmap,
+                    afp_volume_id,
+                    afp_dir_id,
+                    connection,
+                    afp_entry,
+                    win_attributes
+                );
             }
-
-            // Add in the bitmap and new refnum id.
-            afp_reply.push_num(afp_bitmap);
-            afp_reply.push_num(afp_new_ref_num);
-
-            afp_error = afp_get_object_parms(
-                afp_reply,
-                afp_bitmap,
-                afp_volume_id,
-                afp_dir_id,
-                connection,
-                afp_entry,
-                win_attributes
-            );
         }
     }
 
@@ -255,7 +257,7 @@ AFPERROR FPSetForkParms(
         {
             if (open_file->get_fork() != kRsrcFork)
             {
-                DBGWRITE(dbg_level_error, L"Resource fork is not open! (%x)\n");
+                DBGWRITE(dbg_level_error, L"Resource fork is not open!\n");
                 return afpBitmapErr;
             }
 
