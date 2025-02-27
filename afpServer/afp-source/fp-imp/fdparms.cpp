@@ -224,7 +224,7 @@ AFPERROR afp_get_object_parms(
     {
         if (bitmap & (kFPDFLen | kFPExtDataForkLen))
         {
-            data_size64.HighPart = win_attributes.nFileSizeHigh;
+            data_size64.HighPart = static_cast<LONG>(win_attributes.nFileSizeHigh);
             data_size64.LowPart = win_attributes.nFileSizeLow;
 
             DBGWRITE(dbg_level_trace, L"Data fork size =  (%I64d)\n", data_size64.QuadPart);

@@ -302,6 +302,7 @@ AFPERROR FPGetForkParms(
     const auto afp_fork_ref = afp_request.pull_num<INT16>();
     if (afp_fork_ref <= 0)
     {
+        DBGWRITE(dbg_level_error, L"Bad for reference number provided (%d).\n", afp_fork_ref);
         return afpParmErr;
     }
 

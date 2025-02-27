@@ -117,7 +117,7 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 	}
 
 	//Get the next available file ref num.
-	static INT16 next_file_ref_num = 0;
+	static INT16 next_file_ref_num = 1;
 	m_file_ref_num_ = next_file_ref_num++;
 	m_file_handle_ = h_file;
 

@@ -5,7 +5,7 @@
 
 #if defined(DBG) || defined(_DEBUG)
 
-enum dbg_level
+enum dbg_level : UINT8
 {
 	dbg_level_error = 1,
 	dbg_level_warning,
