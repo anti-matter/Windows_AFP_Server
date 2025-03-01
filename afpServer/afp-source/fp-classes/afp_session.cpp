@@ -52,7 +52,10 @@ afp_session::~afp_session()
 
     std::ranges::for_each(m_open_volumes_, [this](const std::shared_ptr<afp_volume>& ov)
         {
-            close_volume(ov->get_volume_id());
+            if (ov != nullptr)
+            {
+                close_volume(ov->get_volume_id());
+            }
         });
 }
 

@@ -53,7 +53,7 @@ public:
 
     void advance_pos_ptr(UINT32 offset);
     void advance_if_odd();
-	void advance_to(INT32 offset);
+	void move_to(INT32 offset);
 	void rewind();
 
 	void set_dsi_return_value(UINT32 value);
@@ -200,7 +200,7 @@ inline void afp_net_buffer::set_parameter_offset_value(const INT16 offset, const
 	}
 
 	const auto save = current_buffer_ptr_;
-	advance_to(offset);
+	move_to(offset);
 	push_num(value);
 	current_buffer_ptr_ = save;
 }
@@ -245,11 +245,11 @@ inline void afp_net_buffer::advance_if_odd()
 	}
 }
 
-inline void afp_net_buffer::advance_to(const INT32 offset)
+inline void afp_net_buffer::move_to(const INT32 offset)
 {
-	if (will_overflow(offset))
+	if (buffer_ + offset > buffer_ + buffer_size_)
 	{
-		DBGWRITE(dbg_level_error, L"Overflow advancing to offset!");
+		DBGWRITE(dbg_level_error, L"Overflow moving to buffer offset!");
 		ASSERT(0);
 
 		return;

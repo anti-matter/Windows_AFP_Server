@@ -265,7 +265,7 @@ AFPERROR afp_open_file::write_fork(
 	}
 
 	// Get the ptr to the actual block of data we want to write out.
-	afp_request.advance_to(static_cast<INT32>(afp_request.get_dsi_data_offset()));
+	afp_request.move_to(static_cast<INT32>(afp_request.get_dsi_data_offset()));
 
 	// Set the file position to the desired offset before writing.
 	auto afp_error = file_seek(afp_offset, afp_from_start ? FILE_BEGIN : FILE_END);

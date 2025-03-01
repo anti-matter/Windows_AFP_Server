@@ -195,7 +195,7 @@ bool afp_volumes::index_build(std::filesystem::path& share_path, const INT32  pa
     do
     {
         std::wstring file_name = find_data.cFileName;
-        if (file_name == L"." || file_name == L".." || file_name[0] == L'.')
+        if (file_name == L"." || file_name == L"..")
         {
             continue;
         }

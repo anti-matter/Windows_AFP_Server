@@ -123,6 +123,7 @@ AFPERROR FPGetFileDirParms(
     const auto volume = connection->get_afp_session()->find_open_volume(afp_volume_id);
     if (volume == nullptr)
     {
+        DBGWRITE(dbg_level_error, L"Could not find open volume (%d)\n", afp_volume_id);
         return afpParmErr;
     }
 

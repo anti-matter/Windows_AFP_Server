@@ -37,7 +37,7 @@ namespace dsi
 
 		if (!adjust_privilege(const_cast<PWCHAR>(SE_IMPERSONATE_NAME), TRUE))
 		{
-			DBGWRITE(dbg_level_error, L"Setting impersonation privilage failed (%d)\n", GetLastError());
+			DBGWRITE(dbg_level_error, L"Setting impersonation privilege failed (%d)\n", GetLastError());
 			ASSERT(0);
 		}
 	}
@@ -178,7 +178,7 @@ namespace dsi
 				{
 					DBGWRITE(
 						dbg_level_error,
-						L"DSI request id does not match expected value: %d expected, %d recevied.\n",
+						L"DSI request id does not match expected value: %d expected, %d received.\n",
 						expected_request_id,
 						dsi_request_id);
 
@@ -322,7 +322,7 @@ namespace dsi
 
     void dsi_connection::dsi_close_session(char* reply_buffer, UINT16 client_request_id)
 	{
-		DBGWRITE(dbg_level_info, L"DSI close sesssion command received.\n");
+		DBGWRITE(dbg_level_info, L"DSI close session command received.\n");
 
 		dsi_session_open_ = false;
 
@@ -360,7 +360,7 @@ namespace dsi
 #ifdef _DEBUG
 		if (AFP_FAILED(afp_error) && afp_error != afpEofError && afp_error != afpObjectNotFound && afp_error != afpItemNotFound)
 		{
-			DBGWRITE(dbg_level_error, L"AFP error: %d\n", afp_error);
+			DBGWRITE(dbg_level_error, L"AFP error: %d, for FP cmd: %d\n", afp_error, afp_cmd);
 		}
 #endif
 
@@ -373,7 +373,7 @@ namespace dsi
 
 		if (!session_authenticated_ && afp_error != afpAuthContinue)
 		{
-			DBGWRITE(dbg_level_info, L"Authencation gone, killing DSI session\n");
+			DBGWRITE(dbg_level_info, L"Authentication gone, killing DSI session\n");
 			kill_connection();
 		}
 	}

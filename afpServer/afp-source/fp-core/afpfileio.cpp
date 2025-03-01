@@ -81,6 +81,8 @@ AFPERROR FPOpenFork(
     IN dsi::dsi_connection* connection
 )
 {
+    DBGWRITE(dbg_level_info, L"Enter...\n");
+
     afp_session* afp_afp_session = connection->get_afp_session();
 
     WIN32_FILE_ATTRIBUTE_DATA win_attributes;
@@ -97,13 +99,14 @@ AFPERROR FPOpenFork(
     const auto volume = afp_afp_session->find_open_volume(afp_volume_id);
     if (volume == nullptr)
     {
-        // The volume has not been opened, we need to return error.
+        DBGWRITE(dbg_level_error, L"Volume not opened (%d)\n", afp_volume_id);
         return afpParmErr;
     }
 
     const auto afp_pathname = afp_request.pull_path(afp_path_type);
     if (afp_pathname.empty())
     {
+        DBGWRITE(dbg_level_error, L"No path supplied to open fork!\n");
         return afpParmErr;
     }
 

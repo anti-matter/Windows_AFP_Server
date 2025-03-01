@@ -20,8 +20,7 @@ void afp_check_for_and_create_rsrc_stream(
     res_path.concat(":");
     res_path.concat(AFP_RESOURCE_FORK_NAME);
 
-
-    if (HANDLE h_file = CreateFile(
+    auto h_file = CreateFile(
         res_path.c_str(),
         GENERIC_READ | GENERIC_WRITE,
         0,
@@ -29,7 +28,9 @@ void afp_check_for_and_create_rsrc_stream(
         OPEN_EXISTING,
         FILE_ATTRIBUTE_NORMAL,
         nullptr
-    ); h_file == INVALID_HANDLE_VALUE)
+    );
+
+    if (h_file == INVALID_HANDLE_VALUE)
     {
         if (const auto error = GetLastError(); error == ERROR_FILE_NOT_FOUND)
         {
@@ -288,13 +289,19 @@ AFPERROR afp_get_object_parms(
     {
         if (bitmap & kFPLongName)
         {
-            *long_name_offset = htons(static_cast<UINT16>(reply.get_current_pos_ptr() - parms_start));
+            if (long_name_offset != nullptr)
+            {
+                *long_name_offset = htons(static_cast<UINT16>(reply.get_current_pos_ptr() - parms_start));
+            }
             reply.push_path(kLongNames, entry);
         }
 
         if (bitmap & kFPUnicodeName)
         {
-            *uni_name_offset = htons(static_cast<UINT16>(reply.get_current_pos_ptr() - parms_start));
+            if (uni_name_offset != nullptr)
+            {
+                *uni_name_offset = htons(static_cast<UINT16>(reply.get_current_pos_ptr() - parms_start));
+            }
             reply.push_path(kUnicodeNames, entry);
         }
     }
@@ -448,8 +455,7 @@ AFPERROR afp_set_file_time(
     if (h_file == INVALID_HANDLE_VALUE)
     {
         const auto win_error = GetLastError();
-        DBGWRITE(dbg_level_error,
-                 L"CreatFile() failed in AFPSetFileTime! (%d)\n", win_error);
+        DBGWRITE(dbg_level_error, L"CreateFile() failed in AFPSetFileTime! (%d)\n", win_error);
 
         return win_error == ERROR_FILE_NOT_FOUND ? afpObjectNotFound : afpMiscErr;
     }
@@ -491,8 +497,6 @@ WORD win_to_afp_attributes(
         attributes |= (kFileReadOnly | kFileDeleteInhibit | kFileRenameInhibit);
     if (win_attributes & FILE_ATTRIBUTE_ARCHIVE)
         attributes |= kFileNeedsBackup;
-    if (win_attributes & FILE_ATTRIBUTE_SYSTEM)
-        attributes |= kFileSystem;
 
     return attributes;
 }
