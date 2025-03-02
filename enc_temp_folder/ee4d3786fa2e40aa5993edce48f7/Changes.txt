@@ -1,0 +1,11 @@
+===============================================================================
+Personal AFP Server Change Log
+
+Version 2.0.1:
+- New installer (Microsoft Installer Project) to have a more Windows-like installation
+- Check file name length when enumerating a directory. Prevent Finder crash.
+- Fixed volume parent folder entry in index, use drive letter for path if required.
+- FPRead should read INT32 for offset, not UINT32. Also, check for positive value.
+- Correctly write char_map to dir/file that are created via Windows explorer.
+- Some programs would hang in StdPutFile enumerating a file share (looking for parent of root).
+- Fixed critical section bug when unmounting two volumes simultaneously.
