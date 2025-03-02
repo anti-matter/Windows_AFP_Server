@@ -145,7 +145,7 @@ BEGIN
     DEFPUSHBUTTON   "OK",IDOK,118,91,55,14,BS_CENTER
     CONTROL         IDB_BITMAP2,IDC_STATIC,"Static",SS_BITMAP | SS_CENTERIMAGE,47,7,191,33
     GROUPBOX        "",IDC_STATIC,26,42,239,38
-    CTEXT           "Copyright (c) 2023, Michael J. Conrad.",IDC_STATIC,34,51,224,14
+    CTEXT           "Copyright (c) 2025, Michael J. Conrad.",IDC_STATIC,34,51,224,14
     CTEXT           "A personal Apple Filing Protocol (AFP) server for Windows.",IDC_STATIC,31,65,228,8
     RTEXT           "1.0.0",IDC_VERSION_TEXT,260,7,22,10
 END

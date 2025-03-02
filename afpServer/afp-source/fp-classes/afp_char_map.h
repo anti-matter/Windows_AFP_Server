@@ -1,9 +1,8 @@
 #pragma once
 
 const std::wstring win_illegal_path_characters = L"/\"?*<>|";
-constexpr wchar_t replacement_char = L'§';
 constexpr UINT8 char_map_size = 32;
-inline const WCHAR* map_stream_name(L":Afp_CharMap");
+inline auto map_stream_name(L":Afp_CharMap");
 
 struct char_mapping
 {

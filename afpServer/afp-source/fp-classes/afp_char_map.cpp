@@ -33,9 +33,9 @@ std::wstring afp_char_map::generate_map_from_mac_path(const std::string& mac_pat
 		} while (position != std::wstring::npos);
 	}
 
-	for (std::wstring::size_type i = 0; i < win_path.size(); i++)
+    for (std::wstring::size_type i = 0; i < win_path.size(); i++)
 	{
-		if (win_path[i] < 32)
+		if (constexpr wchar_t min_char_code = 32; win_path[i] < min_char_code)
 		{
 			map_data.map[map_index++].set(win_path[i], i);
 			win_path[i] += 128;
