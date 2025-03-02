@@ -26,7 +26,7 @@ struct char_map_data
     {
     }
 
-	bool has_mappings() const { return num_mappings > 0; }
+	[[nodiscard]] bool has_mappings() const { return num_mappings > 0; }
 
 	UINT8 num_mappings;
 	char_mapping map[char_map_size];

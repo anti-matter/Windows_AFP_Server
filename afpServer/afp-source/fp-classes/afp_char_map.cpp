@@ -7,7 +7,7 @@
 #include "afphelp.h"
 
 
-UINT code_page_for_path_type(const UINT path_type)
+static UINT code_page_for_path_type(const UINT path_type)  // NOLINT(misc-use-anonymous-namespace)
 {
 	return path_type == kLongNames ? CP_MACCP : CP_UTF8;
 }
@@ -28,7 +28,7 @@ std::wstring afp_char_map::generate_map_from_mac_path(const std::string& mac_pat
 			if (position != std::wstring::npos)
 			{
 				map_data.map[map_index++].set(win_path[position], position);
-				win_path[position] = replacement_char;
+				win_path[position] += 128;
 			}
 		} while (position != std::wstring::npos);
 	}
@@ -38,13 +38,13 @@ std::wstring afp_char_map::generate_map_from_mac_path(const std::string& mac_pat
 		if (win_path[i] < 32)
 		{
 			map_data.map[map_index++].set(win_path[i], i);
-			win_path[i] = replacement_char;
+			win_path[i] += 128;
 		}
 
 		if (win_path[i] == '.' && i + 1 < win_path.size() && win_path[i+1] == '.')
 		{
 			map_data.map[map_index++].set(win_path[i], i);
-			win_path[i] = replacement_char;
+			win_path[i] += 128;
 		}
 	}
 
@@ -52,9 +52,11 @@ std::wstring afp_char_map::generate_map_from_mac_path(const std::string& mac_pat
 	if (win_path.back() == L'.' || win_path.back() == L' ')
 	{
 		map_data.map[map_index++].set(win_path[win_path.size() - 1], win_path.size() - 1);
-		win_path[win_path.size() - 1] = replacement_char;
+		win_path[win_path.size() - 1] += 128;
 	}
 
+	DBGWRITE(dbg_level_trace, L"String in: %s\n", string_to_wide_string(mac_path, code_page_for_path_type(path_type)).c_str());
+    DBGWRITE(dbg_level_trace, L"String out: %s\n", win_path.c_str());
 	DBGWRITE(dbg_level_trace, L"Mappings count: %d\n", map_index);
 
 	map_data.num_mappings = map_index;
@@ -93,6 +95,8 @@ std::shared_ptr<char_map_data> afp_char_map::read_char_map(const std::wstring& f
 		return nullptr;
 	}
 
+	auto char_map = std::make_shared<char_map_data>();
+
 	std::filesystem::path path = file_path;
 	path.concat(map_stream_name);
 
@@ -103,8 +107,6 @@ std::shared_ptr<char_map_data> afp_char_map::read_char_map(const std::wstring& f
 		//DBGWRITE(dbg_level_error, L"Failed to read char_map_data from file (%s)\n", file_path.c_str());
 		return nullptr;
 	}
-
-    auto char_map = std::make_shared<char_map_data>();
 
 	if (fread(char_map.get(), sizeof(char_map_data), 1, file) == 0)
 	{

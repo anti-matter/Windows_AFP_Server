@@ -3,6 +3,7 @@ Personal AFP Server Change Log
 
 Version 2.0.3:
 - Don't ignore files that start with ".", needed for sharing git repos, for example.
+- New implementation for file/folder name character mapping. Solved many issues.
 - Fix bug in buffer checks which caused incorrect failure.
 - Hardening by including additional checks.
 

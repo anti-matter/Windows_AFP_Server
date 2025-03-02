@@ -1,6 +1,17 @@
 ===============================================================================
 Personal AFP Server Change Log
 
+Version 2.0.3:
+- Don't ignore files that start with ".", needed for sharing git repos, for example.
+- Fix bug in buffer checks which caused incorrect failure.
+- Hardening by including additional checks.
+
+Version 2.0.2:
+- Implement FPSetForkParms. Fixes file corruption when files copied to server using older versions of MacOS (7.x).
+- Fixed bug in change notify that could lead to potential crash.
+- Fixed bug in FPOpenVolume so parameters are not returned when call fails.
+- Other minor bug fixes.
+
 Version 2.0.1:
 - New installer (Microsoft Installer Project) to have a more Windows-like installation
 - Check file name length when enumerating a directory. Prevent Finder crash.
