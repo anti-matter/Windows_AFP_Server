@@ -10,9 +10,9 @@ enum dbg_level : UINT8
 	dbg_level_error = 1,
 	dbg_level_warning,
 	dbg_level_info,
+	dbg_level_trace,
 	dbg_level_dump_in,	// incoming data
 	dbg_level_dump_out, // outgoing data
-	dbg_level_trace
 };
 
 constexpr dbg_level current_debug_level = dbg_level_info;
