@@ -4,7 +4,8 @@ Personal AFP Server Change Log
 Version 2.0.3:
 - Don't ignore files that start with ".", needed for sharing git repos, for example.
 - New implementation for file/folder name character mapping. Solved many issues.
-- Fix bug in buffer checks which caused incorrect failure.
+- Fixed bug in Volume Parms that prevented support of drives larger than 4GB.
+- Fix bug in buffer checks which caused false failure.
 - Hardening by including additional checks.
 
 Version 2.0.2:

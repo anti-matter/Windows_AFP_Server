@@ -161,9 +161,9 @@ AFPERROR AFPGetVolumeParameters(
     if (afp_bitmap & kFPVolBytesFreeBit)
     {
         // The max allowable on AFP 2.2 clients is 2GB.
-        if (free_bytes_available.QuadPart > MAXLONG)
+        if (free_bytes_available.QuadPart > UINT32_MAX)
         {
-            afp_reply.push_num<INT32>(MAXLONG/2);
+            afp_reply.push_num<UINT32>(UINT32_MAX);
         }
         else
         {
@@ -176,9 +176,9 @@ AFPERROR AFPGetVolumeParameters(
         // The max allowable on AFP 2.2 clients is 2GB. As per the AFP 3.0 spec,
         // if the volume is greater than 4GB, we return the total size of the volume
         // minus 4GB.
-        if (num_bytes_in_disk.QuadPart > MAXLONG)
+        if (num_bytes_in_disk.QuadPart > UINT32_MAX)
         {
-            afp_reply.push_num<INT32>(MAXLONG/2);
+            afp_reply.push_num<UINT32>(UINT32_MAX);
         }
         else
         {
@@ -199,11 +199,11 @@ AFPERROR AFPGetVolumeParameters(
     // is using AFP 2.2 or later.
     if (afp_bitmap & kFPVolExtBytesFree)
     {
-        afp_reply.push_num(num_free_bytes.QuadPart);
+        afp_reply.push_num<INT64>(min(num_free_bytes.QuadPart, UINT32_MAX));
     }
     if (afp_bitmap & kFPVolExtBytesTotal)
     {
-        afp_reply.push_num(num_bytes_in_disk.QuadPart);
+        afp_reply.push_num<INT64>(min(num_bytes_in_disk.QuadPart, UINT32_MAX));
     }
 
     if (afp_bitmap & kFPVolBlockSize)
