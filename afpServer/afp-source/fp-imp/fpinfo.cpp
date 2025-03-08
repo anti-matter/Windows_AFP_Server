@@ -31,7 +31,49 @@ void create_finder_info_stream(
     set_finder_info(entry, &finder_info, true);
 }
 
+static mac_extension_map ext_map[] = {  // NOLINT(misc-use-anonymous-namespace)
+    {.extension = L".sit", .type = "SIT5", .creator = "SIT!"},
+    {.extension = L".hqx", .type = "TEXT", .creator = "SITx"},
+    {.extension = L".zip", .type = "ZIP ", .creator = "SITx"},
+    {.extension = L".txt", .type = "TEXT", .creator = "ttxt"}
+};
 
+/// <summary>
+/// This function will apply the default finder info based on the extension of the file.
+/// </summary>
+/// <param name="filename"></param>
+/// <param name="finfo"></param>
+void finder_info_based_on_extension( // NOLINT(misc-use-internal-linkage)
+    IN const std::wstring& filename,
+    OUT afp_finder_info* finfo)  
+{
+    std::string result;
+    const std::filesystem::path filepath = filename;
+    const std::wstring extension = filepath.extension().wstring();
+
+    for (UINT i = 0; i < sizeof(ext_map); i++)
+    {
+        if (extension == ext_map[i].extension)
+        {
+            memcpy(finfo->fd_type, ext_map[i].type, 4);
+            memcpy(finfo->fd_creator, ext_map[i].creator, 4);
+
+            return;
+        }
+    }
+
+    memcpy(finfo->fd_type, "????", 4);
+    memcpy(finfo->fd_creator, "????", 4);
+}
+
+/// <summary>
+/// Read in the finder info from the AFP_Info stream. If the stream
+/// does not exist, or the finder info is invalid, then we will call
+/// the finder_info_based_on_extension() function to set the default.
+/// </summary>
+/// <param name="entry"></param>
+/// <param name="finder_info"></param>
+/// <returns></returns>
 AFPERROR get_finder_info(
     IN const afp_index* entry,
     OUT afp_finder_info* finder_info
@@ -63,19 +105,26 @@ AFPERROR get_finder_info(
         {
             DBGWRITE(dbg_level_error, L"CreateFile() failed (%d) (%s)\n", dw_error, path.c_str());
         }
-
-        return afp_map_win_error_to_afp(dw_error, afpMiscErr);
     }
 
-    if (!ReadFile(h_file, finder_info, sizeof(afp_finder_info), &dw_bytes_read, nullptr))
+    if (dw_error == ERROR_SUCCESS)
     {
-        dw_error = GetLastError();
-        DBGWRITE(dbg_level_info, L"ReadFile() failed! (%d)\n", dw_error);
-
-        dw_error = afp_map_win_error_to_afp(dw_error, afpMiscErr);
+        if (!ReadFile(h_file, finder_info, sizeof(afp_finder_info), &dw_bytes_read, nullptr))
+        {
+            dw_error = GetLastError();
+            DBGWRITE(dbg_level_error, L"ReadFile() failed! (%d)\n", dw_error);
+        }
     }
 
-    CloseHandle(h_file);
+    if (h_file != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(h_file);
+    }
+
+    if (dw_error != ERROR_SUCCESS || memcmp(finder_info->fd_type, "????", 4) == 0)
+    {
+        finder_info_based_on_extension(path.wstring(), finder_info);
+    }
 
     return afp_map_win_error_to_afp(dw_error, afpMiscErr);
 }
@@ -120,7 +169,7 @@ AFPERROR set_finder_info(
             // on the windows machine.
             if (dw_error == ERROR_SHARING_VIOLATION)
             {
-                DBGWRITE(dbg_level_info, L"Sleeping for 500ms for notify wait!\n");
+                DBGWRITE(dbg_level_warning, L"Sleeping for 500ms for notify wait!\n");
 
                 Sleep(500);
 
@@ -129,7 +178,7 @@ AFPERROR set_finder_info(
             }
 
             DBGWRITE(dbg_level_error,
-                     L"CreatFile() failed! (%d) (%s)\n",
+                     L"CreateFile() failed! (%d) (%s)\n",
                      dw_error,
                      path.c_str());
 

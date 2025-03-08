@@ -7,6 +7,12 @@ struct afp_index;
 
 inline const WCHAR* afp_info_stream_name(L"AFP_AfpInfo");
 
+struct mac_extension_map
+{
+    wchar_t	extension[8];
+    char	type[5];
+    char	creator[5];
+};
 
 void create_finder_info_stream(
     IN const afp_index* entry,
