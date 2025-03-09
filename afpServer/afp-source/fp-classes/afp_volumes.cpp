@@ -200,6 +200,12 @@ bool afp_volumes::index_build(std::filesystem::path& share_path, const INT32  pa
             continue;
         }
 
+        if (should_ignore_object(file_name))
+        {
+            DBGWRITE(dbg_level_warning, L"Ignore object %s while indexing.\n", file_name.c_str());
+            continue;
+        }
+
         const auto is_directory = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
 
         // Form path to new file or directory.

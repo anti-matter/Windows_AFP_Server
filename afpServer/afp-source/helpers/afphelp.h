@@ -10,6 +10,8 @@ constexpr auto seconds_from_1980_2000 = seconds_per_day * days_from_1980_2000;
 constexpr auto num_100_ns_per_second = 10000000L;
 constexpr LARGE_INTEGER seconds_to_start_of_1980 = {{0xc8df3700 , 0x00000002}};
 
+bool should_ignore_object(const std::wstring& object_name);
+
 std::string wide_string_to_string(const std::wstring & wide_string, UINT code_page);
 std::wstring string_to_wide_string(const std::string & string, UINT code_page);
 

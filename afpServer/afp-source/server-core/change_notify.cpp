@@ -224,7 +224,13 @@ void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_no
     const std::filesystem::path new_item_parent_path = new_item_path.parent_path();
     const std::filesystem::path new_item_name = new_item_path.filename();
 
-    DBGWRITE(dbg_level_info, L"New item pathname = %s\n", new_item_pathname);
+    DBGWRITE(dbg_level_info, L"New item pathname = %s\n", new_item_name.c_str());
+
+    if (should_ignore_object(new_item_pathname))
+    {
+        DBGWRITE(dbg_level_info, L"Ignoring object: %s\n", new_item_name.c_str());
+        return;
+    }
 
     // Search the afp index for the entry corresponding to the parent
     // directory for the new item.

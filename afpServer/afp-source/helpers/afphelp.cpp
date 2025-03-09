@@ -11,6 +11,26 @@
 #include "afpdebug.h"
 #include "afp.h"
 
+/// <summary>
+/// These objects are ignored by the change notify mechanism.
+/// </summary>
+static std::wstring objects_to_ignore[] = { // NOLINT(misc-use-anonymous-namespace)
+    L".git",
+    L".DS_Store",
+    L"afp_desktop.db"
+};
+
+bool should_ignore_object(const std::wstring& object_name)
+{
+    for (const auto& ignore : objects_to_ignore)  // NOLINT(readability-use-anyofallof)
+    {
+        if (object_name == ignore)
+        {
+            return true;
+        }
+    }
+    return false;
+}
 
 std::string wide_string_to_string(const std::wstring& wide_string, const UINT code_page)
 {
