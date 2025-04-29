@@ -518,12 +518,12 @@ namespace dsi
 
     bool dsi_connection::client_lost() const
 	{
-		if (GetTickCount64() - last_tickle_ > client_lost_idle)
+		const auto elapsed_time = GetTickCount64() - last_tickle_;
+
+		if ((client_sleeping_ && elapsed_time > client_lost_sleeping) ||
+			(!client_sleeping_ && elapsed_time > client_lost_idle))
 		{
-			if (!client_sleeping_)
-			{
-				return true;
-			}
+			return true;
 		}
 
 		return false;

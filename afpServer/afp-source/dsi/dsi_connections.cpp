@@ -104,8 +104,18 @@ namespace dsi
 					connection->send_tickle();
 				}
 
+				// If connection is lost, we terminate the connection.
 				if (connection->client_lost())
 				{
+					if (connection->get_is_client_sleeping())
+					{
+						DBGWRITE(dbg_level_info, L"Client %s is sleeping past expiration, killing connection.\n", connection->get_user_name().c_str());
+					}
+					else
+					{
+						DBGWRITE(dbg_level_info, L"Client %s timed out, killing connection.\n", connection->get_user_name().c_str());
+					}
+
 					EventWriteAFPServerEvt_ClientTimeout(connection->get_user_name().c_str());
 
 					connection->kill_connection();
