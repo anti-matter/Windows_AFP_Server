@@ -242,3 +242,4 @@ ModelManifest.xml
 .fake/
 /PersonalAfpServer
 /PersonalAfpServer.zip
+enc_temp_folder/

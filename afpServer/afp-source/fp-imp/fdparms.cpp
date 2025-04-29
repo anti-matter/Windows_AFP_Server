@@ -94,6 +94,7 @@ AFPERROR afp_get_object_parms(
         {
             if (entry->flags & flag_index_resource_fork_open)
             {
+                DBGWRITE(dbg_level_info, L"File object %s is hidden.\n", entry->sz_object_name.c_str());
                 attributes |= kFileRsrcForkOpen;
             }
 
@@ -382,6 +383,9 @@ AFPERROR afp_set_file_dir_parms(
         finder_info.fd_location.x = static_cast<SHORT>(ntohs(finder_info.fd_location.x));
         finder_info.fd_location.y = static_cast<SHORT>(ntohs(finder_info.fd_location.y));
         finder_info.fd_fldr = static_cast<SHORT>(ntohs(finder_info.fd_fldr));
+
+        DBGWRITE(dbg_level_trace, L"Setting Finder info for: %s\n", index_entry->sz_object_name.c_str());
+        DBGWRITE(dbg_level_trace, L"Location: x:%d y:%d\n", finder_info.fd_location.x, finder_info.fd_location.y);
 
         set_finder_info(index_entry, &finder_info, FALSE);
     }

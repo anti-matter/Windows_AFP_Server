@@ -24,7 +24,7 @@ enum : UINT8
     kHardCreate = 0x2
 };
 
-enum
+enum : INT8
 {
     kPathDelimiter = L':',
     kRootDirID = 2,
@@ -34,7 +34,7 @@ enum
     kWriteMode = 0x0002,
 };
 
-enum AfpCommand
+enum AfpCommand : UINT8
 {
     afpByteRangeLock = 1,
     afpVolClose = 2,
@@ -111,7 +111,7 @@ enum AfpCommand
     afpZzzz = 122
 };
 
-enum AfpErrorCode
+enum AfpErrorCode : INT16
 {
     afpAccessDenied = -5000,
     afpAuthContinue = -5001,
@@ -186,7 +186,7 @@ typedef LONG AFPERROR;
 #define AFP_MAX_LONG			MAXLONG
 #define AFP_MAX_WORD			MAXWORD
 
-enum afp_versions
+enum afp_versions : UINT8
 {
     afpVersion22 = 1,
     afpVersion30,
@@ -194,7 +194,7 @@ enum afp_versions
     afpVersion32
 };
 
-enum uam_types
+enum uam_types : UINT8
 {
     afpUAMNone = 0,
     afpUAMCleartext = 1,
@@ -206,7 +206,7 @@ enum uam_types
 #define UAM_CLEAR_TEXT			TEXT("Cleartxt passwrd")
 #define UAM_DHCAST128			TEXT("DHCAST128")
 
-enum
+enum : UINT8
 {
     UAM_COUNT = 3,
     AFP_COMMENT_MAX = 199,
@@ -214,7 +214,7 @@ enum
     MAX_AFP_VERSION_LEN = 15
 };
 
-enum afp_path_constants
+enum afp_path_constants : UINT16
 {
     MAX_AFP20_NAME = 32,
     MAX_AFP20_PATH = 256,
@@ -235,7 +235,7 @@ enum afp_path_constants
 #define MAX_AFP_PATH							MAX_AFP20_PATH
 #endif //AFP_VERSION_30
 
-enum
+enum : UINT8
 {
     UAM_USERNAMELEN = 33,
     UAM_CLRTXTPWDLEN = 8,
@@ -262,7 +262,7 @@ enum : UINT32
     AFP_DIR_NEVER_BACKEDUP = 0x80000000,
 };
 
-// Mac's time is based from January 1, 1904 while a server's is based on the
+// Mac's time is based from January 1, 1904, while a server's is based on the
 // year 2000. Below is the difference between the two for conversion and a
 // macro to make life easier.
 #define NUM_SECS_FROM_1904_TO_2000 	3029529600
@@ -274,24 +274,24 @@ enum : UINT32
 
 using afp_clear_text_password = unsigned char[8];
 
-enum
+enum : UINT8
 {
     KFPMsgSrvrBit = 0x1
 };
 
-enum afp_server_messaging
+enum afp_server_messaging : UINT8
 {
     message_max_length = 199,
     message_login_type = 0,
     message_server_type = 1
 };
 
-enum afp_get_server_message_flags
+enum afp_get_server_message_flags : UINT8
 {
     kSendMessageAsUnicode = 0x2
 };
 
-enum afp_volume_bitmap_flags
+enum afp_volume_bitmap_flags : UINT16
 {
     kFPVolAttributeBit = 0x1,
     kFPVolSignatureBit = 0x2,
@@ -307,14 +307,14 @@ enum afp_volume_bitmap_flags
     kFPVolBlockSize = 0x800
 };
 
-enum afp_volume_types
+enum afp_volume_types : UINT8
 {
     kFlatVolumeType = 1,
     kFixedDirectoryID = 2,
     kVariableDirectoryID = 3 //Deprecated
 };
 
-enum afp_volume_attribute_flags
+enum afp_volume_attribute_flags : UINT16
 {
     kFPVolReadOnly = 0x01,
     kFPVolHasVolumePassword = 0x02,
@@ -330,7 +330,7 @@ enum afp_volume_attribute_flags
     kSupportsACLs = 0x800
 };
 
-enum
+enum : UINT8
 {
     FileDirParmsStart = 6
 };
@@ -351,7 +351,7 @@ enum
 #define kAccess_WALL		(kAccess_WS  | kAccess_WR  | kAccess_WW )
 #define kAccess_UALL		(kAccess_UAS | kAccess_UAR | kAccess_UAW)
 
-enum afp_access_rights : unsigned int
+enum afp_access_rights : UINT32
 {
     // Owners
     kAccess_OS = 0x00000001,
@@ -372,7 +372,7 @@ enum afp_access_rights : unsigned int
     kAccess_Owner = 0x80000000
 };
 
-enum afp_file_bitmaps
+enum afp_file_bitmaps : UINT16
 {
     kFPFileNone = 0x0000,
     kFPFileAttributes = 0x0001,
@@ -396,7 +396,7 @@ enum afp_file_bitmaps
     kFPUnixPrivs = 0x8000
 };
 
-enum afp_directory_bitmaps
+enum afp_directory_bitmaps : UINT16
 {
     kFPDirNone = 0x0000,
     kFPDirAttribute = 0x0001,
@@ -419,7 +419,7 @@ enum afp_directory_bitmaps
     kFPDirUnixPrivs = 0x8000
 };
 
-enum afp_file_attribute_flags
+enum afp_file_attribute_flags : UINT16
 {
     kFileInvisible = 0x00001,
     kFileMultiUser = 0x00002,
@@ -435,7 +435,7 @@ enum afp_file_attribute_flags
     kFileSetClearFlag = 0x08000
 };
 
-enum afp_directory_attribute_flags
+enum afp_directory_attribute_flags : UINT16
 {
     kDirInvisible = 0x00001,
     kDirIsExpFolder = 0x00002,
@@ -480,8 +480,11 @@ struct afp_finder_info
 
 #pragma pack(pop)
 
-enum afp_finder_flags
+enum afp_finder_flags : UINT16
 {
+    kIsOnDesk = 0x0001,
+    kColorReserved = 0x0010,
+    kRequiresSwitchLaunch = 0x0020,
     kFDIsShared = 0x0040,
     kFDHasNoInits = 0x0080,
     kFDHasBeenInited = 0x0100,
@@ -494,7 +497,7 @@ enum afp_finder_flags
     kFDIsAlias = 0x8000
 };
 
-enum afp_get_server_info_flags
+enum afp_get_server_info_flags : UINT16
 {
     kSupportsCopyFile = 0x1,
     kSupportsChngPswd = 0x2,
@@ -509,7 +512,7 @@ enum afp_get_server_info_flags
     kSupportsSuperClient = 0x8000
 };
 
-enum afp_get_server_info_offsets
+enum afp_get_server_info_offsets : UINT8
 {
     offset_machine_type = 0,
     offset_afp_version_count = 2,
@@ -519,7 +522,7 @@ enum afp_get_server_info_offsets
     offset_server_name = 10
 };
 
-enum afp_byte_range_lock_flags
+enum afp_byte_range_lock_flags : UINT8
 {
     kUnlockFlag = 0x01,
     kStartEndFlag = 0x80,
@@ -533,7 +536,7 @@ enum afp_byte_range_lock_flags
 // For reconnecting sessions that have been killed.
 #define AFP_SESSION_TOKEN_SIZE sizeof(DWORD)
 
-enum afp_session_token_types
+enum afp_session_token_types : UINT8
 {
     kLoginWithoutID = 0,
     kLoginWithID = 1,
