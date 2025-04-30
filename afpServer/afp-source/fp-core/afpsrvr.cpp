@@ -195,19 +195,28 @@ AFPERROR FPZzzz(
 {
 	UNREFERENCED_PARAMETER(afp_reply);
 
-	DBGWRITE(dbg_level_info, L"[AFP:FpZzzz]Enter...\n");
+	DBGWRITE(dbg_level_info, L"Enter...\n");
 
 	afp_request.advance_pos_ptr(sizeof(INT16));
 
-	// The flag parameter is a reserved field by
-	// Apple and is ignored now.
-	UINT32 flags = afp_request.pull_num<UINT32>();
-
-	DBGWRITE(dbg_level_info, L"FpZzzz flag received: %d\n", flags);
-
 	// Set the client sleeping flag so we don't kill it when we
 	// don't hear from it.
-	connection->set_sleep_state(flags == 1);
+	switch (UINT32 flags = afp_request.pull_num<UINT32>())
+	{
+	case 1:
+		DBGWRITE(dbg_level_info, "Setting client to sleep\n");
+		connection->set_sleep_state(true);
+		break;
+
+	case 2:
+		DBGWRITE(dbg_level_info, "Setting client to awake\n");
+		connection->set_sleep_state(false);
+		break;
+
+	default:
+		DBGWRITE(dbg_level_error, "Invalid FpZzzz flag: %d\n", flags);
+		return afpParmErr;
+	}
 
 	return AFP_OK;
 }
