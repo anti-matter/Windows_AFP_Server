@@ -200,7 +200,7 @@ AFPERROR FPZzzz(
 	afp_request.advance_pos_ptr(sizeof(INT16));
 
 	// Set the client sleeping flag so we don't kill it when we
-	// don't hear from it.
+	// don't hear from it to preserve session parameters.
 	switch (UINT32 flags = afp_request.pull_num<UINT32>())
 	{
 	case 1:
