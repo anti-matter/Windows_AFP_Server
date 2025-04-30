@@ -108,6 +108,7 @@ AFPERROR FPGetSrvrInfo(
 	flags |= kSupportsSrvrNotification;
 	flags |= kSupportsCopyFile;
 	flags |= kSupportsSrvrMsgs;
+	flags |= kSupportsExtSleep;
 	//flags |= kSupportsReconnect;
 
 	afp_reply.advance_pos_ptr(sizeof(UINT16)); //Machine type offset
@@ -200,11 +201,13 @@ AFPERROR FPZzzz(
 
 	// The flag parameter is a reserved field by
 	// Apple and is ignored now.
-	afp_request.advance_pos_ptr(sizeof(UINT32));
+	UINT32 flags = afp_request.pull_num<UINT32>();
+
+	DBGWRITE(dbg_level_info, L"FpZzzz flag received: %d\n", flags);
 
 	// Set the client sleeping flag so we don't kill it when we
 	// don't hear from it.
-	connection->set_sleep_state(true);
+	connection->set_sleep_state(flags == 1);
 
 	return AFP_OK;
 }

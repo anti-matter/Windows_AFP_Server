@@ -509,6 +509,7 @@ enum afp_get_server_info_flags : UINT16
     kSupportsReconnect = 0x80,
     kSupportsDirServices = 0x100,
     kSupportsUTF8Name = 0x200,
+    kSupportsExtSleep = 0x800,
     kSupportsSuperClient = 0x8000
 };
 
