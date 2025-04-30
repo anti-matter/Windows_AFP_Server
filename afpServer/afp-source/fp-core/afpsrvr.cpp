@@ -199,9 +199,12 @@ AFPERROR FPZzzz(
 
 	afp_request.advance_pos_ptr(sizeof(INT16));
 
+	// ReSharper disable once CppTooWideScope
+	const UINT32 flags = afp_request.pull_num<UINT32>();
+
 	// Set the client sleeping flag so we don't kill it when we
 	// don't hear from it to preserve session parameters.
-	switch (UINT32 flags = afp_request.pull_num<UINT32>())
+	switch (flags)
 	{
 	case 1:
 		DBGWRITE(dbg_level_info, "Setting client to sleep\n");
