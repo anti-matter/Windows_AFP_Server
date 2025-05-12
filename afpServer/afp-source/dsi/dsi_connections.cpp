@@ -92,6 +92,7 @@ namespace dsi
 
     void dsi_connections::periodic_thread()
 	{
+
 		while (connection_running_)
 		{
 			//std::unique_lock lock(connections_mutex_);
@@ -99,7 +100,7 @@ namespace dsi
 			for (const auto& connection : connections_)
 			{
 				// Check if we need to tickle the client.
-				if (connection->tickle_required())
+				if (connection->tickle_required() && !connection->get_is_client_sleeping())
 				{
 					connection->send_tickle();
 				}

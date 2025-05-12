@@ -207,17 +207,17 @@ AFPERROR FPZzzz(
 	switch (flags)
 	{
 	case 1:
-		DBGWRITE(dbg_level_info, "Setting client to sleep\n");
+		DBGWRITE(dbg_level_info, L"Setting client to sleep (connection %d)\n", connection->get_connection_id());
 		connection->set_sleep_state(true);
 		break;
 
 	case 2:
-		DBGWRITE(dbg_level_info, "Setting client to awake\n");
+		DBGWRITE(dbg_level_info, L"Setting client to awake\n");
 		connection->set_sleep_state(false);
 		break;
 
 	default:
-		DBGWRITE(dbg_level_error, "Invalid FpZzzz flag: %d\n", flags);
+		DBGWRITE(dbg_level_error, L"Invalid FpZzzz flag: %d\n", flags);
 		return afpParmErr;
 	}
 

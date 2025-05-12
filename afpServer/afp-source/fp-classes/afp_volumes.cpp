@@ -202,7 +202,7 @@ bool afp_volumes::index_build(std::filesystem::path& share_path, const INT32  pa
 
         if (should_ignore_object(file_name))
         {
-            DBGWRITE(dbg_level_warning, L"Ignore object %s while indexing.\n", file_name.c_str());
+            DBGWRITE(dbg_level_trace, L"Ignore object %s while indexing.\n", file_name.c_str());
             continue;
         }
 

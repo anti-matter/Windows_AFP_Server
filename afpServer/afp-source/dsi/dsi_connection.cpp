@@ -79,7 +79,7 @@ namespace dsi
 				RECV_BUFFER_SIZE - bytes_in_buffer,
 				0);
 
-			if (bytes_received == 0)
+			if (bytes_received == 0 && !get_is_client_sleeping())
 			{
 				DBGWRITE(dbg_level_info, L"0 bytes received, killing connection..\n");
 				kill_connection();

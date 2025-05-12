@@ -15,9 +15,9 @@
 /// These objects are ignored by the change notify mechanism.
 /// </summary>
 static std::wstring objects_to_ignore[] = { // NOLINT(misc-use-anonymous-namespace)
-    L".git",
-    L".DS_Store",
-    L"afp_desktop.db"
+    L".git",            // Hidden git folder with lots of perm issues
+    L".finf",           // SheepShaver Finder Info streams
+    L"afp_desktop.db"   // Users never need to see this
 };
 
 bool should_ignore_object(const std::wstring& object_name)

@@ -49,8 +49,8 @@ AFPERROR FPResolveID(
     const auto afp_entry = afp_volume_info->get_index()->find(afp_file_id,path);
     if (afp_entry == nullptr)
     {
-        DBGWRITE(dbg_level_error, L"File entry not found (%d)\n", afp_file_id);
-        return afpObjectNotFound;
+        DBGWRITE(dbg_level_error, L"File entry not found (%d in %s)\n", afp_file_id, path.empty() ? L"\\" : path.c_str());
+        return afpIDNotFound;
     }
 
     // We don't support the following bitmaps, so we clear them.
@@ -69,7 +69,7 @@ AFPERROR FPResolveID(
         DBGWRITE(dbg_level_info, L"GetFileAttributesEx() failed! (%d)\n", GetLastError());
         DBGWRITE(dbg_level_info, L"path = %s\n", afp_entry->sz_path.c_str());
 
-        return afpObjectNotFound;
+        return afpIDNotFound;
     }
 
     const AFPERROR afp_error = afp_get_object_parms(
