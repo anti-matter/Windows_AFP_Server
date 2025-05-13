@@ -5,6 +5,7 @@ Version 2.0.5:
 - Implement FpZzzz.
 - Don't show .finf folder from SheepShaver.
 - Correctly handle .DS_Store files from OSX.
+
 Version 2.0.3:
 - Don't ignore files that start with ".", needed for sharing git repos, for example.
 - New implementation for file/folder name character mapping. Solved many issues.
