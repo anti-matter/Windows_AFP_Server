@@ -20,6 +20,7 @@ WCHAR g_server_message[message_max_length + 1];  // NOLINT(misc-use-internal-lin
 DWORD g_max_sessions = 0;						 // NOLINT(misc-use-internal-linkage)
 BOOL  g_allow_guests = TRUE;					 // NOLINT(misc-use-internal-linkage)
 BOOL  g_force_encrypted_logon = FALSE;			 // NOLINT(misc-use-internal-linkage)
+WCHAR g_vinegere_key[] = L"AFPSERVER^^**$$......46855AHD!!564"; // NOLINT(misc-use-internal-linkage)
 
 static UINT8 get_afp_version_as_int(const WCHAR* version)
 {
@@ -41,7 +42,6 @@ static UINT8 get_afp_version_as_int(const WCHAR* version)
 	return result;
 }
 
-
 static INT8 get_uam_type_as_int(const WCHAR* uam_string)
 {
 	INT8 result = -1;
@@ -52,12 +52,28 @@ static INT8 get_uam_type_as_int(const WCHAR* uam_string)
 		result = afpUAMCleartext;
 	else if (!lstrcmp(uam_string, UAM_DHCAST128))
 		result = afpUAMDHCAST128;
+	else if (!lstrcmp(uam_string, UAM_VIGENERE))
+		result = afpUAMVigenere;
 	else
 	{
 		ASSERT(0);
 	}
 
 	return (result);
+}
+
+static void vigenere_cipher_decrypt(std::wstring str, WCHAR* key) {
+	for (int i = 0; str[i] != '\0'; i++) {
+		if ((str[i] >= 'a' && str[i] <= 'z') || (str[i] >= 'A' && str[i] <= 'Z')) {
+			int j = i < lstrlen(key) ? key[i] : key[0];
+			if (islower(str[i])) {
+				str[i] = 'a' + ((str[i] - 'a' - j + 'a') % 26);
+			}
+			else {
+				str[i] = 'A' + ((str[i] - 'A' - j + 'A') % 26);
+			}
+		}
+	}
 }
 
 /*
@@ -379,6 +395,21 @@ AFPERROR FPLogin(
 			}
 
 			sz_user_name = L"Guest";
+			break;
+		}
+
+	case afpUAMVigenere:
+		{
+			password = afp_request.pull_string();
+			if (password.empty())
+			{
+				DBGWRITE(dbg_level_error, L"Failed to retrieve Vigenere password, terminating login\n");
+				return afpParmErr;
+			}
+
+			vigenere_cipher_decrypt(password, g_vinegere_key);
+
+			DBGWRITE(dbg_level_info, L"Vigenere password = %s\n", password.c_str());
 			break;
 		}
 

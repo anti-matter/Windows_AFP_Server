@@ -198,17 +198,19 @@ enum uam_types : UINT8
 {
     afpUAMNone = 0,
     afpUAMCleartext = 1,
-    afpUAMDHCAST128 = 2
+    afpUAMDHCAST128 = 2,
+	afpUAMVigenere = 3
 };
 
 #define AFP_MACHINE_TYPE		TEXT("Windows")
 #define UAM_NONE_STR			TEXT("No User Authent")
 #define UAM_CLEAR_TEXT			TEXT("Cleartxt passwrd")
 #define UAM_DHCAST128			TEXT("DHCAST128")
+#define UAM_VIGENERE			TEXT("Vigenere")
 
 enum : UINT8
 {
-    UAM_COUNT = 3,
+    UAM_COUNT = 4,
     AFP_COMMENT_MAX = 199,
     MAX_UAM_STRING_LEN = 25,
     MAX_AFP_VERSION_LEN = 15
