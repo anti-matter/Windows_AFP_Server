@@ -172,6 +172,11 @@ AFPERROR FPGetSrvrInfo(
 	// is always passed as supported, no matter what.
 	afp_reply.push_string(UAM_DHCAST128);
 
+	// Vigenere is a password encryption scheme that is slightly
+	// more secure than the clear text password. It is not used by
+	// Apple, but is used by AppleShare IP Browser.
+	afp_reply.push_string(UAM_XOR);
+
 	return NO_ERROR;
 }
 

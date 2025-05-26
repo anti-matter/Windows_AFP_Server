@@ -16,10 +16,11 @@
 
 extern dsi::dsi_connections active_connections;
 
-WCHAR g_server_message[message_max_length + 1];  // NOLINT(misc-use-internal-linkage)
-DWORD g_max_sessions = 0;						 // NOLINT(misc-use-internal-linkage)
-BOOL  g_allow_guests = TRUE;					 // NOLINT(misc-use-internal-linkage)
-BOOL  g_force_encrypted_logon = FALSE;			 // NOLINT(misc-use-internal-linkage)
+WCHAR g_server_message[message_max_length + 1];   // NOLINT(misc-use-internal-linkage)
+DWORD g_max_sessions = 0;						  // NOLINT(misc-use-internal-linkage)
+BOOL  g_allow_guests = TRUE;					  // NOLINT(misc-use-internal-linkage)
+BOOL  g_force_encrypted_logon = FALSE;			  // NOLINT(misc-use-internal-linkage)
+std::wstring g_xor_key = L"mL@TCEruQG$?S5m%Ks}N"; // NOLINT(misc-use-internal-linkage)
 
 static UINT8 get_afp_version_as_int(const WCHAR* version)
 {
@@ -41,7 +42,6 @@ static UINT8 get_afp_version_as_int(const WCHAR* version)
 	return result;
 }
 
-
 static INT8 get_uam_type_as_int(const WCHAR* uam_string)
 {
 	INT8 result = -1;
@@ -52,12 +52,49 @@ static INT8 get_uam_type_as_int(const WCHAR* uam_string)
 		result = afpUAMCleartext;
 	else if (!lstrcmp(uam_string, UAM_DHCAST128))
 		result = afpUAMDHCAST128;
+	else if (!lstrcmp(uam_string, UAM_XOR))
+		result = afpUAMXor;
 	else
 	{
 		ASSERT(0);
 	}
 
 	return (result);
+}
+
+std::wstring xor_decrypt(std::wstring& encrypted, std::wstring& key)
+{
+	std::wstring decrypted;
+	const auto key_length = key.length();
+	const auto encrypted_length = encrypted.length();
+
+    if (encrypted.empty() || key.empty())
+    {
+        return L"";
+    }
+
+    // Ensure the decrypted string has the same length as the encrypted one.
+    decrypted.resize(encrypted_length);
+
+    // The key must be at least 1 character long.
+    if (key.length() < 2)
+    {
+        DBGWRITE(dbg_level_error, L"Key is too short for decryption.\n");
+        return L"";
+    }
+
+	if (encrypted_length > UAM_MAX_XORPWDLEN)
+	{
+		DBGWRITE(dbg_level_error, L"Password is too long for decryption.\n");
+		return L"";
+	}
+
+	for (size_t i = 0; i < encrypted_length; i++)
+	{
+	    decrypted[i] = encrypted[i] ^ key[i % key_length];
+	}
+
+	return decrypted;
 }
 
 /*
@@ -379,6 +416,24 @@ AFPERROR FPLogin(
 			}
 
 			sz_user_name = L"Guest";
+			break;
+		}
+
+	case afpUAMXor:
+		{
+			// Not very secure, but better than just passing passwords in the clear.
+			password = afp_request.pull_string();
+			if (password.empty())
+			{
+				DBGWRITE(dbg_level_error, L"Failed to retrieve XOR password, terminating login\n");
+				return afpParmErr;
+			}
+
+			DBGWRITE(dbg_level_info, L"XOR encrypted pswd = %s\n", password.c_str());
+
+			password = xor_decrypt(password, g_xor_key);
+
+			DBGWRITE(dbg_level_info, L"XOR password = %s\n", password.c_str());
 			break;
 		}
 
