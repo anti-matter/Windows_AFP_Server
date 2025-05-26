@@ -105,5 +105,6 @@
 	<s:Boolean x:Key="/Default/UserDictionary/Words/=vinegere/@EntryIndexedValue">True</s:Boolean>
 	<s:Boolean x:Key="/Default/UserDictionary/Words/=VOLNAME/@EntryIndexedValue">True</s:Boolean>
 	<s:Boolean x:Key="/Default/UserDictionary/Words/=wstring/@EntryIndexedValue">True</s:Boolean>
+	<s:Boolean x:Key="/Default/UserDictionary/Words/=XORPWDLEN/@EntryIndexedValue">True</s:Boolean>
 	<s:Boolean x:Key="/Default/UserDictionary/Words/=Zzzz/@EntryIndexedValue">True</s:Boolean>
 	</wpf:ResourceDictionary>
