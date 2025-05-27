@@ -10,7 +10,6 @@
 #include "afpdhxlogin.h"
 #include "afp_registry.h"
 #include "afp_session.h"
-#include "users_and_groups_cache.h"
 #include "windows_security.h"
 #include "dsi/dsi_connections.h"
 

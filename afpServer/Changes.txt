@@ -1,6 +1,10 @@
 ===============================================================================
 Personal AFP Server Change Log
 
+Version 2.0.6:
+- Implement XOR password encryption for AppleShare IP Browser client.
+- Add MacBinary file type support with .bin suffix.
+
 Version 2.0.5:
 - Implement FpZzzz.
 - Don't show .finf folder from SheepShaver.
