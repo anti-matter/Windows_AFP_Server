@@ -61,7 +61,7 @@ static INT8 get_uam_type_as_int(const WCHAR* uam_string)
 	return (result);
 }
 
-std::wstring xor_decrypt(std::wstring& encrypted, std::wstring& key)
+static std::wstring xor_decrypt(std::wstring& encrypted, std::wstring& key)
 {
 	std::wstring decrypted;
 	const auto key_length = key.length();
