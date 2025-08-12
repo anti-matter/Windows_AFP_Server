@@ -30,6 +30,9 @@
     <Filter Include="Source Files\dsi">
       <UniqueIdentifier>{86b61527-9dab-4bb9-bb7f-1cb7aa24e507}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\line-conversion">
+      <UniqueIdentifier>{aa95fdf6-cbd3-482c-8c52-d9446b2099cc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="afp-source\fp-core\afpdesktop.cpp">
@@ -142,6 +145,9 @@
     </ClCompile>
     <ClCompile Include="afp-source\server-core\windows_security.cpp">
       <Filter>Source Files\server-core</Filter>
+    </ClCompile>
+    <ClCompile Include="afp-source\line-conversion\line_conversion.cpp">
+      <Filter>Source Files\line-conversion</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -276,6 +282,10 @@
     </ClInclude>
     <ClInclude Include="afp-source\server-core\windows_security.h">
       <Filter>Source Files\server-core</Filter>
+    </ClInclude>
+    <ClInclude Include="line_conversion.h" />
+    <ClInclude Include="afp-source\line-conversion\line_conversion.h">
+      <Filter>Source Files\line-conversion</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

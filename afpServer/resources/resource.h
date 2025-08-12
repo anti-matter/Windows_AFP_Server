@@ -44,6 +44,8 @@
 #define IDC_STATIC6                     1028
 #define IDC_RICHEDIT21                  1029
 #define IDC_VERSION_TEXT                1030
+#define IDC_EDIT1                       1031
+#define IDC_CONVERT_EXTENSIONS          1031
 
 // Next default values for new objects
 // 
@@ -51,7 +53,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        127
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1031
+#define _APS_NEXT_CONTROL_VALUE         1032
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

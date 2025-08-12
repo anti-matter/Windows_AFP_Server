@@ -4,7 +4,10 @@
 #define SUBKEY_VOLUMES		TEXT("Software\\MacFile\\afpserver\\volumes")
 #include "afp.h"
 
-enum
+typedef INT8 regerror;
+constexpr int max_extension_string_size = 128;
+
+enum afp_registry_error_codes : regerror
 {
 	afperr_registry_already_shared = 1,
 	afperr_registry_add_failed = 2,
@@ -13,22 +16,26 @@ enum
 	afperr_registry_no_logon_msg = 5,
 	afperr_registry_no_guest_setting = 6,
 	afperr_registry_get_failed = 7,
-	afperr_registry_set_failed = 8
+	afperr_registry_set_failed = 8,
+	afperr_registry_no_extensions_for_conversion = 9
 };
 
-
 //Values stored in each volume reg key
-#define AFPREG_VOLUME_PASSWORD				TEXT("password")
-#define AFPREG_VOLUME_PATH					TEXT("path")
-#define AFPREG_VOLUME_FLAGS					TEXT("Flags")
+#define AFPREG_VOLUME_PASSWORD					TEXT("password")
+#define AFPREG_VOLUME_PATH						TEXT("path")
+#define AFPREG_VOLUME_FLAGS						TEXT("Flags")
 
 //Values in base registry entry
-#define AFPREG_BASE_LOGONMSG				TEXT("LogonMsg")
-#define AFPREG_BASE_ALLOWGUEST				TEXT("AllowGuest")
-#define AFPREG_BASE_MAXSESSIONS				TEXT("MaxSessions")
-#define AFPREG_BASE_FLAGS					TEXT("Flags")
-#define AFPREG_BASE_FORCEENCRYPTION			TEXT("ForceEncryption")
+#define AFPREG_BASE_LOGONMSG					TEXT("LogonMsg")
+#define AFPREG_BASE_ALLOWGUEST					TEXT("AllowGuest")
+#define AFPREG_BASE_MAXSESSIONS					TEXT("MaxSessions")
+#define AFPREG_BASE_FLAGS						TEXT("Flags")
+#define AFPREG_BASE_FORCEENCRYPTION				TEXT("ForceEncryption")
 
+//Delimited string containing file extensions that we should convert
+//from CR to LF, and back, when writing/reading to/from the AFP server.
+#define AFPREG_BASE_EXTENSIONS_FOR_CONVERSION	TEXT("ExtensionsForLineConversion")
+constexpr auto conversion_delimiter = L';';
 
 class afp_registry final // NOLINT(cppcoreguidelines-special-member-functions)
 {
@@ -102,9 +109,13 @@ public:
 		OUT afp_clear_text_password* sz_password
 	);
 	DWORD set_volume_password(
-		IN WCHAR* sz_share_name,
+		IN const WCHAR* sz_share_name,
 		IN WCHAR* sz_password
 	);
+
+	regerror get_extensions_for_line_conversion(std::vector<std::wstring>& extensions);
+	regerror get_extensions_for_line_conversion(std::wstring& extensions);
+	regerror set_extensions_for_conversion(const std::wstring& extensions);
 
 protected:
 	WORD m_enum_index_;

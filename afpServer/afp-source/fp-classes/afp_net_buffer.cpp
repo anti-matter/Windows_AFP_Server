@@ -1,5 +1,4 @@
 #include "StdAfx.h"
-#include <cstring>
 
 #include "afphelp.h"
 #include "afp_net_buffer.h"
@@ -175,5 +174,4 @@ void afp_net_buffer::pull_raw_data(void* buffer, const size_t amount)
 	memcpy(buffer, current_buffer_ptr_, amount);
 	current_buffer_ptr_ += amount;
 }
-
 

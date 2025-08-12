@@ -1,6 +1,12 @@
 ===============================================================================
 Personal AFP Server Change Log
 
+Version 2.1.0:
+- Convert line endings in files with extensions set in registry to Unix style (LF) when copied to server.
+  Convert back to MacOS (CR) style when copied from server. This allows for near seemless integration with
+  Git source control.
+- Add UI for above feature to set file extensions for conversion.
+
 Version 2.0.6:
 - Implement XOR password encryption for AppleShare IP Browser client.
 - Add MacBinary file type support with .bin suffix.
