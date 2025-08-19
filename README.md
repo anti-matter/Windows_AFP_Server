@@ -5,6 +5,6 @@ This is a AFP3.2 over TCP/IP server that runs on Windows clients (up to Windows 
 
 See the Wiki for additional information and instructions.
 
-![afp_main](https://github.com/anti-matter/Windows_AFP_Server/assets/6510597/63c48cc0-1563-4a92-a4ff-2189d1294989)
+<img width="986" height="604" alt="Screenshot 2025-08-18 135316" src="https://github.com/user-attachments/assets/219832ee-da9a-4147-94a8-081b76c99d5b" />
 
 I intend to open source this project soon. There are few areas of code that are pretty ugly and I want to clean those up first.
