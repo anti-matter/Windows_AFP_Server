@@ -1,6 +1,9 @@
 #include "StdAfx.h"
 #include <strsafe.h>
 #include "afp_registry.h"
+
+#include <sstream>
+
 #include "afpdebug.h"
 #include "fdparms.h"
 
@@ -701,7 +704,7 @@ afp_registry::get_volume_password(
 
 DWORD
 afp_registry::set_volume_password(
-	IN WCHAR* sz_share_name,
+	IN const WCHAR* sz_share_name,
 	IN WCHAR* sz_password
 )
 {
@@ -719,6 +722,84 @@ afp_registry::set_volume_password(
 	{
 		DBGWRITE(dbg_level_info, L"RegSetValueEx() failed!\n");
 		return afperr_registry_set_failed;
+	}
+
+	return NO_ERROR;
+}
+
+regerror afp_registry::get_extensions_for_line_conversion(std::vector<std::wstring>& extensions)
+{
+	std::wstring input_string;
+	if (const auto error = get_extensions_for_line_conversion(input_string); error != NO_ERROR)
+	{
+		return error;
+	}
+
+	std::wstringstream wss(input_string);
+	std::wstring token;
+
+	while (std::getline(wss, token, conversion_delimiter))
+	{
+		extensions.push_back(token);
+	}
+
+	if (extensions.empty())
+	{
+		DBGWRITE(dbg_level_error, L"No file extensions found for line conversion\n");
+		return afperr_registry_no_extensions_for_conversion;
+	}
+
+	return NO_ERROR;
+}
+
+regerror afp_registry::get_extensions_for_line_conversion(std::wstring& extensions)
+{
+	DWORD dw_data_size;
+	DWORD dw_type;
+	WCHAR sz_extensions[max_extension_string_size + sizeof(WCHAR)]{};
+
+	open_base_key();
+
+	dw_data_size = (max_extension_string_size * sizeof(WCHAR)) + sizeof(WCHAR);
+	const DWORD dw_error = RegQueryValueEx(m_base_key_, AFPREG_BASE_EXTENSIONS_FOR_CONVERSION, nullptr,
+		&dw_type, reinterpret_cast<LPBYTE>(sz_extensions), &dw_data_size);
+
+	if (dw_error != NO_ERROR)
+	{
+		DBGWRITE(dbg_level_warning, L"Get conversion file extensions failed = %d\n", dw_error);
+		return afperr_registry_no_extensions_for_conversion;
+	}
+
+	if (dw_data_size == 0)
+	{
+		DBGWRITE(dbg_level_warning, L"Could not read extensions string from reg key.\n");
+		return afperr_registry_no_extensions_for_conversion;
+	}
+
+	extensions = sz_extensions;
+
+	return NO_ERROR;
+}
+
+regerror afp_registry::set_extensions_for_conversion(const std::wstring& extensions)
+{
+	open_base_key();
+
+	const DWORD dw_error = RegSetValueEx(
+		m_base_key_,
+		AFPREG_BASE_EXTENSIONS_FOR_CONVERSION,
+		0,
+		REG_SZ,
+		reinterpret_cast<const BYTE*>(extensions.c_str()),
+		(extensions.length() * sizeof(TCHAR)) + sizeof(TCHAR));
+
+	if (dw_error != ERROR_SUCCESS)
+	{
+		//
+		//For some reason (a rarity??), we could not add the value to
+		//the reg key.
+		//
+		return afperr_registry_add_failed;
 	}
 
 	return NO_ERROR;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "afp_net_buffer.h"
+#include "line-conversion/line_conversion.h"
 
 class afp_volume;
 struct afp_index;
@@ -50,7 +51,7 @@ public:
 
 	AFPERROR set_fork_length(INT64 length) const;
 
-	bool is_fork_open() const { return m_file_handle_ != INVALID_HANDLE_VALUE; }
+    [[nodiscard]] bool is_fork_open() const { return m_file_handle_ != INVALID_HANDLE_VALUE; }
 
 	LONGLONG get_stream_length(PWCHAR stream_name = nullptr) const;
 	AFPERROR get_stream_list(std::vector<afp_attr_info>& streams) const;
@@ -78,4 +79,9 @@ private:
 	afp_index* m_entry_;
 
 	WCHAR m_windows_path_[MAX_PATH];
+
+	std::vector<std::wstring> m_line_convert_extensions_;
+
+	line_conversion m_line_conversion_;
+	bool m_should_convert_line_endings_;
 };

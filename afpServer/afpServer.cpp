@@ -21,6 +21,8 @@
 #include "dsi/dsi_init.h"
 #include <afphelp.h>
 
+#include "line-conversion/line_conversion.h"
+
 #define AFP_ICON_UID		IDI_TRAYICON
 #define AFP_TOOL_TIP		TEXT("Personal AFP Server Configuration")
 
@@ -300,7 +302,7 @@ void fill_volume_list_box(
 }
 
 
-void set_misc_dialog_items(
+static void set_misc_dialog_items(
     IN const HWND h_dlg
 )
 {
@@ -309,27 +311,52 @@ void set_misc_dialog_items(
     DWORD max_sessions = 0;
     afp_registry registry;
 
-    if (registry.get_allow_guests_setting(&allow_guest) == NO_ERROR)
+	// Set guest access checkbox.
+    if (registry.get_allow_guests_setting(&allow_guest) != NO_ERROR)
     {
-        if (allow_guest)
-        {
-            CheckDlgButton(h_dlg, IDC_ALLOW_GUESTS, true);
-        }
+        allow_guest = false;
+		registry.set_allow_guests_setting(allow_guest);
     }
+    CheckDlgButton(h_dlg, IDC_ALLOW_GUESTS, allow_guest);
 
-    if (registry.get_force_encrypted_logon(&encrypt) == NO_ERROR)
+	// Setup force encrypted logon if it is not set.
+    if (registry.get_force_encrypted_logon(&encrypt) != NO_ERROR)
     {
-        if (encrypt)
-        {
-            CheckDlgButton(h_dlg, IDC_REQ_ENCRYPTION, true);
-        }
-    }
+        encrypt = false;
+		registry.set_force_encrypted_logon(encrypt);
+	}
+    CheckDlgButton(h_dlg, IDC_REQ_ENCRYPTION, encrypt);
 
-    registry.get_max_sessions(&max_sessions);
+    if (registry.get_max_sessions(&max_sessions) != NO_ERROR)
+    {
+        max_sessions = 10;
+        registry.set_max_sessions(max_sessions);
+    }
     SetDlgItemInt(h_dlg, IDC_MAX_CONNECTIONS, max_sessions, false);
 
     g_allow_guests = allow_guest;
     g_max_sessions = max_sessions;
+	g_force_encrypted_logon = encrypt;
+
+    //
+	//Tell the edit box to only allow max_extension_string_size characters
+	//
+    SendDlgItemMessage(h_dlg, IDC_CONVERT_EXTENSIONS, EM_LIMITTEXT, max_extension_string_size, 0);
+
+    std::wstring ext_string;
+    if (registry.get_extensions_for_line_conversion(ext_string) == afperr_registry_no_extensions_for_conversion)
+    {
+		ext_string = line_conversion_default_extensions;
+
+        // Create the default list of extensions.
+        registry.set_extensions_for_conversion(ext_string);
+    }
+
+    //
+	//Set our current extensions in the edit field.
+	//
+    SendDlgItemMessage(h_dlg, IDC_CONVERT_EXTENSIONS, WM_SETTEXT,
+        max_extension_string_size, reinterpret_cast<LPARAM>(ext_string.c_str()));
 }
 
 void save_misc_settings(
@@ -365,6 +392,10 @@ void save_misc_settings(
     registry.set_max_sessions(max_sessions);
 
     g_max_sessions = max_sessions;
+
+    WCHAR sz_extensions[max_extension_string_size + sizeof(WCHAR)]{};
+    SendDlgItemMessage(h_dlg, IDC_CONVERT_EXTENSIONS, WM_GETTEXT, max_extension_string_size, reinterpret_cast<LPARAM>(sz_extensions));
+	registry.set_extensions_for_conversion(sz_extensions);
 }
 
 void handle_ro_checkbox(

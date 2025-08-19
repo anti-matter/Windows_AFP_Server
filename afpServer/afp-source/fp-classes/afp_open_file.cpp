@@ -23,6 +23,7 @@ afp_open_file::afp_open_file(
 	m_fork_ = static_cast<INT8>(fork);
 	m_entry_ = entry;
 	m_file_ref_num_ = 0;
+	m_should_convert_line_endings_ = false;
 
 	volume_ = afp_volumes::current()->find(vol_id);
 
@@ -67,8 +68,13 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 	switch (m_fork_)
 	{
 	case kDataFork:
+	{
 		afp_flags |= flag_index_data_fork_open;
-		break;
+		const std::wstring ext = file_path.extension();
+
+		m_should_convert_line_endings_ = m_line_conversion_.should_convert(ext);
+	}
+	break;
 
 	case kRsrcFork:
 		file_path.concat(AFP_RESOURCE_FORK_NAME);
@@ -133,7 +139,7 @@ AFPERROR afp_open_file::close_file_fork()
 	INT16 afp_flags = 0;
 
 	//First we need to update the flags in the afp_index as to the state of
-	//of this file fork. Note that AFPIndexUpdateEntryFlags() takes care of
+	//this file fork. Note that AFPIndexUpdateEntryFlags() takes care of
 	//actually clearing the bits in the index entry.
 
 	switch (m_fork_)
@@ -212,7 +218,7 @@ AFPERROR afp_open_file::read_fork(
 	//Get the 64bit offset into a LI structure.
 	offset.QuadPart = afp_offset;
 
-	//Setup our offsets into the file to read.
+	//Set up our offsets into the file to read.
 	overlapped.Offset = offset.LowPart;
 	overlapped.OffsetHigh = offset.HighPart;
 	overlapped.hEvent = nullptr;
@@ -242,6 +248,11 @@ AFPERROR afp_open_file::read_fork(
 	}
 	else if (*afp_actual_read > 0)
 	{
+		if (m_should_convert_line_endings_)
+		{
+			m_line_conversion_.convert_buffer(afp_reply, afp_actual_read, line_conversion_cr);
+		}
+
 		afp_reply.advance_pos_ptr(static_cast<INT32>(*afp_actual_read));
 	}
 
@@ -273,9 +284,14 @@ AFPERROR afp_open_file::write_fork(
 	if (AFP_SUCCESS(afp_error))
 	{
 		DWORD afp_actual = 0;
-		const auto req_count = static_cast<UINT32>(afp_req_count);
+		auto req_count = static_cast<DWORD>(afp_req_count);
 
-		DBGWRITE(dbg_level_trace, L"WRITE: Writing (%I64d) bytes from offet (%I64d)\n", afp_req_count, afp_offset);
+		if (m_should_convert_line_endings_)
+		{
+			m_line_conversion_.convert_buffer(afp_request, &req_count, line_conversion_lf);
+		}
+
+		DBGWRITE(dbg_level_trace, L"WRITE: Writing (%I64d) bytes from offset (%I64d)\n", afp_req_count, afp_offset);
 
 		const auto success = WriteFile(
 			m_file_handle_,
@@ -292,17 +308,17 @@ AFPERROR afp_open_file::write_fork(
 		}
 		else
 		{
-			ASSERT(afp_actual <= afp_req_count);
+			ASSERT(std::cmp_less_equal(afp_actual, afp_req_count));
 
-			auto filePointer = SetFilePointer(m_file_handle_, 0, nullptr, FILE_CURRENT);
-			if (filePointer == INVALID_SET_FILE_POINTER)
+			const auto file_pointer = SetFilePointer(m_file_handle_, 0, nullptr, FILE_CURRENT);
+			if (file_pointer == INVALID_SET_FILE_POINTER)
 			{
 				// Call failed for some reason.
 				DBGWRITE(dbg_level_error, L"WRITE: Failed to obtain current file position after write!\n");
 				return afpParmErr;
 			}
 
-			*afp_last_byte_written = filePointer;
+			*afp_last_byte_written = file_pointer;
 
 			DBGWRITE(dbg_level_info,
 			         L"WRITE: Actual written: %d, Last Byte: %d\n",

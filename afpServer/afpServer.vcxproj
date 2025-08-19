@@ -169,6 +169,7 @@ $(SolutionDir)deploy.cmd $(SolutionDir)
     <ClCompile Include="afp-source\fp-classes\afp_volumes.cpp" />
     <ClCompile Include="afp-source\fp-classes\auto_lock.cpp" />
     <ClCompile Include="afp-source\fp-core\afpdispatch.cpp" />
+    <ClCompile Include="afp-source\line-conversion\line_conversion.cpp" />
     <ClCompile Include="afp-source\server-core\perf_counters.cpp" />
     <ClCompile Include="afp-source\server-core\power_config.cpp" />
     <ClCompile Include="afp-source\server-core\windows_security.cpp" />
@@ -242,6 +243,7 @@ $(SolutionDir)deploy.cmd $(SolutionDir)
     <ClInclude Include="afp-source\helpers\afpdebug.h" />
     <ClInclude Include="afp-source\helpers\afphelp.h" />
     <ClInclude Include="afp-source\helpers\byte_swap.h" />
+    <ClInclude Include="afp-source\line-conversion\line_conversion.h" />
     <ClInclude Include="afp-source\server-core\change_notify.h" />
     <ClInclude Include="afp-source\server-core\perf_counters.h" />
     <ClInclude Include="afp-source\server-core\power_config.h" />
@@ -249,6 +251,7 @@ $(SolutionDir)deploy.cmd $(SolutionDir)
     <ClInclude Include="afp-source\ui\aboutdlg.h" />
     <ClInclude Include="afp-source\ui\addshare.h" />
     <ClInclude Include="afp-source\ui\sendmsgdlg.h" />
+    <ClInclude Include="line_conversion.h" />
     <ClInclude Include="resources\resource.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="version.h" />
