@@ -22,7 +22,7 @@ public:
 		return m_line_convert_extensions_;
 	}
 
-	void convert_buffer(afp_net_buffer& buffer, DWORD* length, const line_ending convert_to) const;
+	void convert_buffer(const afp_net_buffer& buffer, const DWORD* length, const line_ending convert_to) const;
 
 private:
 	regerror m_status_;

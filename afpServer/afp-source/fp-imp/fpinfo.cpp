@@ -38,7 +38,14 @@ static mac_extension_map ext_map[] = {  // NOLINT(misc-use-anonymous-namespace)
     {.extension = L".bin",   .type = "BINA", .creator = "SITx"},
     {.extension = L".txt",   .type = "TEXT", .creator = "ttxt"},
     {.extension = L".img",   .type = "dimg", .creator = "ddsk"},
-    {.extension = L".image", .type = "dimg", .creator = "ddsk"}
+    {.extension = L".image", .type = "dimg", .creator = "ddsk"},
+    {.extension = L".p",     .type = "TEXT", .creator = "CWIE"},
+    {.extension = L".cp",    .type = "TEXT", .creator = "CWIE"},
+    {.extension = L".cpp",   .type = "TEXT", .creator = "CWIE"},
+    {.extension = L".c",     .type = "TEXT", .creator = "CWIE"},
+    {.extension = L".h",     .type = "TEXT", .creator = "CWIE"},
+    {.extension = L".hpp",   .type = "TEXT", .creator = "CWIE"},
+    {.extension = L".mcp",   .type = "MMpr", .creator = "CWIE"}
 };
 
 /// <summary>

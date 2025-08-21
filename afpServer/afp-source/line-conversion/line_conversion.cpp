@@ -41,7 +41,7 @@ bool line_conversion::should_convert(const std::wstring& extension) const
 /// Windows uses CRLF for line endings, Unix uses LF, and classic Mac OS used CR. Windows
 /// line endings are explicitly not supported.
 /// </summary>
-void line_conversion::convert_buffer(afp_net_buffer& buffer, DWORD* length, const line_ending convert_to) const
+void line_conversion::convert_buffer(const afp_net_buffer& buffer, const DWORD* length, const line_ending convert_to) const
 {
 	if (m_status_ == afperr_registry_no_extensions_for_conversion)
 	{
