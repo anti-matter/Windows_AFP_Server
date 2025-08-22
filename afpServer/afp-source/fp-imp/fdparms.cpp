@@ -224,7 +224,7 @@ AFPERROR afp_get_object_parms(
     }
     else
     {
-        if (bitmap & (kFPDFLen | kFPExtDataForkLen))
+        if (bitmap & (kFPDFLen | kFPExtDataForkLen) || entry->is_res_file())
         {
             data_size64.HighPart = static_cast<LONG>(win_attributes.nFileSizeHigh);
             data_size64.LowPart = win_attributes.nFileSizeLow;
@@ -239,24 +239,31 @@ AFPERROR afp_get_object_parms(
 
         if (bitmap & (kFPRFLen | kFPExtRsrcForkLen))
         {
-            const afp_open_file afp_file(
-                volume_id,
-                dir_id,
-                kReadMode,
-                static_cast<INT8>(kAttrFork),
-                entry,
-                entry->sz_path.c_str());
-
-            rsrc_size64.QuadPart = afp_file.get_stream_length(const_cast<wchar_t*>(AFP_RESOURCE_FORK_NAME_PLAIN));
-            if (rsrc_size64.QuadPart == BAD_LENGTH_64)
+            if (entry->is_res_file())
             {
-                // Likely just doesn't have a resource fork.
-                DBGWRITE(dbg_level_trace, L"No resource fork for: %s\n", entry->sz_object_name.c_str());
-                rsrc_size64.QuadPart = 0;
+                rsrc_size64.QuadPart = data_size64.QuadPart;
             }
             else
             {
-                DBGWRITE(dbg_level_trace, L"Resource fork size =  (%d)\n", rsrc_size64.LowPart);
+                const afp_open_file afp_file(
+                    volume_id,
+                    dir_id,
+                    kReadMode,
+                    static_cast<INT8>(kAttrFork),
+                    entry,
+                    entry->sz_path.c_str());
+
+                rsrc_size64.QuadPart = afp_file.get_stream_length(const_cast<wchar_t*>(AFP_RESOURCE_FORK_NAME_PLAIN));
+                if (rsrc_size64.QuadPart == BAD_LENGTH_64)
+                {
+                    // Likely just doesn't have a resource fork.
+                    DBGWRITE(dbg_level_trace, L"No resource fork for: %s\n", entry->sz_object_name.c_str());
+                    rsrc_size64.QuadPart = 0;
+                }
+                else
+                {
+                    DBGWRITE(dbg_level_trace, L"Resource fork size =  (%d)\n", rsrc_size64.LowPart);
+                }
             }
         }
 

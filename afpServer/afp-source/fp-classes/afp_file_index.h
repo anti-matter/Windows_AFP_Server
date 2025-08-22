@@ -7,7 +7,7 @@
 constexpr INT32 hash_multiplier = 1024;
 
 // These flags are used to keep state of file objects in the index.
-enum
+enum : UINT8
 {
 	flag_index_is_dir = 0x01,
 	flag_index_resource_fork_open = 0x02,
@@ -40,6 +40,11 @@ struct afp_index
 	DWORD path_hash;
 
 	char_map_data char_map;
+
+    [[nodiscard]] bool is_res_file() const
+	{
+		return sz_path.extension() == res_file_extension;
+    }
 };
 
 class afp_file_index  // NOLINT(cppcoreguidelines-special-member-functions)

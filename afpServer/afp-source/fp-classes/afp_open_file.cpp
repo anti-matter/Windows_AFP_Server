@@ -77,8 +77,12 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 	break;
 
 	case kRsrcFork:
-		file_path.concat(AFP_RESOURCE_FORK_NAME);
-        afp_flags |= flag_index_resource_fork_open;
+		if (file_path.extension() != res_file_extension)
+		{
+			file_path.concat(AFP_RESOURCE_FORK_NAME);
+		}
+
+		afp_flags |= flag_index_resource_fork_open;
         break;
 
 	case kAttrFork:

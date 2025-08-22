@@ -171,6 +171,8 @@ typedef LONG AFPERROR;
 #define AFP_RESOURCE_FORK_NAME			TEXT(":Afp_AfpResource")
 #define AFP_RESOURCE_FORK_NAME_PLAIN	TEXT("Afp_AfpResource")
 
+const std::wstring res_file_extension = L".res";
+
 #ifdef AFP_VERSION_30
 #define AFP_VERSION_COUNT	4
 #else
