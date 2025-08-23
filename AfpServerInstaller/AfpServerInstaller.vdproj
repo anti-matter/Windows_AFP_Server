@@ -15,12 +15,6 @@
     {
         "Entry"
         {
-        "MsmKey" = "8:_145BF2EF125B81037F0FB4E6F44D1CFE"
-        "OwnerKey" = "8:_50DB86B37F8046B58224D1D8A794F8E7"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_49ADA0F8B985A1C48CDF726958284BDC"
         "OwnerKey" = "8:_50DB86B37F8046B58224D1D8A794F8E7"
         "MsmSig" = "8:_UNDEFINED"
@@ -35,6 +29,12 @@
         {
         "MsmKey" = "8:_5A76AB286FF74233810436875C6B6ACA"
         "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_7C124948531B746883F5BEBAA1E8BA46"
+        "OwnerKey" = "8:_50DB86B37F8046B58224D1D8A794F8E7"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -178,26 +178,6 @@
         }
         "File"
         {
-            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_145BF2EF125B81037F0FB4E6F44D1CFE"
-            {
-            "SourcePath" = "8:libcrypto-1_1.dll"
-            "TargetName" = "8:libcrypto-1_1.dll"
-            "Tag" = "8:"
-            "Folder" = "8:_ECD0DBE2B0F64663811C51314F140726"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:TRUE"
-            "IsolateTo" = "8:"
-            }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_49ADA0F8B985A1C48CDF726958284BDC"
             {
             "SourcePath" = "8:AUTHZ.dll"
@@ -236,6 +216,26 @@
             "Register" = "3:1"
             "Exclude" = "11:TRUE"
             "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_7C124948531B746883F5BEBAA1E8BA46"
+            {
+            "SourcePath" = "8:libcrypto-1_1.dll"
+            "TargetName" = "8:libcrypto-1_1.dll"
+            "Tag" = "8:"
+            "Folder" = "8:_ECD0DBE2B0F64663811C51314F140726"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_CB01DF20B40948B185585FC59FA34055"
@@ -335,14 +335,14 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Personal AFP Server"
         "ProductCode" = "8:{F0FA968D-FD1F-45C0-956B-BF2C53AA46F6}"
-        "PackageCode" = "8:{A16A27CE-2933-4BF0-9F35-F0E2AABC73A0}"
+        "PackageCode" = "8:{DFD0298A-B538-4CB0-849A-0DE0583905F3}"
         "UpgradeCode" = "8:{E80283F5-4FD1-4E9B-B690-095622D590D5}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:FALSE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:TRUE"
-        "ProductVersion" = "8:2.1"
+        "ProductVersion" = "8:2.2"
         "Manufacturer" = "8:AfpServer"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:"
@@ -870,7 +870,7 @@
         {
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_50DB86B37F8046B58224D1D8A794F8E7"
             {
-            "SourcePath" = "8:..\\afpServer\\Debug\\afpServer.exe"
+            "SourcePath" = "8:..\\afpServer\\Release\\afpServer.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_ECD0DBE2B0F64663811C51314F140726"

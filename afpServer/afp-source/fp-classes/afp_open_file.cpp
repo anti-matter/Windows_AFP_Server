@@ -69,6 +69,12 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 	{
 	case kDataFork:
 	{
+		if (file_path.extension() == res_file_extension)
+		{
+			DBGWRITE(dbg_level_warn, L"Attempt to open datafork of .res file.");
+			return afpAccessDenied;
+		}
+
 		afp_flags |= flag_index_data_fork_open;
 		const std::wstring ext = file_path.extension();
 
