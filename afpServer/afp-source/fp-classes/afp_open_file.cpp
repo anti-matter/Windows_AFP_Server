@@ -71,7 +71,7 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 	{
 		if (file_path.extension() == res_file_extension)
 		{
-			DBGWRITE(dbg_level_warn, L"Attempt to open datafork of .res file.");
+			DBGWRITE(dbg_level_warning, L"Attempt to open data fork of .res file.");
 			return afpAccessDenied;
 		}
 
