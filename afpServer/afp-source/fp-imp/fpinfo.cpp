@@ -45,7 +45,12 @@ static mac_extension_map ext_map[] = {  // NOLINT(misc-use-anonymous-namespace)
     {.extension = L".c",     .type = "TEXT", .creator = "CWIE"},
     {.extension = L".h",     .type = "TEXT", .creator = "CWIE"},
     {.extension = L".hpp",   .type = "TEXT", .creator = "CWIE"},
-    {.extension = L".mcp",   .type = "MMpr", .creator = "CWIE"},
+    {.extension = L".pch",   .type = "TEXT", .creator = "CWIE"},
+    {.extension = L".pch++", .type = "TEXT", .creator = "CWIE"},
+    {.extension = L".prj",   .type = "MMPr", .creator = "CWIE"}, //CW Professional 1 project file
+    {.extension = L".mcp",   .type = "MMPr", .creator = "CWIE"}, //CW Professional 4+ project file
+    {.extension = L".ppob",  .type = "rsrc", .creator = "MWC2"}, //PowerPlant object file (CW Professional 4+)
+    {.extension = L".err",   .type = "MMCH", .creator = "CWIE"},
     {.extension = L".res",   .type = "rsrc", .creator = "RSED"}
 };
 
@@ -134,7 +139,7 @@ AFPERROR get_finder_info(
 
     if (dw_error != ERROR_SUCCESS || memcmp(finder_info->fd_type, "????", 4) == 0)
     {
-        finder_info_based_on_extension(path.wstring(), finder_info);
+        finder_info_based_on_extension(entry->sz_path.wstring(), finder_info);
     }
 
     return afp_map_win_error_to_afp(dw_error, afpMiscErr);
