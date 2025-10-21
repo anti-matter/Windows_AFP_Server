@@ -50,6 +50,7 @@ public:
     [[nodiscard]] char* get_current_pos_ptr() const;
 	[[nodiscard]] char* get_buffer() const;
 	[[nodiscard]] size_t get_buffer_size() const;
+    void set_buffer_size(size_t new_size);
 
     void advance_pos_ptr(UINT32 offset);
     void advance_if_odd();
@@ -266,6 +267,11 @@ inline char* afp_net_buffer::get_buffer() const
 inline size_t afp_net_buffer::get_buffer_size() const
 {
 	return buffer_size_;
+}
+
+inline void afp_net_buffer::set_buffer_size(const size_t new_size)
+{
+	buffer_size_ = new_size;
 }
 
 inline void afp_net_buffer::rewind()

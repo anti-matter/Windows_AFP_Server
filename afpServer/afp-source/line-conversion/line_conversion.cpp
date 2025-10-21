@@ -38,10 +38,9 @@ bool line_conversion::should_convert(const std::wstring& extension) const
 /// Simple in-place conversion of line endings in a buffer. Assumes we're converting
 /// from CR to LF, and vice versa.
 ///
-/// Windows uses CRLF for line endings, Unix uses LF, and classic Mac OS used CR. Windows
-/// line endings are explicitly not supported.
+/// Windows uses CRLF for line endings, Unix uses LF, and classic Mac OS used CR.
 /// </summary>
-void line_conversion::convert_buffer(const afp_net_buffer& buffer, const DWORD* length, const line_ending convert_to) const
+void line_conversion::convert_buffer(afp_net_buffer& buffer, DWORD* length, const line_ending convert_to) const
 {
 	if (m_status_ == afperr_registry_no_extensions_for_conversion)
 	{
@@ -49,8 +48,14 @@ void line_conversion::convert_buffer(const afp_net_buffer& buffer, const DWORD* 
 		return;
 	}
 
-	auto p = buffer.get_current_pos_ptr();
-	auto len = *length;
+	convert_buffer(buffer.get_current_pos_ptr(), length, convert_to);
+	buffer.set_buffer_size(*length);
+}
+
+void line_conversion::convert_buffer(char* buffer, DWORD* length, const line_ending convert_to)
+{
+	const auto p = buffer;
+    const auto len = *length;
 
 	if (p == nullptr || len == 0)
 	{
@@ -58,26 +63,64 @@ void line_conversion::convert_buffer(const afp_net_buffer& buffer, const DWORD* 
 		return;
 	}
 
-	while (*p != '\0' && len > 0)
+	UINT32 new_size = 0;
+    for (UINT32 i = 0; i < len; i++)
 	{
 		if (convert_to == line_conversion_cr)
 		{
-			if (*p == line_conversion_lf)
-			{
-				*p = line_conversion_cr;
-			}
-		}
+            if (p[i] == line_conversion_lf)
+            {
+                p[new_size++] = line_conversion_cr;
+            }
+            else
+            {
+                p[new_size++] = p[i];
+            }
+        }
 		else if (convert_to == line_conversion_lf) // Writing to file, convert CR to LF
 		{
 			if (*p == line_conversion_cr)
 			{
 				*p = line_conversion_lf;
 			}
-        }
-
-		p++;
-		len--;
+		}
 	}
+
+	*length = new_size;
+}
+
+void line_conversion::get_converted_size(const std::wstring& file_path, DWORD* file_size, const line_ending convert_to)
+{
+	const auto length = *file_size;
+    const auto buffer = std::make_unique<char[]>(length);
+
+	const auto h_file = CreateFile(
+		file_path.c_str(),
+		GENERIC_READ,
+		FILE_SHARE_READ | FILE_SHARE_WRITE,
+		nullptr,
+		OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL,
+		nullptr
+	);
+
+	DWORD actual_read = 0;
+
+	const auto success = ReadFile(
+		h_file,
+		buffer.get(),
+		length,
+		&actual_read,
+		nullptr
+	);
+
+	if (success)
+    {
+        convert_buffer(buffer.get(), &actual_read, convert_to);
+		*file_size = actual_read;
+	}
+
+	CloseHandle(h_file);
 }
 
 

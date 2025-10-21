@@ -50,8 +50,9 @@ static mac_extension_map ext_map[] = {  // NOLINT(misc-use-anonymous-namespace)
     {.extension = L".prj",   .type = "MMPr", .creator = "CWIE"}, //CW Professional 1 project file
     {.extension = L".mcp",   .type = "MMPr", .creator = "CWIE"}, //CW Professional 4+ project file
     {.extension = L".ppob",  .type = "rsrc", .creator = "MWC2"}, //PowerPlant object file (CW Professional 4+)
-    {.extension = L".err",   .type = "MMCH", .creator = "CWIE"},
-    {.extension = L".res",   .type = "rsrc", .creator = "RSED"}
+    {.extension = L".err",   .type = "MMCH", .creator = "CWIE"}, //Error list
+    {.extension = L".res",   .type = "rsrc", .creator = "RSED"}, //Resource file
+    {.extension = L".o",     .type = "OBJ ", .creator = "MPS "}  //Library (MPW)
 };
 
 /// <summary>
