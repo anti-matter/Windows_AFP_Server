@@ -22,8 +22,8 @@ public:
 		return m_line_convert_extensions_;
 	}
 
-	void convert_buffer(afp_net_buffer& buffer, DWORD* length, const line_ending convert_to) const;
-    static void convert_buffer(char* buffer, DWORD* length, const line_ending convert_to);
+	void convert_buffer(afp_net_buffer& buffer, DWORD length, line_ending convert_to) const;
+    static void convert_buffer(char* buffer, DWORD length, line_ending convert_to);
 
     static void get_converted_size(const std::wstring& file_path, DWORD* file_size, const line_ending convert_to);
 

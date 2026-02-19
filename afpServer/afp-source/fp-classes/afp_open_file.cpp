@@ -260,7 +260,7 @@ AFPERROR afp_open_file::read_fork(
 	{
 		if (m_should_convert_line_endings_)
 		{
-			m_line_conversion_.convert_buffer(afp_reply, afp_actual_read, line_conversion_cr);
+			m_line_conversion_.convert_buffer(afp_reply, *afp_actual_read, line_conversion_cr);
 		}
 
 		afp_reply.advance_pos_ptr(static_cast<INT32>(*afp_actual_read));
@@ -294,11 +294,11 @@ AFPERROR afp_open_file::write_fork(
 	if (AFP_SUCCESS(afp_error))
 	{
 		DWORD afp_actual = 0;
-		auto req_count = static_cast<DWORD>(afp_req_count);
+		const auto req_count = static_cast<DWORD>(afp_req_count);
 
 		if (m_should_convert_line_endings_)
 		{
-			m_line_conversion_.convert_buffer(afp_request, &req_count, line_conversion_lf);
+			m_line_conversion_.convert_buffer(afp_request, req_count, line_conversion_lf);
 		}
 
 		DBGWRITE(dbg_level_trace, L"WRITE: Writing (%I64d) bytes from offset (%I64d)\n", afp_req_count, afp_offset);

@@ -15,7 +15,7 @@ enum dbg_level : UINT8
 	dbg_level_dump_out, // outgoing data
 };
 
-constexpr dbg_level current_debug_level = dbg_level_info;
+constexpr dbg_level current_debug_level = dbg_level_trace;
 
 #define DBGWRITE(level, message, ...) afp_debug_write(level, __func__, message, __VA_ARGS__)
 #define ASSERT(exp) assert(exp)

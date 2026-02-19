@@ -40,7 +40,7 @@ bool line_conversion::should_convert(const std::wstring& extension) const
 ///
 /// Windows uses CRLF for line endings, Unix uses LF, and classic Mac OS used CR.
 /// </summary>
-void line_conversion::convert_buffer(afp_net_buffer& buffer, DWORD* length, const line_ending convert_to) const
+void line_conversion::convert_buffer(afp_net_buffer& buffer, const DWORD length, const line_ending convert_to) const
 {
 	if (m_status_ == afperr_registry_no_extensions_for_conversion)
 	{
@@ -49,13 +49,13 @@ void line_conversion::convert_buffer(afp_net_buffer& buffer, DWORD* length, cons
 	}
 
 	convert_buffer(buffer.get_current_pos_ptr(), length, convert_to);
-	buffer.set_buffer_size(*length);
+	buffer.set_buffer_size(length);
 }
 
-void line_conversion::convert_buffer(char* buffer, DWORD* length, const line_ending convert_to)
+void line_conversion::convert_buffer(char* buffer, const DWORD length, const line_ending convert_to)
 {
 	const auto p = buffer;
-    const auto len = *length;
+    const auto len = length;
 
 	if (p == nullptr || len == 0)
 	{
@@ -63,30 +63,23 @@ void line_conversion::convert_buffer(char* buffer, DWORD* length, const line_end
 		return;
 	}
 
-	UINT32 new_size = 0;
     for (UINT32 i = 0; i < len; i++)
 	{
 		if (convert_to == line_conversion_cr)
 		{
             if (p[i] == line_conversion_lf)
             {
-                p[new_size++] = line_conversion_cr;
-            }
-            else
-            {
-                p[new_size++] = p[i];
+                p[i] = line_conversion_cr;
             }
         }
 		else if (convert_to == line_conversion_lf) // Writing to file, convert CR to LF
 		{
-			if (*p == line_conversion_cr)
+			if (p[i] == line_conversion_cr)
 			{
-				*p = line_conversion_lf;
+				p[i] = line_conversion_lf;
 			}
 		}
 	}
-
-	*length = new_size;
 }
 
 void line_conversion::get_converted_size(const std::wstring& file_path, DWORD* file_size, const line_ending convert_to)
@@ -116,7 +109,7 @@ void line_conversion::get_converted_size(const std::wstring& file_path, DWORD* f
 
 	if (success)
     {
-        convert_buffer(buffer.get(), &actual_read, convert_to);
+        convert_buffer(buffer.get(), actual_read, convert_to);
 		*file_size = actual_read;
 	}
 
