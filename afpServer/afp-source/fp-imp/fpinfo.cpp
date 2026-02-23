@@ -69,12 +69,12 @@ void finder_info_based_on_extension( // NOLINT(misc-use-internal-linkage)
     const std::filesystem::path filepath = filename;
     const std::wstring extension = filepath.extension().wstring();
 
-    for (UINT i = 0; i < sizeof(ext_map); i++)
+    for (auto& i : ext_map)
     {
-        if (extension == ext_map[i].extension)
+        if (extension == i.extension)
         {
-            memcpy(finfo->fd_type, ext_map[i].type, 4);
-            memcpy(finfo->fd_creator, ext_map[i].creator, 4);
+            memcpy(finfo->fd_type, i.type, 4);
+            memcpy(finfo->fd_creator, i.creator, 4);
 
             return;
         }

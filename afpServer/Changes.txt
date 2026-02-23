@@ -4,6 +4,7 @@ Personal AFP Server Change Log
 Version 2.2.1:
 - Fixed CW library finder info mapping.
 - Fixed bug writing empty files after line ending conversion.
+- Fixed suspicious use of sizeof() in file name mapping code.
 
 Version 2.1.0:
 - Convert line endings in files with extensions set in registry to Unix style (LF) when copied to server.
