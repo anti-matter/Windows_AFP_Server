@@ -1,0 +1,49 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: afpServer (Release | x86)
+    # VS 2026 image: provides the v145 platform toolset and the Windows SDK
+    # (mc.exe / ctrpp.exe) required by the project's pre-build step.
+    runs-on: windows-2025-vs2026
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Locate Visual Studio
+        shell: pwsh
+        run: |
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+          $vsPath = & $vswhere -latest -products * `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            -property installationPath
+          if (-not $vsPath) { throw 'Visual Studio with the C++ x86/x64 tools was not found' }
+          "VS_PATH=$vsPath" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding ascii
+
+      # Builds only the afpServer project (/t:afpServer) and not the solution's
+      # AfpServerInstaller (.vdproj) setup package, which must be built from
+      # Visual Studio with the Installer Projects extension.
+      # The Release post-build event runs deploy.cmd, which produces
+      # PersonalAfpServer.zip at the repository root.
+      - name: Build afpServer (Release | x86)
+        shell: cmd
+        run: |
+          call "%VS_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x86
+          msbuild afpServer.sln /t:afpServer /p:Configuration=Release /p:Platform=x86 /m /v:m
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: PersonalAfpServer-windows-x86
+          path: |
+            PersonalAfpServer.zip
+            afpServer/Release/afpServer.pdb
