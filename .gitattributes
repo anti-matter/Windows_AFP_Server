@@ -4,6 +4,13 @@
 * text=auto
 
 ###############################################################################
+# Windows batch scripts must use CRLF: cmd.exe cannot reliably process
+# labels/goto in LF-only files. deploy.cmd runs as a Release post-build step.
+###############################################################################
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+###############################################################################
 # Set default behavior for command prompt diff.
 #
 # This is need for earlier builds of msysgit that does not have it on by
