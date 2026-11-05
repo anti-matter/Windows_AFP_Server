@@ -68,3 +68,9 @@
 #*.PDF   diff=astextplain
 #*.rtf   diff=astextplain
 #*.RTF   diff=astextplain
+
+###############################################################################
+# PowerShell helpers for the WinBoat deployment: they are authored and staged
+# on Linux but executed inside the Windows guest - keep CRLF on checkout.
+###############################################################################
+*.ps1 text eol=crlf
