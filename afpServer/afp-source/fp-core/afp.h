@@ -1,0 +1,556 @@
+#pragma once
+
+// ReSharper disable CppInconsistentNaming
+
+enum : UINT8
+{
+    kShortPathType = 0,
+    kLongPathType = 1,
+    kShortNames = 1,
+    kLongNames = 2,
+    kUnicodeNames = 3,
+    kDataFork = 0x00,
+    kRsrcFork = 0x01,
+    kAttrFork = 0xFF,
+    kDenyRead = 0x10,
+    kDenyWrite = 0x20,
+    kReadWriteMode = 0x03,
+    kResourceForkBit = 0x80,
+    //Special for NTFS attributes access
+    kWriteStartEndFlag = 0x01,
+    kFromStart = 0,
+    kFromEnd = 1,
+    kSoftCreate = 0x1,
+    kHardCreate = 0x2
+};
+
+enum : INT8
+{
+    kPathDelimiter = L':',
+    kRootDirID = 2,
+    kParentOfRoot = 1,
+    kNoParent = -1,
+    kReadMode = 0x0001,
+    kWriteMode = 0x0002,
+};
+
+enum AfpCommand : UINT8
+{
+    afpByteRangeLock = 1,
+    afpVolClose = 2,
+    afpDirClose = 3,
+    afpForkClose = 4,
+    afpCopyFile = 5,
+    afpDirCreate = 6,
+    afpFileCreate = 7,
+    afpDelete = 8,
+    afpEnumerate = 9,
+    afpFlush = 10,
+    afpForkFlush = 11,
+    afpGetDirParms = 12,
+    afpGetFileParms = 13,
+    afpGetForkParms = 14,
+    afpGetSInfo = 15,
+    afpGetSParms = 16,
+    afpGetVolParms = 17,
+    afpLogin = 18,
+    afpContLogin = 19,
+    afpLogout = 20,
+    afpMapID = 21,
+    afpMapName = 22,
+    afpMove = 23,
+    afpOpenVol = 24,
+    afpOpenDir = 25,
+    afpOpenFork = 26,
+    afpRead = 27,
+    afpRename = 28,
+    afpSetDirParms = 29,
+    afpSetFileParms = 30,
+    afpSetForkParms = 31,
+    afpSetVolParms = 32,
+    afpWrite = 33,
+    afpGetFlDrParms = 34,
+    afpSetFlDrParms = 35,
+    afpChangePwd = 36,
+    afpGetUserInfo = 37,
+    afpGetSrvrMsg = 38,
+    afpCreateID = 39,
+    afpDeleteID = 40,
+    afpResolveID = 41,
+    afpExchangeFiles = 42,
+    afpDTOpen = 48,
+    afpDTClose = 49,
+    afpGetIcon = 51,
+    afpGtIcnInfo = 52,
+    afpAddAPPL = 53,
+    afpRmvAPPL = 54,
+    afpGetAPPL = 55,
+    afpAddCmt = 56,
+    afpRmvCmt = 57,
+    afpGetCmt = 58,
+    afpAddIcon = 192,
+
+    //AFP3.0
+    afpByteRangeLockExt = 59,
+    afpReadExt = 60,
+    afpWriteExt = 61,
+    afpGetAuthMethods = 62,
+    afpLoginExt = 63,
+    afpGetSessionToken = 64,
+    afpDisconnectOldSession = 65,
+    afpEnumerateExt = 66,
+    afpCatSearchExt = 67,
+    afpEnumerateExt2 = 68,
+
+    //AFP3.2
+    afpGetExtAttr = 69,
+    afpSetExtAttr = 70,
+    afpRemoveExtAttr = 71,
+    afpListExtAttr = 72,
+
+    afpZzzz = 122
+};
+
+enum AfpErrorCode : INT16
+{
+    afpAccessDenied = -5000,
+    afpAuthContinue = -5001,
+    afpBadUAM = -5002,
+    afpBadVersNum = -5003,
+    afpBitmapErr = -5004,
+    afpCantMove = -5005,
+    afpDenyConflict = -5006,
+    afpDirNotEmpty = -5007,
+    afpDiskFull = -5008,
+    afpEofError = -5009,
+    afpFileBusy = -5010,
+    afpFlatVol = -5011,
+    afpItemNotFound = -5012,
+    afpLockErr = -5013,
+    afpMiscErr = -5014,
+    afpNoMoreLocks = -5015,
+    afpNoServer = -5016,
+    afpObjectExists = -5017,
+    afpObjectNotFound = -5018,
+    afpParmErr = -5019,
+    afpRangeNotLocked = -5020,
+    afpRangeOverlap = -5021,
+    afpSessClosed = -5022,
+    afpUserNotAuth = -5023,
+    afpCallNotSupported = -5024,
+    afpObjectTypeErr = -5025,
+    afpTooManyFilesOpen = -5026,
+    afpServerGoingDown = -5027,
+    afpCantRename = -5028,
+    afpDirNotFound = -5029,
+    afpIconTypeError = -5030,
+    afpVolLocked = -5031,
+    afpObjectLocked = -5032,
+    afpContainsSharedErr = -5033,
+    afpIDNotFound = -5034,
+    afpIDExists = -5035,
+    afpDiffVolErr = -5036,
+    afpCatalogChanged = -5037,
+    afpSameObjectErr = -5038,
+    afpBadIDErr = -5039,
+    afpPwdSameErr = -5040,
+    afpPwdTooShortErr = -5041,
+    afpPwdExpiredErr = -5042,
+    afpInsideSharedErr = -5043,
+    afpInsideTrashErr = -5044,
+    afpBadDirIDType = -5060,
+    afpCantMountMoreSrvr = -5061,
+    afpAlreadyMounted = -5062,
+    afpSameNodeErr = -5063
+};
+
+typedef LONG AFPERROR;
+
+#define AFP_VERSION_30
+
+#define AFP_RESOURCE_FORK_NAME			TEXT(":Afp_AfpResource")
+#define AFP_RESOURCE_FORK_NAME_PLAIN	TEXT("Afp_AfpResource")
+
+const std::wstring res_file_extension = L".res";
+
+#ifdef AFP_VERSION_30
+#define AFP_VERSION_COUNT	4
+#else
+#define AFP_VERSION_COUNT	1
+#endif
+
+#define AFP_22_VERSION_STR	TEXT("AFP2.2")
+#define AFP_30_VERSION_STR	TEXT("AFPX03")
+#define AFP_31_VERSION_STR	TEXT("AFP3.1")
+#define AFP_32_VERSION_STR	TEXT("AFP3.2")
+
+#define AFP_MAX_DWORD			MAXDWORD
+#define AFP_MAX_LONG			MAXLONG
+#define AFP_MAX_WORD			MAXWORD
+
+enum afp_versions : UINT8
+{
+    afpVersion22 = 1,
+    afpVersion30,
+    afpVersion31,
+    afpVersion32
+};
+
+enum uam_types : UINT8
+{
+    afpUAMNone = 0,
+    afpUAMCleartext = 1,
+    afpUAMDHCAST128 = 2,
+	afpUAMXor = 3
+};
+
+#define AFP_MACHINE_TYPE		TEXT("Windows")
+#define UAM_NONE_STR			TEXT("No User Authent")
+#define UAM_CLEAR_TEXT			TEXT("Cleartxt passwrd")
+#define UAM_DHCAST128			TEXT("DHCAST128")
+#define UAM_XOR                 TEXT("XOR")
+
+enum : UINT8
+{
+    UAM_COUNT = 4,
+    AFP_COMMENT_MAX = 199,
+    MAX_UAM_STRING_LEN = 25,
+    MAX_AFP_VERSION_LEN = 15
+};
+
+enum afp_path_constants : UINT16
+{
+    MAX_AFP20_NAME = 32,
+    MAX_AFP20_PATH = 256,
+    MAX_AFP30_NAME = 256,
+    MAX_AFP30_PATH = MAX_PATH,
+    MAX_AFP_SHORT_NAME = 12
+};
+
+#ifdef AFP_VERSION_30
+#define MAX_AFP_NAME							MAX_AFP30_NAME
+#define MAX_DIR_NAME							MAX_AFP30_NAME
+#define MAX_FILE_NAME							MAX_AFP30_NAME
+#define MAX_AFP_PATH							MAX_AFP30_PATH
+#else
+#define MAX_AFP_NAME							MAX_AFP20_NAME
+#define MAX_DIR_NAME							MAX_AFP20_NAME
+#define MAX_FILE_NAME							MAX_AFP20_NAME
+#define MAX_AFP_PATH							MAX_AFP20_PATH
+#endif //AFP_VERSION_30
+
+enum : UINT8
+{
+    UAM_USERNAMELEN = 33,
+    UAM_CLRTXTPWDLEN = 8,
+    MAX_DHXPASSWORDLEN = 64,
+    UAM_MAX_XORPWDLEN = 64,
+    AFP_ICONSIZE = 128,
+    MAX_VOLNAME_LEN = 27,
+    FINDERINFO_LEN = 32,
+    PRODOS_LEN = 6,
+    APPLETALK_NAME_LEN = 31,
+    AFP_GUEST_USER_ID = 0,
+    AFP_OWNER_USER_ID = 1,
+    MAX_DOMAIN_NAME_LEN = 32,
+
+    FIRST_VALID_ANSI_CHAR = 32,
+    LAST_VALID_ANSI_CHAR = 255,
+
+    MAX_AFP_FILES_OPEN = 24,
+    MAX_AFP_OPEN_DIRS = 24,
+    MAX_AFP_OPEN_VOLUMES = 16
+};
+
+enum : UINT32
+{
+    AFP_DIR_NEVER_BACKEDUP = 0x80000000,
+};
+
+// Mac's time is based from January 1, 1904, while a server's is based on the
+// year 2000. Below is the difference between the two for conversion and a
+// macro to make life easier.
+#define NUM_SECS_FROM_1904_TO_2000 	3029529600
+#define LOCAL_TIME(serverTime)		(NUM_SECS_FROM_1904_TO_2000 + (serverTime))
+
+#define AFP_OK					0
+#define AFP_SUCCESS(e)			((e) == AFP_OK)
+#define AFP_FAILED(e)           ((e) != AFP_OK)
+
+using afp_clear_text_password = unsigned char[8];
+
+enum : UINT8
+{
+    KFPMsgSrvrBit = 0x1
+};
+
+enum afp_server_messaging : UINT8
+{
+    message_max_length = 199,
+    message_login_type = 0,
+    message_server_type = 1
+};
+
+enum afp_get_server_message_flags : UINT8
+{
+    kSendMessageAsUnicode = 0x2
+};
+
+enum afp_volume_bitmap_flags : UINT16
+{
+    kFPVolAttributeBit = 0x1,
+    kFPVolSignatureBit = 0x2,
+    kFPVolCreateDateBit = 0x4,
+    kFPVolModDateBit = 0x8,
+    kFPVolBackupDateBit = 0x10,
+    kFPVolIDBit = 0x20,
+    kFPVolBytesFreeBit = 0x40,
+    kFPVolBytesTotalBit = 0x80,
+    kFPVolNameBit = 0x100,
+    kFPVolExtBytesFree = 0x200,
+    kFPVolExtBytesTotal = 0x400,
+    kFPVolBlockSize = 0x800
+};
+
+enum afp_volume_types : UINT8
+{
+    kFlatVolumeType = 1,
+    kFixedDirectoryID = 2,
+    kVariableDirectoryID = 3 //Deprecated
+};
+
+enum afp_volume_attribute_flags : UINT16
+{
+    kFPVolReadOnly = 0x01,
+    kFPVolHasVolumePassword = 0x02,
+    kFPVolSupportsFileIDs = 0x04,
+    kFPVolSupportsCatSearch = 0x08,
+    kFPVolSupportsBlankAccessPrivileges = 0x10,
+    kFPVolSupportsUnixPrivs = 0x20,
+    kFPVolSupportsUnicodeNames = 0x40,
+    kFPVolNoNetworkUserIDs = 0x80,
+    kDefaultPrivsFromParent = 0x100,
+    kNoExchangeFiles = 0x200,
+    kSupportsExtAttrs = 0x400,
+    kSupportsACLs = 0x800
+};
+
+enum : UINT8
+{
+    FileDirParmsStart = 6
+};
+
+#define FILEPARMS_ALL		(kFPFileAttributes | kFPParentID | kFPCreateDate |		\
+                            kFPModDate | kFPBackupDate | kFPFinderInfo | 			\
+                            kFPLongName | kFPShortName | kFPFileNum | kFPDFLen |	\
+                            kFPRFLen | kFPProDos)
+
+#define DIRPARMS_ALL		(kFPDirAttribute | kFPDirParentID | kFPDirCreateDate |	\
+                            kFPDirModDate | kFPDirBackupDate | kFPDirFinderInfo	|	\
+                            kFPDirLongName | kFPDirShortName | kFPDirID	|			\
+                            kFPDirOffCount | kFPDirOwnerID | kFPDirGroupID |		\
+                            kFPDirAccess | kFPDirProDOS)
+
+#define kAccess_OALL		(kAccess_OS  | kAccess_OR  | kAccess_OW )
+#define kAccess_GALL		(kAccess_GS  | kAccess_GR  | kAccess_GW )
+#define kAccess_WALL		(kAccess_WS  | kAccess_WR  | kAccess_WW )
+#define kAccess_UALL		(kAccess_UAS | kAccess_UAR | kAccess_UAW)
+
+enum afp_access_rights : UINT32
+{
+    // Owners
+    kAccess_OS = 0x00000001,
+    kAccess_OR = 0x00000002,
+    kAccess_OW = 0x00000004,
+    // Groups
+    kAccess_GS = 0x00000100,
+    kAccess_GR = 0x00000200,
+    kAccess_GW = 0x00000400,
+    // Guests (Other)
+    kAccess_WS = 0x00010000,
+    kAccess_WR = 0x00020000,
+    kAccess_WW = 0x00040000,
+    // Users
+    kAccess_UAS = 0x01000000,
+    kAccess_UAR = 0x02000000,
+    kAccess_UAW = 0x04000000,
+    kAccess_Owner = 0x80000000
+};
+
+enum afp_file_bitmaps : UINT16
+{
+    kFPFileNone = 0x0000,
+    kFPFileAttributes = 0x0001,
+    kFPParentID = 0x0002,
+    kFPCreateDate = 0x0004,
+    kFPModDate = 0x0008,
+    kFPBackupDate = 0x0010,
+    kFPFinderInfo = 0x0020,
+    kFPLongName = 0x0040,
+    kFPShortName = 0x0080,
+    kFPFileNum = 0x0100,
+    kFPDFLen = 0x0200,
+    kFPRFLen = 0x0400,
+    kFPProDos = 0x2000,
+
+    //AFP3.0
+    kFPExtDataForkLen = 0x800,
+    kFPLaunchLimit = 0x1000,
+    kFPUnicodeName = 0x2000,
+    kFPExtRsrcForkLen = 0x4000,
+    kFPUnixPrivs = 0x8000
+};
+
+enum afp_directory_bitmaps : UINT16
+{
+    kFPDirNone = 0x0000,
+    kFPDirAttribute = 0x0001,
+    kFPDirParentID = 0x0002,
+    kFPDirCreateDate = 0x0004,
+    kFPDirModDate = 0x0008,
+    kFPDirBackupDate = 0x0010,
+    kFPDirFinderInfo = 0x0020,
+    kFPDirLongName = 0x0040,
+    kFPDirShortName = 0x0080,
+    kFPDirID = 0x0100,
+    kFPDirOffCount = 0x0200,
+    kFPDirOwnerID = 0x0400,
+    kFPDirGroupID = 0x0800,
+    kFPDirAccess = 0x1000,
+    kFPDirProDOS = 0x2000,
+
+    //AFP3.0
+    kFPDirUnicodeName = 0x2000,
+    kFPDirUnixPrivs = 0x8000
+};
+
+enum afp_file_attribute_flags : UINT16
+{
+    kFileInvisible = 0x00001,
+    kFileMultiUser = 0x00002,
+    kFileSystem = 0x00004,
+    kFileDataForkOpen = 0x00008,
+    kFileRsrcForkOpen = 0x00010,
+    kFileReadOnly = 0x00020,
+    kFileNeedsBackup = 0x00040,
+    kFileRenameInhibit = 0x00080,
+    kFileDeleteInhibit = 0x00100,
+    kFileCopyProtected = 0x00200,
+
+    kFileSetClearFlag = 0x08000
+};
+
+enum afp_directory_attribute_flags : UINT16
+{
+    kDirInvisible = 0x00001,
+    kDirIsExpFolder = 0x00002,
+    kDirSystem = 0x00004,
+    kDirMounted = 0x00008,
+    kDirInExpFolder = 0x00010,
+    kDirBackupNeeded = 0x00040,
+    kDirRenameInhibit = 0x00080,
+    kDirDeleteInhibit = 0x00100,
+    kDirSetClearFlag = 0x04000,
+
+    kFileDirIsDir = 0x80
+};
+
+#pragma pack(push,1)
+
+struct mac_point
+{
+    SHORT x;
+    SHORT y;
+};
+
+struct afp_finder_info
+{
+    afp_finder_info()
+        : fd_type{}
+          , fd_creator{}
+          , fd_flags(0)
+          , fd_location{}
+          , fd_fldr(0)
+          , fd_finder_data{}
+    {
+    }
+
+    CHAR fd_type[4];
+    CHAR fd_creator[4];
+    WORD fd_flags;
+    mac_point fd_location;
+    SHORT fd_fldr;
+    CHAR fd_finder_data[16];
+};
+
+#pragma pack(pop)
+
+enum afp_finder_flags : UINT16
+{
+    kIsOnDesk = 0x0001,
+    kColorReserved = 0x0010,
+    kRequiresSwitchLaunch = 0x0020,
+    kFDIsShared = 0x0040,
+    kFDHasNoInits = 0x0080,
+    kFDHasBeenInited = 0x0100,
+    kFDReserved = 0x0200,
+    kFDHasCustomIcon = 0x0400,
+    kFDIsStationary = 0x0800,
+    kFDNameLocked = 0x1000,
+    kFDHasBundle = 0x2000,
+    kFDInvisible = 0x4000,
+    kFDIsAlias = 0x8000
+};
+
+enum afp_get_server_info_flags : UINT16
+{
+    kSupportsCopyFile = 0x1,
+    kSupportsChngPswd = 0x2,
+    kDontAllowSavePwd = 0x4,
+    kSupportsSrvrMsgs = 0x8,
+    kSupportsSrvrSig = 0x10,
+    kSupportsTCPIP = 0x20,
+    kSupportsSrvrNotification = 0x40,
+    kSupportsReconnect = 0x80,
+    kSupportsDirServices = 0x100,
+    kSupportsUTF8Name = 0x200,
+    kSupportsExtSleep = 0x800,
+    kSupportsSuperClient = 0x8000
+};
+
+enum afp_get_server_info_offsets : UINT8
+{
+    offset_machine_type = 0,
+    offset_afp_version_count = 2,
+    offset_uam_count = 4,
+    offset_volume_icon = 6,
+    offset_flags = 8,
+    offset_server_name = 10
+};
+
+enum afp_byte_range_lock_flags : UINT8
+{
+    kUnlockFlag = 0x01,
+    kStartEndFlag = 0x80,
+
+    kLock = TRUE,
+    kUnlock = FALSE,
+    kSelFromStart = TRUE,
+    kSelFromEnd = FALSE
+};
+
+// For reconnecting sessions that have been killed.
+#define AFP_SESSION_TOKEN_SIZE sizeof(DWORD)
+
+enum afp_session_token_types : UINT8
+{
+    kLoginWithoutID = 0,
+    kLoginWithID = 1,
+    kReconnWithID = 2,
+    kLoginWithTimeAndID = 3,
+    kReconnWithTimeAndID = 4,
+    kRecon1Login = 5,
+    kRecon1ReconnectLogin = 6,
+    kRecon1Refresh = 7,
+    kGetKerberosSessionKey = 8
+};

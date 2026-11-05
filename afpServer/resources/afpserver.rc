@@ -1,0 +1,257 @@
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "afxres.h"
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (United States) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Icon
+//
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_TRAYICON            ICON                    "afpServer.Ico"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Version
+//
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 2,0,0,0
+ PRODUCTVERSION 2,0,0,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40004L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "FileDescription", "Apple Filing Protocol Server for Windows."
+            VALUE "FileVersion", "2.0.0.0"
+            VALUE "InternalName", "AfpServer.exe"
+            VALUE "LegalCopyright", "(C) 2023, Michael J. Conrad."
+            VALUE "OriginalFilename", "AfpServer.exe"
+            VALUE "ProductName", "AfpServer"
+            VALUE "ProductVersion", "2.0.0.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_MAIN_DIALOG DIALOGEX 0, 0, 449, 212
+STYLE DS_SETFONT | DS_3DLOOK | DS_CENTER | WS_POPUP | WS_CAPTION
+EXSTYLE WS_EX_APPWINDOW
+CAPTION "Apple Filing Protocol Server Configuration"
+FONT 10, "Microsoft Sans Serif", 400, 0, 0x0
+BEGIN
+    DEFPUSHBUTTON   "Done",IDC_CLOSE,392,190,50,14
+    GROUPBOX        "Login Message",IDC_STATIC,7,122,253,83
+    EDITTEXT        IDC_LOGIN_MSG,17,159,233,38,ES_MULTILINE | ES_AUTOVSCROLL
+    CONTROL         "Allow guests to login",IDC_ALLOW_GUESTS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,279,23,80,10
+    CTEXT           "Maximum simultaneous connections:",IDC_STATIC,268,54,174,8
+    EDITTEXT        IDC_MAX_CONNECTIONS,314,65,34,12,ES_AUTOHSCROLL | ES_NUMBER
+    GROUPBOX        "Shares",IDC_STATIC,7,8,253,107
+    LISTBOX         IDC_SHARES,18,23,158,54,LBS_SORT | LBS_HASSTRINGS | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+    PUSHBUTTON      "New",IDC_NEWVOLUME,193,34,50,14
+    PUSHBUTTON      "Remove",IDC_REMOVEVOL,193,51,50,14
+    PUSHBUTTON      "Send Message",IDC_SENDMSG,316,92,76,14
+    LTEXT           "This is the message clients will receive each time they log into the Server. Your message may contain up to 199 characters.",IDC_STATIC,18,135,230,21
+    PUSHBUTTON      "Shutdown",IDC_QUITBUTTON,329,190,50,14
+    RTEXT           "1.0",IDC_VERSION_TEXT,410,2,31,10
+    GROUPBOX        "Users",IDC_STATIC,268,8,174,107
+    LTEXT           "No share selected",IDC_VOLPATH,18,85,235,8
+    CONTROL         "Volume is read only",IDC_VOLREADONLY,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,18,99,77,10
+    CONTROL         "Disable clear text logins/require encryption",IDC_REQ_ENCRYPTION,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,279,37,156,10
+    PUSHBUTTON      "About",IDC_ABOUT,265,190,50,14
+    GROUPBOX        "Line Ending Conversion",IDC_STATIC,268,122,174,63
+    LTEXT           "Line endings in files with the following extensions will be converted to Unix (LF) when saved to the server and back to MacOS (CR) when read.",IDC_STATIC,280,133,155,35
+    EDITTEXT        IDC_CONVERT_EXTENSIONS,279,166,154,13,ES_AUTOHSCROLL
+    LTEXT           "(0 for unlimited)",IDC_STATIC,352,66,55,8
+END
+
+IDD_SENDMESSAGE DIALOGEX 0, 0, 236, 161
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Send Message"
+FONT 10, "Microsoft Sans Serif", 400, 0, 0x0
+BEGIN
+    DEFPUSHBUTTON   "SEND",IDOK,179,140,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,120,140,50,14
+    GROUPBOX        "Send Client Message",IDC_STATIC,7,7,222,126
+    LTEXT           "The message below will be sent to all connected clients.",IDC_STATIC,14,23,189,12
+    EDITTEXT        IDC_MESSAGE,14,38,208,86,ES_MULTILINE | ES_AUTOVSCROLL | ES_AUTOHSCROLL | ES_WANTRETURN | WS_VSCROLL
+END
+
+IDD_ABOUT DIALOGEX 0, 0, 289, 111
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP
+EXSTYLE WS_EX_TOPMOST
+FONT 10, "Nirmala UI", 400, 0, 0x0
+BEGIN
+    DEFPUSHBUTTON   "OK",IDOK,118,91,55,14,BS_CENTER
+    CONTROL         IDB_BITMAP2,IDC_STATIC,"Static",SS_BITMAP | SS_CENTERIMAGE,47,7,191,33
+    GROUPBOX        "",IDC_STATIC,26,42,239,38
+    CTEXT           "Copyright (c) 2025, Michael J. Conrad.",IDC_STATIC,34,51,224,14
+    CTEXT           "A personal Apple Filing Protocol (AFP) server for Windows.",IDC_STATIC,31,65,228,8
+    RTEXT           "1.0.0",IDC_VERSION_TEXT,260,7,22,10
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO
+BEGIN
+    IDD_MAIN_DIALOG, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 442
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 205
+    END
+
+    IDD_SENDMESSAGE, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 229
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 154
+    END
+
+    IDD_ABOUT, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 282
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 105
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Bitmap
+//
+
+IDB_BITMAP2             BITMAP                  "Logo2.bmp"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+IDD_ABOUT AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+IDD_MAIN_DIALOG AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+IDD_SENDMESSAGE AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// String Table
+//
+
+STRINGTABLE
+BEGIN
+    IDS_STRING_SHUTDOWNMSG  "Shutting down the AFP server may result in data loss to connected clients. Are you sure you want to shutdown the server now?"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_STRING_SHUTDOWNCONFIRM "Server Shutdown Confirmation"
+    IDS_STOPSHARINGWARN     "Please confirm that you wish to stop sharing the volume: "
+    IDS_STOPSHARINGCONFIRM  "Stop Sharing Confirmation"
+    IDS_STOPSHARINGERR      "There was a failure removing the volume (it may be in use)."
+    IDS_STOPSHARINTERRTITLE "Remove Volume Error"
+    IDS_OFFLINEFORINDEXING  " (Offline for indexing...)"
+END
+
+#endif    // English (United States) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

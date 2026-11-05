@@ -1,0 +1,280 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{E106A5F0-1AB4-4532-8B8B-349275E1E9D6}</ProjectGuid>
+    <RootNamespace>SG-AFPServer</RootNamespace>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v145</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v145</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.21006.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Debug\</IntDir>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</LinkIncremental>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Release\</IntDir>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <PreBuildEvent>
+      <Message>Compile event and counter manifests...</Message>
+      <Command>MC.EXE -um afpServer.man -h resources -z afpEvents -r resources
+ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCounters.rc afpServer.man
+</Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <AdditionalOptions>/I afp-source\headers /I resources %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir);$(ProjectDir)afp-source;$(ProjectDir)afp-source\ui;$(ProjectDir)afp-source\server-core;$(ProjectDir)afp-source\helpers;$(ProjectDir)afp-source\fp-imp;$(ProjectDir)afp-source\fp-core;$(ProjectDir)afp-source\fp-classes;$(ProjectDir)resources;$(SolutionDir)afpServer\deps\openssl-1.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <PrecompiledHeader>Create</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
+      <ForcedIncludeFiles>%(ForcedIncludeFiles)</ForcedIncludeFiles>
+      <SDLCheck>true</SDLCheck>
+      <MultiProcessorCompilation>false</MultiProcessorCompilation>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
+    </ClCompile>
+    <ResourceCompile>
+      <AdditionalIncludeDirectories>%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Link>
+      <AdditionalOptions>Ws2_32.lib %(AdditionalOptions)</AdditionalOptions>
+      <OutputFile>$(OutDir)afpServer.exe</OutputFile>
+      <AdditionalLibraryDirectories>$(SolutionDir)afpServer\deps\openssl-1.1\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateManifest>false</GenerateManifest>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ProgramDatabaseFile>$(OutDir)afpServer.pdb</ProgramDatabaseFile>
+      <SubSystem>Windows</SubSystem>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+      <TargetMachine>MachineX86</TargetMachine>
+      <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
+      <AdditionalDependencies>legacy_stdio_definitions.lib;libcrypto32MT.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
+      <TypeLibraryFile>
+      </TypeLibraryFile>
+      <TypeLibraryResourceID>1</TypeLibraryResourceID>
+    </Link>
+    <Manifest>
+      <AdditionalManifestFiles>afpServer.exe.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles>
+    </Manifest>
+    <PostBuildEvent>
+      <Message>Cleaning up manifest temp files and copy DLL...</Message>
+      <Command>copy /y $(SolutionDir)afpServer\deps\openssl-1.1\lib\libcrypto-1_1.dll "$(OutDir)"</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <PreBuildEvent>
+      <Message>Compile event and counter manifests...</Message>
+      <Command>MC.EXE -um afpServer.man -h resources -z afpEvents -r resources
+ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCounters.rc afpServer.man</Command>
+    </PreBuildEvent>
+    <ClCompile>
+      <AdditionalOptions>/I afp-source\headers /I resources %(AdditionalOptions)</AdditionalOptions>
+      <Optimization>MaxSpeed</Optimization>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <OmitFramePointers>true</OmitFramePointers>
+      <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(SolutionDir);$(ProjectDir)afp-source;$(ProjectDir)afp-source\ui;$(ProjectDir)afp-source\server-core;$(ProjectDir)afp-source\helpers;$(ProjectDir)afp-source\fp-imp;$(ProjectDir)afp-source\fp-core;$(ProjectDir)afp-source\fp-classes;$(ProjectDir)resources;$(SolutionDir)afpServer\deps\openssl-1.1\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;NODEBUG;_WINDOWS;UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <WarningLevel>Level4</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <LanguageStandard_C>stdc17</LanguageStandard_C>
+    </ClCompile>
+    <ResourceCompile>
+      <AdditionalIncludeDirectories>$(SolutionDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Link>
+      <AdditionalOptions>Ws2_32.lib %(AdditionalOptions)</AdditionalOptions>
+      <OutputFile>$(OutDir)AfpServer.exe</OutputFile>
+      <Version>2.0</Version>
+      <AdditionalLibraryDirectories>$(SolutionDir)afpServer\deps\openssl-1.1\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <GenerateManifest>false</GenerateManifest>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <RandomizedBaseAddress>false</RandomizedBaseAddress>
+      <DataExecutionPrevention>
+      </DataExecutionPrevention>
+      <TargetMachine>MachineX86</TargetMachine>
+      <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
+      <AdditionalDependencies>legacy_stdio_definitions.lib;libcrypto32MT.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+    <Manifest>
+      <AdditionalManifestFiles>afpServer.exe.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles>
+    </Manifest>
+    <PostBuildEvent>
+      <Message>Cleaning up manifest temp files...</Message>
+      <Command>copy /y $(SolutionDir)afpServer\deps\openssl-1.1\lib\libcrypto-1_1.dll "$(OutDir)"
+$(SolutionDir)deploy.cmd $(SolutionDir)
+
+</Command>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="afp-source\dsi\dsi_connection.cpp" />
+    <ClCompile Include="afp-source\dsi\dsi_connections.cpp">
+      <DebugInformationFormat Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">EditAndContinue</DebugInformationFormat>
+    </ClCompile>
+    <ClCompile Include="afp-source\dsi\dsi_init.cpp" />
+    <ClCompile Include="afp-source\fp-classes\afp_char_map.cpp" />
+    <ClCompile Include="afp-source\fp-classes\afp_desktop.cpp" />
+    <ClCompile Include="afp-source\fp-classes\afp_volume.cpp" />
+    <ClCompile Include="afp-source\fp-classes\afp_volumes.cpp" />
+    <ClCompile Include="afp-source\fp-classes\auto_lock.cpp" />
+    <ClCompile Include="afp-source\fp-core\afpdispatch.cpp" />
+    <ClCompile Include="afp-source\line-conversion\line_conversion.cpp" />
+    <ClCompile Include="afp-source\server-core\perf_counters.cpp" />
+    <ClCompile Include="afp-source\server-core\power_config.cpp" />
+    <ClCompile Include="afp-source\server-core\windows_security.cpp" />
+    <ClCompile Include="afpServer.cpp" />
+    <ClCompile Include="stdafx.cpp">
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
+      <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="afp-source\fp-core\afpdesktop.cpp" />
+    <ClCompile Include="afp-source\fp-core\afpdirectory.cpp" />
+    <ClCompile Include="afp-source\fp-core\afpfileio.cpp" />
+    <ClCompile Include="afp-source\fp-core\afpsrvr.cpp" />
+    <ClCompile Include="afp-source\fp-core\afpuser.cpp" />
+    <ClCompile Include="afp-source\fp-core\afpvolumes.cpp" />
+    <ClCompile Include="afp-source\fp-core\afpxattr.cpp" />
+    <ClCompile Include="afp-source\fp-imp\afpdhxlogin.cpp" />
+    <ClCompile Include="afp-source\fp-imp\fdparms.cpp" />
+    <ClCompile Include="afp-source\fp-imp\fpinfo.cpp" />
+    <ClCompile Include="afp-source\fp-imp\logonimp.cpp" />
+    <ClCompile Include="afp-source\fp-imp\volumes.cpp" />
+    <ClCompile Include="afp-source\fp-classes\afp_net_buffer.cpp">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">/I afp-source\headers /I resources %(AdditionalOptions)</AdditionalOptions>
+      <RuntimeLibrary Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">MultiThreaded</RuntimeLibrary>
+    </ClCompile>
+    <ClCompile Include="afp-source\fp-classes\afp_session.cpp" />
+    <ClCompile Include="afp-source\fp-classes\afp_file_index.cpp" />
+    <ClCompile Include="afp-source\fp-classes\afp_open_file.cpp">
+      <Optimization Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Full</Optimization>
+      <FavorSizeOrSpeed Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Speed</FavorSizeOrSpeed>
+    </ClCompile>
+    <ClCompile Include="afp-source\fp-classes\afp_registry.cpp" />
+    <ClCompile Include="afp-source\server-core\change_notify.cpp" />
+    <ClCompile Include="afp-source\helpers\afpdebug.cpp" />
+    <ClCompile Include="afp-source\helpers\afphelp.cpp" />
+    <ClCompile Include="afp-source\ui\aboutdlg.cpp" />
+    <ClCompile Include="afp-source\ui\addshare.cpp" />
+    <ClCompile Include="afp-source\ui\sendmsgdlg.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="afp-source\afpServer.h" />
+    <ClInclude Include="afp-source\AltStreams.h" />
+    <ClInclude Include="afp-source\dsi\dsi_connection.h" />
+    <ClInclude Include="afp-source\dsi\dsi_connections.h" />
+    <ClInclude Include="afp-source\dsi\dsi_init.h" />
+    <ClInclude Include="afp-source\fp-classes\afp_char_map.h" />
+    <ClInclude Include="afp-source\fp-classes\afp_desktop.h" />
+    <ClInclude Include="afp-source\fp-classes\afp_desk_item.h" />
+    <ClInclude Include="afp-source\fp-classes\afp_registry.h" />
+    <ClInclude Include="afp-source\fp-classes\afp_net_buffer.h" />
+    <ClInclude Include="afp-source\fp-classes\afp_volume.h" />
+    <ClInclude Include="afp-source\fp-classes\afp_volumes.h" />
+    <ClInclude Include="afp-source\fp-classes\auto_lock.h" />
+    <ClInclude Include="afp-source\fp-classes\afp_session.h" />
+    <ClInclude Include="afp-source\fp-classes\afp_open_file.h" />
+    <ClInclude Include="afp-source\fp-classes\users_and_groups_cache.h" />
+    <ClInclude Include="afp-source\fp-classes\afp_file_index.h" />
+    <ClInclude Include="afp-source\fp-core\afp.h" />
+    <ClInclude Include="afp-source\fp-core\afpdesktop.h" />
+    <ClInclude Include="afp-source\fp-core\afpdirectory.h" />
+    <ClInclude Include="afp-source\fp-core\afpdispatch.h" />
+    <ClInclude Include="afp-source\fp-core\afpfileio.h" />
+    <ClInclude Include="afp-source\fp-core\afpsrvr.h" />
+    <ClInclude Include="afp-source\fp-core\afpuser.h" />
+    <ClInclude Include="afp-source\fp-core\afpvolumes.h" />
+    <ClInclude Include="afp-source\fp-core\afpxattr.h" />
+    <ClInclude Include="afp-source\fp-imp\afpdhxlogin.h" />
+    <ClInclude Include="afp-source\fp-imp\fdparms.h" />
+    <ClInclude Include="afp-source\fp-imp\fpinfo.h" />
+    <ClInclude Include="afp-source\fp-imp\logonimp.h" />
+    <ClInclude Include="afp-source\fp-imp\volumes.h" />
+    <ClInclude Include="afp-source\helpers\afpdebug.h" />
+    <ClInclude Include="afp-source\helpers\afphelp.h" />
+    <ClInclude Include="afp-source\helpers\byte_swap.h" />
+    <ClInclude Include="afp-source\line-conversion\line_conversion.h" />
+    <ClInclude Include="afp-source\server-core\change_notify.h" />
+    <ClInclude Include="afp-source\server-core\perf_counters.h" />
+    <ClInclude Include="afp-source\server-core\power_config.h" />
+    <ClInclude Include="afp-source\server-core\windows_security.h" />
+    <ClInclude Include="afp-source\ui\aboutdlg.h" />
+    <ClInclude Include="afp-source\ui\addshare.h" />
+    <ClInclude Include="afp-source\ui\sendmsgdlg.h" />
+    <ClInclude Include="line_conversion.h" />
+    <ClInclude Include="resources\resource.h" />
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="version.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="afpServer.man">
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+      </DeploymentContent>
+      <FileType>Document</FileType>
+      <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</DeploymentContent>
+    </None>
+    <None Include="resources\afpServer.Ico" />
+    <None Include="resources\Logo2.bmp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="resources\afpCounters.rc" />
+    <ResourceCompile Include="resources\afpEvents.rc" />
+    <ResourceCompile Include="resources\afpserver.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="Changes.txt" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

@@ -1,0 +1,35 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.7.34221.43
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "afpServer", "afpServer\afpServer.vcxproj", "{E106A5F0-1AB4-4532-8B8B-349275E1E9D6}"
+EndProject
+Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "AfpServerInstaller", "AfpServerInstaller\AfpServerInstaller.vdproj", "{434A79E6-BEC8-4F8F-BDC2-842BD179A01F}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		All|x86 = All|x86
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E106A5F0-1AB4-4532-8B8B-349275E1E9D6}.All|x86.ActiveCfg = Debug|Win32
+		{E106A5F0-1AB4-4532-8B8B-349275E1E9D6}.All|x86.Build.0 = Debug|Win32
+		{E106A5F0-1AB4-4532-8B8B-349275E1E9D6}.Debug|x86.ActiveCfg = Debug|Win32
+		{E106A5F0-1AB4-4532-8B8B-349275E1E9D6}.Debug|x86.Build.0 = Debug|Win32
+		{E106A5F0-1AB4-4532-8B8B-349275E1E9D6}.Release|x86.ActiveCfg = Release|Win32
+		{E106A5F0-1AB4-4532-8B8B-349275E1E9D6}.Release|x86.Build.0 = Release|Win32
+		{434A79E6-BEC8-4F8F-BDC2-842BD179A01F}.All|x86.ActiveCfg = Debug
+		{434A79E6-BEC8-4F8F-BDC2-842BD179A01F}.All|x86.Build.0 = Debug
+		{434A79E6-BEC8-4F8F-BDC2-842BD179A01F}.Debug|x86.ActiveCfg = Debug
+		{434A79E6-BEC8-4F8F-BDC2-842BD179A01F}.Debug|x86.Build.0 = Debug
+		{434A79E6-BEC8-4F8F-BDC2-842BD179A01F}.Release|x86.ActiveCfg = Release
+		{434A79E6-BEC8-4F8F-BDC2-842BD179A01F}.Release|x86.Build.0 = Release
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {0E95390C-20C6-4DB0-8F65-793FE5ECE551}
+	EndGlobalSection
+EndGlobal
