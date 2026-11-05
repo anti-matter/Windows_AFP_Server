@@ -110,6 +110,7 @@ command -v docker          >/dev/null || pkgs+=(docker)
 command -v docker >/dev/null && ! docker compose version >/dev/null 2>&1 && pkgs+=(docker-compose)
 # freerdp 3.x ships as xfreerdp3 on Arch/CachyOS
 { command -v xfreerdp >/dev/null || command -v xfreerdp3 >/dev/null; } || pkgs+=(freerdp)
+command -v rsync           >/dev/null || pkgs+=(rsync)
 if [ "${#pkgs[@]}" -gt 0 ]; then
     echo "  To install: ${pkgs[*]}"
     confirm "Install with pacman?" && sudo pacman -S "${pac_flags[@]}" "${pkgs[@]}" || ylw "  skipped (packages will be required later)"
@@ -176,10 +177,10 @@ if [ ! -f "${DEPLOY_DIR}/AfpServerInstaller.msi" ] \
     mv "${DEPLOY_DIR}/AfpServerInstaller.msi.part" "${DEPLOY_DIR}/AfpServerInstaller.msi"
 fi
 grn "  MSI in place (sha256 verified)"
-for f in setup-guest.ps1 guest-fix-share-drive.ps1 attach-usb-and-port.sh; do
+for f in setup-guest.ps1 guest-fix-share-drive.ps1 attach-usb-and-port.sh dev-sync.sh setup-dev.ps1 dev-loop.ps1; do
     if [ -f "${SCRIPT_DIR}/${f}" ]; then
         cp -f "${SCRIPT_DIR}/${f}" "${DEPLOY_DIR}/${f}"
-        [ "$f" = attach-usb-and-port.sh ] && chmod +x "${DEPLOY_DIR}/${f}"
+        case "$f" in *.sh) chmod +x "${DEPLOY_DIR}/${f}";; esac
         grn "  ${f} staged"
     else
         ylw "  ${f} not found next to this script - copy it manually"

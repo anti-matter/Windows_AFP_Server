@@ -17,6 +17,10 @@ volumes — and dual-mounting NTFS corrupts it.
 | `setup-winboat-host.sh` | CachyOS host | Installs docker/compose/freerdp, WinBoat (AUR or AppImage), docker group, stages `~/afp-deploy`, installs a udev guard that stops the desktop automounting the USB drive |
 | `attach-usb-and-port.sh` | CachyOS host | Patches WinBoat's compose (backed up, idempotent, validated): USB partition → stable in-container path `/dev/afpusb1` → virtio-blk disk; forwards + publishes TCP 548 for LAN Mac clients |
 | `setup-guest.ps1` | Windows guest (elevated) | Firewall rule TCP 548, creates `Shares\MacintoshHD` on the USB drive (found by volume **label**), silent MSI install, HKCU share seed, logon autostart task |
+| `guest-fix-share-drive.ps1` | Windows guest (task) | Logon guard: re-asserts the canonical USB drive letter, repairs HKCU share path, restarts server if it drifted |
+| `setup-dev.ps1` | Windows guest (elevated) | One-time dev-loop setup: VS Build Tools (Desktop C++), `AfpDevLoop` watcher, repoints autostart at `C:\dev\server` (`-Undo` reverts) |
+| `dev-loop.ps1` | Windows guest (task) | Watches `\\host.lan\Data\dev\build.request` → incremental MSBuild Release\|x86 → swap + restart → writes `build.result` |
+| `dev-sync.sh` | host (Linux) | Dev-loop driver: rsync repo → shared folder, trigger build, wait, print compiler tail, DSI-probe the live server |
 
 ## Flow
 
@@ -70,3 +74,36 @@ Details:
 - Mac clients see one volume, `MacintoshHD` → `MacFiles:\Shares\MacintoshHD`.
   Add more volumes in the server's tray UI (full-desktop session) — its tray
   icon is not visible in RemoteApp seamless mode.
+
+## Development loop (edit on Linux, test in seconds)
+
+The server is MSVC-only, so builds run **inside the VM** on a watcher that
+shares this repo over the compose `/shared` mount — no git push, no CI round
+trip, incremental MSBuild. GitHub Actions remains the authoritative build
+check for merges to `master`.
+
+```text
+Linux: edit code -> ~/afp-deploy/dev-sync.sh
+         rsync -> ~/afp-deploy/dev/repo   (guest view: \\host.lan\Data\dev\repo)
+         touch build.request ------->  AfpDevLoop watcher (5 s poll)
+                                        robocopy -> C:\dev\repo (outputs kept = incremental)
+                                        MSBuild Release|x86
+                                        stage + swap C:\dev\server, restart server
+         read build.result <---------  PASS/FAIL + msbuild tail
+       compiler errors land in your Linux terminal; PASS ends with a live DSIGetStatus probe
+```
+
+Setup once (elevated PowerShell in the guest):
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass -Force
+& '\\host.lan\Data\setup-dev.ps1'          # ~15-30 min: installs VS Build Tools
+```
+
+Day-to-day: `~/afp-deploy/dev-sync.sh` (or `--no-wait`; `--probe-host <lan-ip>`).
+Point Mac clients at `afp://<linux-ip>` — the dev build serves the same HKCU
+shares/USB volume as the production one. To go back to the MSI build: run
+`setup-dev.ps1 -Undo` in the guest (restores the autostart task path and stops
+the watcher). Notes: `C:\dev\repo` build outputs are preserved across syncs;
+`.git`/artifacts are never synced; the dev server runs from `C:\dev\server`
+while the MSI install stays untouched in Program Files.
