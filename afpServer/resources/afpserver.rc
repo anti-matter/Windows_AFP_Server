@@ -7,7 +7,13 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "afxres.h"
+#include "winres.h"
+
+// The only afxres.h item this script uses: MFC dialog autoresize layout
+// resource type. Defined here so the plain Windows SDK is sufficient.
+#ifndef AFX_DIALOG_LAYOUT
+#define AFX_DIALOG_LAYOUT 0x00D2
+#endif
 
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
@@ -32,7 +38,7 @@ END
 
 2 TEXTINCLUDE 
 BEGIN
-    "#include ""afxres.h""\r\n"
+    "#include ""winres.h""\r\n"
     "\0"
 END
 
