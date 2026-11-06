@@ -44,8 +44,10 @@ consult it before changing protocol behavior.
   and PerfMon counters.
 - `afpServer/deps/openssl-1.1/` — vendored OpenSSL 1.1 (headers,
   `libcrypto32MT.lib`, and the `libcrypto-1_1.dll` shipped beside the exe).
-- `AfpServerInstaller/` — Visual Studio Installer Projects (`.vdproj`) MSI
-  setup, built manually from the VS IDE.
+- `AfpServerInstaller/` — MSI installer: `product.wxs` (WiX v7 source) +
+  `license.rtf`. Built with the `wix` .NET global tool (see Build); replaces
+  the legacy `.vdproj`, reusing its UpgradeCode so WiX MSIs seamlessly
+  major-upgrade installs of the old installer.
 - `deploy.cmd` — Release post-build step; collects `AfpServer.exe`,
   `afpServer.man`, `install.cmd`, and `libcrypto-1_1.dll` into
   `PersonalAfpServer/` and zips it to `PersonalAfpServer.zip` (repo root).
@@ -76,8 +78,16 @@ Notes:
   tools `mc.exe` and `ctrpp`. Edit `afpServer.man`, never the generated files.
 - The Release **post-build event** copies the OpenSSL DLL and runs
   `deploy.cmd` (produces `PersonalAfpServer.zip`; both are gitignored).
-- The `.vdproj` installer is **not** part of CI; build it from Visual Studio
-  with the *Microsoft Visual Studio Installer Projects* extension.
+- The MSI is **not** part of CI. Build it with WiX v7 (open source, no VS IDE
+  needed): `dotnet tool install --global wix`, then
+  `wix extension add -g WixToolset.UI.wixext` (v7 does not auto-fetch
+  extensions) and from `AfpServerInstaller/`:
+  `wix build -acceptEula wix7 -arch x86 -ext WixToolset.UI.wixext -d ProductVersion=<version.h> -out AfpServerInstaller-<ver>.msi product.wxs`.
+  Run it from the `AfpServerInstaller/` directory (`product.wxs` uses `..\`
+  paths resolved against the CWD). `product.wxs` notes explain the deferred
+  custom actions (event-log/PerfMon registration via `install.cmd`) and the
+  `MediaTemplate EmbedCab` requirement for single-file MSIs. The dev loop
+  automates all of this: `winboat-deploy/dev-sync.sh --msi[-install]`.
 - **CI** (`.github/workflows/build.yml`) builds `Release | x86` on
   `windows-2025-vs2026` for every push to `master` and uploads
   `PersonalAfpServer.zip` + PDB as artifacts. Since the project cannot be

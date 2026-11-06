@@ -1,6 +1,19 @@
 ===============================================================================
 Personal AFP Server Change Log
 
+Version 2.2.2:
+- Installer rebuilt on the WiX Toolset (AfpServerInstaller\product.wxs): the MSI
+  is now fully scriptable (no Visual Studio IDE required) and performs seamless
+  major upgrades - installing a new version automatically removes the previous
+  one (including legacy 2.1.x/2.2.x Installer Projects installs; the original
+  UpgradeCode was carried over).
+- The MSI now packages afpServer.man, so event-log/PerfMon registration
+  (install.cmd) actually takes effect during MSI installation; it previously
+  failed silently because the manifest was not in the package.
+- install.cmd now registers/unregisters the providers found next to itself
+  instead of only the hardcoded default install path, so custom install
+  directories work.
+
 Version 2.2.1:
 - Fixed CW library finder info mapping.
 - Fixed bug writing empty files after line ending conversion.

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+
+  <!--
+    Personal AFP Server - MSI installer (WiX Toolset v4+ schema; built with the
+    "wix" .NET global tool:  wix build -arch x86 -d ProductVersion=X.Y.Z product.wxs)
+
+    Replaces the legacy Visual Studio Installer Projects (.vdproj) build, which
+    could only be compiled by the full VS IDE. The UpgradeCode below is the one
+    the .vdproj used, so WiX-built MSIs cleanly major-upgrade installations of
+    the original installer in the field (no manual uninstall needed).
+
+    Deliberate deviations from the .vdproj:
+      - afpServer.man is now packaged (the .vdproj omitted it, so install.cmd's
+        wevtutil/lodctr registration silently did nothing inside the MSI);
+      - the auto-detected system AUTHZ.dll is no longer packaged - Windows
+        always provides it and shipping system DLLs is an anti-pattern;
+      - the .NET Framework bootstrapper prerequisite is dropped - the server
+        is native code; MSI-only deployment (msiexec /i) is the supported path.
+  -->
+
+  <!-- The dev loop overrides this: wix build -d ProductVersion=$(version.h) -->
+  <?ifndef ProductVersion?>
+  <?define ProductVersion=2.2.2?>
+  <?endif?>
+
+  <Package Name="Personal AFP Server"
+           Manufacturer="AfpServer"
+           Language="1033"
+           Version="$(var.ProductVersion)"
+           UpgradeCode="{E80283F5-4FD1-4E9B-B690-095622D590D5}"
+           Scope="perMachine"
+           Compressed="yes"
+           InstallerVersion="200">
+
+    <SummaryInformation Description="Personal AFP Server [ProductVersion] for Windows (x86)"
+                        Keywords="AFP;Apple Filing Protocol;Windows" />
+
+    <!-- Seamless update: an existing install (vdproj- or WiX-built) of any
+         lower version is removed automatically as part of installation.
+         afterInstallInitialize matters: the old product's uninstall runs
+         install.cmd -u (deregistering the event-source/perf-counter
+         providers) BEFORE the new install re-registers them. -->
+    <MajorUpgrade Schedule="afterInstallInitialize"
+                  DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+
+    <!-- EmbedCab: single-file MSI. Without it wix emits cab1.cab next to the
+         MSI and installs from a copied .msi fail with "Source file not
+         found: cab1.cab". -->
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="afpServer.Ico" SourceFile="..\afpServer\resources\afpServer.Ico" />
+    <Property Id="ARPPRODUCTICON" Value="afpServer.Ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/anti-matter/Windows_AFP_Server" />
+
+    <StandardDirectory Id="ProgramFilesFolder">
+      <Directory Id="ManufacturerFolder" Name="AfpServer">
+        <Directory Id="INSTALLFOLDER" Name="Personal AFP Server">
+          <Component Id="AfpServerCore" Guid="{9C681358-E89C-4ADB-BC61-51A94D2713F8}">
+            <File Id="AfpServerExe" Source="..\afpServer\Release\afpServer.exe" KeyPath="yes" />
+            <File Id="LibCryptoDll" Source="..\afpServer\deps\openssl-1.1\lib\libcrypto-1_1.dll" />
+            <File Id="InstallCmd" Source="..\install.cmd" />
+            <File Id="AfpServerMan" Source="..\afpServer\afpServer.man" />
+          </Component>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="AppMenuFolder" Name="Personal AFP Server">
+        <Component Id="AfpStartMenuShortcut" Guid="{922F29EA-12C1-40D2-A421-B80C5042CDD3}">
+          <Shortcut Id="StartMenuShortcut"
+                    Name="Personal AFP Server"
+                    Target="[INSTALLFOLDER]afpServer.exe"
+                    WorkingDirectory="INSTALLFOLDER"
+                    Icon="afpServer.Ico" />
+          <RemoveFolder Id="RemoveAppMenuFolder" On="uninstall" />
+          <RegistryValue Root="HKCU"
+                         Key="Software\AfpServer\Personal AFP Server"
+                         Name="InstallShortcut"
+                         Type="integer"
+                         Value="1"
+                         KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+
+    <!-- Event-log + PerfMon provider registration via the shipped install.cmd.
+         Deferred exe custom action (Directory = working dir + ExeCommand),
+         running as SYSTEM - the elevation wevtutil/lodctr need - with no
+         extension dependency. Return=ignore matches the legacy vdproj
+         tolerance. -->
+    <CustomAction Id="AfpRegisterProviders" Directory="INSTALLFOLDER"
+                  ExeCommand="&quot;[System64Folder]cmd.exe&quot; /c &quot;[INSTALLFOLDER]install.cmd&quot;"
+                  Execute="deferred" Impersonate="no" Return="ignore" />
+
+    <CustomAction Id="AfpUnregisterProviders" Directory="INSTALLFOLDER"
+                  ExeCommand="&quot;[System64Folder]cmd.exe&quot; /c &quot;[INSTALLFOLDER]install.cmd&quot; -u"
+                  Execute="deferred" Impersonate="no" Return="ignore" />
+
+    <InstallExecuteSequence>
+      <!-- Deferred CAs must sit between InstallInitialize and InstallFinalize
+           (after InstallFinalize = MSI error 2762). Before InstallFinalize
+           still runs after InstallFiles, so install.cmd is on disk. -->
+      <Custom Action="AfpRegisterProviders" Before="InstallFinalize" Condition="NOT REMOVE" />
+      <Custom Action="AfpUnregisterProviders" Before="RemoveFiles" Condition='REMOVE="All"' />
+    </InstallExecuteSequence>
+
+    <Feature Id="Complete" Title="Personal AFP Server" Level="1"
+             AllowAdvertise="no" ConfigurableDirectory="INSTALLFOLDER">
+      <ComponentRef Id="AfpServerCore" />
+      <ComponentRef Id="AfpStartMenuShortcut" />
+    </Feature>
+
+    <WixVariable Id="WixUILicenseRtf" Value="license.rtf" />
+    <!-- v7: InstallDirectory also defines WIXUI_INSTALLDIR (do not duplicate) -->
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+  </Package>
+</Wix>

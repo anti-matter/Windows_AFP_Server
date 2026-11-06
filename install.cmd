@@ -43,14 +43,15 @@ for /f "usebackq tokens=1,2,*" %%B IN (`reg query "HKEY_CURRENT_USER\Software\Mi
 :: Locations and names of our items
 set productname=Personal AFP Server
 set manufacturer=AfpServer
-set installpath="%ProgramFiles(x86)%\%manufacturer%\%productname%\"
 
 if "%~1" == "-u" goto uninstall
 
 echo Installing Personal AFP Server for Windows...
-echo Installing into %installpath%
+echo Installing into %~dp0
 
-if exist "%installpath%" (
+:: Register only when an installation is found next to this script (works for
+:: the default path AND custom MSI install directories).
+if exist "%~dp0afpServer.exe" (
     goto setuptools
 ) else (
     echo No existing installation found
