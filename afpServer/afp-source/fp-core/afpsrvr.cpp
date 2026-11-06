@@ -6,6 +6,7 @@
 
 #include "afphelp.h"
 #include "afp_volumes.h"
+#include "afp_volume_icon.h"
 #include "dsi/dsi_connection.h"
 
 extern BOOL g_allow_guests;
@@ -176,6 +177,18 @@ AFPERROR FPGetSrvrInfo(
 	// more secure than the clear text password. It is not used by
 	// Apple, but is used by AppleShare IP Browser.
 	afp_reply.push_string(UAM_XOR);
+
+	//
+	//Serve our custom volume icon (32x32 1-bit bitmap + transparency
+	//mask = 256 bytes) by appending it at the end of the reply and
+	//pointing the VolumeIconAndMask offset field at it. Appending at
+	//the end leaves every other header offset exactly as computed
+	//above. Classic Mac OS clients (e.g. Mac OS 9.0.4) then show our
+	//icon for this server instead of the generic network-server icon.
+	//
+	afp_reply.set_parameter_offset_value(offset_volume_icon, static_cast<INT16>(afp_reply.get_data_length()));
+	afp_reply.push_raw_data(volume_icon_bitmap, volume_icon_bitmap_size);
+	afp_reply.push_raw_data(volume_icon_mask, volume_icon_mask_size);
 
 	return NO_ERROR;
 }

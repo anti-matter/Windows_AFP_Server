@@ -165,6 +165,7 @@ $(SolutionDir)deploy.cmd $(SolutionDir)
     <ClCompile Include="afp-source\dsi\dsi_init.cpp" />
     <ClCompile Include="afp-source\fp-classes\afp_char_map.cpp" />
     <ClCompile Include="afp-source\fp-classes\afp_desktop.cpp" />
+    <ClCompile Include="afp-source\fp-classes\afp_volume_icon.cpp" />
     <ClCompile Include="afp-source\fp-classes\afp_volume.cpp" />
     <ClCompile Include="afp-source\fp-classes\afp_volumes.cpp" />
     <ClCompile Include="afp-source\fp-classes\auto_lock.cpp" />
@@ -216,6 +217,7 @@ $(SolutionDir)deploy.cmd $(SolutionDir)
     <ClInclude Include="afp-source\dsi\dsi_init.h" />
     <ClInclude Include="afp-source\fp-classes\afp_char_map.h" />
     <ClInclude Include="afp-source\fp-classes\afp_desktop.h" />
+    <ClInclude Include="afp-source\fp-classes\afp_volume_icon.h" />
     <ClInclude Include="afp-source\fp-classes\afp_desk_item.h" />
     <ClInclude Include="afp-source\fp-classes\afp_registry.h" />
     <ClInclude Include="afp-source\fp-classes\afp_net_buffer.h" />
