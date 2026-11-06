@@ -42,8 +42,10 @@ AFPERROR DHXLogin(
 	UINT8 randbuf[DHX_RANDBUFSIZE];
 	unsigned char encrypt_buffer[DHX_CRYPTBUFLEN] = {};
 	const UINT16 sessid = dhxhash((ULONG_PTR)dsiSession);
-	BIGNUM* gbn;
-	BIGNUM* pbn;
+	BIGNUM* gbn = NULL;
+	BIGNUM* pbn = NULL;
+	unsigned char* key_dst = NULL;
+	int pub_key_len = 0;
 	int i;
 
     if (dhxInfo == NULL)
@@ -88,6 +90,13 @@ AFPERROR DHXLogin(
 		goto exit;
 	}
 
+	//
+	//dh now owns pbn and gbn; clear our references so we don't
+	//double-free them (and so we free them here if set0 failed).
+	//
+	pbn = NULL;
+	gbn = NULL;
+
 	// Generate the key
 	if (!DH_generate_key(dh))
 	{
@@ -97,21 +106,35 @@ AFPERROR DHXLogin(
 
 	const BIGNUM* pub_key;
 	DH_get0_key(dh, &pub_key, nullptr);
-	if (BN_num_bytes(pub_key) > DHX_KEYSIZE)
+	pub_key_len = BN_num_bytes(pub_key);
+	if (pub_key_len > DHX_KEYSIZE)
 	{
-		ASSERT(0);
+		DBGWRITE(dbg_level_error, L"Server public key too large\n");
+		goto exit;
 	}
 
 	// Figure out the key and stick it in our reply buffer.
 	CAST_KEY cast_key;
     i = DH_compute_key((unsigned char*)afpReply.get_current_pos_ptr(), client_pub_key, dh);
- 	CAST_set_key(&cast_key, i, (unsigned char*)afpReply.get_current_pos_ptr());
+	if (i <= 0)
+	{
+		DBGWRITE(dbg_level_error, L"DH_compute_key() failed\n");
+		goto exit;
+	}
+	CAST_set_key(&cast_key, i, (unsigned char*)afpReply.get_current_pos_ptr());
 
 	// Compute and set the session id which is based on our session object
 	afpReply.push_num(sessid);
 
-	// Include the public key in reply.
-	BN_bn2bin(pub_key, (unsigned char*)afpReply.get_current_pos_ptr());
+	//
+	//Include the public key in the reply, left-padded with zeros to
+	//DHX_KEYSIZE bytes. The client expects a fixed-width key; without
+	//padding a numerically-short key shifts the whole reply and the
+	//client fails the login.
+	//
+	key_dst = (unsigned char*)afpReply.get_current_pos_ptr();
+	memset(key_dst, 0, DHX_KEYSIZE);
+	BN_bn2bin(pub_key, key_dst + (DHX_KEYSIZE - pub_key_len));
 	afpReply.advance_pos_ptr(DHX_KEYSIZE);
 
 	// Now we setup our buffer to be encrypted.
@@ -144,6 +167,16 @@ exit:
     {
         BN_free(client_pub_key);
     }
+
+	if (pbn)
+	{
+		BN_free(pbn);
+	}
+
+	if (gbn)
+	{
+		BN_free(gbn);
+	}
 
 	if (dh)
     {
@@ -237,7 +270,7 @@ AFPERROR DHXLoginContinue(
 	//Copy the CLEARTEXT password into the supplied buffer. Don't
 	//forget to clear it later!!
 	//
-	if (DHX_PASSWDLEN > afpPasswordLen)
+	if ((DHX_PASSWDLEN + 1) > afpPasswordLen)
 	{
 		DBGWRITE(dbg_level_info, L"[afpuser:DHXLoginContinue]Password buffer too small\n");
 
@@ -246,6 +279,7 @@ AFPERROR DHXLoginContinue(
 	}
 
 	memcpy(afpPassword, tempBuf, DHX_PASSWDLEN);
+	afpPassword[DHX_PASSWDLEN] = '\0';
 
 	DBGWRITE(dbg_level_info, L"[afpuser:DHXLoginContinue]Successful continued login for DHCAST128\n");
 	afpError = AFP_OK;
