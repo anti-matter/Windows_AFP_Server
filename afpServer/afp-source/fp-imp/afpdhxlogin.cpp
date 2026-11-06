@@ -518,9 +518,22 @@ void afpGetRandomNumber(
 	IN INT16 cbBuf
 )
 {
-	UINT32 result;
+	// Use OpenSSL's cryptographically secure PRNG (auto-seeded from the
+	// OS entropy source). The old srand()/rand() scheme was seeded with
+	// the low bits of the connection pointer, which is guessable, and
+	// rand() state is shared across threads.
+	if (RAND_bytes(reinterpret_cast<unsigned char*>(buf), cbBuf) == 1)
+	{
+		return;
+	}
+
+	// Should never happen; fall back to the legacy scheme rather than
+	// returning an uninitialized buffer.
+	DBGWRITE(dbg_level_error, L"afpGetRandomNumber: RAND_bytes() failed, falling back to rand()\n");
 
 	srand((ULONG_PTR)dsiSession & 0x0000FFFF);
+
+	UINT32 result;
 
 	for (int i = 0; i < cbBuf; i += sizeof(result))
 	{
