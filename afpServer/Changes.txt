@@ -1,6 +1,26 @@
 ===============================================================================
 Personal AFP Server Change Log
 
+Version 2.3.0:
+- The server is now a 64-bit (x64) application. 32-bit (x86/Win32) builds are
+  no longer supported: the solution and project only define x64 platforms, and
+  CI, the SSH dev loop, deploy.cmd, and the WiX installer were updated to
+  match. The MSI now installs to Program Files (not Program Files (x86));
+  existing 2.2.x installs are major-upgraded in place.
+- The vendored OpenSSL 1.1 dependency switched to the official Shining Light
+  Productions Win64 build (libcrypto64MT.lib import library +
+  libcrypto-1_1-x64.dll, from Win64OpenSSL-1_1_1w); the 32-bit libraries were
+  removed.
+- Fixed: folders on a share could never be deleted from Windows ("file in
+  use"). The char-map stream (Afp_CharMap) reader leaked a file handle
+  whenever the stream did not deserialize, and a leaked stream handle pins
+  its parent directory. The struct it reads stored the mapping position in a
+  size_t, so on x64 it no longer matched the 260-byte streams written by
+  32-bit builds and every directory read leaked a handle. The stream now
+  uses a fixed, bitness-independent on-disk layout (still readable from
+  legacy 32-bit streams), all read paths close the stream (RAII), and
+  mapping indexes are bounds-checked.
+
 Version 2.2.4:
 - No server code changes. Version bumped to exercise the full clean-rebuild
   and MSI major-upgrade path through the new SSH-driven dev loop

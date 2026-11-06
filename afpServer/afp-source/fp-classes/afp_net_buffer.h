@@ -45,7 +45,7 @@ public:
 
     [[nodiscard]] bool check_space_needed(size_t space_needed) const;
     [[nodiscard]] bool not_enough_space(size_t space_needed) const;
-    [[nodiscard]] bool will_overflow(UINT32 value) const;
+    [[nodiscard]] bool will_overflow(size_t value) const;
 
     [[nodiscard]] char* get_current_pos_ptr() const;
 	[[nodiscard]] char* get_buffer() const;
@@ -180,7 +180,7 @@ inline bool afp_net_buffer::not_enough_space(const size_t space_needed) const
 	return !check_space_needed(space_needed);
 }
 
-inline bool afp_net_buffer::will_overflow(const UINT32 value) const
+inline bool afp_net_buffer::will_overflow(const size_t value) const
 {
 	return current_buffer_ptr_ + value > buffer_ + buffer_size_;
 }
@@ -228,7 +228,7 @@ inline void afp_net_buffer::push_raw_data(const void* data, const size_t size)
 {
 	if (will_overflow(size))
 	{
-		DBGWRITE(dbg_level_error, L"Overflow pushing raw data to buffer! size = %d\n", size);
+		DBGWRITE(dbg_level_error, L"Overflow pushing raw data to buffer! size = %d\n", static_cast<int>(size));
 		ASSERT(0);
 
 		return;

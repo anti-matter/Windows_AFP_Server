@@ -791,7 +791,7 @@ regerror afp_registry::set_extensions_for_conversion(const std::wstring& extensi
 		0,
 		REG_SZ,
 		reinterpret_cast<const BYTE*>(extensions.c_str()),
-		(extensions.length() * sizeof(TCHAR)) + sizeof(TCHAR));
+		static_cast<DWORD>((extensions.length() * sizeof(TCHAR)) + sizeof(TCHAR)));
 
 	if (dw_error != ERROR_SUCCESS)
 	{

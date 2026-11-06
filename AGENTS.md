@@ -7,7 +7,7 @@ Guidance for AI coding agents (and humans) working on this repository.
 **Personal AFP Server for Windows** — an Apple Filing Protocol (AFP 3.2) file
 server for Windows, written in C++. It lets vintage Macintosh clients
 (System 7–Mac OS 9, Mac OS X, SheepShaver, BasiliskII) access Windows shared
-folders over TCP/IP (DSI on port 548). The server is a single 32-bit Win32 GUI
+folders over TCP/IP (DSI on port 548). The server is a single 64-bit (x64) Win32 GUI
 executable: a tray-icon app with dialog-based share configuration. It is *not*
 an MFC or .NET project — plain Win32 API.
 
@@ -19,7 +19,7 @@ consult it before changing protocol behavior.
 ## Repository layout
 
 - `afpServer.sln` — Visual Studio solution.
-- `afpServer/afpServer.vcxproj` — the server project (Win32/x86 only).
+- `afpServer/afpServer.vcxproj` — the server project (x64 only).
 - `afpServer/afp-source/` — all server source code:
   - `dsi/` — DSI transport over TCP: connection objects, socket setup.
   - `fp-core/` — AFP command implementations (dispatch, desktop, directory,
@@ -43,13 +43,13 @@ consult it before changing protocol behavior.
 - `afpServer/afpServer.man` — source of truth for Windows event-log messages
   and PerfMon counters.
 - `afpServer/deps/openssl-1.1/` — vendored OpenSSL 1.1 (headers,
-  `libcrypto32MT.lib`, and the `libcrypto-1_1.dll` shipped beside the exe).
+  `libcrypto64MT.lib` import library, and the `libcrypto-1_1-x64.dll` shipped beside the exe).
 - `AfpServerInstaller/` — MSI installer: `product.wxs` (WiX v7 source) +
   `license.rtf`. Built with the `wix` .NET global tool (see Build); replaces
   the legacy `.vdproj`, reusing its UpgradeCode so WiX MSIs seamlessly
   major-upgrade installs of the old installer.
 - `deploy.cmd` — Release post-build step; collects `AfpServer.exe`,
-  `afpServer.man`, `install.cmd`, and `libcrypto-1_1.dll` into
+  `afpServer.man`, `install.cmd`, and `libcrypto-1_1-x64.dll` into
   `PersonalAfpServer/` and zips it to `PersonalAfpServer.zip` (repo root).
 - `install.cmd` — run on the target machine after unzipping; registers /
   unregisters (`wevtutil`, `lodctr`) the event-log and PerfMon providers.
@@ -65,11 +65,11 @@ precompiled header `afpServer/stdafx.h`.
 From a *Developer Command Prompt*:
 
 ```
-msbuild afpServer.sln /t:afpServer /p:Configuration=Release /p:Platform=x86
+msbuild afpServer.sln /t:afpServer /p:Configuration=Release /p:Platform=x64
 ```
 
-(In the IDE, open `afpServer.sln` and pick **Release | x86** — the solution
-platform is `x86`, the project platform is `Win32`.)
+(In the IDE, open `afpServer.sln` and pick **Release | x64** — the solution
+platform and project platform are both `x64`.)
 
 Notes:
 
@@ -82,14 +82,14 @@ Notes:
   needed): `dotnet tool install --global wix`, then
   `wix extension add -g WixToolset.UI.wixext` (v7 does not auto-fetch
   extensions) and from `AfpServerInstaller/`:
-  `wix build -acceptEula wix7 -arch x86 -ext WixToolset.UI.wixext -d ProductVersion=<version.h> -out AfpServerInstaller-<ver>.msi product.wxs`.
+  `wix build -acceptEula wix7 -arch x64 -ext WixToolset.UI.wixext -d ProductVersion=<version.h> -out AfpServerInstaller-<ver>.msi product.wxs`.
   Run it from the `AfpServerInstaller/` directory (`product.wxs` uses `..\`
   paths resolved against the CWD). `product.wxs` notes explain the deferred
   custom actions (event-log/PerfMon registration via `install.cmd`) and the
   `MediaTemplate EmbedCab` requirement for single-file MSIs. The dev loop
   automates all of this: `winboat-deploy/ssh-dev.sh --msi[-install]` (SSH into
   the Windows guest; see `winboat-deploy/README.md`).
-- **CI** (`.github/workflows/build.yml`) builds `Release | x86` on
+- **CI** (`.github/workflows/build.yml`) builds `Release | x64` on
   `windows-2025-vs2026` for every push to `master` and uploads
   `PersonalAfpServer.zip` + PDB as artifacts. Since the project cannot be
   built *natively* on Linux/macOS, CI is the authoritative build check for
@@ -103,7 +103,7 @@ the Linux workstation** over SSH — there is a Windows build machine reachable
 with the key already installed (no password prompts).
 
 - **Primary command:** `winboat-deploy/ssh-dev.sh` — tars the working tree to
-  `C:\dev\repo` on the Windows box, runs MSBuild **Release | x86** remotely
+  `C:\dev\repo` on the Windows box, runs MSBuild **Release | x64** remotely
   (incremental; compiler errors stream to the Linux terminal), stages the
   build to `C:\dev\server`, restarts the server, and finishes with a live
   **DSIGetStatus probe** on TCP 548. `PASS` = compiled, deployed, and serving.
@@ -150,8 +150,9 @@ the authoritative check for merges to `master`.
   `helpers/bswap.c`. Editing them has no effect on the build.
 - `resources/RCa31236`, `resources/RDa31236`, and `resources/afpEventsTEMP.BIN`
   are stray leftovers from past resource-tool runs; unused.
-- The project is x86-only and links the 32-bit vendored `libcrypto32MT.lib`.
-  Do not "modernize" to OpenSSL 3 without a ported 32-bit library.
+- The project is x64-only (since 2.3.0; 32-bit x86 is no longer supported) and
+  links the vendored 64-bit `libcrypto64MT.lib` — the Shining Light
+  Productions Win64 OpenSSL 1.1.1w import library for `libcrypto-1_1-x64.dll`.
 - Releases: bump `VERSION_MAJOR/MINOR/REVISION` in `afpServer/version.h`,
   add a `Changes.txt` entry, and build Release.
 - Git history predates 2026: the source was imported from a private Azure
@@ -161,7 +162,7 @@ the authoritative check for merges to `master`.
 
 1. Build (and smoke-test) locally via the SSH dev loop:
    `winboat-deploy/ssh-dev.sh` — see "Building and testing from Linux (dev
-   loop)" above. A `PASS` means Release | x86 compiled clean and the restarted
+   loop)" above. A `PASS` means Release | x64 compiled clean and the restarted
    build answers DSI GetStatus.
 2. Ensure the CI build passes (push to a branch and check Actions, or rely on
    the `master` workflow after merge).

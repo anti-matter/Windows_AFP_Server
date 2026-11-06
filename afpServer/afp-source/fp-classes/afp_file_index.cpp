@@ -73,7 +73,7 @@ afp_index* afp_file_index::add_entry(
 
 	// We get a hash to the path string so that we can perform faster,
 	// more efficient searches for full paths.
-	entry->path_hash = std::hash<std::wstring>{}(p_object_path);
+	entry->path_hash = static_cast<UINT32>(std::hash<std::wstring>{}(p_object_path));
 
 	// Take this opportunity to save or read in the char map data.
 	if (char_map != nullptr)
@@ -228,7 +228,7 @@ void afp_file_index::update_entry(afp_index* entry, afp_index* new_parent, const
 
 	// Update the new full path and full path hash
 	entry->sz_path = new_parent->sz_path / entry->sz_object_name;
-	entry->path_hash = std::hash<std::wstring>{}(entry->sz_path);
+	entry->path_hash = static_cast<UINT32>(std::hash<std::wstring>{}(entry->sz_path));
 
 	// Only if the object moved do we update the parent id and entry
 	if (entry->par_entry->object_id != new_parent->object_id)
@@ -427,7 +427,7 @@ UINT32 afp_file_index::get_offspring(const INT32 par_id, std::vector<afp_index*>
 		offspring.push_back(it->get());
 	}
 
-    return offspring.size();
+    return static_cast<UINT32>(offspring.size());
 }
 
 UINT32 afp_file_index::get_offspring(const INT32 par_id)

@@ -3,7 +3,7 @@
 #
 # Watches \\host.lan\Data\dev\build.request (written by dev-sync.sh on the Linux
 # host). On request: mirror sources to C:\dev\repo (keeping build outputs so
-# MSBuild stays incremental), build Release|x86, stage the runnable set into
+# MSBuild stays incremental), build Release|x64, stage the runnable set into
 # C:\dev\server, restart the PersonalAfpServer task, and report the outcome in
 # \\host.lan\Data\dev\build.result for the Linux side to pick up.
 #
@@ -89,7 +89,7 @@ while ($true) {
             # NB: redirect through cmd so msbuild's raw bytes are appended;
             # PowerShell *>> would mix UTF-16 into the UTF-8 log.
             "build started $(Get-Date -Format s) ver=$ver msi=$([int]$wantMsi) msiinstall=$([int]$installMsi)" | Set-Content $Log -Encoding UTF8
-            cmd /c "`"$msbuild`" `"$(Join-Path $Repo 'afpServer.sln')`" /t:afpServer /p:Configuration=Release /p:Platform=x86 /m /v:m >> `"$Log`" 2>&1"
+            cmd /c "`"$msbuild`" `"$(Join-Path $Repo 'afpServer.sln')`" /t:afpServer /p:Configuration=Release /p:Platform=x64 /m /v:m >> `"$Log`" 2>&1"
             $code = $LASTEXITCODE
 
             if ($code -ne 0) {
@@ -125,7 +125,7 @@ while ($true) {
                 # cd into the installer dir: product.wxs uses ..\ relative
                 # paths, which Windows wix.exe resolves against the CWD.
                 $instDir = Join-Path $Repo 'AfpServerInstaller'
-                $wixBuild = "cd /d `"$instDir`" && `"$wix`" build -acceptEula wix7 -arch x86 -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext -d ProductVersion=$ver -out `"$msiOut`" product.wxs"
+                $wixBuild = "cd /d `"$instDir`" && `"$wix`" build -acceptEula wix7 -arch x64 -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext -d ProductVersion=$ver -out `"$msiOut`" product.wxs"
                 cmd /c "$wixBuild >> `"$Log`" 2>&1"
                 if (($LASTEXITCODE -ne 0 -or -not (Test-Path $msiOut)) -and
                     ((Tail-File $Log 10) -match 'WIX0144')) {

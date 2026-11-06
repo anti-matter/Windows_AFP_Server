@@ -24,20 +24,20 @@ The project is now open source — the full source code lives in this repository
 
 ## Building
 
-The server is a 32-bit (x86) Win32 application and builds on **Windows** with
+The server is a 64-bit (x64) Win32 application and builds on **Windows** with
 **Visual Studio 2026** (v145 toolset), the *Desktop development with C++*
 workload, and a Windows 10/11 SDK.
 
-1. Open `afpServer.sln` in Visual Studio and build **Release | x86**, or from
+1. Open `afpServer.sln` in Visual Studio and build **Release | x64**, or from
    a Developer Command Prompt:
 
    ```
-   msbuild afpServer.sln /t:afpServer /p:Configuration=Release /p:Platform=x86
+   msbuild afpServer.sln /t:afpServer /p:Configuration=Release /p:Platform=x64
    ```
 
 2. The Release build's post-build step runs `deploy.cmd`, producing
    `PersonalAfpServer.zip` in the repo root containing the server, the
-   `libcrypto-1_1.dll` it needs, its event-log/counter manifest, and
+   `libcrypto-1_1-x64.dll` it needs, its event-log/counter manifest, and
    `install.cmd`.
 
 Every push to `master` is built automatically by

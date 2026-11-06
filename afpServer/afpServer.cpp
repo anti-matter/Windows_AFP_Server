@@ -472,7 +472,7 @@ void server_shutdown(
     PostQuitMessage(0);
 }
 
-BOOL CALLBACK main_dialog_proc(
+INT_PTR CALLBACK main_dialog_proc(
     IN const HWND h_dlg,
     IN const UINT u_msg,
     IN const WPARAM w_param,

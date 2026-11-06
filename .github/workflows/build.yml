@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    name: afpServer (Release | x86)
+    name: afpServer (Release | x64)
     # VS 2026 image: provides the v145 platform toolset and the Windows SDK
     # (mc.exe / ctrpp.exe) required by the project's pre-build step.
     runs-on: windows-2025-vs2026
@@ -34,16 +34,16 @@ jobs:
       # Visual Studio with the Installer Projects extension.
       # The Release post-build event runs deploy.cmd, which produces
       # PersonalAfpServer.zip at the repository root.
-      - name: Build afpServer (Release | x86)
+      - name: Build afpServer (Release | x64)
         shell: cmd
         run: |
-          call "%VS_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x86
-          msbuild afpServer.sln /t:afpServer /p:Configuration=Release /p:Platform=x86 /m /v:m
+          call "%VS_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x64
+          msbuild afpServer.sln /t:afpServer /p:Configuration=Release /p:Platform=x64 /m /v:m
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: PersonalAfpServer-windows-x86
+          name: PersonalAfpServer-windows-x64
           path: |
             PersonalAfpServer.zip
             afpServer/Release/afpServer.pdb

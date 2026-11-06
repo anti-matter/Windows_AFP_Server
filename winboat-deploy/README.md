@@ -24,7 +24,7 @@ volumes — and dual-mounting NTFS corrupts it.
 | `dev-sync.sh` | host (Linux) | Legacy dev-loop driver for the watcher above — fallback only, see `ssh-dev.sh` |
 | `setup-ssh.ps1` | Windows guest (elevated) | One-time SSH setup: sshd automatic + firewall, installs the host's public key (`host_id_ed25519.pub`) into `administrators_authorized_keys`, retires the `AfpDevLoop` watcher |
 | `ssh-dev.sh` | host (Linux) | **Primary dev loop**: tar-over-SSH sync (manifest prunes deletions), remote `guest-build.ps1` with live output, MSI via scp, DSI-probe; `--msi`/`--msi-install`/`--probe-host` |
-| `guest-build.ps1` | Windows guest (SSH remote-exec, `C:\dev`) | One-shot build: MSBuild Release\|x86 → stage `C:\dev\server` → restart (task, S4U fallback if headless) → optional WiX MSI |
+| `guest-build.ps1` | Windows guest (SSH remote-exec, `C:\dev`) | One-shot build: MSBuild Release\|x64 → stage `C:\dev\server` → restart (task, S4U fallback if headless) → optional WiX MSI |
 
 ## Flow
 
@@ -93,7 +93,7 @@ Linux: edit code -> winboat-deploy/ssh-dev.sh
          tar-over-ssh -> C:\dev\repo          (build outputs kept = incremental)
          repo.manifest  -------------------->  prunes sources deleted on the host
          remote-exec C:\dev\guest-build.ps1   (compiler output streams live)
-                                                 MSBuild Release|x86
+                                                 MSBuild Release|x64
                                                  stage + swap C:\dev\server
                                                  restart server (task; S4U fallback
                                                  when no console user is logged on)
@@ -161,8 +161,8 @@ server through the S4U fallback task (`AfpDevStart`) — same as headless
 WinBoat; it does not survive a reboot until you register an autostart task or
 log on and run the server once. First run has empty HKCU share config — start
 the tray app once interactively and add volumes. Build outputs land in
-`C:\dev\repo\afpServer\Release` exactly as in the guest; the box is x64 but
-MSBuild targets Win32/x86, so the vendored 32-bit OpenSSL works unchanged.
+`C:\dev\repo\afpServer\Release` exactly as in the guest; MSBuild targets x64,
+matching the vendored 64-bit OpenSSL.
 
 ## MSI builds via the loop
 

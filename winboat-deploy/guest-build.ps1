@@ -88,7 +88,7 @@ if (-not $msbuild) { Fail 'MSBuild not found - install VS Build Tools (rerun set
 # NB: redirect through cmd so msbuild's raw bytes are appended; PowerShell *>>
 # would mix UTF-16 into the UTF-8 log.
 "build started $(Get-Date -Format s) ver=$Version msi=$([int][bool]$Msi) msiinstall=$([int][bool]$MsiInstall)" | Set-Content $Log -Encoding UTF8
-cmd /c "`"$msbuild`" `"$(Join-Path $Repo 'afpServer.sln')`" /t:afpServer /p:Configuration=Release /p:Platform=x86 /m /v:m >> `"$Log`" 2>&1"
+cmd /c "`"$msbuild`" `"$(Join-Path $Repo 'afpServer.sln')`" /t:afpServer /p:Configuration=Release /p:Platform=x64 /m /v:m >> `"$Log`" 2>&1"
 $code = $LASTEXITCODE
 if ($code -ne 0) { Fail "msbuild exit $code`r`n$(Tail-File $Log 40)" }
 
@@ -147,7 +147,7 @@ if ($Msi) {
     # cd into the installer dir: product.wxs uses ..\ relative paths, which
     # Windows wix.exe resolves against the CWD.
     $instDir = Join-Path $Repo 'AfpServerInstaller'
-    $wixBuild = "cd /d `"$instDir`" && `"$wix`" build -acceptEula wix7 -arch x86 -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext -d ProductVersion=$Version -out `"$msiOut`" product.wxs"
+    $wixBuild = "cd /d `"$instDir`" && `"$wix`" build -acceptEula wix7 -arch x64 -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext -d ProductVersion=$Version -out `"$msiOut`" product.wxs"
     cmd /c "$wixBuild >> `"$Log`" 2>&1"
     if (($LASTEXITCODE -ne 0 -or -not (Test-Path $msiOut)) -and
         ((Tail-File $Log 10) -match 'WIX0144')) {
