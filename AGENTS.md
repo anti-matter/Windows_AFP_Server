@@ -92,7 +92,34 @@ Notes:
 - **CI** (`.github/workflows/build.yml`) builds `Release | x86` on
   `windows-2025-vs2026` for every push to `master` and uploads
   `PersonalAfpServer.zip` + PDB as artifacts. Since the project cannot be
-  built on Linux/macOS, **CI is the authoritative build check**.
+  built *natively* on Linux/macOS, CI is the authoritative build check for
+  merges — but do not treat "can't compile here" as a reason to skip
+  verification: use the SSH dev loop below.
+
+## Building and testing from Linux (dev loop)
+
+Although MSVC-only, the code **can and should be built and smoke-tested from
+the Linux workstation** over SSH — there is a Windows build machine reachable
+with the key already installed (no password prompts).
+
+- **Primary command:** `winboat-deploy/ssh-dev.sh` — tars the working tree to
+  `C:\dev\repo` on the Windows box, runs MSBuild **Release | x86** remotely
+  (incremental; compiler errors stream to the Linux terminal), stages the
+  build to `C:\dev\server`, restarts the server, and finishes with a live
+  **DSIGetStatus probe** on TCP 548. `PASS` = compiled, deployed, and serving.
+- **Target:** default `AFP_GUEST=michaelc@127.0.0.1` (loopback implies the
+  WinBoat guest's port-forward on 2222). For the real Windows dev box use
+  `AFP_GUEST=<user>@<box-ip>` (port 22 implied) plus `--probe-host <box-ip>`.
+- **Flags:** `--msi` (also builds the WiX installer, landed in
+  `~/afp-deploy/dev/out/`), `--msi-install` (major-upgrade install in the
+  guest), `--timeout SECS`, `--probe-host IP`.
+- **Quick connectivity check:** `ssh -p 2222 -o BatchMode=yes
+  michaelc@127.0.0.1 'echo CONNECTED'`.
+- Full setup/operational details (one-time provisioning, guest quirks,
+  fallbacks): `winboat-deploy/README.md`.
+
+Prefer this loop over "build not possible" conclusions; GitHub Actions remains
+the authoritative check for merges to `master`.
 
 ## Code conventions
 
@@ -132,8 +159,12 @@ Notes:
 
 ## Verifying changes
 
-1. Ensure the CI build passes (push to a branch and check Actions, or rely on
+1. Build (and smoke-test) locally via the SSH dev loop:
+   `winboat-deploy/ssh-dev.sh` — see "Building and testing from Linux (dev
+   loop)" above. A `PASS` means Release | x86 compiled clean and the restarted
+   build answers DSI GetStatus.
+2. Ensure the CI build passes (push to a branch and check Actions, or rely on
    the `master` workflow after merge).
-2. Runtime behavior must be tested manually on Windows against Mac clients
-   (SheepShaver / BasiliskII / Mac OS X "Connect to Server"); there are no
-   automated tests.
+3. Runtime behavior beyond the GetStatus probe must be tested manually on
+   Windows against Mac clients (SheepShaver / BasiliskII / Mac OS X "Connect
+   to Server"); there are no automated tests.
