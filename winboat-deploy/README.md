@@ -15,12 +15,13 @@ volumes — and dual-mounting NTFS corrupts it.
 | File | Runs on | Purpose |
 |---|---|---|
 | `setup-winboat-host.sh` | CachyOS host | Installs docker/compose/freerdp, WinBoat (AUR or AppImage), docker group, stages `~/afp-deploy`, installs a udev guard that stops the desktop automounting the USB drive |
-| `attach-usb-and-port.sh` | CachyOS host | Patches WinBoat's compose (backed up, idempotent, validated): USB partition → stable in-container path `/dev/afpusb1` → virtio-blk disk; forwards + publishes TCP 548 for LAN Mac clients |
+| `attach-usb-and-port.sh` | CachyOS host | Patches WinBoat's compose (backed up, idempotent, validated): USB partition → stable in-container path `/dev/afpusb1` → virtio-blk disk; forwards + publishes TCP 548 for LAN Mac clients; pins guest DNS to the relay below and (re)starts the relay container |
+| `dns-dbus-forwarder.py` | host (docker: `afp-dns-relay`) | Plaintext UDP :53 on the compose network → systemd-resolved via D-Bus. Needed because the ISP blackholes plaintext DNS, DoT *and* DoH (SNI MITM); only resolved's encrypted session survives, and Docker/dnsmasq speak only plaintext (see below) |
 | `setup-guest.ps1` | Windows guest (elevated) | Firewall rule TCP 548, creates `Shares\MacintoshHD` on the USB drive (found by volume **label**), silent MSI install, HKCU share seed, logon autostart task |
 | `guest-fix-share-drive.ps1` | Windows guest (task) | Logon guard: re-asserts the canonical USB drive letter, repairs HKCU share path, restarts server if it drifted |
-| `setup-dev.ps1` | Windows guest (elevated) | One-time dev-loop setup: VS Build Tools (Desktop C++), `AfpDevLoop` watcher, repoints autostart at `C:\dev\server` (`-Undo` reverts) |
-| `dev-loop.ps1` | Windows guest (task) | Watches `\\host.lan\Data\dev\build.request` → incremental MSBuild Release\|x86 → swap + restart → writes `build.result` |
-| `dev-sync.sh` | host (Linux) | Dev-loop driver: rsync repo → shared folder, trigger build, wait, print compiler tail, DSI-probe the live server |
+| `setup-dev.ps1` | Windows guest (elevated) | One-time dev-loop setup: VS Build Tools (Desktop C++), .NET SDK + WiX v7 (+ UI extension), `AfpDevLoop` watcher, repoints autostart at `C:\dev\server` (`-Undo` reverts) |
+| `dev-loop.ps1` | Windows guest (task) | Watches `\\host.lan\Data\dev\build.request` → incremental MSBuild Release\|x86 → swap + restart → optional WiX MSI build → writes `build.result` |
+| `dev-sync.sh` | host (Linux) | Dev-loop driver: rsync repo → shared folder, trigger build, wait, print compiler tail, DSI-probe the live server; `--msi` builds the installer, `--msi-install` also upgrades the guest install |
 
 ## Flow
 
@@ -107,3 +108,34 @@ shares/USB volume as the production one. To go back to the MSI build: run
 the watcher). Notes: `C:\dev\repo` build outputs are preserved across syncs;
 `.git`/artifacts are never synced; the dev server runs from `C:\dev\server`
 while the MSI install stays untouched in Program Files.
+
+## MSI builds via the loop
+
+```bash
+./dev-sync.sh --msi            # also builds AfpServerInstaller-<version.h>.msi
+./dev-sync.sh --msi-install    # ...and installs it in the guest (major upgrade)
+```
+
+The MSI lands in `~/afp-deploy/dev/out/` with its SHA-256 in the result. The
+version comes from `afpServer/version.h`; bump it before building a release
+(same-version reinstalls are not a major upgrade). `--msi-install` exercises
+the real `MajorUpgrade` path — verified upgrading a vdproj-era 2.2.1 install
+in place, including event-log/PerfMon re-registration via the deferred
+custom action. Requirements in the guest (installed by `setup-dev.ps1`):
+.NET SDK + `dotnet tool install --global wix` + `WixToolset.UI.wixext`
+(extension auto-fetched on first build if missing).
+
+## DNS relay (`afp-dns-relay`)
+
+The upstream network (Tele2-style ISP) blocks **all** plaintext DNS to public
+resolvers (UDP *and* TCP/53), drops DoT application data on 853, and MITMs DoH
+endpoints by SNI (bogus rcodes, fake "SSL Corp" certs). Only the host's
+systemd-resolved session works. Docker snapshots resolv.conf at container
+start and neither Docker's embedded resolver nor the guest's dnsmasq can speak
+anything encrypted — so guest DNS dies silently (browsers dead, SMB/AFP fine).
+
+Fix: `dns-dbus-forwarder.py` runs in a host-side container on the compose
+network at `172.18.0.250` and forwards queries to systemd-resolved over D-Bus
+(the API `resolvectl` uses). Compose pins `dns: [172.18.0.250]` and
+`attach-usb-and-port.sh` rebuilds/relaunches it. If guest DNS ever breaks:
+`docker logs afp-dns-relay`, then `docker exec WinBoat getent hosts aka.ms`.

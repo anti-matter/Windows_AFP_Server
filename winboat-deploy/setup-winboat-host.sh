@@ -186,6 +186,13 @@ for f in setup-guest.ps1 guest-fix-share-drive.ps1 attach-usb-and-port.sh dev-sy
         ylw "  ${f} not found next to this script - copy it manually"
     fi
 done
+# Microsoft's .NET SDK installer script, staged locally: setup-dev.ps1 uses it
+# from the share because some guests cannot resolve the dot.net shortlink.
+if curl -fsSL --max-time 60 https://dot.net/v1/dotnet-install.ps1 -o "${DEPLOY_DIR}/dotnet-install.ps1"; then
+    grn "  dotnet-install.ps1 staged"
+else
+    ylw "  could not fetch dotnet-install.ps1 - setup-dev.ps1 will retry from the guest"
+fi
 
 # --------------------------------------- udisks automount guard (optional) --
 if [ "$UDEV_GUARD" = 1 ]; then

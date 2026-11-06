@@ -4,10 +4,11 @@
 #   Set-ExecutionPolicy -Scope Process Bypass -Force
 #   & '\\host.lan\Data\setup-dev.ps1'
 #
-# Does: installs VS Build Tools (Desktop C++ workload) silently, stages
-# C:\dev\server from the current production install, points the
-# PersonalAfpServer autostart task at the dev build, and registers the
-# AfpDevLoop watcher (starts at logon; watches \\host.lan\Data\dev).
+# Does: installs VS Build Tools (Desktop C++ workload) and the WiX toolset
+# (.NET SDK + "wix" global tool) silently, stages C:\dev\server from the
+# current production install, points the PersonalAfpServer autostart task at
+# the dev build, and registers the AfpDevLoop watcher (starts at logon;
+# watches \\host.lan\Data\dev).
 #
 #   & '\\host.lan\Data\setup-dev.ps1' -Undo    # revert to production install
 #
@@ -46,7 +47,7 @@ if ($Undo) {
     exit 0
 }
 
-Write-Host '=== 1/4 VS Build Tools (Desktop C++ workload) ==='
+Write-Host '=== 1/5 VS Build Tools (Desktop C++ workload) ==='
 if (Test-Path $VsWhere) {
     $found = & $VsWhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath 2>$null
     if ($found) { Write-Host "  MSBuild present: $found" }
@@ -65,8 +66,9 @@ if (-not $found) {
         exit 1
     }
     Write-Host '  installing (silent, 10-30 min)...'
-    # ATL/MFC components: afpserver.rc includes afxres.h (legacy include, the app
-    # is not MFC) - the CI image ships these headers, a bare VCTools workload does not.
+    # ATL/ATLMFC: kept as belt-and-suspenders. (afpserver.rc used to need
+    # afxres.h from these; it now uses the SDK's winres.h, but nothing else
+    # here hurts.)
     # Sanity-check the download: aka.ms dead links resolve to HTML, and
     # Start-Process on such a file fails with "corrupted and unreadable".
     $head = [System.IO.File]::OpenRead($boot); $b = New-Object byte[] 2
@@ -88,7 +90,52 @@ if (-not $found) {
     }
 }
 
-Write-Host '=== 2/4 stage C:\dev\server from production install ==='
+Write-Host '=== 2/5 WiX toolset (open-source MSI builder, dotnet global tool) ==='
+$WixExe = Join-Path $env:USERPROFILE '.dotnet\tools\wix.exe'
+if (Test-Path $WixExe) {
+    Write-Host "  already installed: $WixExe"
+} else {
+    # `dotnet tool install` requires the SDK (runtime-only is not enough).
+    $dotnet = Get-Command dotnet -EA SilentlyContinue
+    if (-not $dotnet) {
+        Write-Host '  installing .NET SDK (LTS) via dotnet-install.ps1 (~5 min)...'
+        $di = Join-Path $env:TEMP 'dotnet-install.ps1'
+        # Source ladder: a copy staged next to this script on the share costs
+        # zero network; then curl.exe (native winsock DNS - the .NET Framework
+        # resolver in PS 5.1 has failed to resolve the dot.net shortlink in
+        # this guest); then plain Invoke-WebRequest as last resort.
+        $local = Join-Path $PSScriptRoot 'dotnet-install.ps1'
+        if (Test-Path $local) {
+            Copy-Item $local $di -Force
+        } elseif ((Get-Command curl.exe -EA SilentlyContinue) -and
+                 (curl.exe -fsSL https://dot.net/v1/dotnet-install.ps1 -o $di -w '%{http_code}' 2>$null) -eq '200') {
+            # fetched via curl
+        } else {
+            Invoke-WebRequest 'https://dot.net/v1/dotnet-install.ps1' -OutFile $di
+        }
+        & $di -Channel LTS
+        if ($LASTEXITCODE -ne 0) { Write-Host '  ERROR: .NET SDK install failed'; exit 1 }
+        $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' +
+                    [Environment]::GetEnvironmentVariable('Path','User')
+    }
+    Write-Host '  dotnet tool install --global wix ...'
+    & dotnet tool install --global wix
+    if (-not (Test-Path $WixExe)) { Write-Host "  ERROR: $WixExe not found after install"; exit 1 }
+}
+# WiX v7+ requires an explicit EULA acceptance (free for organizations under
+# $10k annual revenue); the dev-loop watcher also passes -acceptEula wix7.
+try { & $WixExe eula accept wix7 2>$null | Out-Null } catch { }
+# WiX v7 no longer auto-fetches -ext extensions; product.wxs needs UI + Util.
+# (dev-loop.ps1 self-heals this too, but doing it here keeps first builds clean.)
+foreach ($ext in 'WixToolset.UI.wixext', 'WixToolset.Util.wixext') {
+    if (-not ((& $WixExe extension list -g 2>$null | Out-String) -match ([regex]::Escape($ext)))) {
+        Write-Host "  wix extension add -g $ext ..."
+        & $WixExe extension add -g $ext -acceptEula wix7
+    }
+}
+Write-Host "  wix ready: $WixExe"
+
+Write-Host '=== 3/5 stage C:\dev\server from production install ==='
 New-Item -ItemType Directory -Force -Path $ServerDir | Out-Null
 $prodExe = Get-ChildItem 'C:\Program Files (x86)','C:\Program Files' -Filter AfpServer.exe -Recurse -EA SilentlyContinue | Select-Object -First 1
 if ($prodExe) {
@@ -97,7 +144,7 @@ if ($prodExe) {
     Write-Host '  (no production install found - dev build will create it on first success)'
 }
 
-Write-Host '=== 3/4 watcher + task repoint ==='
+Write-Host '=== 4/5 watcher + task repoint ==='
 if (-not (Test-Path $LoopSrc)) { Write-Host "ERROR: dev-loop.ps1 must sit next to this script ($LoopSrc)"; exit 1 }
 Copy-Item $LoopSrc $LoopDst -Force
 $task = Get-ScheduledTask -TaskName 'PersonalAfpServer' -EA SilentlyContinue
@@ -116,9 +163,10 @@ Register-ScheduledTask -TaskName 'AfpDevLoop' -Action $loopAction `
 Get-ScheduledTask -TaskName 'AfpDevLoop' | Start-ScheduledTask
 
 Write-Host @"
-=== 4/4 done ===
+=== 5/5 done ===
 Dev loop is live. On the Linux host:
-    ~/afp-deploy/dev-sync.sh
-edits -> MSBuild Release|x86 -> swap into C:\dev\server -> server restart -> result back on Linux.
+    ~/afp-deploy/dev-sync.sh              # edit -> MSBuild -> swap -> server restart -> result
+    ~/afp-deploy/dev-sync.sh --msi        # ... also builds the WiX MSI -> ~/afp-deploy/dev/out/
+    ~/afp-deploy/dev-sync.sh --msi-install # ... and installs it in the guest (major upgrade)
 Revert anytime (elevated, guest):  & '\\host.lan\Data\setup-dev.ps1' -Undo
 "@

@@ -150,6 +150,23 @@ if ! grep -q ":/shared" "$tmp"; then
     mv "${tmp}.2" "$tmp"
 fi
 
+# 6) dns: pin the DNS-relay container (see dns-dbus-forwarder.py) as the
+#    container's upstream, replacing whatever stale entry exists. Without a
+#    pinned upstream, Docker snapshots the host's resolv.conf at container
+#    start; when that upstream dies or the network blocks plaintext DNS,
+#    guest DNS silently breaks (browsers dead, SMB/AFP unaffected - seen
+#    2026-11-05). The relay forwards via D-Bus to systemd-resolved, so it
+#    works even when the ISP blackholes UDP/53, DoT and DoH alike.
+DNS_RELAY_IP="172.18.0.250"
+# remove any previous dns: block (key + its indented entries)
+awk 'BEGIN{skip=0} /^    dns:$/{skip=1;next} skip && /^      - /{next} {skip=0;print}' "$tmp" > "${tmp}.2"
+mv "${tmp}.2" "$tmp"
+awk -v dns="$DNS_RELAY_IP" '{
+    if (!done && /^    ports:$/) { print "    dns:"; print "      - " dns; done = 1 }
+    print
+}' "$tmp" > "${tmp}.2"
+mv "${tmp}.2" "$tmp"
+
 echo "-------- diff (current -> patched) --------"
 diff -u "$COMPOSE" "$tmp" || true
 echo "-------------------------------------------"
@@ -178,6 +195,36 @@ if [ "$DO_UP" = 1 ]; then
 else
     echo
     echo "Now: start the VM from WinBoat (compose up happens there)."
+fi
+
+# ----------------------------------------------------- ensure the DNS relay ----
+# Provides guest DNS via the host's systemd-resolved (D-Bus). See the header
+# of dns-dbus-forwarder.py for why. Needs the winboat_default network, which
+# exists once the WinBoat compose project is up.
+KIT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RELAY_IMG="afp-dns-dbus-fwd:latest"
+if dock network inspect winboat_default >/dev/null 2>&1; then
+    if ! dock image inspect "$RELAY_IMG" >/dev/null 2>&1; then
+        echo "Building DNS-relay image..."
+        echo "FROM python:3.12-alpine
+RUN apk add --no-cache dbus busctl" | dock build --network host -t "$RELAY_IMG" - "$KIT" >/dev/null \
+            || die "Failed to build $RELAY_IMG (needs internet once)."
+    fi
+    cp -f "$KIT/dns-dbus-forwarder.py" "${HOME}/afp-deploy/dns-dbus-forwarder.py"
+    dock rm -f afp-dns-relay >/dev/null 2>&1
+    dock run -d --name afp-dns-relay --restart unless-stopped \
+        --network winboat_default --ip "$DNS_RELAY_IP" \
+        -v /run/dbus:/run/dbus:ro \
+        -v "${HOME}/afp-deploy/dns-dbus-forwarder.py:/fwd.py:ro" \
+        "$RELAY_IMG" python3 -u /fwd.py >/dev/null \
+        && grn "DNS relay running at ${DNS_RELAY_IP}" \
+        || ylw "DNS relay failed to start - guest DNS will rely on compose dns: upstream."
+    # tell the running WinBoat container about the relay without a recreate
+    if dock ps --format '{{.Names}}' | grep -qx WinBoat; then
+        dock exec WinBoat sh -c "printf 'nameserver ${DNS_RELAY_IP}\\noptions ndots:0\\n' > /etc/resolv.conf && kill -HUP \$(cat /var/run/dnsmasq.pid) 2>/dev/null; true" || true
+    fi
+else
+    ylw "winboat_default network not present; rerun this script once the VM is up to start the DNS relay."
 fi
 
 cat <<EOF

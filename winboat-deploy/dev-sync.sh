@@ -5,8 +5,11 @@
 # Pushes the working tree to the guest-visible shared folder, triggers the
 # in-guest watcher (dev-loop.ps1, installed by setup-dev.ps1), waits for the
 # build result, and - on success - DSI-probes the freshly restarted server.
+# With --msi the watcher additionally builds the WiX installer and the
+# finished MSI lands in ~/afp-deploy/dev/out/. --msi-install also installs it
+# in the guest (major-upgrade over any previous version).
 #
-# Usage:  ~/afp-deploy/dev-sync.sh [--no-wait] [--timeout SECS] [--probe-host IP]
+# Usage:  dev-sync.sh [--msi] [--msi-install] [--no-wait] [--timeout SECS] [--probe-host IP]
 #
 set -Eeuo pipefail
 
@@ -17,14 +20,18 @@ RESULT="$DEV/build.result"
 WAIT=1
 TIMEOUT=900
 PROBE_HOST="127.0.0.1"
+MSI=0
+MSI_INSTALL=0
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --no-wait)     WAIT=0;;
-        --timeout)     TIMEOUT="$2"; shift;;
-        --probe-host)  PROBE_HOST="$2"; shift;;
-        -h|--help)     sed -n '3,10p' "$0"; exit 0;;
-        *)             echo "unknown option: $1" >&2; exit 1;;
+        --msi)          MSI=1;;
+        --msi-install)  MSI=1; MSI_INSTALL=1;;
+        --no-wait)      WAIT=0;;
+        --timeout)      TIMEOUT="$2"; shift;;
+        --probe-host)   PROBE_HOST="$2"; shift;;
+        -h|--help)      sed -n '3,13p' "$0"; exit 0;;
+        *)              echo "unknown option: $1" >&2; exit 1;;
     esac
     shift
 done
@@ -42,9 +49,23 @@ rsync -a --delete \
       --exclude 'PersonalAfpServer/' --exclude '*.zip' --exclude '*.log' \
       "$REPO_DIR/" "$DEV/repo/"
 
+# product version for the MSI, straight from version.h
+read_ver() { sed -nE "s/.*#define[[:space:]]+$1[[:space:]]+([0-9]+).*/\1/p" "$REPO_DIR/afpServer/version.h"; }
+VER="$(read_ver VERSION_MAJOR).$(read_ver VERSION_MINOR).$(read_ver VERSION_REVISION)"
+case "$VER" in
+    [0-9]*.[0-9]*.[0-9]*) ;;
+    *) echo "could not parse version from afpServer/version.h (got '$VER')" >&2; exit 1;;
+esac
+
 rm -f "$RESULT"
-touch "$REQUEST"
-echo "==> build requested (guest watcher polls every 5 s)"
+{
+    echo "VERSION=$VER"
+    { [ "$MSI" = 1 ] && echo "MSI=1"; true; }
+    { [ "$MSI_INSTALL" = 1 ] && echo "MSIINSTALL=1"; true; }
+} > "$REQUEST"
+EXTRA=""
+if [ "$MSI" = 1 ]; then EXTRA=", MSI yes"; fi
+echo "==> build requested (version $VER$EXTRA) - guest watcher polls every 5 s"
 
 [ "$WAIT" = 0 ] && exit 0
 
@@ -96,3 +117,26 @@ print(f"==> WARNING: no DSI answer from {host}:548 within 45 s ({err}). "
       f"Check the server in the guest (schtasks /Run /TN PersonalAfpServer).")
 sys.exit(1)
 EOF
+
+# MSI report (watcher copies the built installer into dev/out/)
+if [ "$MSI" = 1 ]; then
+    MSI_NAME="$(sed -nE 's/^MSI=(.+)$/\1/p' "$RESULT" | tail -1)"
+    # the build.result can land a moment before the MSI write is visible
+    # through Samba - poll briefly before declaring it missing
+    for _ in 1 2 3 4 5 6; do
+        [ -n "$MSI_NAME" ] && [ -f "$DEV/out/$MSI_NAME" ] && break
+        sleep 2
+    done
+    if [ -n "$MSI_NAME" ] && [ -f "$DEV/out/$MSI_NAME" ]; then
+        echo "==> MSI: $DEV/out/$MSI_NAME"
+        sha256sum "$DEV/out/$MSI_NAME"
+        ls -la "$DEV/out/$MSI_NAME" | awk '{print "    size:", $5, "bytes"}'
+        if grep -q 'MSI_INSTALL=OK' "$RESULT"; then
+            echo "==> MSI was installed into the guest (major upgrade); verify in 'Apps & features'."
+        elif grep -q 'MSI-INSTALL-FAIL' "$RESULT"; then
+            echo "==> WARNING: MSI built but guest install failed (see msiexec log above)."
+        fi
+    else
+        echo "==> WARNING: no MSI found at $DEV/out/ (result had no MSI= line?)"
+    fi
+fi
