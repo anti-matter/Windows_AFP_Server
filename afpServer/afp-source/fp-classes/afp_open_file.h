@@ -63,6 +63,7 @@ public:
     [[nodiscard]] INT32 get_dir_id() const { return m_dir_id_; }
 	[[nodiscard]] WCHAR* get_win_path() { return m_windows_path_; }
     [[nodiscard]] afp_index* get_entry() const { return m_entry_; }
+    [[nodiscard]] const std::shared_ptr<afp_volume>& get_volume() const { return volume_; }
     [[nodiscard]] bool is_volume_read_only() const;
 
 private:

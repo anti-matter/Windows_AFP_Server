@@ -46,6 +46,12 @@ AFPERROR FPResolveID(
     }
 
     const std::filesystem::path path;
+
+    // Hold the index lock while the raw entry is in use (see
+    // FPGetFileDirParms): a concurrent delete could otherwise free the
+    // entry between find() and afp_get_object_parms().
+    std::unique_lock<std::recursive_mutex> index_lock(afp_volume_info->get_index()->get_mutex());
+
     const auto afp_entry = afp_volume_info->get_index()->find(afp_file_id,path);
     if (afp_entry == nullptr)
     {

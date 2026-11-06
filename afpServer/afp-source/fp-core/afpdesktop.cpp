@@ -520,6 +520,12 @@ AFPERROR FPGetAPPL(
 		return afpParmErr;
 	}
 
+	// Hold the index lock while the raw entry is in use: a concurrent
+	// delete (change notify batch or index queue worker, which free
+	// entries under this same lock) could otherwise free the entry
+	// between find() and afp_get_object_parms() (use-after-free).
+	std::unique_lock<std::recursive_mutex> index_lock(volume->get_index()->get_mutex());
+
 	const auto file_item = volume->get_index()->find(desk_item->dir_id, desk_item->path_name);
 	if (file_item == nullptr)
 	{

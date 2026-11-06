@@ -110,6 +110,15 @@ AFPERROR FPOpenFork(
         return afpParmErr;
     }
 
+    // Hold the index lock while the raw entry is in use (through the
+    // open and afp_get_object_parms() below): a concurrent delete
+    // could otherwise free the entry between find() and its use
+    // (use-after-free). The open itself is protected against the
+    // entry being removed while we hold the lock; the residual gap -
+    // a delete AFTER this call completes, while the fork is open -
+    // needs the open-file/entry lifetime redesign to fully close.
+    std::unique_lock<std::recursive_mutex> index_lock(volume->get_index()->get_mutex());
+
     // Get the index entry pertaining to the file we're opening.
     const auto afp_entry = volume->find(afp_dir_id, afp_pathname);
     if (afp_entry == nullptr)
@@ -324,6 +333,15 @@ AFPERROR FPGetForkParms(
 
     if (AFP_SUCCESS(afp_error))
     {
+        // Hold the index lock while afp_get_object_parms() reads the
+        // open file's raw index entry: a concurrent delete could
+        // otherwise free the entry mid-reply (use-after-free). The
+        // residual gap - the entry being freed by a delete that
+        // happened before this call, while the fork stayed open -
+        // needs the open-file/entry lifetime redesign to fully close.
+        const auto volume = open_file->get_volume();
+        std::unique_lock<std::recursive_mutex> index_lock(volume->get_index()->get_mutex());
+
         // We don't support the following bitmaps, so we clear them.
         if (connection->get_afp_version() < afpVersion30)
         {
