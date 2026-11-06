@@ -2,7 +2,7 @@
 
 [![Build](https://github.com/anti-matter/Windows_AFP_Server/actions/workflows/build.yml/badge.svg)](https://github.com/anti-matter/Windows_AFP_Server/actions/workflows/build.yml)
 
-This is a AFP3.2 over TCP/IP server that runs on Windows clients (up to Windows 11 has been tested) that allows file sharing to vintage Macintosh clients.
+This is a AFP3.2 over TCP/IP server that runs on Windows clients (up to Windows 11 has been tested) that allows file sharing to vintage Macintosh clients. Classic Mac OS clients show the server's own custom icon (served in `FPGetSrvrInfo`) instead of the generic network-server icon.
 
 See the [Wiki](https://github.com/anti-matter/Windows_AFP_Server/wiki) for additional information and instructions. Report bugs via [GitHub Issues](https://github.com/anti-matter/Windows_AFP_Server/issues).
 
@@ -15,7 +15,9 @@ The project is now open source — the full source code lives in this repository
 - `afpServer/` — the server source code (Visual Studio C++ project). Protocol
   and server code is under `afpServer/afp-source/`; a vendored OpenSSL 1.1
   dependency lives in `afpServer/deps/`.
-- `AfpServerInstaller/` — Visual Studio Installer Projects setup package.
+- `AfpServerInstaller/` — WiX v7 installer source (`product.wxs`); builds a
+  single-file MSI (major-upgrades legacy Installer Projects installs). Not
+  part of CI; see `AGENTS.md` for the `wix` build commands.
 - `deploy.cmd` / `install.cmd` — packaging and post-install scripts.
 - `AGENTS.md` — notes for contributors (and AI coding agents) on building,
   conventions, and gotchas.
