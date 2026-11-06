@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <mutex>
 #include <winsock2.h>
 
@@ -103,7 +104,22 @@ namespace dsi
 		UINT32 get_connection_id() const { return connection_id_; }
 
 		HANDLE get_user_token() const { return user_token_; }
-		void set_user_token(const HANDLE token) { user_token_ = token; }
+		void set_user_token(const HANDLE token)
+		{
+			// We own the previous token handle; close it before replacing
+			// so re-logon does not leak the old handle.
+			if (token == user_token_)
+			{
+				return;
+			}
+
+			if (user_token_ != nullptr)
+			{
+				CloseHandle(user_token_);
+			}
+
+			user_token_ = token;
+		}
 		void set_session_authenticated(const bool authenticated) { session_authenticated_ = authenticated; }
 		bool get_is_session_authenticated() const { return session_authenticated_; }
 
@@ -120,12 +136,28 @@ namespace dsi
 
 		void set_extended_logon_info(void* data) { extended_logon_info_ = data; }
 		void* get_extended_logon_info() const { return extended_logon_info_; }
-		void free_extended_logon_info() { free(extended_logon_info_); extended_logon_info_ = nullptr; }
+		// The blob is allocated with new (see afpuser.cpp), so it must be
+		// released with operator delete, not free().
+		void free_extended_logon_info() { operator delete(extended_logon_info_); extended_logon_info_ = nullptr; }
 
 		afp_session* get_afp_session() const;
 
+		// dsi_connections closes the socket (on the connection's own
+		// thread, from stop_tracking) while holding the tracking lock so
+		// that no other thread can be sending on the socket when it is
+		// closed.
+		friend class dsi_connections;
+
     private:
+		// Performs an orderly shutdown of the socket and closes it.
+		// Must only be called from the connection's own thread, because
+		// closesocket() on a socket that another thread is blocked in
+		// recv() on is not safe.
+		void close_socket();
+
 		SOCKET socket_;
+		bool socket_closed_;
+		std::atomic<DWORD> owner_thread_id_;
 		UINT32 connection_id_;
 		UINT32 attention_quantum_size_;
 		std::atomic_bool continue_receive_;

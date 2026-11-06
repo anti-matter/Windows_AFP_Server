@@ -56,6 +56,11 @@ namespace dsi
 		{
 			DBGWRITE(dbg_level_info, L"Stopping tracking of connection: %d\n", itr->get()->get_connection_id());
 
+			// Close the socket under the tracking lock, on the connection's
+			// own thread (this is only called from connection_thread), so no
+			// other thread can be inside send() on it when we close it.
+			(*itr)->close_socket();
+
 			connections_.erase(itr);
 
 			// See if we need to restore system power config.
@@ -79,48 +84,60 @@ namespace dsi
         // them of the closure.
 		broadcast_attention(dsi_attention_server_shutdown);
 
+		// Only signal the connections to stop. Each connection thread wakes
+		// up from its blocked recv(), closes its own socket and removes
+		// itself from tracking. Erasing the entries here would destroy the
+		// connection objects while their threads are still running.
 		std::lock_guard guard(connections_mutex_);
 
-		const auto itr = std::ranges::remove_if(connections_, [&](const std::unique_ptr<dsi_connection>& c)
+		for (const auto& connection : connections_)
 		{
-		    c->kill_connection();
-			return true;
-		});
-
-		connections_.erase(itr.begin(), itr.end());
+			connection->kill_connection();
+		}
 	}
 
-    void dsi_connections::periodic_thread()
+	    void dsi_connections::periodic_thread()
 	{
-
 		while (connection_running_)
 		{
-			//std::unique_lock lock(connections_mutex_);
-
-			for (const auto& connection : connections_)
 			{
-				// Check if we need to tickle the client.
-				if (connection->tickle_required() && !connection->get_is_client_sleeping())
-				{
-					connection->send_tickle();
-				}
+				// The connection list is shared with the accept thread and
+				// the connection threads, so it must be walked under the
+				// lock. (Scope the lock to the walk only, so the sleep
+				// below does not block tracking/shutdown operations.)
+				std::lock_guard guard(connections_mutex_);
 
-				// If connection is lost, we terminate the connection.
-				if (connection->client_lost())
+				for (const auto& connection : connections_)
 				{
-					if (connection->get_is_client_sleeping())
+					// Check if we need to tickle the client.
+					if (connection->tickle_required() && !connection->get_is_client_sleeping())
 					{
-						DBGWRITE(dbg_level_info, L"Client %s is sleeping past expiration, killing connection.\n", connection->get_user_name().c_str());
-					}
-					else
-					{
-						DBGWRITE(dbg_level_info, L"Client %s timed out, killing connection.\n", connection->get_user_name().c_str());
+						connection->send_tickle();
 					}
 
-					EventWriteAFPServerEvt_ClientTimeout(connection->get_user_name().c_str());
+					// If connection is lost, we terminate the connection.
+					if (connection->client_lost())
+					{
+						if (connection->get_is_client_sleeping())
+						{
+							DBGWRITE(dbg_level_info, L"Client %s is sleeping past expiration, killing connection.\n", connection->get_user_name().c_str());
+						}
+						else
+						{
+							DBGWRITE(dbg_level_info, L"Client %s timed out, killing connection.\n", connection->get_user_name().c_str());
+						}
 
-					connection->kill_connection();
-					stop_tracking(connection->get_connection_id());
+						EventWriteAFPServerEvt_ClientTimeout(connection->get_user_name().c_str());
+
+						// Do not remove the connection from tracking here:
+						// erasing from the vector while iterating it would
+						// invalidate the current iterator, and deleting the
+						// object while its connection thread is still running
+						// would be a use-after-free. The kill just shuts the
+						// socket down to wake the connection thread; that
+						// thread closes its socket and stops tracking itself.
+						connection->kill_connection();
+					}
 				}
 			}
 
@@ -186,11 +203,12 @@ namespace dsi
 
 		for (const auto& connection : connections_)
 		{
-		    if (authenticated_only && connection->get_is_session_authenticated())
-		    {
-				result++;
+			// Only count authenticated sessions when the caller asked
+			// for authenticated_only; count everything otherwise.
+			if (authenticated_only && !connection->get_is_session_authenticated())
+			{
 				continue;
-		    }
+			}
 
 			result++;
 		}

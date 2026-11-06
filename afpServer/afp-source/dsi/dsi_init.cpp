@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include <atomic>
 #include <thread>
 #include <winsock2.h>
 
@@ -8,8 +9,10 @@
 #include "afp_volumes.h"
 #include "dsi_connections.h"
 
-bool server_running = true;
-SOCKET listen_socket;
+// Written by the shutdown path, read by the listen/attention/counter
+// threads, so it must be atomic.
+std::atomic_bool server_running = true;
+SOCKET listen_socket = INVALID_SOCKET;
 
 extern dsi::dsi_connections active_connections;
 
@@ -55,7 +58,7 @@ namespace dsi
 			internet_address.sin_port = htons(afp_port);
 
 			auto error = bind(listen_socket, reinterpret_cast<PSOCKADDR>(&internet_address), sizeof(internet_address));
-			if (error != ERROR_SUCCESS)
+			if (error == SOCKET_ERROR)
 			{
 				DBGWRITE(dbg_level_error, L"Failed to bind accept socket (%d)\n", WSAGetLastError());
 
@@ -103,15 +106,26 @@ namespace dsi
 				// Create the connection object that will service the socket
 				// and kick it off on its own thread.
 				auto connection = std::make_unique<dsi_connection>(new_sock, connection_id++);
-
-				std::thread connection_thread(&dsi_connection::connection_thread, connection.get());
-				connection_thread.detach();
+				const auto raw_connection = connection.get();
 
 				// Henceforth the connection manager owns the pointer.
+				// Track the connection before its thread starts, so it
+				// cannot terminate and unregister itself before it has
+				// even been registered.
 				active_connections.track_connection(connection);
+
+				std::thread connection_thread(&dsi_connection::connection_thread, raw_connection);
+				connection_thread.detach();
 			}
 
-			closesocket(listen_socket);
+			// The accept loop only ends when the server is shutting down;
+			// dsi_shutdown may already have closed the socket, so only
+			// close it here if it is still open.
+			if (listen_socket != INVALID_SOCKET)
+			{
+				closesocket(listen_socket);
+				listen_socket = INVALID_SOCKET;
+			}
 			break;
 
 		} while (true);
@@ -119,10 +133,18 @@ namespace dsi
 
 	void dsi_shutdown()
 	{
-		// Signal listening thread to stop looping.
+		// Signal the listen/attention/counter threads to stop looping.
 		server_running = false;
 
-		closesocket(listen_socket);
+		if (listen_socket != INVALID_SOCKET)
+		{
+			// shutdown() reliably wakes the accept() that the listen
+			// thread is blocked in; closesocket() alone is not guaranteed
+			// to do so.
+			shutdown(listen_socket, SD_BOTH);
+			closesocket(listen_socket);
+			listen_socket = INVALID_SOCKET;
+		}
 
 		active_connections.close_all();
 		afp_volumes::shutdown();

@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include <thread>
 #include "afpdebug.h"
 #include "afpsrvr.h"
 #include "dsi_connection.h"
@@ -16,13 +17,15 @@ namespace dsi
 {
 	dsi_connection::dsi_connection(const SOCKET socket, const UINT32 connection_id)
 		: socket_(socket)
+		  , socket_closed_(false)
+		  , owner_thread_id_(0)
 		  , connection_id_(connection_id)
 		  , attention_quantum_size_(0)
 		  , continue_receive_(true)
 		  , dsi_session_open_(false)
 		  , client_request_id_(0)
 		  , server_request_id_(0)
-		  , last_tickle_(0)
+		  , last_tickle_(GetTickCount64())
 		  , client_sleeping_(false)
 		  , user_token_(nullptr)
 		  , session_authenticated_(false)
@@ -44,11 +47,30 @@ namespace dsi
 
 	dsi_connection::~dsi_connection()
 	{
+		// Release any resources that were still held when the connection
+		// ended (e.g. a client that disconnected without logging off or
+		// before completing a login).
+		if (user_token_ != nullptr)
+		{
+			CloseHandle(user_token_);
+			user_token_ = nullptr;
+		}
+
+		free_extended_logon_info();
+
+		// Safety net; the connection thread normally closes the socket
+		// before removing this instance from tracking.
+		close_socket();
+
 		DBGWRITE(dbg_level_info, L"dsi_connection (%d) closed.\n", connection_id_);
 	}
 
     void dsi_connection::connection_thread()
 	{
+		// Remember the id of the thread that owns this connection; only it
+		// may close the socket (see kill_connection/close_socket).
+		owner_thread_id_ = GetCurrentThreadId();
+
 #ifdef _DEBUG
         const auto connection_id = connection_id_;
 #endif
@@ -58,8 +80,12 @@ namespace dsi
 			receive();
 		}
 
-		// We remove from tracking here, which will delete this instance, so
-		// that the thread has an opportunity to terminate gracefully.
+		// Close the socket and remove us from tracking. (stop_tracking
+		// closes the socket under the tracking lock, on this thread, and
+		// deleting the tracking entry deletes this instance, so it must
+		// be the last thing the thread does. Any kill initiated from
+		// another thread only performed a shutdown() to wake us up;
+		// closesocket() belongs to this thread.)
 		active_connections.stop_tracking(connection_id_);
 
 		DBGWRITE(dbg_level_info, L"Connection thread terminated (%d)\n", connection_id);
@@ -79,8 +105,11 @@ namespace dsi
 				RECV_BUFFER_SIZE - bytes_in_buffer,
 				0);
 
-			if (bytes_received == 0 && !get_is_client_sleeping())
+			if (bytes_received == 0)
 			{
+				// A zero return from recv() always means the peer has
+				// closed its side of the connection, even if the client
+				// told us it was going to sleep.
 				DBGWRITE(dbg_level_info, L"0 bytes received, killing connection..\n");
 				kill_connection();
 				break;
@@ -103,7 +132,16 @@ namespace dsi
 				continue; 
 			}
 
-			ULONG afp_data_length = ntohl(*reinterpret_cast<ULONG*>(&receive_buffer_[dsi_offset_data_len]));
+			auto afp_data_length = ntohl(*reinterpret_cast<ULONG*>(&receive_buffer_[dsi_offset_data_len]));
+
+			if (afp_data_length > RECV_BUFFER_SIZE - dsi_header_size)
+			{
+				// The client declared a payload that can never fit in our
+				// receive buffer. Treat it as a malformed request.
+				DBGWRITE(dbg_level_error, L"Invalid DSI data length in request header: %d\n", afp_data_length);
+				kill_connection();
+				break;
+			}
 
 			if (bytes_in_buffer < dsi_header_size + afp_data_length)
 			{
@@ -133,9 +171,10 @@ namespace dsi
 
 					DBGWRITE(dbg_level_trace, L"Processing overflow bytes!!! (%d)\n", bytes_in_buffer);
 
-					memcpy_s(
+					// Source and destination ranges can overlap here, so
+					// this must be a memmove(), not a memcpy().
+					memmove(
 						receive_buffer_.get(),
-						RECV_BUFFER_SIZE,
 						&receive_buffer_[dsi_header_size + afp_data_length],
 						bytes_in_buffer);
 
@@ -144,6 +183,14 @@ namespace dsi
 					if (bytes_in_buffer >= dsi_header_size)
 					{
 						afp_data_length = ntohl(*reinterpret_cast<ULONG*>(&receive_buffer_[dsi_offset_data_len]));
+
+						if (afp_data_length > RECV_BUFFER_SIZE - dsi_header_size)
+						{
+							DBGWRITE(dbg_level_error, L"Invalid DSI data length in request header: %d\n", afp_data_length);
+							kill_connection();
+							bytes_in_buffer = 0;
+							break;
+						}
 					}
 				}
 				else
@@ -164,8 +211,8 @@ namespace dsi
 		const auto dsi_flags = header.pull_num<INT8>();
 		const auto dsi_command = header.pull_num<INT8>();
 		const auto dsi_request_id = header.pull_num<UINT16>();
-		//const auto dsi_data_offset = header.pull_num<UINT32>();
-		//const auto dsi_data_length = header.pull_num<UINT32>();
+		header.advance_pos_ptr(sizeof(UINT32)); // Data offset field; not needed here.
+		const auto dsi_data_length = header.pull_num<UINT32>();
 
 		last_tickle_ = GetTickCount64();
 
@@ -187,6 +234,16 @@ namespace dsi
 				}
 
 				const auto client_request_id = dsi_request_id;
+
+				// AFP commands (carried by DSI Command/Write) must have at
+				// least one byte of payload: the AFP command code itself.
+				if ((dsi_command == dsi_cmd_command || dsi_command == dsi_cmd_write) &&
+					dsi_data_length < sizeof(UINT8))
+				{
+					DBGWRITE(dbg_level_error, L"DSI command %d received with empty AFP payload.\n", dsi_command);
+					kill_connection();
+					return;
+				}
 
 				std::unique_ptr<char[]> reply_buffer;
 
@@ -413,44 +470,36 @@ namespace dsi
 		// Can only send_ one at a time.
 		std::lock_guard<std::mutex> guard(send_mutex_);
 
-		UINT32 offset = 0;
-		INT32 bytes_sent;
-		INT32 bytes_size = send_size;
+		INT32 total_sent = 0;
 
-		do
+		while (total_sent < send_size)
 		{
-			bytes_sent = send(socket_, &buffer[offset], bytes_size, 0);
+			const auto bytes_sent = send(socket_, &buffer[total_sent], send_size - total_sent, 0);
 
-			if (bytes_sent < 0)
+			if (bytes_sent == SOCKET_ERROR)
 			{
-				if (errno == EWOULDBLOCK)
+				if (WSAGetLastError() == WSAEWOULDBLOCK)
 				{
+					// Should not happen on a blocking socket, but back off
+					// and retry rather than spinning or dropping data.
+					std::this_thread::sleep_for(std::chrono::milliseconds(10));
 					continue;
 				}
 
+				DBGWRITE(dbg_level_error, L"send() failed (%d)\n", WSAGetLastError());
 				break;
 			}
 
-			if (bytes_sent < send_size)
-			{
-				offset += bytes_sent;
-				bytes_size -= bytes_sent;
+			total_sent += bytes_sent;
+		}
 
-				continue;
-			}
-
-			break;
-
-		} while (true);
-
-		DBGWRITE(dbg_level_trace, L"Bytes sent: %d\n", bytes_sent+offset);
+		DBGWRITE(dbg_level_trace, L"Bytes sent: %d\n", total_sent);
 		DBG_DUMP_BUFFER(buffer, send_size, dbg_level_dump_out);
 
-		perf_counters::current()->increment_bytes_sent(bytes_sent + offset);
+		perf_counters::current()->increment_bytes_sent(total_sent);
 
-		if (bytes_sent < 0)
+		if (total_sent < send_size)
 		{
-			DBGWRITE(dbg_level_error, L"send() failed (%d)\n", WSAGetLastError());
 			kill_connection();
 		}
     }
@@ -531,27 +580,66 @@ namespace dsi
 
 	void dsi_connection::kill_connection()
 	{
-		if (!continue_receive_)
+		// Make sure the kill sequence runs only once, even if this is
+		// called from more than one thread (the connection thread and the
+		// periodic monitoring thread can both get here).
+		bool expected = true;
+		if (!continue_receive_.compare_exchange_strong(expected, false))
 		{
 			return;
 		}
 
 		DBGWRITE(dbg_level_info, L"Killing connection (%d)\n", connection_id_);
 
-		continue_receive_ = false;
+		// shutdown() is safe to call while another thread is blocked in
+		// recv() on this socket; it wakes that thread up. The socket
+		// itself is closed by the owning connection thread (see
+		// connection_thread), because closesocket() with a pending recv()
+		// is not safe and the handle could be reused.
+		if (GetCurrentThreadId() == owner_thread_id_)
+		{
+			// We are the connection thread; only a send-side shutdown is
+			// needed so the client sees an orderly close. The socket is
+			// drained and closed at the end of connection_thread().
+			shutdown(socket_, SD_SEND);
+		}
+		else
+		{
+			// Another thread (e.g. the periodic monitor or server
+			// shutdown) is killing us. Shut down both directions to wake
+			// up any recv() blocked on the owning thread.
+			shutdown(socket_, SD_BOTH);
+		}
+	}
+
+	void dsi_connection::close_socket()
+	{
+		if (socket_closed_)
+		{
+			return;
+		}
+
+		socket_closed_ = true;
 
 		shutdown(socket_, SD_SEND);
 
-		// Call recv() to ensure socket is shutdown before closing.
-		int bytes_received;
-        const auto receive_buffer = std::make_unique<char[]>(RECV_BUFFER_SIZE);
+		// Read any remaining bits from the client so that it sees an
+		// orderly closure. Use a short receive timeout and a bounded
+		// iteration count so a client that keeps the connection open (or
+		// floods us with data) cannot hold us here.
+		DWORD timeout_ms = 1000;
+		setsockopt(socket_, SOL_SOCKET, SO_RCVTIMEO,
+			reinterpret_cast<const char*>(&timeout_ms), sizeof(timeout_ms));
 
+		int bytes_received;
+		int drain_iterations = 0;
 		do
 		{
-			bytes_received = recv(socket_, receive_buffer.get(), RECV_BUFFER_SIZE, 0);
-		} while (bytes_received > 0);
+			bytes_received = recv(socket_, receive_buffer_.get(), RECV_BUFFER_SIZE, 0);
+		} while (bytes_received > 0 && ++drain_iterations < 16);
 
 		closesocket(socket_);
+		socket_ = INVALID_SOCKET;
 	}
 
     afp_session* dsi_connection::get_afp_session() const

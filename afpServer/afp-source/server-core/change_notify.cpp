@@ -5,6 +5,7 @@
 //===================================================================
 
 #include "stdafx.h"
+#include <atomic>
 
 #include "change_notify.h"
 #include "afpdebug.h"
@@ -15,7 +16,7 @@
 #include "fdparms.h"
 #include "fpinfo.h"
 
-extern bool server_running;
+extern std::atomic_bool server_running;
 
 change_notify::change_notify(const INT16 volume_id)
     : volume_id_(volume_id)

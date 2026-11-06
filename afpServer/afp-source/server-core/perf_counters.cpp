@@ -1,12 +1,13 @@
 #include "stdafx.h"
 #include "perf_counters.h"
 #include <afpCounters.h>
+#include <atomic>
 #include <thread>
 
 #include "afpdebug.h"
 #include "dsi/dsi_connections.h"
 
-extern bool server_running;
+extern std::atomic_bool server_running;
 extern dsi::dsi_connections active_connections;
 
 perf_counters counters;
