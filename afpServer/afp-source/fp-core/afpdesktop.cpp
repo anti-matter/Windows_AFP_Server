@@ -40,6 +40,17 @@ AFPERROR FPOpenDT(
 		return afpParmErr;
 	}
 
+	//
+	//Make sure the desktop database file exists. If it doesn't, it
+	//is created with its header so later reads never trip over a
+	//missing file.
+	//
+	const auto desktop = connection->get_afp_session()->get_desktop(afp_dt_ref_num);
+	if (desktop != nullptr)
+	{
+		desktop->ensure_file_exists();
+	}
+
 	afp_reply.push_num<UINT16>(afp_dt_ref_num);
 
 	return AFP_OK;
@@ -109,7 +120,7 @@ AFPERROR FPAddIcon(
 	// Next bytes contain the icon type we'll be storing. We don't
 	// care what it is, it's for the client to know.
     // ReSharper disable once CppAssignedValueIsNeverUsed
-    icon_entry.icon_type = afp_request.pull_num<INT8>();
+    icon_entry.icon_type = afp_request.pull_num<UINT8>();
 
 	// A padding byte, skip it.
 	afp_request.advance_pos_ptr(sizeof(INT8));
@@ -139,9 +150,9 @@ AFPERROR FPAddIcon(
 		return afpParmErr;
 	}
 
-    desktop->add(&icon_entry);
-
-    return AFP_OK;
+	// add() replaces an existing matching icon, or returns
+	// afpIconTypeError if the bitmap sizes don't match.
+	return desktop->add(&icon_entry);
 }
 
 
@@ -172,7 +183,7 @@ AFPERROR FPGetIcon(
 	search_entry.item_type = entry_type_icon;
 	search_entry.file_creator = afp_request.pull_num<UINT32>();
 	search_entry.file_type = afp_request.pull_num<UINT32>();
-	search_entry.icon_type = afp_request.pull_num<INT8>();
+	search_entry.icon_type = afp_request.pull_num<UINT8>();
 
 	afp_request.advance_pos_ptr(sizeof(INT8));
 
@@ -324,9 +335,8 @@ AFPERROR FPAddComment(
 
 	DBGWRITE(dbg_level_info, L"Adding comment, pathname=%s, comment=%s\n", desk_item.path_name, string_to_wide_string(desk_item.data, kUnicodeNames).c_str());
 
-	desktop->add(&desk_item);
-
-    return AFP_OK;
+	// add() replaces an existing comment for this file if there is one.
+	return desktop->add(&desk_item);
 }
 
 
@@ -589,9 +599,8 @@ AFPERROR FPAddAPPL(
 		return afpParmErr;
 	}
 
-	desktop->add(&new_entry);
-
-	return AFP_OK;
+	// add() replaces an existing APPL entry for this creator if there is one.
+	return desktop->add(&new_entry);
 }
 
 
