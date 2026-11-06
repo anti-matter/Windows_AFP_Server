@@ -266,7 +266,7 @@ AFPERROR FPSetForkParms(
                 return afpBitmapErr;
             }
 
-            DBGWRITE(dbg_level_info, L"Setting DATA fork length to: %d\n", afp_fork_length);
+            DBGWRITE(dbg_level_info, L"Setting DATA fork length to: %lld\n", static_cast<long long>(afp_fork_length));
 
             afp_error = open_file->set_fork_length(afp_fork_length);
         }
@@ -279,7 +279,7 @@ AFPERROR FPSetForkParms(
                 return afpBitmapErr;
             }
 
-            DBGWRITE(dbg_level_info, L"Setting RSRC fork length to: %d\n", afp_fork_length);
+            DBGWRITE(dbg_level_info, L"Setting RSRC fork length to: %lld\n", static_cast<long long>(afp_fork_length));
 
             afp_error = open_file->set_fork_length(afp_fork_length);
         }
@@ -558,7 +558,10 @@ AFPERROR FPByteRangeLock(
     {
         if (afp_brl_flags & kUnlockFlag)
         {
-            if (afp_length >= static_cast<INT32>(0xFFFFFFFF))
+            // A length of all-ones means "from offset to end of file".
+            // Compare against the 64-bit constant: static_cast<INT32>
+            // (0xFFFFFFFF) is -1, which made this true for any length.
+            if (afp_length >= static_cast<INT64>(0xFFFFFFFF))
             {
                 switch (afp_offset)  // NOLINT(hicpp-multiway-paths-covered)
                 {

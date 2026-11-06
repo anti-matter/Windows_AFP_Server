@@ -131,6 +131,18 @@ AFPERROR FPGetSessionToken(
 
 		DBGWRITE(dbg_level_info, L"ID size from client = %d\n", afp_id_size);
 
+		// The client supplies this length; validate it before using it
+		// as an allocation size. A negative value would wrap when
+		// converted to size_t (bad_alloc/exception in a network path)
+		// and an oversized one is a trivial memory DoS. Also, the
+		// pull below would truncate it through an INT16 cast.
+		constexpr INT32 max_session_id_size = 1024;
+		if (afp_id_size <= 0 || afp_id_size > max_session_id_size)
+		{
+			DBGWRITE(dbg_level_warning, L"Bad AFP ID size (%d)\n", afp_id_size);
+			return afpParmErr;
+		}
+
 		// For types 3 & 4, a time stamp is included for additional comparison.
 		if (afp_type == kLoginWithTimeAndID || afp_type == kReconnWithTimeAndID)
 		{
@@ -140,10 +152,7 @@ AFPERROR FPGetSessionToken(
 		// Save the AFP id in the AFPSession object for later comparison.
 		afp_id = std::make_unique<char[]>(afp_id_size);
 
-		if (afp_id != nullptr)
-		{
-			afp_request.pull_raw_data(afp_id.get(), static_cast<INT16>(afp_id_size));
-		}
+		afp_request.pull_raw_data(afp_id.get(), static_cast<size_t>(afp_id_size));
 	}
 
 	switch (afp_type)
@@ -428,11 +437,7 @@ AFPERROR FPLogin(
 				return afpParmErr;
 			}
 
-			DBGWRITE(dbg_level_info, L"XOR encrypted pswd = %s\n", password.c_str());
-
 			password = xor_decrypt(password, g_xor_key);
-
-			DBGWRITE(dbg_level_info, L"XOR password = %s\n", password.c_str());
 			break;
 		}
 
@@ -450,8 +455,6 @@ AFPERROR FPLogin(
 			// byte preceded or null terminated.
 			afp_request.pull_raw_data(afp_password, UAM_CLRTXTPWDLEN);
 			password = string_to_wide_string(afp_password, kLongNames);
-
-			DBGWRITE(dbg_level_info, L"Cleartext password = %s\n", password.c_str());
 			break;
 		}
 
@@ -862,11 +865,12 @@ AFPERROR FPMapID(
 		break;
 
 	default:
-		ASSERT(0);
+		DBGWRITE(dbg_level_warning, L"Bad FPMapID subfunction (%d)\n", afp_sub_func);
+		afp_error = afpParmErr;
 		break;
 	}
 
-	return AFP_OK;
+	return afp_error;
 }
 
 
@@ -896,7 +900,7 @@ AFPERROR FPGetSrvrMsg(
 {
 	UNREFERENCED_PARAMETER(connection);
 
-	WCHAR message[message_max_length + 1];
+	WCHAR message[message_max_length + 1]{};
 	afp_registry the_registry;
 
 	afp_request.advance_pos_ptr(sizeof(INT16));

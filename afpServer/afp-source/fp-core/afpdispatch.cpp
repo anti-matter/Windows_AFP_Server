@@ -149,7 +149,11 @@ AFPERROR fp_dispatch_command(
 	// what afp commands we allow the client to execute.
 	if (connection->get_user_token() != nullptr && connection->get_is_session_authenticated())
 	{
-		if (afp_command <= afpListExtAttr)
+		// Bounds-check against the table itself, not the highest known
+		// command constant: the table only covers commands 59..79 when
+		// AFP_VERSION_30 is defined, so a constant-based check could
+		// index past the end of the table in an AFP 2.x-only build.
+		if (afp_command < ARRAYSIZE(afp_table))
 		{
 			afp_error = afp_table[afp_command].func(afp_request, afp_reply, connection);
 		}

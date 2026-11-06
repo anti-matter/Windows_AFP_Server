@@ -34,7 +34,7 @@ AFPERROR FPGetSrvrParms(
 	UNREFERENCED_PARAMETER(afp_request);
 
 	std::vector<std::shared_ptr<afp_volume>> afp_volume_list;
-	const auto afp_num_volumes_active = g_volumes->active_volumes(&afp_volume_list);
+	g_volumes->active_volumes(&afp_volume_list);
 	SYSTEMTIME sys_time;
 	FILETIME file_time;
 		
@@ -47,6 +47,15 @@ AFPERROR FPGetSrvrParms(
 		return afpAccessDenied;
 	}
 
+	// Only volumes that finished indexing can be advertised. Filter
+	// the list first so the count we report matches the number of
+	// volume entries actually pushed below.
+	const auto first_unindexed = std::ranges::remove_if(afp_volume_list, [](const std::shared_ptr<afp_volume>& volume)
+	{
+		return (volume->get_internal_flags() & flag_volume_indexing_complete) == 0;
+	});
+	afp_volume_list.erase(first_unindexed.begin(), first_unindexed.end());
+
 	// Get the Windows system time for the first part of our buffer.
 	GetSystemTime(&sys_time);
 	SystemTimeToFileTime(&sys_time, &file_time);
@@ -58,17 +67,11 @@ AFPERROR FPGetSrvrParms(
 	afp_reply.push_num(afp_time);
 
 	// Stuff in the number of volumes our server has shared.
-	afp_reply.push_num(afp_num_volumes_active);
+	afp_reply.push_num(static_cast<UINT8>(afp_volume_list.size()));
 
 	// Stuff in all the volume names and their flags.
 	for (const auto& volume : afp_volume_list)
 	{
-		if (!(volume->get_internal_flags() & flag_volume_indexing_complete))
-		{
-			// Not done indexing, can't show this one now.
-			continue;
-		}
-
 		DBGWRITE(dbg_level_trace, L"Stuffing volume: %s\n", volume->get_share_name().c_str());
 
 		afp_reply.push_num(volume->get_afp_flags());
@@ -97,12 +100,19 @@ AFPERROR FPGetSrvrInfo(
 {
 	UNREFERENCED_PARAMETER(afp_request);
 
-	WCHAR computer_name[MAX_COMPUTERNAME_LENGTH + 1];
+	WCHAR computer_name[MAX_COMPUTERNAME_LENGTH + 1]{};
 	UINT32 size = MAX_COMPUTERNAME_LENGTH + 1;
 	UINT16 flags = 0;
 	UINT8 uam_count = UAM_COUNT;
 
-	GetComputerName(computer_name, reinterpret_cast<LPDWORD>(&size));
+	if (!GetComputerName(computer_name, reinterpret_cast<LPDWORD>(&size)))
+	{
+		// Do not push an uninitialized buffer into the reply if the
+		// name lookup failed; fall back to an empty (but terminated)
+		// server name.
+		DBGWRITE(dbg_level_error, L"GetComputerName() failed! (%d)\n", GetLastError());
+		computer_name[0] = L'\0';
+	}
 
 	// Set the flags which tells what our server supports.
 	flags |= kSupportsTCPIP;

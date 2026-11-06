@@ -245,12 +245,28 @@ AFPERROR FPEnumerate(
     case afpEnumerate:
     case afpEnumerateExt:
         afp_start_index = afp_request.pull_num<INT16>();
-        afp_max_reply_size = afp_request.pull_num<INT16>();
+        {
+            // Reject a negative requested reply size: assigned to size_t
+            // it would wrap to a huge value and defeat the reply-size cap.
+            const INT32 req_max = afp_request.pull_num<INT16>();
+            if (req_max < 0)
+            {
+                return afpParmErr;
+            }
+            afp_max_reply_size = static_cast<size_t>(req_max);
+        }
         break;
 
     case afpEnumerateExt2:
         afp_start_index = afp_request.pull_num<INT32>();
-        afp_max_reply_size = afp_request.pull_num<INT32>();
+        {
+            const INT32 req_max = afp_request.pull_num<INT32>();
+            if (req_max < 0)
+            {
+                return afpParmErr;
+            }
+            afp_max_reply_size = static_cast<size_t>(req_max);
+        }
         break;
 
     default:
@@ -398,6 +414,28 @@ AFPERROR FPEnumerate(
 
 	    afp_act_count++;
 
+	    // Structure length: the parameter data plus the leading fields
+	    // (structLen [, padding] for AFP2.x; structLen word, attributes
+	    // and padding for AFP3.x), plus one pad byte if needed to end on
+	    // an even boundary.
+	    const bool needs_pad = (parameter_buffer.get_data_length() + (afp_command > afpEnumerate ? 4 : 2)) % 2 != 0;
+	    auto len = static_cast<UINT16>(parameter_buffer.get_data_length() + (afp_command > afpEnumerate ? 4 : 2));
+	    if (needs_pad)
+	    {
+		    len++;
+	    }
+
+	    // AFP2.x Enumerate carries the structure length in a single
+	    // byte; an entry that cannot be described must not be emitted
+	    // with a truncated length (it would corrupt the reply stream).
+	    if (afp_command == afpEnumerate && len > UINT8_MAX)
+	    {
+		    DBGWRITE(dbg_level_warning, L"Entry too long for AFP2.x structLen, skipping: %s\n",
+		             index_item->sz_object_name.c_str());
+		    afp_act_count--;
+		    return;
+	    }
+
 	    // The first byte (or word for AFP3.x) contains the struct len.
 	    if (afp_command > afpEnumerate)
 	    {
@@ -418,15 +456,10 @@ AFPERROR FPEnumerate(
 
 	    afp_reply.push_raw_data(parameter_buffer.get_buffer(), parameter_buffer.get_data_length());
 
-	    // Set the structure length byte in the buffer. The extra bytes are
-	    // for the first params in the structure (structLen, attributes and padding).
-	    auto len = static_cast<UINT16>(parameter_buffer.get_data_length() + (afp_command > afpEnumerate ? 4 : 2));
-
-	    // This entry must end on an even boundary.
-	    if (len % 2)
+	    // Pad the entry to an even boundary if its length is odd.
+	    if (needs_pad)
 	    {
 		    afp_reply.push_num<UINT8>(0);
-		    len++;
 	    }
 
 	    // AFP3.x uses a word to describe the struct length vs. a byte
@@ -993,7 +1026,6 @@ AFPERROR FPMoveAndRename(
     if (!afp_new_pathname.empty())
     {
         win_dst_path = afp_dst_entry->sz_path / afp_new_pathname;
-        afp_src_entry->sz_object_name = afp_new_pathname;
     }
     else
     {
@@ -1021,6 +1053,14 @@ AFPERROR FPMoveAndRename(
 
     if (AFP_SUCCESS(afp_error))
     {
+        // Only rename the index entry after the move actually succeeded;
+        // otherwise a failed move would leave the index advertising a
+        // name the object never got on disk.
+        if (!afp_new_pathname.empty())
+        {
+            afp_src_entry->sz_object_name = afp_new_pathname;
+        }
+
         volume->update_entry(afp_src_entry, afp_dst_entry, L"", &char_map);
         volume->set_is_dirty();
     }

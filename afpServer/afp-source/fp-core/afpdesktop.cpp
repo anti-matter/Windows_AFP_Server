@@ -408,7 +408,11 @@ AFPERROR FPGetComment(
 		return afpItemNotFound;
     }
 
-    const std::string temp_data = desk_item->data;
+    // Bound the copy by the buffer size: data[] is not guaranteed to be
+    // null-terminated when it came from a corrupted or truncated desktop
+    // database record, and constructing a std::string from the raw
+    // pointer would then read past the end of the array.
+    const std::string temp_data(desk_item->data, strnlen_s(desk_item->data, sizeof(desk_item->data)));
     afp_reply.push_string(temp_data);
 
     return AFP_OK;

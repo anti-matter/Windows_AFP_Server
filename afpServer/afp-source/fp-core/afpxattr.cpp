@@ -51,7 +51,8 @@ AFPERROR FPGetExtAttribute(
     //See if the user has the volume open and get a pointer to
     //the volume object.
     //	
-    if (!connection->get_afp_session()->session_has_volume_open(afpVolID))
+    const auto volume = connection->get_afp_session()->find_open_volume(afpVolID);
+    if (volume == nullptr)
     {
         DBGWRITE(dbg_level_warning, L"User does not have volume open!\n");
         return afpParmErr;
@@ -88,7 +89,7 @@ AFPERROR FPGetExtAttribute(
     //
     //Set the entry object that will point to the object we're working with.
     //
-    const auto afpEntry = afp_volumes::current()->find(afpVolID)->find(afpDirID, afpPathname);
+    const auto afpEntry = volume->find(afpDirID, afpPathname);
     if (afpEntry != nullptr)
     {
         //
@@ -266,6 +267,19 @@ AFPERROR FPSetExtAttribute(
     //
     const UINT32 afpAttrDataLen = afpRequest.pull_num<UINT32>();
 
+    // The data length comes straight off the wire; make sure the data
+    // it describes is actually inside the request buffer before it is
+    // handed to WriteFile (out-of-bounds read otherwise).
+    const size_t remaining_request_bytes = afpRequest.get_buffer_size() - afpRequest.get_data_length();
+    if (afpAttrDataLen > remaining_request_bytes)
+    {
+        DBGWRITE(dbg_level_warning,
+                 L"FPSetExtAttribute: attr data length (%u) exceeds request buffer (%zu bytes remaining)\n",
+                 afpAttrDataLen,
+                 remaining_request_bytes);
+        return afpParmErr;
+    }
+
     //
     //See if the user has the volume open and get a pointer to
     //the volume object.
@@ -285,15 +299,20 @@ AFPERROR FPSetExtAttribute(
     {
         //
         //We have different errors to check for based on the supplied attribute
-        //flags (replace and/or already exists).
+        //flags (replace and/or already exists). GetStreamLen() returns
+        //BAD_LENGTH_32 when the attribute stream does not exist.
         //
         const auto status = static_cast<UINT32>(GetStreamLen(const_cast<wchar_t*>(afpEntry->sz_path.c_str()), afpAttrName.c_str()));
+        const bool attr_exists = status != BAD_LENGTH_32;
 
-        if ((status == BAD_LENGTH_32) && (afpBitmap & kXAttrCreate))
+        // Create requested but the attribute already exists.
+        if (attr_exists && (afpBitmap & kXAttrCreate))
         {
             return afpObjectExists;
         }
-        if (afpBitmap & kXAttrReplace)
+
+        // Replace requested but the attribute does not exist.
+        if (!attr_exists && (afpBitmap & kXAttrReplace))
         {
             return afpObjectNotFound;
         }
@@ -325,7 +344,14 @@ AFPERROR FPSetExtAttribute(
 
         if (hFile != INVALID_HANDLE_VALUE)
         {
-            WriteFile(hFile, afpRequest.get_current_pos_ptr(), afpAttrDataLen, &bytesWritten, nullptr);
+            if (!WriteFile(hFile, afpRequest.get_current_pos_ptr(), afpAttrDataLen, &bytesWritten, nullptr))
+            {
+                DBGWRITE(dbg_level_warning, L"WriteFile() of attribute data failed (%d)\n", GetLastError());
+                CloseHandle(hFile);
+                revert_to_self(connection->get_user_token());
+                return afpMiscErr;
+            }
+
             CloseHandle(hFile);
 
             DBGWRITE(
@@ -346,6 +372,12 @@ AFPERROR FPSetExtAttribute(
             DBGWRITE(dbg_level_info, L"WriteFork() wrote out the wrong number of bytes!\n");
             return afpMiscErr;
         }
+    }
+    else
+    {
+        // The file itself does not exist on this volume/dir.
+        DBGWRITE(dbg_level_info, L"FPSetExtAttribute: object not found!\n");
+        return afpObjectNotFound;
     }
 
     DBGWRITE(dbg_level_info, L"Wrote(bytes): %d\n", bytesWritten);
@@ -402,7 +434,7 @@ AFPERROR FPListExtAttribute(
     const auto afpPathname = afpRequest.pull_string(afpPathtype);
     if (afpPathname.empty())
     {
-        DBGWRITE(dbg_level_info, L"Could not retrieve pathname! (%d)\n");
+        DBGWRITE(dbg_level_info, L"Could not retrieve pathname!\n");
         return afpParmErr;
     }
 
@@ -448,6 +480,11 @@ AFPERROR FPListExtAttribute(
             //them into the reply buffer.
             //
 
+            // AFP "unicode" names go on the wire as UTF-8; long names are
+            // Mac Roman. The AFP path-type constants are not Windows code
+            // page ids, so map them like afp_net_buffer does.
+            const auto name_code_page = afpPathtype == kUnicodeNames ? CP_UTF8 : CP_MACCP;
+
             for (const auto& [stream_size, stream_name] : streamArray)
             {
                 const auto cbStreamName = static_cast<INT16>(lstrlen(stream_name));
@@ -468,7 +505,14 @@ AFPERROR FPListExtAttribute(
                         continue;
                     }
 
-                    afpDataLen += cbStreamName + 1;
+                    // Convert first and account for the actual encoded byte
+                    // length (plus null separator): a multi-byte name is
+                    // longer in UTF-8 than its UTF-16 character count, and
+                    // under-accounting would overflow the client's buffer.
+                    const auto name_bytes = wide_string_to_string(stream_name, name_code_page);
+                    const auto name_entry_len = static_cast<INT32>(name_bytes.size() + sizeof(char));
+
+                    afpDataLen += name_entry_len;
 
                     if (afpMaxReplySize > 0)
                     {
@@ -479,9 +523,7 @@ AFPERROR FPListExtAttribute(
                                 L"New attr name added: %s\n",
                                     stream_name);
 
-
-                            const auto ansi_string = wide_string_to_string(stream_name, afpPathtype);
-                            afpReply.push_raw_data(ansi_string.data(), ansi_string.size() + sizeof(char));
+                            afpReply.push_raw_data(name_bytes.data(), name_bytes.size() + sizeof(char));
                         }
                         else
                         {
@@ -492,7 +534,7 @@ AFPERROR FPListExtAttribute(
                             DBGWRITE(dbg_level_info, L"Data len exceeds client buffer size! (%d)\n",
                                      afpMaxReplySize);
 
-                            afpDataLen -= cbStreamName + 1;
+                            afpDataLen -= name_entry_len;
                             break;
                         }
                     }
@@ -775,7 +817,7 @@ AFPERROR GetStreams(
 
     for (;;)
     {
-        LARGE_INTEGER streamSize;
+        LARGE_INTEGER streamSize = {};
         DWORD i = 0;
 
         memset(&afpAttrInfo, 0, sizeof(afp_attr_info));
@@ -794,49 +836,76 @@ AFPERROR GetStreams(
         if (pStreamInfo->StreamNameLength > 1)
         {
             WCHAR path[MAX_PATH];
+            bool name_parsed = false;
+
             //
-            //Copy the stream name, may not be null terminated!
+            //Copy the stream name (the characters between the leading ':'
+            //and the type suffix, e.g. "MyStream" from ":MyStream:$DATA").
+            //The name may not be null terminated, so bound the copy by
+            //both the reported name length and the destination buffer:
+            //a malformed or unterminated record must not run past either.
             //
-            while (pStreamInfo->StreamName[i + 1] != ':')
+            const auto name_chars = pStreamInfo->StreamNameLength / sizeof(WCHAR);
+            while (i + 1 < name_chars && i < _countof(afpAttrInfo.stream_name) - 1)
             {
-                afpAttrInfo.stream_name[i] = pStreamInfo->StreamName[i + 1];
+                const WCHAR ch = pStreamInfo->StreamName[i + 1];
+                if (ch == L':')
+                {
+                    name_parsed = true;
+                    break;
+                }
+
+                if (ch == L'\0')
+                {
+                    break;
+                }
+
+                afpAttrInfo.stream_name[i] = ch;
                 i++;
             }
 
-            //
-            //Create the full path including the stream name
-            //
-            StringCbPrintf(path, sizeof(path), L"%s:%s", pathname, afpAttrInfo.stream_name);
+            afpAttrInfo.stream_name[i] = L'\0';
 
-            //
-            //Get the stream size.
-            //
-            hFile = CreateFile(
-                path,
-                0,
-                FILE_SHARE_READ | FILE_SHARE_WRITE,
-                nullptr,
-                OPEN_EXISTING,
-                0,
-                nullptr
-            );
-
-            if (hFile != INVALID_HANDLE_VALUE)
+            // Without a closing ':' the record was not a well-formed
+            // named stream (e.g. the unnamed $DATA stream); skip it.
+            if (name_parsed)
             {
-                if (!GetFileSizeEx(hFile, &streamSize))
+                //
+                //Create the full path including the stream name
+                //
+                StringCbPrintf(path, sizeof(path), L"%s:%s", pathname, afpAttrInfo.stream_name);
+
+                //
+                //Get the stream size.
+                //
+                hFile = CreateFile(
+                    path,
+                    0,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE,
+                    nullptr,
+                    OPEN_EXISTING,
+                    0,
+                    nullptr
+                );
+
+                if (hFile != INVALID_HANDLE_VALUE)
                 {
-                    DBGWRITE(dbg_level_info, L"[afpxattr:GetStreams]GetFileSizeEx() failed (%d)\n", GetLastError());
+                    if (!GetFileSizeEx(hFile, &streamSize))
+                    {
+                        DBGWRITE(dbg_level_info, L"[afpxattr:GetStreams]GetFileSizeEx() failed (%d)\n", GetLastError());
+                        streamSize.QuadPart = 0;
+                    }
+
+                    CloseHandle(hFile);
+
+                    afpAttrInfo.stream_size = streamSize;
                 }
 
-                CloseHandle(hFile);
-
-                afpAttrInfo.stream_size = streamSize;
+                //
+                //Finally, add the new attr info block to the array.
+                //
+                streams.push_back(afpAttrInfo);
             }
-
-            //
-            //Finally, add the new attr info block to the array.
-            //
-            streams.push_back(afpAttrInfo);
         }
 
         //
