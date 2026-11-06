@@ -12,7 +12,7 @@ afp_open_file::afp_open_file(
     const INT32 dir_id,
     const INT16 access_mode,
     const INT8 fork,
-	afp_index* entry,
+	std::shared_ptr<afp_index> entry,
 	const WCHAR* win_path
 )
 {
@@ -21,7 +21,7 @@ afp_open_file::afp_open_file(
 	m_dir_id_ = dir_id;
 	m_access_mode_ = access_mode;
 	m_fork_ = static_cast<INT8>(fork);
-	m_entry_ = entry;
+	m_entry_ = std::move(entry);
 	m_file_ref_num_ = 0;
 	m_should_convert_line_endings_ = false;
 
@@ -138,7 +138,10 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 	m_file_handle_ = h_file;
 
 	//Now set the appropriate flags to indicate the state of the forks.
-	afp_file_index::update_entry_flags(m_entry_, afp_flags);
+	if (m_entry_ != nullptr)
+	{
+		afp_file_index::update_entry_flags(m_entry_.get(), afp_flags);
+	}
 
 	return AFP_OK;
 }
@@ -174,7 +177,13 @@ AFPERROR afp_open_file::close_file_fork()
 	DBGWRITE(dbg_level_trace, L"Closing file %s, fork = %d\n", m_windows_path_, m_fork_);
 
 	//Now set the appropriate flags to indicate the state of the forks.
-	afp_file_index::update_entry_flags(m_entry_, afp_flags);
+	//m_entry_ is an owning reference: if a concurrent delete unlinked
+	//the entry while this fork stayed open, the object is still valid
+	//memory and this flag update is simply inert.
+	if (m_entry_ != nullptr)
+	{
+		afp_file_index::update_entry_flags(m_entry_.get(), afp_flags);
+	}
 
 	//Now, perform the actual close operation on the file.
 	if (m_file_handle_ != INVALID_HANDLE_VALUE)

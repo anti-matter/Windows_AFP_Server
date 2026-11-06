@@ -32,7 +32,11 @@ struct afp_index
     }
 
 	INT32 par_id;
-	afp_index* par_entry;
+	// Owning back-reference to the parent entry. A parent stays alive
+	// (though possibly unlinked from the index) as long as any child or
+	// open file still references it, so dereferences can never hit free
+	// memory. Root entries keep this null.
+	std::shared_ptr<afp_index> par_entry;
 	INT32 object_id;
 	std::wstring sz_object_name;
 	std::filesystem::path sz_path;
@@ -53,7 +57,13 @@ public:
     explicit afp_file_index(INT16 volume_id);
 	~afp_file_index();
 
-	afp_index* add_entry(
+	// Entries are reference-counted: find()/add_entry() hand out owning
+	// shared pointers, so consumers that outlive a single locked
+	// operation (afp_open_file, most notably) keep the entry object
+	// alive even when a concurrent delete unlinks it from the index.
+	// Unlinked entries become "orphans": still valid memory, but no
+	// longer searched, and their flag updates are inert.
+	std::shared_ptr<afp_index> add_entry(
 		INT32 par_id,
         const std::wstring& p_object_name,
         const std::filesystem::path& p_object_path,
@@ -62,18 +72,18 @@ public:
 		INT32* p_new_dir_id = nullptr
 	);
 
-	void remove_entry(const afp_index* entry);
+	void remove_entry(const std::shared_ptr<afp_index>& entry);
 	void remove_entry(INT32 object_id);
 
 	void update_entry(INT32 object_id, INT32 new_parent_id);
-	void update_entry(afp_index* entry, afp_index* new_parent, const std::wstring& new_name, const char_map_data* char_map = nullptr);
+	void update_entry(const std::shared_ptr<afp_index>& entry, const std::shared_ptr<afp_index>& new_parent, const std::wstring& new_name, const char_map_data* char_map = nullptr);
 
 	static void update_entry_flags(afp_index* p_entry, UINT16 flags);
 	static size_t hash_string(PWCHAR string);
 
-	afp_index* find(INT32 object_id);
-	afp_index* find(const std::wstring& full_path);
-	afp_index* find(INT32 directory_id, const std::wstring& path);
+	std::shared_ptr<afp_index> find(INT32 object_id);
+	std::shared_ptr<afp_index> find(const std::wstring& full_path);
+	std::shared_ptr<afp_index> find(INT32 directory_id, const std::wstring& path);
 
 	UINT32 get_offspring(INT32 par_id, std::vector<afp_index*>& offspring);
 	UINT32 get_offspring(INT32 par_id);
@@ -91,7 +101,7 @@ private:
 	INT16 volume_id_;
 
 	std::recursive_mutex mutex_;
-	std::vector<std::unique_ptr<afp_index>> m_index_;
+	std::vector<std::shared_ptr<afp_index>> m_index_;
 
 	INT32 m_next_id_;
 };

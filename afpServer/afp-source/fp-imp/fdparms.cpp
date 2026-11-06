@@ -245,12 +245,16 @@ AFPERROR afp_get_object_parms(
             }
             else
             {
+                // Temporary object solely to read the resource stream
+                // length; its index entry is never used (no fork is
+                // opened through it), so an empty entry reference is
+                // safe.
                 const afp_open_file afp_file(
                     volume_id,
                     dir_id,
                     kReadMode,
                     static_cast<INT8>(kAttrFork),
-                    entry,
+                    std::shared_ptr<afp_index>{},
                     entry->sz_path.c_str());
 
                 rsrc_size64.QuadPart = afp_file.get_stream_length(const_cast<wchar_t*>(AFP_RESOURCE_FORK_NAME_PLAIN));

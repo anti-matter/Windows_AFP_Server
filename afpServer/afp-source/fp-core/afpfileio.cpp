@@ -189,7 +189,7 @@ AFPERROR FPOpenFork(
                     afp_volume_id,
                     afp_dir_id,
                     connection,
-                    afp_entry,
+                    afp_entry.get(),
                     win_attributes
                 );
             }
@@ -482,8 +482,8 @@ AFPERROR FPCreateFile(
 
     if (new_entry != nullptr)
     {
-        create_finder_info_stream(new_entry);
-        afp_check_for_and_create_rsrc_stream(new_entry);
+        create_finder_info_stream(new_entry.get());
+        afp_check_for_and_create_rsrc_stream(new_entry.get());
     }
 
     volume->set_is_dirty();

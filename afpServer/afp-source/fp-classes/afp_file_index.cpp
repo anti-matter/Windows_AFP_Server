@@ -47,7 +47,7 @@ afp_file_index::~afp_file_index() = default;
  *		afp_index*
  */
 
-afp_index* afp_file_index::add_entry(
+std::shared_ptr<afp_index> afp_file_index::add_entry(
     const INT32 par_id,
     const std::wstring& p_object_name,
     const std::filesystem::path& p_object_path,
@@ -56,7 +56,7 @@ afp_index* afp_file_index::add_entry(
 	INT32* p_new_dir_id
 )
 {
-	auto entry = std::make_unique<afp_index>();
+	auto entry = std::make_shared<afp_index>();
 
 	if (is_directory)
 	{
@@ -91,8 +91,9 @@ afp_index* afp_file_index::add_entry(
 		}
 	}
 
-	// Save as the std::move() makes the entry confusing.
-	const auto result = entry.get();
+	// Keep an owning reference of our own; std::move() below only moves
+	// the vector's reference into place, ours stays valid to return.
+	const auto result = entry;
 
 	std::lock_guard guard(mutex_);
 
@@ -118,8 +119,13 @@ afp_index* afp_file_index::add_entry(
  *		None
  */
 
-void afp_file_index::remove_entry(const afp_index* entry)
+void afp_file_index::remove_entry(const std::shared_ptr<afp_index>& entry)
 {
+	if (entry == nullptr)
+	{
+		return;
+	}
+
 	remove_entry(entry->object_id);
 }
 
@@ -138,7 +144,7 @@ void afp_file_index::remove_entry(const INT32 object_id)
 {
 	std::lock_guard guard(mutex_);
 
-	const auto it = std::ranges::find_if(m_index_, [=](const std::unique_ptr<afp_index>& i)
+	const auto it = std::ranges::find_if(m_index_, [=](const std::shared_ptr<afp_index>& i)
     {
         return object_id == i->object_id;
     });
@@ -206,7 +212,7 @@ void afp_file_index::update_entry(const INT32 object_id, const INT32 new_parent_
 	update_entry(entry, parent, L"", nullptr);
 }
 
-void afp_file_index::update_entry(afp_index* entry, afp_index* new_parent, const std::wstring& new_name, const char_map_data* char_map)
+void afp_file_index::update_entry(const std::shared_ptr<afp_index>& entry, const std::shared_ptr<afp_index>& new_parent, const std::wstring& new_name, const char_map_data* char_map)
 {
 	DBGWRITE(
 		dbg_level_info,
@@ -343,18 +349,18 @@ size_t afp_file_index::hash_string(const PWCHAR string)
  *		afp_index*
  */
 
-afp_index* afp_file_index::find(const INT32 object_id)
+std::shared_ptr<afp_index> afp_file_index::find(const INT32 object_id)
 {
 	std::lock_guard guard(mutex_);
 
-	const auto it = std::ranges::find_if(m_index_, [=](const std::unique_ptr<afp_index>& i)
+	const auto it = std::ranges::find_if(m_index_, [=](const std::shared_ptr<afp_index>& i)
 		{
 			return object_id == i->object_id;
 		});
 
 	if (it != m_index_.end())
 	{
-		return it->get();
+		return *it;
 	}
 
 	DBGWRITE(
@@ -375,11 +381,11 @@ afp_index* afp_file_index::find(const INT32 object_id)
  *		afp_index*
  */
 
-afp_index* afp_file_index::find(const std::wstring& full_path)
+std::shared_ptr<afp_index> afp_file_index::find(const std::wstring& full_path)
 {
 	std::lock_guard guard(mutex_);
 
-	const auto it = std::ranges::find_if(m_index_, [=](const std::unique_ptr<afp_index>& i)
+	const auto it = std::ranges::find_if(m_index_, [=](const std::shared_ptr<afp_index>& i)
     {
         return i->sz_path.compare(full_path) == 0;
     });
@@ -390,21 +396,21 @@ afp_index* afp_file_index::find(const std::wstring& full_path)
 		return nullptr;
 	}
 
-	return it->get();
+	return *it;
 }
 
-afp_index* afp_file_index::find(const INT32 directory_id, const std::wstring& path)
+std::shared_ptr<afp_index> afp_file_index::find(const INT32 directory_id, const std::wstring& path)
 {
 	std::lock_guard guard(mutex_);
 
-    if (const auto it = std::ranges::find_if(m_index_, [=](const std::unique_ptr<afp_index>& i)
+    if (const auto it = std::ranges::find_if(m_index_, [=](const std::shared_ptr<afp_index>& i)
     {
 		return i->object_id == directory_id;
     }); it != m_index_.end())
 	{
 		if (path.empty())
 		{
-			return it->get();
+			return *it;
 		}
 
         const std::filesystem::path temp_path = it->get()->sz_path / path;

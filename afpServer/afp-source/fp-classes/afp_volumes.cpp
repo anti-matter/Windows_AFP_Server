@@ -108,7 +108,7 @@ void afp_volumes::add_volume(const std::wstring& share_name, std::filesystem::pa
     const auto root_index = new_index->add_entry(kParentOfRoot, share_name, share_path, true);
 
     // Create the Afp_AfpInfo stream that holds FinderInfo for the root dir.
-    create_finder_info_stream(root_index);
+    create_finder_info_stream(root_index.get());
 
     std::filesystem::path create_path = share_path;
     create_path.concat(":");
@@ -236,7 +236,7 @@ bool afp_volumes::index_build(std::filesystem::path& share_path, const INT32  pa
             continue;
         }
 
-        create_finder_info_stream(entry);
+        create_finder_info_stream(entry.get());
 
         if (is_directory)
         {
@@ -249,7 +249,7 @@ bool afp_volumes::index_build(std::filesystem::path& share_path, const INT32  pa
             continue;
         }
 
-        afp_check_for_and_create_rsrc_stream(entry);
+        afp_check_for_and_create_rsrc_stream(entry.get());
 
     } while (FindNextFile(h_find, &find_data));
 

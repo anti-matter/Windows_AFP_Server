@@ -548,7 +548,7 @@ AFPERROR FPGetAPPL(
         desktop->get_volume_id(),
         desk_item->dir_id,
         connection,
-		file_item,
+		file_item.get(),
         winAttributes
     );
 

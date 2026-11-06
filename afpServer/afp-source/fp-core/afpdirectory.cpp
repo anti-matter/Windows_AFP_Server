@@ -84,7 +84,7 @@ AFPERROR FPResolveID(
         afp_volume_id,
         afp_entry->par_id,
         connection,
-        afp_entry,
+        afp_entry.get(),
         win_attributes
     );
 
@@ -196,7 +196,7 @@ AFPERROR FPGetFileDirParms(
         afp_volume_id,
         afp_dir_id,
         connection,
-        afp_entry,
+        afp_entry.get(),
         win_attributes
     );
 
@@ -556,7 +556,7 @@ AFPERROR FPSetFileDirParms(
     const auto afp_error = afp_set_file_dir_parms(
         afp_bitmap,
         win_attributes.dwFileAttributes,
-        afp_entry,
+        afp_entry.get(),
         afp_request);
 
     return afp_error;
@@ -649,7 +649,7 @@ AFPERROR FPCreateDir(
             &char_map,
             &dir_id);
 
-        create_finder_info_stream(new_dir_entry, false);
+        create_finder_info_stream(new_dir_entry.get(), false);
 
         volume->set_is_dirty();
 

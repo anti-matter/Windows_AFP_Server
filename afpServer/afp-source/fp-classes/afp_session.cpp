@@ -152,7 +152,7 @@ afp_open_file* afp_session::open_file(
     const INT32 dir_id,
     const INT16 access_mode,
     const INT8 fork_to_open,
-    afp_index* entry,
+    const std::shared_ptr<afp_index>& entry,
     const WCHAR* win_path
 )
 {

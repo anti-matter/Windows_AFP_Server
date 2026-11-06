@@ -147,7 +147,7 @@ void change_notify::afp_read_dir_changes(
     std::unique_lock<std::recursive_mutex> index_lock(volume->get_index()->get_mutex());
 
     auto p_info = reinterpret_cast<FILE_NOTIFY_INFORMATION*>(result_buffer);
-    afp_index* index_entry = nullptr;
+    std::shared_ptr<afp_index> index_entry;
     
     // We have a successful change notify. Flip through the array of
     // changes and take appropriate action depending on the change.
@@ -294,7 +294,7 @@ void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_no
 
     // Add the finder info stream to the file or directory if
     // it doesn't already exist.
-    create_finder_info_stream(new_entry);
+    create_finder_info_stream(new_entry.get());
 
     if (attribute_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
     {
@@ -305,7 +305,7 @@ void change_notify::afp_change_notify_add(const FILE_NOTIFY_INFORMATION* file_no
     else
     {
         // Add the resource streams if necessary for files.
-        afp_check_for_and_create_rsrc_stream(new_entry);
+        afp_check_for_and_create_rsrc_stream(new_entry.get());
     }
 
     // Mark the volume dirty so it will tell any connected macs

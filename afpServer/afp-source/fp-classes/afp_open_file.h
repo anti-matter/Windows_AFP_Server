@@ -22,7 +22,7 @@ public:
 		INT32 dir_id,
 		INT16 access_mode,
 		INT8 fork,
-		afp_index* entry,
+		std::shared_ptr<afp_index> entry,
         const WCHAR* win_path
 	);
 
@@ -62,7 +62,12 @@ public:
     [[nodiscard]] INT16 get_vol_id() const { return m_volume_id_; }
     [[nodiscard]] INT32 get_dir_id() const { return m_dir_id_; }
 	[[nodiscard]] WCHAR* get_win_path() { return m_windows_path_; }
-    [[nodiscard]] afp_index* get_entry() const { return m_entry_; }
+	// The open file holds an owning reference to its index entry, so
+	// these stay valid for the lifetime of the open file even if a
+	// concurrent delete unlinks the entry (the entry becomes an inert
+	// "orphan" until this file closes).
+	[[nodiscard]] afp_index* get_entry() const { return m_entry_.get(); }
+	[[nodiscard]] const std::shared_ptr<afp_index>& get_entry_ref() const { return m_entry_; }
     [[nodiscard]] const std::shared_ptr<afp_volume>& get_volume() const { return volume_; }
     [[nodiscard]] bool is_volume_read_only() const;
 
@@ -77,7 +82,7 @@ private:
 	INT8 m_fork_;
 
 	std::shared_ptr<afp_volume> volume_;
-	afp_index* m_entry_;
+	std::shared_ptr<afp_index> m_entry_;
 
 	WCHAR m_windows_path_[MAX_PATH];
 

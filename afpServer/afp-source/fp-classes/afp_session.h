@@ -20,7 +20,7 @@ public:
 		INT32 dir_id,
 		INT16 access_mode,
 		INT8 fork_to_open,
-		afp_index* entry,
+		const std::shared_ptr<afp_index>& entry,
 		const WCHAR* win_path
 	);
 

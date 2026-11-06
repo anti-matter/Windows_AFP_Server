@@ -88,7 +88,7 @@ AFPERROR FPGetExtAttribute(
     //
     //Set the entry object that will point to the object we're working with.
     //
-    const afp_index* afpEntry = afp_volumes::current()->find(afpVolID)->find(afpDirID, afpPathname);
+    const auto afpEntry = afp_volumes::current()->find(afpVolID)->find(afpDirID, afpPathname);
     if (afpEntry != nullptr)
     {
         //
