@@ -5,7 +5,8 @@
 #   & '\\host.lan\Data\setup-dev.ps1'
 #
 # Does: installs VS Build Tools (Desktop C++ workload) and the WiX toolset
-# (.NET SDK + "wix" global tool) silently, stages C:\dev\server from the
+# (.NET SDK + "wix" global tool) silently, allows inbound TCP 548 through the
+# firewall (-NoFirewall to skip), stages C:\dev\server from the
 # current production install, points the PersonalAfpServer autostart task at
 # the dev build, and registers the AfpDevLoop watcher (starts at logon;
 # watches \\host.lan\Data\dev).
@@ -14,6 +15,14 @@
 #
 param(
     [switch]$Undo,
+    # On machines reached over SSH (real boxes or the WinBoat guest after
+    # setup-ssh.ps1), skip the legacy \\host.lan AfpDevLoop watcher entirely:
+    # builds are driven by ssh-dev.sh -> C:\dev\guest-build.ps1 instead.
+    [switch]$NoWatcher,
+    # AFP listens on TCP 548; a default allow rule is added so remote DSI
+    # probes and Mac clients work out of the box (idempotent - existing rules
+    # are detected). Pass -NoFirewall to skip.
+    [switch]$NoFirewall,
     # VS 2026 (v18) uses the "stable" channel - NOT "release" (that aka.ms link
     # does not exist and silently resolves to a Bing HTML page). Verified 2026-11-05:
     #   aka.ms/vs/18/stable/vs_buildtools.exe -> download.visualstudio.microsoft.com/.../vs_BuildTools.exe
@@ -47,7 +56,7 @@ if ($Undo) {
     exit 0
 }
 
-Write-Host '=== 1/5 VS Build Tools (Desktop C++ workload) ==='
+Write-Host '=== 1/6 VS Build Tools (Desktop C++ workload) ==='
 if (Test-Path $VsWhere) {
     $found = & $VsWhere -latest -products * -requires Microsoft.Component.MSBuild -property installationPath 2>$null
     if ($found) { Write-Host "  MSBuild present: $found" }
@@ -90,7 +99,7 @@ if (-not $found) {
     }
 }
 
-Write-Host '=== 2/5 WiX toolset (open-source MSI builder, dotnet global tool) ==='
+Write-Host '=== 2/6 WiX toolset (open-source MSI builder, dotnet global tool) ==='
 $WixExe = Join-Path $env:USERPROFILE '.dotnet\tools\wix.exe'
 if (Test-Path $WixExe) {
     Write-Host "  already installed: $WixExe"
@@ -135,7 +144,34 @@ foreach ($ext in 'WixToolset.UI.wixext', 'WixToolset.Util.wixext') {
 }
 Write-Host "  wix ready: $WixExe"
 
-Write-Host '=== 3/5 stage C:\dev\server from production install ==='
+if ($NoFirewall) {
+    Write-Host '=== 3/6 firewall TCP 548: skipped (-NoFirewall) ==='
+} else {
+    Write-Host '=== 3/6 firewall: allow inbound TCP 548 (AFP) ==='
+    # Detect ANY enabled inbound allow covering TCP 548 (setup-guest.ps1 adds
+    # its own rule on WinBoat; app-scoped rules also count) before adding ours.
+    $has548 = $false
+    Get-NetFirewallRule -Direction Inbound -Action Allow -Enabled True -EA SilentlyContinue |
+        Get-NetFirewallPortFilter -EA SilentlyContinue | ForEach-Object {
+            if (-not $has548 -and $_.Protocol -eq 'TCP') {
+                $lp = [string]$_.LocalPort
+                if ($lp -eq '548') {
+                    $has548 = $true
+                } elseif ($lp -match '^(\d+)-(\d+)$' -and 548 -ge [int]$Matches[1] -and 548 -le [int]$Matches[2]) {
+                    $has548 = $true
+                }
+            }
+        }
+    if ($has548) {
+        Write-Host '  an inbound TCP 548 allow rule already exists - nothing to do'
+    } else {
+        New-NetFirewallRule -Name 'AFP-Server-In-TCP' -DisplayName 'AFP server (TCP 548)' `
+            -Protocol TCP -LocalPort 548 -Direction Inbound -Action Allow | Out-Null
+        Write-Host '  added rule: AFP-Server-In-TCP'
+    }
+}
+
+Write-Host '=== 4/6 stage C:\dev\server from production install ==='
 New-Item -ItemType Directory -Force -Path $ServerDir | Out-Null
 $prodExe = Get-ChildItem 'C:\Program Files (x86)','C:\Program Files' -Filter AfpServer.exe -Recurse -EA SilentlyContinue | Select-Object -First 1
 if ($prodExe) {
@@ -144,9 +180,7 @@ if ($prodExe) {
     Write-Host '  (no production install found - dev build will create it on first success)'
 }
 
-Write-Host '=== 4/5 watcher + task repoint ==='
-if (-not (Test-Path $LoopSrc)) { Write-Host "ERROR: dev-loop.ps1 must sit next to this script ($LoopSrc)"; exit 1 }
-Copy-Item $LoopSrc $LoopDst -Force
+Write-Host '=== 5/6 watcher + task repoint ==='
 $task = Get-ScheduledTask -TaskName 'PersonalAfpServer' -EA SilentlyContinue
 if ($task) {
     $cur = $task.Actions[0].Execute
@@ -155,18 +189,33 @@ if ($task) {
     Set-ScheduledTask -TaskName 'PersonalAfpServer' -Action $action | Out-Null
     Write-Host "  PersonalAfpServer -> $ServerDir\AfpServer.exe (production path saved)"
 }
-$loopAction = New-ScheduledTaskAction -Execute 'powershell.exe' `
-    -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$LoopDst`""
-Stop-ScheduledTask -TaskName 'AfpDevLoop' -EA SilentlyContinue   # kill live instance (holds old script in memory)
-Register-ScheduledTask -TaskName 'AfpDevLoop' -Action $loopAction `
-    -Trigger (New-ScheduledTaskTrigger -AtLogOn) -Principal (New-HighestPrincipal) -Force | Out-Null
-Get-ScheduledTask -TaskName 'AfpDevLoop' | Start-ScheduledTask
+if ($NoWatcher) {
+    Write-Host '  watcher skipped (-NoWatcher): builds run via C:\dev\guest-build.ps1 over SSH'
+} else {
+    if (-not (Test-Path $LoopSrc)) { Write-Host "ERROR: dev-loop.ps1 must sit next to this script ($LoopSrc)"; exit 1 }
+    Copy-Item $LoopSrc $LoopDst -Force
+    $loopAction = New-ScheduledTaskAction -Execute 'powershell.exe' `
+        -Argument "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$LoopDst`""
+    Stop-ScheduledTask -TaskName 'AfpDevLoop' -EA SilentlyContinue   # kill live instance (holds old script in memory)
+    Register-ScheduledTask -TaskName 'AfpDevLoop' -Action $loopAction `
+        -Trigger (New-ScheduledTaskTrigger -AtLogOn) -Principal (New-HighestPrincipal) -Force | Out-Null
+    Get-ScheduledTask -TaskName 'AfpDevLoop' | Start-ScheduledTask
+}
 
+if ($NoWatcher) {
+    Write-Host @"
+=== 6/6 done ===
+Toolchain ready for the SSH dev loop. Next (elevated): & setup-ssh.ps1
+(installs the Linux host's public key - copy it here as host_id_ed25519.pub).
+On the Linux host:  AFP_GUEST=<user>@<this-ip> ./ssh-dev.sh
+"@
+} else {
 Write-Host @"
-=== 5/5 done ===
+=== 6/6 done ===
 Dev loop is live. On the Linux host:
     ~/afp-deploy/dev-sync.sh              # edit -> MSBuild -> swap -> server restart -> result
     ~/afp-deploy/dev-sync.sh --msi        # ... also builds the WiX MSI -> ~/afp-deploy/dev/out/
     ~/afp-deploy/dev-sync.sh --msi-install # ... and installs it in the guest (major upgrade)
 Revert anytime (elevated, guest):  & '\\host.lan\Data\setup-dev.ps1' -Undo
 "@
+}

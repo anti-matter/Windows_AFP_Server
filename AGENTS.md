@@ -87,7 +87,8 @@ Notes:
   paths resolved against the CWD). `product.wxs` notes explain the deferred
   custom actions (event-log/PerfMon registration via `install.cmd`) and the
   `MediaTemplate EmbedCab` requirement for single-file MSIs. The dev loop
-  automates all of this: `winboat-deploy/dev-sync.sh --msi[-install]`.
+  automates all of this: `winboat-deploy/ssh-dev.sh --msi[-install]` (SSH into
+  the Windows guest; see `winboat-deploy/README.md`).
 - **CI** (`.github/workflows/build.yml`) builds `Release | x86` on
   `windows-2025-vs2026` for every push to `master` and uploads
   `PersonalAfpServer.zip` + PDB as artifacts. Since the project cannot be

@@ -19,9 +19,12 @@ volumes — and dual-mounting NTFS corrupts it.
 | `dns-dbus-forwarder.py` | host (docker: `afp-dns-relay`) | Plaintext UDP :53 on the compose network → systemd-resolved via D-Bus. Needed because the ISP blackholes plaintext DNS, DoT *and* DoH (SNI MITM); only resolved's encrypted session survives, and Docker/dnsmasq speak only plaintext (see below) |
 | `setup-guest.ps1` | Windows guest (elevated) | Firewall rule TCP 548, creates `Shares\MacintoshHD` on the USB drive (found by volume **label**), silent MSI install, HKCU share seed, logon autostart task |
 | `guest-fix-share-drive.ps1` | Windows guest (task) | Logon guard: re-asserts the canonical USB drive letter, repairs HKCU share path, restarts server if it drifted |
-| `setup-dev.ps1` | Windows guest (elevated) | One-time dev-loop setup: VS Build Tools (Desktop C++), .NET SDK + WiX v7 (+ UI extension), `AfpDevLoop` watcher, repoints autostart at `C:\dev\server` (`-Undo` reverts) |
-| `dev-loop.ps1` | Windows guest (task) | Watches `\\host.lan\Data\dev\build.request` → incremental MSBuild Release\|x86 → swap + restart → optional WiX MSI build → writes `build.result` |
-| `dev-sync.sh` | host (Linux) | Dev-loop driver: rsync repo → shared folder, trigger build, wait, print compiler tail, DSI-probe the live server; `--msi` builds the installer, `--msi-install` also upgrades the guest install |
+| `setup-dev.ps1` | Windows guest / real box (elevated) | One-time dev-loop setup: VS Build Tools (Desktop C++), .NET SDK + WiX v7 (+ UI extension), inbound firewall rule for TCP 548 (`-NoFirewall` skips), repoints autostart at `C:\dev\server` (`-Undo` reverts); `-NoWatcher` skips the legacy `AfpDevLoop` watcher (use on SSH-driven machines) |
+| `dev-loop.ps1` | Windows guest (task, retired) | Legacy SMB-polling build watcher — fallback only, replaced by SSH loop |
+| `dev-sync.sh` | host (Linux) | Legacy dev-loop driver for the watcher above — fallback only, see `ssh-dev.sh` |
+| `setup-ssh.ps1` | Windows guest (elevated) | One-time SSH setup: sshd automatic + firewall, installs the host's public key (`host_id_ed25519.pub`) into `administrators_authorized_keys`, retires the `AfpDevLoop` watcher |
+| `ssh-dev.sh` | host (Linux) | **Primary dev loop**: tar-over-SSH sync (manifest prunes deletions), remote `guest-build.ps1` with live output, MSI via scp, DSI-probe; `--msi`/`--msi-install`/`--probe-host` |
+| `guest-build.ps1` | Windows guest (SSH remote-exec, `C:\dev`) | One-shot build: MSBuild Release\|x86 → stage `C:\dev\server` → restart (task, S4U fallback if headless) → optional WiX MSI |
 
 ## Flow
 
@@ -78,42 +81,94 @@ Details:
 
 ## Development loop (edit on Linux, test in seconds)
 
-The server is MSVC-only, so builds run **inside the VM** on a watcher that
-shares this repo over the compose `/shared` mount — no git push, no CI round
-trip, incremental MSBuild. GitHub Actions remains the authoritative build
-check for merges to `master`.
+The server is MSVC-only, so builds run **inside the VM**. The loop is driven
+over **SSH** (guest OpenSSH server; the WinBoat container forwards
+`127.0.0.1:2222` -> guest 22 via `USER_PORTS`), which keeps the guest's
+console session and the SMB share free for real clients and manual GUI
+debugging. Incremental MSBuild, no git push, no CI round trip; GitHub Actions
+remains the authoritative build check for merges to `master`.
 
 ```text
-Linux: edit code -> ~/afp-deploy/dev-sync.sh
-         rsync -> ~/afp-deploy/dev/repo   (guest view: \\host.lan\Data\dev\repo)
-         touch build.request ------->  AfpDevLoop watcher (5 s poll)
-                                        robocopy -> C:\dev\repo (outputs kept = incremental)
-                                        MSBuild Release|x86
-                                        stage + swap C:\dev\server, restart server
-         read build.result <---------  PASS/FAIL + msbuild tail
+Linux: edit code -> winboat-deploy/ssh-dev.sh
+         tar-over-ssh -> C:\dev\repo          (build outputs kept = incremental)
+         repo.manifest  -------------------->  prunes sources deleted on the host
+         remote-exec C:\dev\guest-build.ps1   (compiler output streams live)
+                                                 MSBuild Release|x86
+                                                 stage + swap C:\dev\server
+                                                 restart server (task; S4U fallback
+                                                 when no console user is logged on)
        compiler errors land in your Linux terminal; PASS ends with a live DSIGetStatus probe
 ```
 
-Setup once (elevated PowerShell in the guest):
+Setup once:
 
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass -Force
-& '\\host.lan\Data\setup-dev.ps1'          # ~15-30 min: installs VS Build Tools
-```
+1. Build tools (elevated PowerShell in the guest):
+   `Set-ExecutionPolicy -Scope Process Bypass -Force; & '\\host.lan\Data\setup-dev.ps1'`
+   (~15-30 min: VS Build Tools, .NET SDK, WiX).
+2. SSH access: copy the Linux host's `~/.ssh/id_ed25519.pub` to the share as
+   `host_id_ed25519.pub`, then in the guest:
+   `& '\\host.lan\Data\setup-ssh.ps1'` (enables sshd at boot, installs the key
+   in `administrators_authorized_keys`, retires the old watcher task). It can
+   also be piped over a password-auth SSH session if the share is unavailable.
 
-Day-to-day: `~/afp-deploy/dev-sync.sh` (or `--no-wait`; `--probe-host <lan-ip>`).
+Day-to-day: `./ssh-dev.sh` (`--msi`, `--msi-install`, `--probe-host <lan-ip>`).
+Interactive guest debugging: `ssh -p 2222 michaelc@127.0.0.1` (elevated token).
 Point Mac clients at `afp://<linux-ip>` — the dev build serves the same HKCU
 shares/USB volume as the production one. To go back to the MSI build: run
-`setup-dev.ps1 -Undo` in the guest (restores the autostart task path and stops
-the watcher). Notes: `C:\dev\repo` build outputs are preserved across syncs;
-`.git`/artifacts are never synced; the dev server runs from `C:\dev\server`
-while the MSI install stays untouched in Program Files.
+`setup-dev.ps1 -Undo` in the guest. Notes: `C:\dev\repo` build outputs are
+preserved across syncs; `.git`/artifacts are never synced; the dev server runs
+from `C:\dev\server` while the MSI install stays untouched in Program Files.
+
+Windows gotchas learned the hard way: sshd **kills its entire process tree**
+when a session's channel closes — anything spawned from SSH (even `start /B`)
+dies with it; only Task-Scheduler-launched processes survive, hence the
+one-shot `AfpDevStart` S4U fallback task in `guest-build.ps1`. The autostart
+`PersonalAfpServer` task is `InteractiveToken` and needs a console session:
+guest auto-logon is enabled via `Winlogon/AutoAdminLogon`; if it ever resets,
+the S4U fallback keeps the dev loop working headless.
+
+The old SMB-polling loop (`dev-sync.sh` + `dev-loop.ps1` watcher) is retired
+in favor of SSH but kept in the repo as a fallback if the guest's OpenSSH
+ever breaks (`schtasks` registration via `setup-dev.ps1` re-enables it).
+
+## Dev loop on a real Windows machine
+
+Same loop, no WinBoat: any Win10/11 x86_64 box on the LAN (or routed from the
+Linux host) with admin rights.
+
+1. Copy `winboat-deploy\` to the box (SMB, USB — anything; SSH doesn't exist
+   there yet) and run, from an **elevated** PowerShell in that directory:
+   ```powershell
+   Set-ExecutionPolicy -Scope Process Bypass -Force
+   .\setup-dev.ps1 -NoWatcher        # VS Build Tools + .NET SDK + WiX (~15-30 min);
+                                     # also allows inbound TCP 548 (idempotent,
+                                     # -NoFirewall to skip)
+   ```
+   (`-NoWatcher` skips the legacy `\\host.lan` watcher; without it this is the
+   same one-time setup as the guest.)
+2. Copy the Linux host's `~/.ssh/id_ed25519.pub` to the box as
+   `host_id_ed25519.pub`, still elevated: `.\setup-ssh.ps1`
+   (installs OpenSSH Server if missing, sshd automatic, firewall TCP 22, key
+   into `administrators_authorized_keys`).
+3. From Linux: `AFP_GUEST=<user>@<box-ip> ./ssh-dev.sh` (port 22 is implied;
+   add `--probe-host <box-ip>` so the probe targets the box instead of the
+   WinBoat port-forward). The same flags apply (`--msi`, `--msi-install`).
+   TCP 548 was opened in step 1, so Mac clients can point straight at
+   `afp://<box-ip>`.
+
+Notes: without a `PersonalAfpServer` autostart task, every build restarts the
+server through the S4U fallback task (`AfpDevStart`) — same as headless
+WinBoat; it does not survive a reboot until you register an autostart task or
+log on and run the server once. First run has empty HKCU share config — start
+the tray app once interactively and add volumes. Build outputs land in
+`C:\dev\repo\afpServer\Release` exactly as in the guest; the box is x64 but
+MSBuild targets Win32/x86, so the vendored 32-bit OpenSSL works unchanged.
 
 ## MSI builds via the loop
 
 ```bash
-./dev-sync.sh --msi            # also builds AfpServerInstaller-<version.h>.msi
-./dev-sync.sh --msi-install    # ...and installs it in the guest (major upgrade)
+./ssh-dev.sh --msi            # also builds AfpServerInstaller-<version.h>.msi
+./ssh-dev.sh --msi-install    # ...and installs it in the guest (major upgrade)
 ```
 
 The MSI lands in `~/afp-deploy/dev/out/` with its SHA-256 in the result. The
