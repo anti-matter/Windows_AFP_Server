@@ -1,6 +1,12 @@
 ===============================================================================
 Personal AFP Server Change Log
 
+Version 2.2.4:
+- No server code changes. Version bumped to exercise the full clean-rebuild
+  and MSI major-upgrade path through the new SSH-driven dev loop
+  (winboat-deploy/ssh-dev.sh --msi-install). Deployment tooling for the
+  dev/test environment moved from the SMB share-watcher to SSH.
+
 Version 2.2.3:
 - The executable's version resource (file properties, about box data source)
   is now generated from version.h; it previously reported a hardcoded and
