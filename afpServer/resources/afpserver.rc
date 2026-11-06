@@ -18,6 +18,11 @@
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
 
+// Version numbers and version strings come from version.h so the exe's
+// version resource cannot drift from the build version (see version.h
+// for why a relative include is used here).
+#include "../version.h"
+
 /////////////////////////////////////////////////////////////////////////////
 // English (United States) resources
 
@@ -67,29 +72,25 @@ IDI_TRAYICON            ICON                    "afpServer.Ico"
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,0,0,0
- PRODUCTVERSION 2,0,0,0
+ FILEVERSION VER_FILE_VERSION
+ PRODUCTVERSION VER_PRODUCT_VERSION
  FILEFLAGSMASK 0x3fL
-#ifdef _DEBUG
- FILEFLAGS 0x1L
-#else
- FILEFLAGS 0x0L
-#endif
- FILEOS 0x40004L
- FILETYPE 0x1L
+ FILEFLAGS VER_FILEFLAGS
+ FILEOS VER_FILEOS
+ FILETYPE VER_FILETYPE
  FILESUBTYPE 0x0L
 BEGIN
     BLOCK "StringFileInfo"
     BEGIN
         BLOCK "040904b0"
         BEGIN
-            VALUE "FileDescription", "Apple Filing Protocol Server for Windows."
-            VALUE "FileVersion", "2.0.0.0"
-            VALUE "InternalName", "AfpServer.exe"
-            VALUE "LegalCopyright", "(C) 2023, Michael J. Conrad."
-            VALUE "OriginalFilename", "AfpServer.exe"
-            VALUE "ProductName", "AfpServer"
-            VALUE "ProductVersion", "2.0.0.0"
+            VALUE "FileDescription", VER_FILE_DESCRIPTION_STR
+            VALUE "FileVersion", VER_FILE_VERSION_STR
+            VALUE "InternalName", VER_INTERNAL_NAME_STR
+            VALUE "LegalCopyright", VER_COPYRIGHT_STR
+            VALUE "OriginalFilename", VER_ORIGINAL_FILENAME_STR
+            VALUE "ProductName", VER_PRODUCTNAME_STR
+            VALUE "ProductVersion", VER_PRODUCT_VERSION_STR
         END
     END
     BLOCK "VarFileInfo"

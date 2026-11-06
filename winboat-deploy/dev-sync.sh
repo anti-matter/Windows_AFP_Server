@@ -120,7 +120,8 @@ EOF
 
 # MSI report (watcher copies the built installer into dev/out/)
 if [ "$MSI" = 1 ]; then
-    MSI_NAME="$(sed -nE 's/^MSI=(.+)$/\1/p' "$RESULT" | tail -1)"
+    # strip \r: the watcher writes build.result with CRLF endings
+    MSI_NAME="$(sed -nE 's/^MSI=(.+)$/\1/p' "$RESULT" | tr -d '\r' | tail -1)"
     # the build.result can land a moment before the MSI write is visible
     # through Samba - poll briefly before declaring it missing
     for _ in 1 2 3 4 5 6; do

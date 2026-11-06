@@ -102,9 +102,17 @@
     <InstallExecuteSequence>
       <!-- Deferred CAs must sit between InstallInitialize and InstallFinalize
            (after InstallFinalize = MSI error 2762). Before InstallFinalize
-           still runs after InstallFiles, so install.cmd is on disk. -->
-      <Custom Action="AfpRegisterProviders" Before="InstallFinalize" Condition="NOT REMOVE" />
-      <Custom Action="AfpUnregisterProviders" Before="RemoveFiles" Condition='REMOVE="All"' />
+           still runs after InstallFiles, so install.cmd is on disk.
+           Conditions: a plain `msiexec /x` uninstall runs as a session with
+           ACTION = INSTALL and REMOVE = ALL (verified in msiexec verbose
+           logs - do NOT key on ACTION, it stays INSTALL during uninstall!).
+           MSI compares condition values case-sensitively, which is why
+           REMOVE="All" silently never fired here; ~ before the operator
+           makes the comparison case-insensitive (MSDN, Conditional
+           Statement Syntax). Both rows sit after InstallValidate, where
+           REMOVE is guaranteed set. -->
+      <Custom Action="AfpRegisterProviders" Before="InstallFinalize" Condition="(NOT REMOVE)" />
+      <Custom Action="AfpUnregisterProviders" Before="RemoveFiles" Condition='REMOVE~="ALL"' />
     </InstallExecuteSequence>
 
     <Feature Id="Complete" Title="Personal AFP Server" Level="1"

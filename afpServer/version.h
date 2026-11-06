@@ -2,14 +2,17 @@
 // ReSharper disable CppClangTidyClangDiagnosticUnusedMacros
 // ReSharper disable CppClangTidyModernizeMacroToEnum
 // ReSharper disable CppClangTidyClangDiagnosticMacroRedefined
-#pragma once
+// Classic include guard (not #pragma once): this file is also included
+// by afpserver.rc, and rc.exe's support for #pragma once is unreliable.
+#ifndef AFPSERVER_VERSION_H
+#define AFPSERVER_VERSION_H
 
 #define STRINGIZE2(s) #s
 #define STRINGIZE(s) STRINGIZE2(s)
 
 #define VERSION_MAJOR               2
 #define VERSION_MINOR               2
-#define VERSION_REVISION            2
+#define VERSION_REVISION            3
 #define VERSION_BUILD               0
 
 #define VER_FILE_DESCRIPTION_STR    "Apple Filing Protocol Server for Windows."
@@ -31,6 +34,14 @@
 #define VER_INTERNAL_NAME_STR       VER_ORIGINAL_FILENAME_STR
 #define VER_COPYRIGHT_STR           "(C) 2026, Michael J. Conrad."
 
+// The constants below come from winver.h (via windows.h in C++, via
+// winres.h in the resource script). They are only expanded where used.
 #define VER_FILEOS                  VOS_NT_WINDOWS32
-#define VER_FILEFLAGS               VER_VER_DEBUG
+#ifdef _DEBUG
+#define VER_FILEFLAGS               VS_FF_DEBUG
+#else
+#define VER_FILEFLAGS               0x0L
+#endif
 #define VER_FILETYPE                VFT_APP
+
+#endif // AFPSERVER_VERSION_H

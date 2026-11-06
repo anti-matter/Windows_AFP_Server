@@ -1,6 +1,16 @@
 ===============================================================================
 Personal AFP Server Change Log
 
+Version 2.2.3:
+- The executable's version resource (file properties, about box data source)
+  is now generated from version.h; it previously reported a hardcoded and
+  stale 2.0.0.0. The MSI product version and the exe file/product versions
+  now always match.
+- Fixed: uninstalling via msiexec did not deregister the event-log and
+  PerfMon providers. The deregistration custom action's condition compared
+  REMOVE case-sensitively ("All") while Windows Installer sets REMOVE=ALL,
+  so it silently never ran; the comparison is now case-insensitive.
+
 Version 2.2.2:
 - Installer rebuilt on the WiX Toolset (AfpServerInstaller\product.wxs): the MSI
   is now fully scriptable (no Visual Studio IDE required) and performs seamless
