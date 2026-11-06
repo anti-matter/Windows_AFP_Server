@@ -198,7 +198,7 @@ AFPERROR afp_open_file::read_fork(
 	DWORD* afp_actual_read
 )
 {
-	OVERLAPPED overlapped;
+	OVERLAPPED overlapped{};
 	LARGE_INTEGER offset;
 
 	//Make sure we have a valid file handle before we do anything.
@@ -211,18 +211,20 @@ AFPERROR afp_open_file::read_fork(
 	DBGWRITE(dbg_level_trace, L"Reading %lld bytes from file %s from fork %d\n", afp_req_count, m_windows_path_, m_fork_);
 
 	//We have to make sure our buffer is big enough for
-	//the read operation.
-	if (afp_reply.get_buffer_size() < static_cast<size_t>(afp_req_count))
+	//the read operation. Space is measured from the current
+	//write position, not from the start of the buffer.
+	const auto space_left = afp_reply.get_buffer_size() - afp_reply.get_data_length();
+	if (space_left < static_cast<size_t>(afp_req_count))
 	{
 		DBGWRITE(
 			dbg_level_warning,
-			L"Buffer too small! (needed=%d, have=%d)\n",
+			L"Buffer too small! (needed=%lld, have=%llu)\n",
 			afp_req_count,
-			afp_reply.get_buffer_size()
+			static_cast<unsigned long long>(space_left)
 		);
 
 	    //Our buffer is too small, adjust the amount to read.
-		afp_req_count = afp_reply.get_buffer_size();
+		afp_req_count = static_cast<INT64>(space_left);
 	}
 
 	//Get the 64bit offset into a LI structure.
@@ -331,9 +333,9 @@ AFPERROR afp_open_file::write_fork(
 			*afp_last_byte_written = file_pointer;
 
 			DBGWRITE(dbg_level_info,
-			         L"WRITE: Actual written: %d, Last Byte: %d\n",
+			         L"WRITE: Actual written: %d, Last Byte: %lld\n",
 			         afp_actual,
-			         *afp_last_byte_written
+			         static_cast<long long>(*afp_last_byte_written)
 			);
 		}
 	}
@@ -367,7 +369,8 @@ AFPERROR afp_open_file::set_fork_length(const INT64 length) const
 	auto error = file_seek(length, FILE_BEGIN);
 	if (AFP_FAILED(error))
 	{
-		DBGWRITE(dbg_level_error, L"Seeking fork length to (%d) failed with error (%d)\n", length, error);
+		DBGWRITE(dbg_level_error, L"Seeking fork length to (%lld) failed with error (%d)\n",
+		         static_cast<long long>(length), error);
 		return error;
 	}
 
@@ -380,7 +383,7 @@ AFPERROR afp_open_file::set_fork_length(const INT64 length) const
 		return afp_map_win_error_to_afp(win_error, afpParmErr);
 	}
 
-	DBGWRITE(dbg_level_trace, L"Fork length set to (%d)\n", length);
+	DBGWRITE(dbg_level_trace, L"Fork length set to (%lld)\n", static_cast<long long>(length));
 
 	return AFP_OK;
 }

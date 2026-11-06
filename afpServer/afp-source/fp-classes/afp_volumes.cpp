@@ -54,10 +54,10 @@ void afp_volumes::volume_indexer()
 
         do
         {
-            afp_clear_text_password password;
+            afp_clear_text_password password{};
             WCHAR share_path[MAX_PATH];
             WCHAR share_name[33];
-            DWORD flags;
+            DWORD flags = 0;
 
             keep_going = registry.next_volume(
                 share_name,
@@ -157,22 +157,30 @@ void afp_volumes::remove_volume(const INT16 id)
 
     std::lock_guard guard(volumes_mutex_);
     const std::vector<std::shared_ptr<afp_volume>>::const_iterator it = std::ranges::find(volumes_, volume);
+    if (it == volumes_.end())
+    {
+        // Raced with another removal; nothing left to do.
+        return;
+    }
 
-    auto flags = volume->get_internal_flags();
-    flags &= ~flag_volume_shared;
-    volume->set_internal_flags(flags);
+    volume->clear_internal_flags(flag_volume_shared);
 
     volumes_.erase(it);
 }
 
 void afp_volumes::remove_all_volumes()
 {
-    std::ranges::for_each(volumes_, [](const std::shared_ptr<afp_volume>& volume)
-        {
-            volume->stop_sharing();
-        });
+    std::vector<std::shared_ptr<afp_volume>> to_stop;
+    {
+        std::lock_guard guard(volumes_mutex_);
+        to_stop = volumes_;
+        volumes_.clear();
+    }
 
-    volumes_.clear();
+    for (const auto& volume : to_stop)
+    {
+        volume->stop_sharing();
+    }
 }
 
 
@@ -269,14 +277,22 @@ void afp_volumes::index_queue_thread()
             break;
         }
 
-        while (!index_queue_.empty())
+        for (;;)
         {
-            std::unique_lock lock(index_queue_mutex_);
+            // The empty() check must be inside the lock; producers push
+            // under the same mutex.
+            std::unique_ptr<index_queue_element> element;
+            {
+                std::unique_lock lock(index_queue_mutex_);
 
-            const auto element = std::move(index_queue_.front());
-            index_queue_.pop();
+                if (index_queue_.empty())
+                {
+                    break;
+                }
 
-            lock.unlock();
+                element = std::move(index_queue_.front());
+                index_queue_.pop();
+            }
 
             switch(element->task)
             {
@@ -431,7 +447,6 @@ UINT8 afp_volumes::active_volumes(std::vector<std::shared_ptr<afp_volume>>* volu
 void afp_volumes::dirty_volumes(std::vector<std::shared_ptr<afp_volume>>* dirty_volumes)
 {
     std::lock_guard guard(volumes_mutex_);
-    std::vector<std::shared_ptr<afp_volume>> result;
 
     for (const auto& v : volumes_)
     {

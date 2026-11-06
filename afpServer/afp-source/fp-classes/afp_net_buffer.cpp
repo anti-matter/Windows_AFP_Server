@@ -58,14 +58,25 @@ AFPERROR afp_net_buffer::push_path(const UINT8 path_type, const afp_index* index
 	return AFP_OK;
 }
 
+static UINT net_buffer_code_page_for_path_type(const UINT8 path_type)  // NOLINT(misc-use-anonymous-namespace)
+{
+	// The AFP path-type constants (kLongNames / kUnicodeNames) are not
+	// Windows code page ids. AFP "unicode" names are UTF-8; long names
+	// are Mac Roman. Passing the raw path type as a code page to the
+	// conversion APIs mis-decodes non-ASCII strings.
+	return path_type == kLongNames ? CP_MACCP : CP_UTF8;
+}
+
 std::wstring afp_net_buffer::pull_string(const UINT8 path_type)
 {
+	const auto code_page = net_buffer_code_page_for_path_type(path_type);
+
 	switch (path_type)
 	{
 	case kLongNames:
-		return string_to_wide_string(pull_multi_byte_string<UINT8>(), path_type);
+		return string_to_wide_string(pull_multi_byte_string<UINT8>(), code_page);
 	case kUnicodeNames:
-		return string_to_wide_string(pull_multi_byte_string<UINT16>(), path_type);
+		return string_to_wide_string(pull_multi_byte_string<UINT16>(), code_page);
 	default:
 		break;
 	}
@@ -75,7 +86,10 @@ std::wstring afp_net_buffer::pull_string(const UINT8 path_type)
 
 void afp_net_buffer::push_string(const std::wstring& str, const UINT8 path_type)
 {
-	push_string(wide_string_to_string(str, path_type));
+	// Convert with the code page that matches the path type, and keep the
+	// path type so the string overload frames the string correctly
+	// (length prefix and encoding hint).
+	push_string(wide_string_to_string(str, net_buffer_code_page_for_path_type(path_type)), path_type);
 }
 
 void afp_net_buffer::push_string(const std::string& str, const UINT8 path_type)
@@ -130,7 +144,9 @@ std::string afp_net_buffer::pull_multi_byte_string(const bool is_afp_path)
         return "";
     }
 
-    char raw[MAX_AFP30_PATH];
+    // Zero-init: if the bounds check inside pull_raw_data rejects the read
+    // (malformed request), raw must still be a valid C string below.
+    char raw[MAX_AFP30_PATH]{};
 
     pull_raw_data(raw, string_length);
     raw[string_length] = '\0';

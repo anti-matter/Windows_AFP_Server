@@ -127,7 +127,10 @@ struct afp_desk_item
         this->icon_type = item->icon_type;
         this->data_size = item->data_size;
         this->path_type = item->path_type;
-        wcscpy_s(this->path_name, sizeof(this->path_name), item->path_name);
+        // wcscpy_s takes the buffer size in elements, not bytes. Passing
+        // sizeof() would claim twice as many elements as exist and permit
+        // an overflow of path_name[] for long source names.
+        wcscpy_s(this->path_name, _countof(this->path_name), item->path_name);
         memcpy_s(this->data, sizeof(data), item->data, sizeof(data));
 
         return this;

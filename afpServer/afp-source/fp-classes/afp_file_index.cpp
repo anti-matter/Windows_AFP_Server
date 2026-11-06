@@ -79,7 +79,6 @@ afp_index* afp_file_index::add_entry(
 	if (char_map != nullptr)
     {
         entry->char_map = *char_map;
-		memcpy(&entry->char_map, char_map, sizeof(entry->char_map));
         afp_char_map::write_char_map(entry->sz_path, entry->char_map);
     }
 	else
@@ -230,8 +229,10 @@ void afp_file_index::update_entry(afp_index* entry, afp_index* new_parent, const
 	entry->sz_path = new_parent->sz_path / entry->sz_object_name;
 	entry->path_hash = static_cast<UINT32>(std::hash<std::wstring>{}(entry->sz_path));
 
-	// Only if the object moved do we update the parent id and entry
-	if (entry->par_entry->object_id != new_parent->object_id)
+	// Only if the object moved do we update the parent id and entry.
+	// The root entry has no parent entry object, so only compare ids
+	// when one exists.
+	if (entry->par_entry == nullptr || entry->par_entry->object_id != new_parent->object_id)
 	{
 		entry->par_id = new_parent->object_id;
 		entry->par_entry = new_parent;

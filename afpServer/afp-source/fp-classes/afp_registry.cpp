@@ -163,6 +163,10 @@ afp_registry::next_volume(
 	DWORD dw_data_size, dw_type;
 	HKEY h_vol_key;
 
+	// Default the flags; the Flags value may be missing from the key and
+	// the caller has no other way to tell.
+	*flags = 0;
+
 	dw_data_size = sizeof(sz_key_name);
 	DWORD dw_error = RegEnumKeyEx(m_volume_enum_key_, m_enum_index_++, sz_key_name,
 	                              &dw_data_size, nullptr, nullptr, nullptr, &file_time);
@@ -200,7 +204,7 @@ afp_registry::next_volume(
 
 		if (dw_error == ERROR_SUCCESS)
 		{
-			TCHAR sz_pass[24];
+			TCHAR sz_pass[24]{};
 			DBGWRITE(dbg_level_info, L"Found volume path in registry = %s\n", sz_path);
 
 			// ReSharper disable CppFunctionResultShouldBeUsed
@@ -225,21 +229,36 @@ afp_registry::next_volume(
 				//We have a password associated with this volume, save it. Note that
 				//the password is saved in the registry as unicode.
 				//
+				// WideCharToMultiByte counts the source in WCHARs; dw_data_size
+				// is the byte count returned by RegQueryValueEx, so dividing is
+				// required or the conversion reads past the sz_pass buffer.
+				//
 				WideCharToMultiByte(
 					CP_MACCP,
 					0,
 					sz_pass,
-					static_cast<int>(dw_data_size),
+					static_cast<int>(dw_data_size / sizeof(WCHAR)),
 					sz_ansi_password,
-					sizeof(afp_clear_text_password),
+					sizeof(sz_ansi_password) - 1, // leave room for the null; sz_ansi_password is zeroed
 					"!",
 					&f_used_default);
 
-				strcpy_s(sz_password, sizeof(afp_clear_text_password), sz_ansi_password);
+				// Copy into the caller's buffer using the size the caller
+				// actually provided, not the size of the AFP password struct.
+				// StringCchCopy truncates (and returns S_FALSE) rather than
+				// failing hard if the password does not fit.
+				const auto copy_result = StringCchCopyA(sz_password, cb_password, sz_ansi_password);
+				if (copy_result != S_OK && copy_result != S_FALSE)
+				{
+					DBGWRITE(dbg_level_warning, L"Failed to copy volume password for %s.\n", sz_key_name);
+					RegCloseKey(h_vol_key);
+					return (false);
+				}
 			}
 		}
 		else
 		{
+			RegCloseKey(h_vol_key);
 			return (false);
 		}
 
@@ -292,6 +311,10 @@ afp_registry::add_volume(
 	{
 		if (dw_disposition == REG_OPENED_EXISTING_KEY)
 		{
+			// Don't leak the handle we just opened on this early exit.
+			RegCloseKey(m_add_volume_key_);
+			m_add_volume_key_ = nullptr;
+
 			return (afperr_registry_already_shared);
 		}
 
@@ -305,6 +328,9 @@ afp_registry::add_volume(
 
 		if (dw_error != ERROR_SUCCESS)
 		{
+			RegCloseKey(m_add_volume_key_);
+			m_add_volume_key_ = nullptr;
+
 			return afperr_registry_add_failed;
 		}
 
@@ -320,6 +346,9 @@ afp_registry::add_volume(
 
 			if (dw_error != ERROR_SUCCESS)
 			{
+				RegCloseKey(m_add_volume_key_);
+				m_add_volume_key_ = nullptr;
+
 				return afperr_registry_add_pass_failed;
 			}
 		}
@@ -338,12 +367,22 @@ afp_registry::add_volume(
 
 		if (dw_error != ERROR_SUCCESS)
 		{
+			RegCloseKey(m_add_volume_key_);
+			m_add_volume_key_ = nullptr;
+
 			return afperr_registry_add_failed;
 		}
 
 		RegCloseKey(m_add_volume_key_);
 
 		m_add_volume_key_ = nullptr;
+	}
+	else
+	{
+		// The key could not even be created; report the failure instead
+		// of falling through with ERROR_SUCCESS.
+		DBGWRITE(dbg_level_info, L"RegCreateKeyEx() failed adding volume, error code = %d\n", dw_error);
+		return afperr_registry_add_failed;
 	}
 
 	return ERROR_SUCCESS;
@@ -667,19 +706,26 @@ afp_registry::get_volume_password(
 	{
 		BOOL f_used_default;
 
+		// The registry string may not be null terminated; guarantee it so
+		// the length below and the conversion stay inside the buffer.
+		sz_password_w[_countof(sz_password_w) - 1] = L'\0';
+
 		RtlZeroMemory(sz_password, cb_password);
 
 		if (lstrlen(sz_password_w) > 0)
 		{
-			CHAR sz_pass[10];
+			CHAR sz_pass[10]{};
 
+			// cb_password is the size of the caller's *destination* struct;
+			// it is not the length of the wide source string and must not be
+			// used as the source length for the conversion.
 			dw_error = WideCharToMultiByte(
 				CP_MACCP,
 				0,
 				sz_password_w,
-				static_cast<int>(cb_password),
+				static_cast<int>(lstrlenW(sz_password_w)),
 				sz_pass,
-				sizeof(sz_pass),
+				sizeof(sz_pass) - 1, // leave room for the null; sz_pass is zeroed below
 				"!",
 				&f_used_default
 			);

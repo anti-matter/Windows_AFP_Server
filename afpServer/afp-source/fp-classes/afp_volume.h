@@ -43,7 +43,11 @@ public:
     void set_create_date(const FILETIME date) { creation_date_ = date; }
     void set_modified_date(const FILETIME date) { modification_date_ = date; }
     void set_backup_date(const FILETIME date) { backup_date_ = date; }
+    // OR the flags in. Use clear_internal_flags() to turn bits off;
+    // assigning through this method after a read-modify-write would
+    // never clear anything (it ORs with the existing value).
     void set_internal_flags(const UINT32 flags) { internal_flags_ |= flags; }
+    void clear_internal_flags(const UINT32 flags) { internal_flags_ &= ~flags; }
 
     void set_is_dirty(const bool is_dirty = true) { is_dirty_ = is_dirty; }
     [[nodiscard]] bool is_dirty() const { return is_dirty_; }

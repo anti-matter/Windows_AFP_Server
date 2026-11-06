@@ -30,6 +30,11 @@ public:
 
     DWORD add(const users_and_group_name_type type, const std::wstring& name)
     {
+        // The whole check-then-insert must be under the lock (recursive,
+        // because find_by_name takes it too); otherwise concurrent adds
+        // can duplicate ids or corrupt the vector.
+        std::lock_guard lock(mutex_);
+
         if (const auto result = find_by_name(type, name); result != nullptr)
         {
             DBGWRITE(dbg_level_trace, L"User/group already in cache! (%s)\n", name.c_str());
@@ -87,6 +92,6 @@ public:
 
 private:
     std::vector<std::unique_ptr<afp_user_group_name>> users_and_groups_;
-    std::mutex mutex_;
+    std::recursive_mutex mutex_;
 };
 

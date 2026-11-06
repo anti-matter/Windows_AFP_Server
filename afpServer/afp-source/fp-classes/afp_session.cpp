@@ -42,21 +42,14 @@ afp_session::~afp_session()
 {
     std::lock_guard lock(m_mutex_);
 
-    std::ranges::for_each(m_afp_open_files_, [this](const std::unique_ptr<afp_open_file>& of)
-        {
-            if (of != nullptr)
-            {
-                close_file(of->get_file_ref_num());
-            }
-        });
-
-    std::ranges::for_each(m_open_volumes_, [this](const std::shared_ptr<afp_volume>& ov)
-        {
-            if (ov != nullptr)
-            {
-                close_volume(ov->get_volume_id());
-            }
-        });
+    // Dropping the smart pointers is what closes the forks (the open-file
+    // destructor closes its handle) and releases the volume references.
+    // We must NOT call close_file()/close_volume() while iterating these
+    // vectors: they erase elements, invalidating the iterator being used
+    // by for_each.
+    m_afp_open_files_.clear();
+    m_open_volumes_.clear();
+    m_open_desks_.clear();
 }
 
 
@@ -213,7 +206,7 @@ AFPERROR afp_session::open_volume(const INT16 volume_id)
 
     if (!win_error)
     {
-        DBGWRITE(dbg_level_error, L"Failed to get volume access rights.\n", volume->get_share_name().c_str());
+        DBGWRITE(dbg_level_error, L"Failed to get volume access rights for %s.\n", volume->get_share_name().c_str());
         return afpAccessDenied;
     }
 
@@ -309,8 +302,10 @@ std::shared_ptr<afp_volume> afp_session::find_open_volume(const INT16 volume_id)
 
 INT16 afp_session::open_desk(const INT16 volume_id)
 {
-    const auto open_volume = find_open_volume(volume_id);
-    if (open_volume == nullptr)
+    std::lock_guard lock(m_mutex_);
+
+    const auto volume = find_open_volume(volume_id);
+    if (volume == nullptr)
     {
         return 0;
     }

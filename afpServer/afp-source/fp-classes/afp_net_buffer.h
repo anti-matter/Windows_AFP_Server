@@ -105,6 +105,17 @@ T* afp_net_buffer::get_ptr_offset()
 template <class T>
 T afp_net_buffer::peek_num()
 {
+	// Don't call pull_num unguarded: on a failed space check it returns
+	// without advancing, and the rewind below would then move the ptr
+	// backwards, before the buffer position.
+	if (not_enough_space(sizeof(T)))
+	{
+		DBGWRITE(dbg_level_error, L"Not enough space in buffer to peek num!\n");
+		ASSERT(0);
+
+		return 0;
+	}
+
 	const auto value = pull_num<T>();
 	current_buffer_ptr_ -= sizeof(T);
 
@@ -192,7 +203,10 @@ inline size_t afp_net_buffer::get_data_length() const
 
 inline void afp_net_buffer::set_parameter_offset_value(const INT16 offset, const INT16 value)
 {
-	if (will_overflow(offset + value))
+	// The write at 'offset' consumes sizeof(value) bytes; 'value' itself
+	// has nothing to do with the bounds check.
+	if (offset < 0 ||
+	    buffer_ + static_cast<size_t>(offset) + sizeof(value) > buffer_ + buffer_size_)
 	{
 		DBGWRITE(dbg_level_error, L"Overflow adding parameter at offset!");
 		ASSERT(0);
@@ -248,7 +262,7 @@ inline void afp_net_buffer::advance_if_odd()
 
 inline void afp_net_buffer::move_to(const INT32 offset)
 {
-	if (buffer_ + offset > buffer_ + buffer_size_)
+	if (offset < 0 || buffer_ + offset > buffer_ + buffer_size_)
 	{
 		DBGWRITE(dbg_level_error, L"Overflow moving to buffer offset!");
 		ASSERT(0);

@@ -25,9 +25,9 @@ afp_volume::~afp_volume() = default;
 
 void afp_volume::stop_sharing()
 {
-    auto flags = get_internal_flags();
-    flags &= ~flag_volume_shared;
-    set_internal_flags(flags);
+    // set_internal_flags() ORs bits in, so it cannot clear the shared
+    // flag; the flag used to survive "stop sharing" forever.
+    clear_internal_flags(flag_volume_shared);
 
     notify_->suspend();
     desktop_->export_to_file();
