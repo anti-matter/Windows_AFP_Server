@@ -129,6 +129,14 @@ AFPERROR FPGetFileDirParms(
 
     const auto afp_pathname = afp_request.pull_path(afp_path_type);
 
+    // Hold the index lock while the raw entry is in use: a concurrent
+    // delete (change notify batch or index queue worker, both of which
+    // mutate the index under this lock) could otherwise free the entry
+    // between find() and its use here and inside afp_get_object_parms,
+    // which builds the reply from entry fields. Same protection as
+    // FPEnumerate, FPDelete, FPMoveAndRename and FPRename.
+    std::unique_lock<std::recursive_mutex> index_lock(volume->get_index()->get_mutex());
+
     const auto afp_entry = volume->find(afp_dir_id, afp_pathname);
     if (afp_entry == nullptr)
     {
