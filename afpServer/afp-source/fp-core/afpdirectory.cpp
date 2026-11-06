@@ -692,6 +692,14 @@ AFPERROR FPDelete(
         return afpParmErr;
     }
 
+    // Keep the index locked from find() through remove_entry(): the
+    // change notify thread and the index queue worker can otherwise
+    // free this entry (or a directory whose removal task frees it)
+    // between find() and its use/removal (use-after-free). The delete
+    // APIs below only enqueue async notifications, so no lock-order
+    // cycle is introduced.
+    std::unique_lock<std::recursive_mutex> index_lock(volume->get_index()->get_mutex());
+
     const auto afp_entry = volume->get_index()->find(afp_dir_id, afp_pathname);
     if (afp_entry == nullptr)
     {
@@ -919,6 +927,15 @@ AFPERROR FPMoveAndRename(
 
     auto afp_pathname = afp_request.pull_path(afp_path_type);
 
+    // Hold the index lock from the source lookup through the final
+    // update_entry(): both raw entries used here (source and
+    // destination) can be freed concurrently by the change notify
+    // thread or the index queue worker, which mutate the index under
+    // this same lock (use-after-free otherwise). notify_suspend() is
+    // a non-blocking flag, so suspending inside the lock cannot
+    // deadlock against the notify thread.
+    std::unique_lock<std::recursive_mutex> index_lock(volume->get_index()->get_mutex());
+
     const auto afp_src_entry = volume->find(afp_src_dir_id, afp_pathname);
     if (afp_src_entry == nullptr)
     {
@@ -1040,6 +1057,10 @@ AFPERROR FPRename(
     {
         return afpParmErr;
     }
+
+    // See FPDelete: hold the index lock while using the raw entry
+    // through the rename/update below (use-after-free otherwise).
+    std::unique_lock<std::recursive_mutex> index_lock(volume->get_index()->get_mutex());
 
     const auto afp_entry = volume->find(afp_dir_id, afp_pathname);
     if (afp_entry == nullptr)

@@ -137,6 +137,15 @@ void change_notify::afp_read_dir_changes(
         return;
     }
 
+    // Hold the volume's index lock for the entire notification batch.
+    // The handlers below find() raw afp_index pointers and use them
+    // across calls (and the rename handler keeps one between two
+    // events). Concurrent removals - the index queue worker's
+    // task_index_remove_dir, and AFP FPRemove - free entries under this
+    // same lock; without holding it here, an entry can be freed between
+    // find() and its use, crashing in remove_entry()/update_entry().
+    std::unique_lock<std::recursive_mutex> index_lock(volume->get_index()->get_mutex());
+
     auto p_info = reinterpret_cast<FILE_NOTIFY_INFORMATION*>(result_buffer);
     afp_index* index_entry = nullptr;
     
