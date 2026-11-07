@@ -173,7 +173,6 @@ AFPERROR FPGetExtAttribute(
                     //Not enough space in the reply buffer.
                     //
                     DBGWRITE(dbg_level_warning, L"Not enough space in reply buffer!\n");
-                    ASSERT(0);
 
                     return (afpMiscErr);
                 }
@@ -788,10 +787,9 @@ AFPERROR GetStreams(
     //Since we don't know how many bytes NtQueryInformationFile needs, we
     //just increment our allocation by 16K until its enough.
     //
+    IO_STATUS_BLOCK ioStatus{};
     do
     {
-        IO_STATUS_BLOCK ioStatus;
-
         dwInfoBlockSize += 4 * 1024;
 
         delete [] pStreamInfo;
@@ -799,6 +797,7 @@ AFPERROR GetStreams(
         pStreamInfo = reinterpret_cast<PFILE_STREAM_INFORMATION>(new BYTE[dwInfoBlockSize]);
 
         pSavePtr = pStreamInfo;
+        memset(pStreamInfo, 0, dwInfoBlockSize);
         pStreamInfo->StreamNameLength = 0;
         status = NtQueryInformationFile(
             hFile,
@@ -807,6 +806,12 @@ AFPERROR GetStreams(
             dwInfoBlockSize,
             FileStreamInformation
         );
+
+        if (status != STATUS_BUFFER_OVERFLOW && status != 0)
+        {
+            DBGWRITE(dbg_level_warning, L"[afpxattr:GetStreams]NtQueryInformationFile failed (status 0x%08X) for %s\n",
+                     static_cast<UINT32>(status), pathname);
+        }
     }
     while (status == STATUS_BUFFER_OVERFLOW);
 
@@ -814,6 +819,44 @@ AFPERROR GetStreams(
     //We don't need the hFile anymore
     //
     CloseHandle(hFile);
+
+    //
+    //Walk the kernel-returned record chain with bounds checks: every
+    //record's fixed header and variable-length name must fit inside
+    //the bytes the kernel actually wrote, and NextEntryOffset must
+    //move forward to another in-bounds record.
+    //
+    const auto buffer_start = reinterpret_cast<LPBYTE>(pSavePtr);
+    const auto written = static_cast<size_t>(ioStatus.Information);
+    if (written == 0)
+    {
+        // A successful query that wrote no records: nothing to walk.
+        // (Observed for handles opened without read access under
+        // impersonation.)
+        DBGWRITE(dbg_level_info, L"[afpxattr:GetStreams]No stream records returned for %s\n", pathname);
+        delete [] pSavePtr;
+        return AFP_OK;
+    }
+
+    const auto walk_bytes = written < static_cast<size_t>(dwInfoBlockSize) ? written : static_cast<size_t>(dwInfoBlockSize);
+    const auto buffer_end = buffer_start + walk_bytes;
+    constexpr auto header_size = offsetof(FILE_STREAM_INFORMATION, StreamName);
+
+    // First-record layout dump, for re-verifying the FILE_STREAM_INFORMATION
+    // struct against real NtQueryInformationFile output.
+    DBG_DUMP_BUFFER(reinterpret_cast<const char*>(buffer_start),
+                    walk_bytes < 48 ? walk_bytes : static_cast<size_t>(48), dbg_level_dump_in);
+
+    DBGWRITE(dbg_level_trace,
+             L"[afpxattr:GetStreams]status=0x%08X written=%llu first{next=%u namelen=%u} name0=%c%c%c%c\n",
+             static_cast<UINT32>(status),
+             static_cast<unsigned long long>(written),
+             pStreamInfo->NextEntryOffset,
+             pStreamInfo->StreamNameLength,
+             reinterpret_cast<const WCHAR*>(pStreamInfo->StreamName)[0],
+             reinterpret_cast<const WCHAR*>(pStreamInfo->StreamName)[1],
+             reinterpret_cast<const WCHAR*>(pStreamInfo->StreamName)[2],
+             reinterpret_cast<const WCHAR*>(pStreamInfo->StreamName)[3]);
 
     for (;;)
     {
@@ -827,6 +870,14 @@ AFPERROR GetStreams(
         //
         if (pStreamInfo->StreamNameLength == 0)
         {
+            break;
+        }
+
+        const auto record = reinterpret_cast<LPBYTE>(pStreamInfo);
+        if (record + header_size > buffer_end ||
+            record + header_size + pStreamInfo->StreamNameLength > buffer_end)
+        {
+            DBGWRITE(dbg_level_warning, L"[afpxattr:GetStreams]Stream record exceeds buffer, stopping enumeration.\n");
             break;
         }
 
@@ -916,8 +967,15 @@ AFPERROR GetStreams(
             break;
         }
 
-        pStreamInfo = reinterpret_cast<PFILE_STREAM_INFORMATION>(reinterpret_cast<LPBYTE>(pStreamInfo) + pStreamInfo->
-            NextEntryOffset);
+        const auto next = record + pStreamInfo->NextEntryOffset;
+        if (next <= record + header_size || next >= buffer_end)
+        {
+            DBGWRITE(dbg_level_warning, L"[afpxattr:GetStreams]Bad NextEntryOffset (%u), stopping enumeration.\n",
+                     pStreamInfo->NextEntryOffset);
+            break;
+        }
+
+        pStreamInfo = reinterpret_cast<PFILE_STREAM_INFORMATION>(next);
     }
 
     delete [] pSavePtr;

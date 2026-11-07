@@ -64,6 +64,13 @@ typedef enum _FILE_INFORMATION_CLASS {
 } FILE_INFORMATION_CLASS, *PFILE_INFORMATION_CLASS;
 
 
+// Layout of NtQueryInformationFile(FileStreamInformation) records as
+// actually emitted by the NTFS driver, verified byte-for-byte on the
+// target (pack(4): NextEntryOffset@0, StreamNameLength@4, sizes@8/@16,
+// StreamName@24). The kernel writes name records WITHOUT a StreamId
+// and WITHOUT trailing padding of the name - do not "modernize" this
+// definition from MSDN's FILE_STREAM_INFORMATION without re-verifying
+// against NtQueryInformationFile output.
 #pragma pack(push, 4)
 
 typedef struct _FILE_STREAM_INFORMATION { // Information Class 22
