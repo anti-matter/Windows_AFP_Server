@@ -38,14 +38,16 @@ TIMEOUT=900
 PROBE_HOST="127.0.0.1"
 MSI=0
 MSI_INSTALL=0
+CONFIGURATION="Release"
 
 while [ $# -gt 0 ]; do
     case "$1" in
         --msi)          MSI=1;;
         --msi-install)  MSI=1; MSI_INSTALL=1;;
+        --debug)        CONFIGURATION="Debug";;
         --timeout)      TIMEOUT="$2"; shift;;
         --probe-host)   PROBE_HOST="$2"; shift;;
-        -h|--help)      sed -n '3,20p' "$0"; exit 0;;
+        -h|--help)      sed -n "3,20p" "$0"; exit 0;;
         *)              echo "unknown option: $1" >&2; exit 1;;
     esac
     shift
@@ -108,11 +110,12 @@ scp -P "$GUEST_PORT" -q -o ControlPath="$CM" \
     "$GUEST_BUILD_SRC" "$GUEST:C:/dev/guest-build.ps1"
 
 # ---- 2) remote build (streams compiler output live) -----------------------
-ARGS="-Version $VER"
+ARGS="-Version $VER -Configuration $CONFIGURATION"
 [ "$MSI" = 1 ] && ARGS="$ARGS -Msi"
 [ "$MSI_INSTALL" = 1 ] && ARGS="$ARGS -MsiInstall"
 EXTRA=""
 if [ "$MSI" = 1 ]; then EXTRA=", MSI yes"; fi
+[ "$CONFIGURATION" = "Debug" ] && EXTRA="$EXTRA, DEBUG build"
 echo "==> building on guest (version $VER$EXTRA) - Ctrl-C detaches, guest build continues"
 RESULT="$(mktemp)"
 trap 'rm -f "$MANIFEST" "$RESULT"' EXIT

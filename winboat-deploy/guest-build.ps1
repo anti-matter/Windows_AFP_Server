@@ -12,7 +12,8 @@
 param(
     [string]$Version = '0.0.0',
     [switch]$Msi,
-    [switch]$MsiInstall
+    [switch]$MsiInstall,
+    [string]$Configuration = 'Release'
 )
 $ErrorActionPreference = 'Continue'
 
@@ -87,15 +88,15 @@ if (-not $msbuild) { Fail 'MSBuild not found - install VS Build Tools (rerun set
 # 2) build (deploy.cmd is NOT run; we stage manually below)
 # NB: redirect through cmd so msbuild's raw bytes are appended; PowerShell *>>
 # would mix UTF-16 into the UTF-8 log.
-"build started $(Get-Date -Format s) ver=$Version msi=$([int][bool]$Msi) msiinstall=$([int][bool]$MsiInstall)" | Set-Content $Log -Encoding UTF8
-cmd /c "`"$msbuild`" `"$(Join-Path $Repo 'afpServer.sln')`" /t:afpServer /p:Configuration=Release /p:Platform=x64 /m /v:m >> `"$Log`" 2>&1"
+"build started $(Get-Date -Format s) ver=$Version cfg=$Configuration msi=$([int][bool]$Msi) msiinstall=$([int][bool]$MsiInstall)" | Set-Content $Log -Encoding UTF8
+cmd /c "`"$msbuild`" `"$(Join-Path $Repo 'afpServer.sln')`" /t:afpServer /p:Configuration=$Configuration /p:Platform=x64 /m /v:m >> `"$Log`" 2>&1"
 $code = $LASTEXITCODE
 if ($code -ne 0) { Fail "msbuild exit $code`r`n$(Tail-File $Log 40)" }
 
 # 3) stage runnable set
 $stage = Join-Path $Local 'staging'
 New-Item -ItemType Directory -Force -Path $stage | Out-Null
-Copy-Item (Join-Path $Repo 'afpServer\Release\AfpServer.exe') $stage -Force
+Copy-Item (Join-Path $Repo "afpServer\$Configuration\AfpServer.exe") $stage -Force
 $dll = Get-ChildItem (Join-Path $Repo 'afpServer\deps\openssl-1.1') -Recurse -Filter 'libcrypto*.dll' -EA SilentlyContinue | Select-Object -First 1
 if ($dll) { Copy-Item $dll.FullName $stage -Force }
 
