@@ -2,6 +2,7 @@
 #include <strsafe.h>
 
 #include "afp_open_file.h"
+#include "afp_range_lock.h"
 #include "afpxattr.h"
 #include "afp_volumes.h"
 #include "afp_volume.h"
@@ -36,6 +37,10 @@ afp_open_file::afp_open_file(
 
 afp_open_file::~afp_open_file()
 {
+	// FpByteRangeLock locks are owned by this open fork: releasing them
+	// here covers FPCloseFork, session teardown and server shutdown.
+	afp_range_lock::release_locks_for(this);
+
 	if (is_fork_open())
 	{
 		close_file_fork();

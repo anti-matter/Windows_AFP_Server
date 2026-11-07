@@ -110,6 +110,9 @@
     <ClCompile Include="afp-source\fp-classes\afp_registry.cpp">
       <Filter>Source Files\fp-classes</Filter>
     </ClCompile>
+    <ClCompile Include="afp-source\fp-classes\afp_range_lock.cpp">
+      <Filter>Source Files\fp-classes</Filter>
+    </ClCompile>
     <ClCompile Include="afp-source\dsi\dsi_connections.cpp">
       <Filter>Source Files\dsi</Filter>
     </ClCompile>
@@ -197,6 +200,9 @@
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
     <ClInclude Include="afp-source\fp-classes\afp_registry.h">
+      <Filter>Source Files\fp-classes</Filter>
+    </ClInclude>
+    <ClInclude Include="afp-source\fp-classes\afp_range_lock.h">
       <Filter>Source Files\fp-classes</Filter>
     </ClInclude>
     <ClInclude Include="afp-source\fp-core\afp.h">

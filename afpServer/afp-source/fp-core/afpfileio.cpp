@@ -3,6 +3,7 @@
 #include "StdAfx.h"
 #include "afpfileio.h"
 #include "afp_open_file.h"
+#include "afp_range_lock.h"
 #include "change_notify.h"
 #include "fdparms.h"
 #include "fpinfo.h"
@@ -458,6 +459,7 @@ AFPERROR FPCreateFile(
         nullptr
     );
 
+
     revert_to_self(connection->get_user_token());
 
     if (h_file == INVALID_HANDLE_VALUE)
@@ -496,7 +498,10 @@ AFPERROR FPCreateFile(
  * FPByteRangeLock()
  *
  * Description:
- *		Lock a range for exclusive use.
+ *		Lock or unlock a byte range of an open fork on behalf of the
+ *		calling session (FpByteRangeLock / FpByteRangeLockExt). Locks
+ *		are tracked in server memory (see afp_range_lock); closing the
+ *		fork releases them.
  *
  * Returns: AFPERROR
  */
@@ -520,7 +525,9 @@ AFPERROR FPByteRangeLock(
     switch (afp_command)
     {
     case afpByteRangeLock:
-        afp_offset = afp_request.pull_num<UINT32>();
+        // Signed pull: 68K-era clients send negative offsets when the
+        // start-end flag is set.
+        afp_offset = afp_request.pull_num<INT32>();
         afp_length = afp_request.pull_num<UINT32>();
         break;
 
@@ -535,11 +542,10 @@ AFPERROR FPByteRangeLock(
 
     // Get the handle to the open file fork.
     const afp_open_file* open_file = afp_session->find_open_file(afp_fork_ref);
-    AFPERROR afp_error = (open_file == nullptr) ? afpParmErr : AFP_OK;
-
-    if (AFP_FAILED(afp_error))
+    if (open_file == nullptr)
     {
-        return afp_error;
+        DBGWRITE(dbg_level_info, L"FPByteRangeLock: fork ref not found (%d)\n", afp_fork_ref);
+        return afpParmErr;
     }
 
     const auto h_file = open_file->get_file_handle();
@@ -548,104 +554,94 @@ AFPERROR FPByteRangeLock(
         return afpParmErr;
     }
 
-    // Determine the size of the file so we can calculate the offset
-    // from the end of the file and lock the entire range if
-    // necessary.
-    const UINT32 afp_file_size = GetFileSize(h_file, nullptr);
-    afp_error = (afp_file_size == 0xFFFFFFFF) ? afpParmErr : AFP_OK;
-
-    if (AFP_SUCCESS(afp_error))
+    // We need the fork size for offsets given from the end of the file
+    // and for the all-ones "to end of file" length marker.
+    LARGE_INTEGER file_size = {};
+    if (!GetFileSizeEx(h_file, &file_size))
     {
-        if (afp_brl_flags & kUnlockFlag)
+        DBGWRITE(dbg_level_info, L"FPByteRangeLock: GetFileSizeEx() failed (%d)\n", GetLastError());
+        return afpMiscErr;
+    }
+
+    // All-ones length (0xFFFFFFFF, or all 64 bits for the Ext call) means
+    // "from the offset to the end of the file".
+    const bool to_end_of_file =
+        (afp_command == afpByteRangeLock && afp_length == static_cast<INT64>(0xFFFFFFFF)) ||
+        (afp_command == afpByteRangeLockExt && afp_length == static_cast<INT64>(0xFFFFFFFFFFFFFFFFull));
+
+    const bool is_unlock = (afp_brl_flags & kUnlockFlag) != 0;
+
+    // Normalize an offset given relative to the end of the file: a
+    // negative value counts back from EOF, a positive one is EOF minus
+    // the offset.
+    if (afp_brl_flags & kStartEndFlag)
+    {
+        afp_offset = (afp_offset < 0) ? (file_size.QuadPart + afp_offset)
+                                      : (file_size.QuadPart - afp_offset);
+
+        // An offset reaching past the start of the file clamps to it.
+        if (afp_offset < 0)
         {
-            // A length of all-ones means "from offset to end of file".
-            // Compare against the 64-bit constant: static_cast<INT32>
-            // (0xFFFFFFFF) is -1, which made this true for any length.
-            if (afp_length >= static_cast<INT64>(0xFFFFFFFF))
-            {
-                switch (afp_offset)  // NOLINT(hicpp-multiway-paths-covered)
-                {
-                case 0:
-                    // 0 offset means we unlock the entire range of the file.
-                    afp_length = afp_file_size;
-                    break;
-                default:
-                    // The user wants to lock from offset to the end of the file.
-                    afp_length = (afp_file_size - afp_offset);
-                    break;
-                }
-            }
-
-            DBGWRITE(dbg_level_info, L"Unlocking...\n");
-            DBGWRITE(dbg_level_info, L"Offset = %d\n", afp_offset);
-            DBGWRITE(dbg_level_info, L"Length = %d\n", afp_length);
-
-            //
-            //BUGBUG: Actual unlocking code goes here.
-            //
+            afp_offset = 0;
         }
-        else // Locking
+    }
+    else if (afp_offset < 0)
+    {
+        // The offset can only be negative if we are working from the
+        // end of a file.
+        DBGWRITE(dbg_level_info, L"Negative offset from start!\n");
+        return afpParmErr;
+    }
+
+    if (to_end_of_file)
+    {
+        if (is_unlock)
         {
-            // If the user wants us to set the offset from the end of the
-            // file, then we have a lot more work to do.
-            if (afp_brl_flags & kStartEndFlag)
-            {
-                afp_offset = (afp_offset < 0) ? (afp_file_size + afp_offset) : (afp_file_size - afp_offset);
-            }
-            else // From the beginning
-            {
-                if (afp_offset < 0)
-                {
-                    // The offset can only be negative if we are working from the
-                    // end of a file.
-                    DBGWRITE(dbg_level_info, L"Negative offset from start!\n");
-                    return (afpParmErr);
-                }
-
-                // If the length is 0xFFFFFFFF, then we have special handling to do.
-                if (afp_command == afpByteRangeLock && afp_length == 0xFFFFFFFF ||
-                    afp_command == afpByteRangeLockExt && afp_length == 0xFFFFFFFFFFFFFFFFLL)
-                {
-                    switch (afp_offset)  // NOLINT(hicpp-multiway-paths-covered)
-                    {
-                    case 0:
-                        // 0 offset means we lock the entire range of the file.
-                        afp_length = afp_file_size;
-                        break;
-                    default:
-                        // The user wants to lock from offset to the end of the file.
-                        afp_length = (afp_file_size - afp_offset);
-                        break;
-                    }
-                }
-            } // From beginning
-
-            DBGWRITE(dbg_level_info, L"Locking...\n");
-            DBGWRITE(dbg_level_info, L"Offset = %d\n", afp_offset);
-            DBGWRITE(dbg_level_info, L"Length = %d\n", afp_length);
-
-            //
-            //BUGBUG: Actual locking code goes here.
-            //
+            // Cover everything from the offset onward, including locks
+            // that extend past the current end of file.
+            afp_length = INT64_MAX;
         }
-
-        // We return the first byte of the newly locked range
-        switch (afp_command)
+        else
         {
-        case afpByteRangeLock:
-            afp_reply.push_num<UINT32>(static_cast<UINT32>(afp_offset));
-            break;
-
-        case afpByteRangeLockExt:
-            afp_reply.push_num(afp_offset);
-            break;
-
-        default:
-            return (afpParmErr);
+            // Locking at or past EOF leaves an empty range, which the
+            // lock table rejects with afpParmErr.
+            afp_length = (file_size.QuadPart > afp_offset)
+                             ? (file_size.QuadPart - afp_offset)
+                             : 0;
         }
     }
 
-    return afp_error;
+    DBGWRITE(dbg_level_info, L"%s: offset = %lld, length = %lld\n",
+             is_unlock ? L"Unlocking" : L"Locking",
+             static_cast<long long>(afp_offset),
+             static_cast<long long>(afp_length));
+
+    const AFPERROR afp_error = is_unlock
+                                   ? afp_range_lock::unlock(afp_session, open_file, afp_offset, afp_length)
+                                   : afp_range_lock::lock(afp_session, open_file, afp_offset, afp_length);
+
+    if (AFP_FAILED(afp_error))
+    {
+        return afp_error;
+    }
+
+    // We return the first byte of the newly locked range; per the spec
+    // an unlock returns 0.
+    switch (afp_command)
+    {
+    case afpByteRangeLock:
+        afp_reply.push_num<UINT32>(is_unlock ? 0 : static_cast<UINT32>(afp_offset));
+        break;
+
+    case afpByteRangeLockExt:
+        afp_reply.push_num<INT64>(is_unlock ? 0 : afp_offset);
+        break;
+
+    default:
+        return afpParmErr;
+    }
+
+    return AFP_OK;
 }
 
 

@@ -199,6 +199,7 @@ $(SolutionDir)deploy.cmd $(SolutionDir)
       <FavorSizeOrSpeed Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Speed</FavorSizeOrSpeed>
     </ClCompile>
     <ClCompile Include="afp-source\fp-classes\afp_registry.cpp" />
+    <ClCompile Include="afp-source\fp-classes\afp_range_lock.cpp" />
     <ClCompile Include="afp-source\server-core\change_notify.cpp" />
     <ClCompile Include="afp-source\helpers\afpdebug.cpp" />
     <ClCompile Include="afp-source\helpers\afphelp.cpp" />
@@ -217,6 +218,7 @@ $(SolutionDir)deploy.cmd $(SolutionDir)
     <ClInclude Include="afp-source\fp-classes\afp_volume_icon.h" />
     <ClInclude Include="afp-source\fp-classes\afp_desk_item.h" />
     <ClInclude Include="afp-source\fp-classes\afp_registry.h" />
+    <ClInclude Include="afp-source\fp-classes\afp_range_lock.h" />
     <ClInclude Include="afp-source\fp-classes\afp_net_buffer.h" />
     <ClInclude Include="afp-source\fp-classes\afp_volume.h" />
     <ClInclude Include="afp-source\fp-classes\afp_volumes.h" />
