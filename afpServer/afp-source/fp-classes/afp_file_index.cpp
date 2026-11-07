@@ -195,7 +195,6 @@ void afp_file_index::update_entry(const INT32 object_id, const INT32 new_parent_
 	if (entry == nullptr)
 	{
 		DBGWRITE(dbg_level_error, L"Failed to find entry for update (%d)\n", object_id);
-		ASSERT(0);
 
 		return;
 	}
@@ -204,7 +203,6 @@ void afp_file_index::update_entry(const INT32 object_id, const INT32 new_parent_
 	if (parent == nullptr)
 	{
 		DBGWRITE(dbg_level_error, L"Failed to find parent for update (%d)\n", new_parent_id);
-		ASSERT(0);
 
 		return;
 	}

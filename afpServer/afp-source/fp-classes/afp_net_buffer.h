@@ -111,7 +111,6 @@ T afp_net_buffer::peek_num()
 	if (not_enough_space(sizeof(T)))
 	{
 		DBGWRITE(dbg_level_error, L"Not enough space in buffer to peek num!\n");
-		ASSERT(0);
 
 		return 0;
 	}
@@ -155,7 +154,6 @@ T afp_net_buffer::pull_num()
 	if (!check_space_needed(sizeof(T)))
 	{
 		DBGWRITE(dbg_level_error, L"Not enough space in buffer to pull num!\n");
-		ASSERT(0);
 
 		return 0;
 	}
@@ -230,7 +228,6 @@ inline void afp_net_buffer::advance_pos_ptr(const UINT32 offset)
 	if (will_overflow(offset))
 	{
 		DBGWRITE(dbg_level_error, L"Overflow advancing to offset!");
-		ASSERT(0);
 
 		return;
 	}

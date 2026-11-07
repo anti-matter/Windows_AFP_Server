@@ -380,7 +380,6 @@ afp_desk_item* afp_desktop::find(const afp_desk_item* match_item, const UINT16 s
         switch (match_item->item_type)
         {
         case entry_type_empty:
-            ASSERT(0);
             break;
         case entry_type_icon:
             {

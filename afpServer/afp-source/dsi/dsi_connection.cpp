@@ -277,7 +277,6 @@ namespace dsi
 					if (dsi_command != dsi_cmd_tickle)
 					{
 						send_reply(reply_buffer.get(), dsi_command, client_request_id, afpParmErr, 0);
-						ASSERT(0);
 					}
 
 					return;
@@ -309,8 +308,15 @@ namespace dsi
 					break;
 
 				default:
-					ASSERT(0);
-					break;
+					// A client can put any value in the DSI command
+					// byte, so this must degrade gracefully: log and
+					// drop the connection, the same way other framing
+					// violations are handled. (An assert here would be
+					// a remotely triggerable debug-build crash.)
+					DBGWRITE(dbg_level_error, L"Connection (%d) received undefined DSI command %u, killing connection.\n",
+					         connection_id_, dsi_command);
+					kill_connection();
+					return;
 				}
 
 				perf_counters::current()->increment_afp_requests(1);
@@ -331,7 +337,6 @@ namespace dsi
 
 		default:
 			DBGWRITE(dbg_level_error, L"Bad flag in DSI header: %d\n", dsi_flags);
-			ASSERT(0);
 
 			kill_connection();
 		}

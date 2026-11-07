@@ -98,7 +98,6 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 
 	case kAttrFork:
 		DBGWRITE(dbg_level_info, L"Opening stream %s\n", stream_name);
-		ASSERT(stream_name != nullptr);
 
 		if (stream_name != nullptr)
 		{
@@ -223,7 +222,6 @@ AFPERROR afp_open_file::read_fork(
 	//Make sure we have a valid file handle before we do anything.
 	if (m_file_handle_ == INVALID_HANDLE_VALUE)
 	{
-		ASSERT(0);
 		return afpParmErr;
 	}
 
@@ -302,7 +300,6 @@ AFPERROR afp_open_file::write_fork(
 	// Make sure we have a valid file handle before we do anything.
 	if (m_file_handle_ == INVALID_HANDLE_VALUE)
 	{
-		ASSERT(0);
 		return afpParmErr;
 	}
 
@@ -339,7 +336,10 @@ AFPERROR afp_open_file::write_fork(
 		}
 		else
 		{
-			ASSERT(std::cmp_less_equal(afp_actual, afp_req_count));
+			if (!std::cmp_less_equal(afp_actual, afp_req_count))
+			{
+				DBGWRITE(dbg_level_warning, L"WriteFile() reported more bytes written than requested.\n");
+			}
 
 			const auto file_pointer = SetFilePointer(m_file_handle_, 0, nullptr, FILE_CURRENT);
 			if (file_pointer == INVALID_SET_FILE_POINTER)

@@ -33,10 +33,9 @@ static UINT8 get_afp_version_as_int(const WCHAR* version)
 		result = afpVersion31;
 	else if (!lstrcmp(version, AFP_32_VERSION_STR))
 		result = afpVersion32;
-	else
-	{
-		ASSERT(0);
-	}
+	// An unknown version string leaves the result at zero; FPLogin
+	// rejects those with afpBadUAM. Clients may send any string, so
+	// there is deliberately no assert here.
 
 	return result;
 }
@@ -53,10 +52,9 @@ static INT8 get_uam_type_as_int(const WCHAR* uam_string)
 		result = afpUAMDHCAST128;
 	else if (!lstrcmp(uam_string, UAM_XOR))
 		result = afpUAMXor;
-	else
-	{
-		ASSERT(0);
-	}
+	// An unknown UAM string leaves the result at -1; FPLogin rejects
+	// those with afpBadUAM. Clients may send any string, so there is
+	// deliberately no assert here.
 
 	return (result);
 }
@@ -511,7 +509,6 @@ AFPERROR FPLogin(
 				if (connection->get_extended_logon_info() != nullptr)
 				{
 					DBGWRITE(dbg_level_warning, L"WARNING: Already have extended login info!\n");
-					ASSERT(0);
 
 					connection->free_extended_logon_info();
 				}
@@ -950,7 +947,6 @@ AFPERROR FPGetSrvrMsg(
 
 	default:
 		DBGWRITE(dbg_level_warning, L"Bad message type in FPGetSrvrMsg!\n");
-		ASSERT(0);
 		break;
 	}
 

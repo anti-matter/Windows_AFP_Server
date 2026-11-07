@@ -84,7 +84,6 @@ AFPERROR afp_imp_user_logon(
                           SecurityImpersonation, TokenPrimary, &dupe_handle))
     {
         DBGWRITE(dbg_level_info, L"DuplicateToken() failed! (%d)\n", GetLastError());
-        ASSERT(0);
     }
 
     connection->set_user_token(dupe_handle);

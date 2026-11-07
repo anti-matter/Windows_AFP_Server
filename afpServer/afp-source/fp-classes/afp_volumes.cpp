@@ -231,7 +231,6 @@ bool afp_volumes::index_build(std::filesystem::path& share_path, const INT32  pa
         if (entry == nullptr)
         {
             DBGWRITE(dbg_level_error, L"Failed to add entry to index: %s\n", item_path.c_str());
-            ASSERT(0);
 
             continue;
         }

@@ -224,7 +224,6 @@ void afp_char_map::write_char_map(const std::wstring& file_path, const char_map_
 	if (!std::filesystem::exists(file_path))
 	{
 		DBGWRITE(dbg_level_error, L"Path not found writing char map! (%s)\n", file_path.c_str());
-		ASSERT(0);
 
 		return;
 	}
