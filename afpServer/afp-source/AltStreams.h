@@ -11,9 +11,17 @@ typedef INT NTSTATUS;
 #define STATUS_BUFFER_OVERFLOW        ((NTSTATUS)0x80000005L)
 
 
+// Must match the NT kernel layout exactly: the kernel always writes a
+// union NTSTATUS/PVOID followed by a pointer-sized Information value -
+// 16 bytes on x64. The old 8-byte definition let NtQueryInformationFile
+// write past the end of the stack variable on every call (caught in
+// debug builds as Run-Time Check Failure #2 around 'ioStatus').
 typedef struct _IO_STATUS_BLOCK {
-  NTSTATUS Status;
-  ULONG Information;
+  union {
+    NTSTATUS Status;
+    PVOID Pointer;
+  };
+  ULONG_PTR Information;
 } IO_STATUS_BLOCK, *PIO_STATUS_BLOCK;
 
 
