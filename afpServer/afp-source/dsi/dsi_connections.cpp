@@ -36,8 +36,10 @@ namespace dsi
 
     void dsi_connections::track_connection(std::unique_ptr<dsi_connection>& connection)
 	{
+		DBGWRITE(dbg_level_info, L"Tracking connection (%u), waiting on tracking lock\n", connection->get_connection_id());
 		std::lock_guard guard(connections_mutex_);
 		connections_.push_back(std::move(connection));
+		DBGWRITE(dbg_level_info, L"Tracking connection done, %u active\n", static_cast<unsigned int>(connections_.size()));
 
 		// Tell the power manager that we need system power since we have
 		// active connections to our server.
@@ -46,6 +48,7 @@ namespace dsi
 
 	void dsi_connections::stop_tracking(const UINT32 connection_id)
 	{
+		DBGWRITE(dbg_level_info, L"Stop tracking connection (%u), waiting on tracking lock\n", connection_id);
 		std::lock_guard guard(connections_mutex_);
 		const auto itr = std::ranges::find_if(connections_, [&](const std::unique_ptr<dsi_connection>& c)
         {
@@ -105,13 +108,17 @@ namespace dsi
 				// the connection threads, so it must be walked under the
 				// lock. (Scope the lock to the walk only, so the sleep
 				// below does not block tracking/shutdown operations.)
+				DBGWRITE(dbg_level_trace, L"Periodic thread: waiting on tracking lock\n");
 				std::lock_guard guard(connections_mutex_);
+				DBGWRITE(dbg_level_trace, L"Periodic thread: lock held, %u connections\n",
+				         static_cast<unsigned int>(connections_.size()));
 
 				for (const auto& connection : connections_)
 				{
 					// Check if we need to tickle the client.
 					if (connection->tickle_required() && !connection->get_is_client_sleeping())
 					{
+						DBGWRITE(dbg_level_trace, L"Periodic thread: sending tickle to connection (%u)\n", connection->get_connection_id());
 						connection->send_tickle();
 					}
 

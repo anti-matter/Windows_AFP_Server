@@ -75,11 +75,14 @@ namespace dsi
 #ifdef _DEBUG
         const auto connection_id = connection_id_;
 #endif
+		DBGWRITE(dbg_level_info, L"Connection thread started (%d)\n", connection_id_);
 
 		while(continue_receive_)
 		{
 			receive();
 		}
+
+		DBGWRITE(dbg_level_info, L"Connection (%d) receive loop ended, stopping tracking\n", connection_id_);
 
 		// Close the socket and remove us from tracking. (stop_tracking
 		// closes the socket under the tracking lock, on this thread, and
@@ -217,6 +220,12 @@ namespace dsi
 
 		last_tickle_ = GetTickCount64();
 
+		if (dsi_flags == dsi_request_flag && dsi_command != dsi_cmd_tickle)
+		{
+			DBGWRITE(dbg_level_info, L"Connection (%d) received DSI request: cmd=%u, id=%u, data_len=%u\n",
+			         connection_id_, dsi_command, dsi_request_id, dsi_data_length);
+		}
+
 		switch(dsi_flags)
 		{
 		case dsi_request_flag:
@@ -305,6 +314,12 @@ namespace dsi
 				}
 
 				perf_counters::current()->increment_afp_requests(1);
+			}
+
+			if (dsi_command != dsi_cmd_tickle)
+			{
+				DBGWRITE(dbg_level_info, L"Connection (%d) reply sent: DSI cmd=%u, id=%u\n",
+				         connection_id_, dsi_command, dsi_request_id);
 			}
 			break;
 
@@ -410,7 +425,10 @@ namespace dsi
 		// Get a wrapper for the AFP reply payload.
 		afp_net_buffer reply(&reply_buffer[dsi_offset_data_start], SEND_BUFFER_SIZE);
 
+        DBGWRITE(dbg_level_info, L"Connection (%d) dispatching AFP command %u\n", connection_id_, afp_cmd);
         const auto afp_error = fp_dispatch_command(request, reply, this);
+		DBGWRITE(dbg_level_info, L"Connection (%d) AFP command %u returned %d\n",
+		         connection_id_, afp_cmd, static_cast<int>(afp_error));
 		const auto data_size = afp_cmd == afpRead || afp_cmd == afpReadExt
 			? reply.get_dsi_return_value()
 			: reply.get_data_length();
@@ -621,6 +639,7 @@ namespace dsi
 		}
 
 		socket_closed_ = true;
+		DBGWRITE(dbg_level_info, L"Connection (%d) closing socket\n", connection_id_);
 
 		shutdown(socket_, SD_SEND);
 
@@ -641,6 +660,8 @@ namespace dsi
 
 		closesocket(socket_);
 		socket_ = INVALID_SOCKET;
+		DBGWRITE(dbg_level_info, L"Connection (%d) socket closed (drained %d iterations)\n",
+		         connection_id_, drain_iterations);
 	}
 
     afp_session* dsi_connection::get_afp_session() const

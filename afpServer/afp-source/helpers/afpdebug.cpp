@@ -10,6 +10,128 @@
 #if defined(DBG) || defined(_DEBUG)
 
 //----------------------------------------------------------------------------
+// Persistent debug log
+//----------------------------------------------------------------------------
+// Debug builds always mirror every DBGWRITE to a log file so there is a
+// durable, on-disk record of server events (connections, logons, protocol
+// errors) without needing WinDbg/DebugView attached. The file is
+// afpServer_debug.log next to the executable; if that directory is not
+// writable it falls back to %TEMP%. Each line is prefixed with a
+// millisecond tick and the thread id so the multi-threaded request flows
+// can be interleaved correctly. Writes are serialized on a critical
+// section and unbuffered (WriteFile), so the log survives a crash up to
+// the last completed call.
+
+namespace
+{
+	class debug_log final
+	{
+	public:
+		debug_log()
+		{
+			InitializeCriticalSection(&cs_);
+
+			WCHAR path[MAX_PATH]{};
+			if (GetModuleFileNameW(nullptr, path, MAX_PATH) > 0)
+			{
+				WCHAR* const last_slash = wcsrchr(path, L'\\');
+				if (last_slash != nullptr)
+				{
+					last_slash[1] = L'\0';
+					StringCchCatW(path, MAX_PATH, L"afpServer_debug.log");
+					handle_ = open_log_file(path);
+				}
+			}
+
+			if (handle_ == INVALID_HANDLE_VALUE && GetTempPathW(MAX_PATH, path) > 0)
+			{
+				StringCchCatW(path, MAX_PATH, L"afpServer_debug.log");
+				handle_ = open_log_file(path);
+			}
+
+			if (handle_ != INVALID_HANDLE_VALUE)
+			{
+				SYSTEMTIME sys_time{};
+				GetLocalTime(&sys_time);
+				CHAR banner[160];
+				StringCchPrintfA(banner, ARRAYSIZE(banner),
+				                 "\r\n==== afpServer debug log started %04u-%02u-%02u %02u:%02u:%02u (tick base %llu) ====\r\n",
+				                 sys_time.wYear, sys_time.wMonth, sys_time.wDay,
+				                 sys_time.wHour, sys_time.wMinute, sys_time.wSecond,
+				                 static_cast<unsigned long long>(GetTickCount64()));
+				write_raw(banner, static_cast<DWORD>(strlen(banner)));
+			}
+		}
+
+		~debug_log()
+		{
+			if (handle_ != INVALID_HANDLE_VALUE)
+			{
+				CloseHandle(handle_);
+			}
+			DeleteCriticalSection(&cs_);
+		}
+
+		debug_log(const debug_log&) = delete;
+		debug_log& operator=(const debug_log&) = delete;
+
+		void write(const WCHAR* text)
+		{
+			if (handle_ == INVALID_HANDLE_VALUE)
+			{
+				return;
+			}
+
+			// Convert the wide message to UTF-8.
+			const int utf8_len = WideCharToMultiByte(CP_UTF8, 0, text, -1, nullptr, 0, nullptr, nullptr);
+			if (utf8_len <= 1)
+			{
+				return;
+			}
+			std::string utf8(static_cast<size_t>(utf8_len) - 1, '\0');
+			WideCharToMultiByte(CP_UTF8, 0, text, -1, utf8.data(), utf8_len, nullptr, nullptr);
+
+			CHAR header[64];
+			StringCchPrintfA(header, ARRAYSIZE(header), "%10llu T%-6u ",
+			                 static_cast<unsigned long long>(GetTickCount64()),
+			                 static_cast<unsigned int>(GetCurrentThreadId()));
+
+			EnterCriticalSection(&cs_);
+			DWORD written = 0;
+			WriteFile(handle_, header, static_cast<DWORD>(strlen(header)), &written, nullptr);
+			WriteFile(handle_, utf8.data(), static_cast<DWORD>(utf8.size()), &written, nullptr);
+			LeaveCriticalSection(&cs_);
+		}
+
+	private:
+		static HANDLE open_log_file(const WCHAR* path)
+		{
+			return CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE,
+			                   nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+		}
+
+		void write_raw(const char* text, const DWORD length)
+		{
+			EnterCriticalSection(&cs_);
+			DWORD written = 0;
+			WriteFile(handle_, text, length, &written, nullptr);
+			LeaveCriticalSection(&cs_);
+		}
+
+		HANDLE handle_ = INVALID_HANDLE_VALUE;
+		CRITICAL_SECTION cs_;
+	};
+
+	// C++11 guarantees thread-safe one-time initialization of this static.
+	debug_log& get_debug_log()
+	{
+		static debug_log log_file;
+		return log_file;
+	}
+}
+
+
+//----------------------------------------------------------------------------
 // afp_debug_write()
 //----------------------------------------------------------------------------
 // Debug string cmd for macro.
@@ -66,6 +188,15 @@ void afp_debug_write(_In_ const dbg_level debug_level, _In_ const std::string& f
 	if (chars_written > 0)
 	{
 		OutputDebugString(buffer.get());
+
+		// Mirror to the persistent debug log file (debug builds: always on).
+		std::wstring line(buffer.get());
+		while (!line.empty() && (line.back() == L'\r' || line.back() == L'\n'))
+		{
+			line.pop_back();
+		}
+		line += L"\r\n";
+		get_debug_log().write(line.c_str());
 	}
 
 	va_end(args);

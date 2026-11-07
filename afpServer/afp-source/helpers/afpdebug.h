@@ -39,6 +39,10 @@ void hex_dump(const char* buffer, const size_t length, const dbg_level level);
 
 #endif
 
+// NOTE: in debug builds every DBGWRITE is also mirrored to a durable log
+// file (afpServer_debug.log next to the executable, %TEMP% fallback) so
+// there is always an on-disk record of server events without a debugger.
+// See afpdebug.cpp / afp_debug_write().
 #define ERROR_DLG_TITLE TEXT("AFP Error")
 void report_error(CHAR* sz_error, DWORD dw_error);
  

@@ -22,6 +22,9 @@ AFPERROR afp_imp_user_logon(
     const std::wstring user_name = connection->get_user_name();
     const std::wstring domain_name = connection->get_domain_name();
 
+    DBGWRITE(dbg_level_info, L"LogonUser for [%s]\\[%s] (guest session: %d)\n",
+             domain_name.c_str(), user_name.c_str(), connection->get_is_guest_session());
+
     if (LogonUser(
         user_name.c_str(),
         domain_name.length() > 0 ? domain_name.c_str() : nullptr,
@@ -34,7 +37,8 @@ AFPERROR afp_imp_user_logon(
         // the extended error code.
         const DWORD logon_error = GetLastError();
 
-        DBGWRITE(dbg_level_info, L"LogonUser() failed (%d)\n", logon_error);
+        DBGWRITE(dbg_level_warning, L"LogonUser() failed for [%s]\\[%s] (%d)\n",
+                 domain_name.c_str(), user_name.c_str(), logon_error);
 
         if (connection->get_is_guest_session())
         {

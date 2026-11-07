@@ -307,6 +307,7 @@ AFPERROR FPLogin(
 	//Check for maximum logon sessions limit being reached. If it is, we
 	//just return afpAccessDenied.
 	//
+	DBGWRITE(dbg_level_info, L"FPLogin entered (connection %d)\n", connection->get_connection_id());
 	if (g_max_sessions != 0)
 	{
 		//
@@ -432,6 +433,7 @@ AFPERROR FPLogin(
 			std::wstring guest_name;
 			std::wstring guest_domain;
 
+			DBGWRITE(dbg_level_info, L"FPLogin: guest (UAM-none) session, resolving built-in Guest account\n");
 			if (!get_guest_account_name(guest_name, guest_domain))
 			{
 				DBGWRITE(dbg_level_warning,
@@ -439,6 +441,7 @@ AFPERROR FPLogin(
 				return afpUserNotAuth;
 			}
 
+			DBGWRITE(dbg_level_info, L"FPLogin: guest account resolved to [%s]\\[%s]\n", guest_domain.c_str(), guest_name.c_str());
 			connection->set_user_name(guest_name);
 			connection->set_domain_name(guest_domain);
 			connection->set_guest_session(true);
@@ -524,6 +527,7 @@ AFPERROR FPLogin(
 	}
 
 	// Now do the actual logon, the implementation routine "does the right thing".
+	DBGWRITE(dbg_level_info, L"FPLogin: performing logon for user [%s]\n", sz_user_name.c_str());
 	return afp_imp_user_logon(connection, afp_reply, password);
 }
 
