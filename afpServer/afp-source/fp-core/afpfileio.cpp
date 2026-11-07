@@ -312,7 +312,7 @@ AFPERROR FPGetForkParms(
 {
     afp_session* afp_session = connection->get_afp_session();
 
-    WIN32_FILE_ATTRIBUTE_DATA win_attributes;
+    WIN32_FILE_ATTRIBUTE_DATA win_attributes = {};
 
     DBGWRITE(dbg_level_trace, L"Enter\n");
 
@@ -362,8 +362,38 @@ AFPERROR FPGetForkParms(
         // Add in the bitmap
         afp_reply.push_num(afp_bitmap);
 
-        // We need this to properly set the attributes.
-        GetFileAttributesEx(open_file->get_win_path(), GetFileExInfoStandard, &win_attributes);
+        // Query the fork through its OPEN HANDLE rather than the path
+        // cached at open time. Two correctness problems with a path-based
+        // stat here:
+        //   1. After an FPRename the cached path no longer names this
+        //      fork's file at all - Word 5.1's save dance renames the
+        //      document and immediately re-creates it under the original
+        //      name, so a path-based stat of the old fork's handle would
+        //      report the brand-new (empty) file's size/dates as the old
+        //      document's fork parameters, corrupting the client's view
+        //      of its own document mid-save.
+        //   2. For resource forks m_windows_path_ addresses the main
+        //      stream (the :Afp_AfpResource ADS suffix is only appended
+        //      when opening), so the main stream's length leaked out.
+        // A handle-based query is immune to both (same approach as the
+        // known-good reference server, which stats the open fd).
+        BY_HANDLE_FILE_INFORMATION by_handle_info = {};
+
+        if (GetFileInformationByHandle(open_file->get_file_handle(), &by_handle_info))
+        {
+            win_attributes.dwFileAttributes = by_handle_info.dwFileAttributes;
+            win_attributes.ftCreationTime = by_handle_info.ftCreationTime;
+            win_attributes.ftLastAccessTime = by_handle_info.ftLastAccessTime;
+            win_attributes.ftLastWriteTime = by_handle_info.ftLastWriteTime;
+            win_attributes.nFileSizeHigh = by_handle_info.nFileSizeHigh;
+            win_attributes.nFileSizeLow = by_handle_info.nFileSizeLow;
+        }
+        else
+        {
+            // Fall back to the path (the handle query can fail only on
+            // exotic handles; keep the old behavior in that case).
+            GetFileAttributesEx(open_file->get_win_path(), GetFileExInfoStandard, &win_attributes);
+        }
 
         // Now that we've opened the file, get the requested parameters.
         afp_error = afp_get_object_parms(

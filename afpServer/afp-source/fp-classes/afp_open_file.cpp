@@ -122,7 +122,12 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 	const auto h_file = CreateFile(
 		file_path.c_str(),
 		desired_access,
-		FILE_SHARE_READ | FILE_SHARE_WRITE,
+		// FILE_SHARE_DELETE: classic Mac volumes happily rename/delete a
+		// file while clients (and the very same session) hold forks open -
+		// Word's save dance renames the document with its own data fork
+		// still open. Without share-delete, Windows turns that into a
+		// sharing violation on the rename.
+		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
 		nullptr,
 		creation_disposition,
 		dw_flags_and_attr,

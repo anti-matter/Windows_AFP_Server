@@ -1,4 +1,4 @@
-// ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
+﻿// ReSharper disable CppClangTidyClangDiagnosticGnuZeroVariadicMacroArguments
 // ReSharper disable CppParameterMayBeConstPtrOrRef
 #include "StdAfx.h"
 #include "afpdirectory.h"
@@ -791,7 +791,6 @@ AFPERROR FPDelete(
                      afp_entry->sz_path.c_str(),
                      GetLastError()
             );
-
             afp_error = afp_map_win_error_to_afp(GetLastError(), afpParmErr);
         }
         else
@@ -1043,9 +1042,12 @@ AFPERROR FPMoveAndRename(
 
     notify_suspend suspend(volume.get());
 
-    if (!MoveFile(afp_src_entry->sz_path.c_str(), win_dst_path.c_str()))
+    // MOVEFILE_REPLACE_EXISTING: AFP rename replaces an existing
+    // destination file (POSIX rename semantics); Word reuses its
+    // sacrificial "Word Work File" names across saves.
+    if (!MoveFileEx(afp_src_entry->sz_path.c_str(), win_dst_path.c_str(), MOVEFILE_REPLACE_EXISTING))
     {
-        DBGWRITE(dbg_level_info, L"MoveFile() failed! (%d)\n", GetLastError());
+        DBGWRITE(dbg_level_info, L"MoveFileEx() failed! (%d)\n", GetLastError());
         afp_error = afp_map_win_error_to_afp(GetLastError(), afpParmErr);
     }
 
@@ -1158,9 +1160,11 @@ AFPERROR FPRename(
 
     notify_suspend suspend(volume.get());
 
-    if (!MoveFile(afp_entry->sz_path.c_str(), win_path.c_str()))
+    // MOVEFILE_REPLACE_EXISTING: AFP rename replaces an existing
+    // destination file (POSIX rename semantics).
+    if (!MoveFileEx(afp_entry->sz_path.c_str(), win_path.c_str(), MOVEFILE_REPLACE_EXISTING))
     {
-        DBGWRITE(dbg_level_info, L"MoveFile() failed! (%d)\n", GetLastError());
+        DBGWRITE(dbg_level_info, L"MoveFileEx() failed! (%d)\n", GetLastError());
         afp_error = afp_map_win_error_to_afp(GetLastError(), afpParmErr);
     }
 

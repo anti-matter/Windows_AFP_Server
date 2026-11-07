@@ -299,6 +299,12 @@ AFPERROR afp_map_win_error_to_afp(
     case ERROR_INVALID_PARAMETER:
     case ERROR_INVALID_NAME: return afpParmErr;
 
+    // A file held open by another session (or being deleted while open):
+    // closer to "object locked" than a parameter error.
+    case ERROR_SHARING_VIOLATION:
+    case ERROR_USER_MAPPED_FILE: return afpObjectLocked;
+    case ERROR_ALREADY_EXISTS: return afpObjectExists;
+
     case ERROR_ACCESS_DENIED: return afpAccessDenied;
     case ERROR_HANDLE_DISK_FULL: return afpDiskFull;
     case ERROR_FILE_EXISTS: return afpObjectExists;
