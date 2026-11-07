@@ -70,6 +70,130 @@ PSID get_sid_for_user(IN const std::wstring& user_name)
     return p_sid;
 }
 
+/*
+ * get_sid_last_rid()
+ *
+ * Description:
+ *		Returns the relative identifier (last sub-authority) of a SID.
+ */
+static DWORD get_sid_last_rid(PSID sid)
+{
+    const auto count = GetSidSubAuthorityCount(sid);
+    if (count == nullptr || *count == 0)
+    {
+        return 0;
+    }
+    return *GetSidSubAuthority(sid, *count - 1);
+}
+
+/*
+ * get_guest_account_sid()
+ *
+ * Description:
+ *		Resolves the SID of the built-in Guest account of this machine.
+ *
+ *		CreateWellKnownSid cannot be used: its domain-relative account
+ *		types (WinAccountGuestSid, WinAccountAdministratorSid) fail with
+ *		ERROR_INVALID_PARAMETER when passed a NULL domain on current
+ *		Windows, and the BUILTIN alias SIDs do not carry the machine SID.
+ *
+ *		Instead we resolve the *canonical* name "Guest" scoped to the
+ *		local machine. Windows keeps canonical account names working on
+ *		every locale (the display name is "Invitado", "Gast", etc. on
+ *		Spanish/French systems), and the resulting SID is verified to
+ *		carry the built-in Guest RID (501), so a mis-resolution can
+ *		never be mistaken for the built-in account.
+ *
+ * Returns: LocalAlloc-allocated SID (caller LocalFrees) or nullptr.
+ */
+PSID get_guest_account_sid()
+{
+    // Built-in Guest account RID on every Windows machine.
+    constexpr DWORD kBuiltInGuestRid = 501;
+
+    WCHAR machine_name[MAX_COMPUTERNAME_LENGTH + 1];
+    DWORD name_len = _countof(machine_name);
+    if (!GetComputerNameW(machine_name, &name_len))
+    {
+        DBGWRITE(dbg_level_info, L"GetComputerName() failed getting guest SID (%d)\n", GetLastError());
+        return nullptr;
+    }
+
+    const std::wstring qualified_name = std::wstring(machine_name) + L"\\Guest";
+
+    PSID sid = nullptr;
+    DWORD sid_size = 0;
+    WCHAR ref_domain[128];
+    DWORD domain_size = _countof(ref_domain);
+    SID_NAME_USE sid_use = SidTypeUnknown;
+
+    // First call sizes the SID buffer.
+    LookupAccountNameW(nullptr, qualified_name.c_str(), nullptr, &sid_size, ref_domain, &domain_size, &sid_use);
+    if (sid_size == 0)
+    {
+        DBGWRITE(dbg_level_info, L"LookupAccountName() sizing for [%s] failed (%d)\n",
+                 qualified_name.c_str(), GetLastError());
+        return nullptr;
+    }
+
+    sid = static_cast<PSID>(LocalAlloc(LMEM_ZEROINIT, sid_size));
+    if (sid == nullptr)
+    {
+        return nullptr;
+    }
+
+    domain_size = _countof(ref_domain);
+    const BOOL resolved = LookupAccountNameW(nullptr, qualified_name.c_str(), sid, &sid_size,
+                                             ref_domain, &domain_size, &sid_use);
+
+    if (!resolved || !IsValidSid(sid) || get_sid_last_rid(sid) != kBuiltInGuestRid)
+    {
+        DBGWRITE(dbg_level_info, L"LookupAccountName() for [%s] failed (%d) or RID mismatch\n",
+                 qualified_name.c_str(), GetLastError());
+        LocalFree(sid);
+        return nullptr;
+    }
+
+    return sid;
+}
+
+/*
+ * get_guest_account_name()
+ *
+ * Description:
+ *		Resolves the name + domain to use for logging on the built-in
+ *		Guest account (canonical "Guest" name scoped to this machine,
+ *		verified through its SID to be the built-in account, RID 501).
+ *
+ * Returns: true on success.
+ */
+bool get_guest_account_name(
+    OUT std::wstring& name,
+    OUT std::wstring& domain
+)
+{
+    name.clear();
+    domain.clear();
+
+    const auto guest_sid = get_guest_account_sid();
+    if (guest_sid == nullptr)
+    {
+        return false;
+    }
+    LocalFree(guest_sid);
+
+    WCHAR machine_name[MAX_COMPUTERNAME_LENGTH + 1];
+    DWORD name_len = _countof(machine_name);
+    if (!GetComputerNameW(machine_name, &name_len))
+    {
+        return false;
+    }
+
+    name = L"Guest";
+    domain = machine_name;
+    return true;
+}
+
 void get_access(
     const AUTHZ_CLIENT_CONTEXT_HANDLE authz_client,
     const PSECURITY_DESCRIPTOR psd,
@@ -116,17 +240,16 @@ void get_access(
     }
 }
 
-bool get_effective_rights_for_user(
+bool get_effective_rights_for_sid(
     AUTHZ_RESOURCE_MANAGER_HANDLE manager,
     PSECURITY_DESCRIPTOR psd,
-    const std::wstring& user_name,
+    PSID p_sid,
     ACCESS_MASK* access_mask)
 {
     BOOL result = FALSE;
     constexpr LUID unused_id = {0, 0};
     AUTHZ_CLIENT_CONTEXT_HANDLE authz_client_context = nullptr;
 
-    PSID p_sid = get_sid_for_user(user_name);
     if (p_sid != nullptr)
     {
         result = AuthzInitializeContextFromSid(
@@ -148,12 +271,24 @@ bool get_effective_rights_for_user(
             DBGWRITE(dbg_level_error, L"AuthzInitializeContextFromSid failed with %d\n", GetLastError());
         }
     }
-    if (p_sid != nullptr)
+
+    return result;
+}
+
+bool get_effective_rights_for_user(
+    AUTHZ_RESOURCE_MANAGER_HANDLE manager,
+    PSECURITY_DESCRIPTOR psd,
+    const std::wstring& user_name,
+    ACCESS_MASK* access_mask)
+{
+    PSID p_sid = get_sid_for_user(user_name);
+    if (p_sid == nullptr)
     {
-        LocalFree(p_sid);
-        p_sid = nullptr;
+        return false;
     }
 
+    const bool result = get_effective_rights_for_sid(manager, psd, p_sid, access_mask);
+    LocalFree(p_sid);
     return result;
 }
 
@@ -192,6 +327,7 @@ bool get_directory_rights(
     PSID p_sid_group = nullptr;
     PSID p_sid_owner = nullptr;
     ACCESS_MASK access_rights = 0;
+    ACCESS_MASK guest_access_rights = 0;
 
     DBGWRITE(dbg_level_trace, L"Getting rights for %s...\n", dir_path.c_str());
     DBGWRITE(dbg_level_trace, L"user name = %s\n", logged_on_user_name.c_str());
@@ -281,25 +417,43 @@ bool get_directory_rights(
         LocalFree(user_sid);
     }
 
-    // Now check for guest access.
-    //
-    // BUGBUG: I cannot find a way to get the name of the guest account. This
-    // will fail on international systems as the guest name is different.
+    // Now check for guest access. The guest is identified by the built-in
+    // Guest account's SID (resolved via canonical name + verified RID),
+    // which is locale-independent (the account is not named "Guest" on
+    // international Windows installs). The result is kept separate from
+    // the user's rights: the kAccess_W* bits below always describe what
+    // the Guest account may do.
+    if (const auto guest_sid = get_guest_account_sid(); guest_sid != nullptr)
+    {
+        AUTHZ_RESOURCE_MANAGER_HANDLE manager;
 
-    use_authz_solution(security_descriptor, L"Guest", &access_rights);
+        if (AuthzInitializeResourceManager(
+            AUTHZ_RM_FLAG_NO_AUDIT,
+            nullptr,
+            nullptr,
+            nullptr,
+            nullptr,
+            &manager))
+        {
+            get_effective_rights_for_sid(manager, security_descriptor, guest_sid, &guest_access_rights);
+            AuthzFreeResourceManager(manager);
+        }
 
-    if ((access_rights & GENERIC_READ) == GENERIC_READ || (access_rights & FILE_GENERIC_READ) == FILE_GENERIC_READ)
+        LocalFree(guest_sid);
+    }
+
+    if ((guest_access_rights & GENERIC_READ) == GENERIC_READ || (guest_access_rights & FILE_GENERIC_READ) == FILE_GENERIC_READ)
     {
         DBGWRITE(dbg_level_trace, L"Guest has read access!\n");
         *afp_rights |= kAccess_WR;
     }
-    if ((access_rights & GENERIC_WRITE) == GENERIC_WRITE || (access_rights & FILE_GENERIC_WRITE) == FILE_GENERIC_WRITE ||
-        (access_rights & FILE_WRITE_DATA) == FILE_WRITE_DATA)
+    if ((guest_access_rights & GENERIC_WRITE) == GENERIC_WRITE || (guest_access_rights & FILE_GENERIC_WRITE) == FILE_GENERIC_WRITE ||
+        (guest_access_rights & FILE_WRITE_DATA) == FILE_WRITE_DATA)
     {
         DBGWRITE(dbg_level_trace, L"Guest has write access!\n");
         *afp_rights |= kAccess_WW;
     }
-    if ((access_rights & GENERIC_EXECUTE) == GENERIC_EXECUTE || (access_rights & FILE_GENERIC_EXECUTE) == FILE_GENERIC_EXECUTE)
+    if ((guest_access_rights & GENERIC_EXECUTE) == GENERIC_EXECUTE || (guest_access_rights & FILE_GENERIC_EXECUTE) == FILE_GENERIC_EXECUTE)
     {
         DBGWRITE(dbg_level_trace, L"Guest has execute access!\n");
         *afp_rights |= kAccess_WS;

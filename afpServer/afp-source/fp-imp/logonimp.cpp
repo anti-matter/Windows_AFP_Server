@@ -30,12 +30,44 @@ AFPERROR afp_imp_user_logon(
         LOGON32_PROVIDER_DEFAULT,
         &token) == 0)
     {
-        DBGWRITE(dbg_level_info, L"LogonUser() failed (%d)\n", GetLastError());
+        // Capture once: DBGWRITE below makes API calls that would clobber
+        // the extended error code.
+        const DWORD logon_error = GetLastError();
+
+        DBGWRITE(dbg_level_info, L"LogonUser() failed (%d)\n", logon_error);
+
+        if (connection->get_is_guest_session())
+        {
+            // The guest path logs on the built-in Guest account with its
+            // blank password; the usual blockers are pure configuration,
+            // so tell the administrator exactly what to change.
+            switch (logon_error)
+            {
+            case ERROR_ACCOUNT_DISABLED:
+                DBGWRITE(dbg_level_warning,
+                         L"Guest login failed: the built-in Guest account [%s] is disabled. "
+                         L"Enable it with \"net user %s /active:yes\" (or disallow guests).\n",
+                         user_name.c_str(), user_name.c_str());
+                break;
+
+            case ERROR_LOGON_TYPE_NOT_GRANTED:
+                DBGWRITE(dbg_level_warning,
+                         L"Guest login failed: Windows denies the Guest account network logon. "
+                         L"Grant it \"Access this computer from the network\" and remove it from "
+                         L"\"Deny access to this computer from the network\" (secpol.msc, User Rights Assignment).\n");
+                break;
+
+            default:
+                DBGWRITE(dbg_level_warning,
+                         L"Guest login failed (%d).\n", logon_error);
+                break;
+            }
+        }
 
         // If we had a failure to logon, close the session down.
         //connection->kill_connection();
 
-        afp_error = afp_map_win_error_to_afp(GetLastError(), afpUserNotAuth);
+        afp_error = afp_map_win_error_to_afp(logon_error, afpUserNotAuth);
 
         return afp_error;
     }

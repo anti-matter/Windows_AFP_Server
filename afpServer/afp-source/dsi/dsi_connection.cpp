@@ -32,6 +32,7 @@ namespace dsi
 		  , afp_version_(0)
 		  , uam_type_(0)
 		  , extended_logon_info_(nullptr)
+		  , guest_session_(false)
 	{
 		DBGWRITE(dbg_level_info, L"Connection (%d) accepted\n", connection_id_);
 

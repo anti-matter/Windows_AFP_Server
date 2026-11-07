@@ -423,7 +423,27 @@ AFPERROR FPLogin(
 				return afpBadUAM;
 			}
 
-			sz_user_name = L"Guest";
+			// The guest identity is the built-in Guest account, resolved
+			// through its canonical name + verified RID (501) so it works
+			// on localized Windows (where the display name is not
+			// "Guest"). The connection carries the resolved name/domain so
+			// the shared logon path authenticates it (blank password)
+			// instead of calling LogonUser with an empty name.
+			std::wstring guest_name;
+			std::wstring guest_domain;
+
+			if (!get_guest_account_name(guest_name, guest_domain))
+			{
+				DBGWRITE(dbg_level_warning,
+				         L"UAM-none login: could not resolve the built-in Guest account.\n");
+				return afpUserNotAuth;
+			}
+
+			connection->set_user_name(guest_name);
+			connection->set_domain_name(guest_domain);
+			connection->set_guest_session(true);
+
+			sz_user_name = guest_name;
 			break;
 		}
 
@@ -778,6 +798,7 @@ AFPERROR FPLogout(
 
 		connection->set_user_token(nullptr);
 		connection->set_session_authenticated(false);
+		connection->set_guest_session(false);
 
 		// Notify the administrator of the client logoff the system.
 		EventWriteAFPServerEvt_ClientLogoff(connection->get_user_name().c_str());

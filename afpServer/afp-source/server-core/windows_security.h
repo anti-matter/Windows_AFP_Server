@@ -8,6 +8,23 @@
 
 PSID get_sid_for_user(const std::wstring& user_name);
 
+// Built-in Guest account identification. The account is resolved through
+// the canonical name "Guest" scoped to the local machine (canonical names
+// work on every locale, unlike the display name which is localized), and
+// the resolved SID is asserted to carry the built-in Guest RID (501).
+// CreateWellKnownSid is unusable for built-in *account* SIDs: the
+// domain-relative types fail with ERROR_INVALID_PARAMETER for a NULL
+// domain on current Windows.
+// get_guest_account_sid returns a LocalAlloc-allocated SID (caller LocalFrees),
+// or nullptr. get_guest_account_name returns the name + machine domain to
+// pass to LogonUser for the built-in guest.
+PSID get_guest_account_sid();
+
+bool get_guest_account_name(
+    OUT std::wstring& name,
+    OUT std::wstring& domain
+);
+
 void get_access(
     AUTHZ_CLIENT_CONTEXT_HANDLE authz_client,
     PSECURITY_DESCRIPTOR psd,
@@ -18,6 +35,13 @@ bool get_effective_rights_for_user(
     AUTHZ_RESOURCE_MANAGER_HANDLE manager,
     PSECURITY_DESCRIPTOR psd,
     const std::wstring& user_name,
+    ACCESS_MASK* access_mask
+);
+
+bool get_effective_rights_for_sid(
+    AUTHZ_RESOURCE_MANAGER_HANDLE manager,
+    PSECURITY_DESCRIPTOR psd,
+    PSID sid,
     ACCESS_MASK* access_mask
 );
 

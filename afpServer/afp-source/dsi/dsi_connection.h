@@ -134,6 +134,12 @@ namespace dsi
 		void set_domain_name(const std::wstring& domain_name) { domain_name_ = domain_name; }
 		std::wstring get_domain_name() const { return domain_name_; }
 
+		// True when the session authenticated through the no-authentication
+		// UAM ("No User Authent") and is bound to the built-in Guest
+		// account (resolved by canonical name + RID 501).
+		void set_guest_session(const bool guest) { guest_session_ = guest; }
+		bool get_is_guest_session() const { return guest_session_; }
+
 		void set_extended_logon_info(void* data) { extended_logon_info_ = data; }
 		void* get_extended_logon_info() const { return extended_logon_info_; }
 		// The blob is allocated with new (see afpuser.cpp), so it must be
@@ -185,6 +191,7 @@ namespace dsi
 
 		std::wstring user_name_;
 		std::wstring domain_name_;
+		bool guest_session_;
 
 		std::mutex send_mutex_;
 	};
