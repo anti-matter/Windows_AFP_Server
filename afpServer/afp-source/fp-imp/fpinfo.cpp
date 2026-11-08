@@ -8,17 +8,52 @@ void create_finder_info_stream(
     IN const bool make_invisible
 )
 {
-    //Zero it: when no finder-info stream exists yet, the fields other
+    //Zero it: when no finder info stream exists yet, the fields other
     //than type/creator must default to zero, not stack garbage.
     afp_finder_info finder_info{};
 
-    if (AFP_SUCCESS(get_finder_info(entry, &finder_info)))
+    // Only ever create a DEFAULT finder-info stream when the stream is
+    // truly absent. A failed READ is not absence: during a Windows-side
+    // copy (Explorer/robocopy) the copier holds the real AFP_AfpInfo
+    // stream open, so a read probe returns ERROR_SHARING_VIOLATION.
+    // Writing defaults then - especially with the sharing-retry wait in
+    // set_finder_info() - overwrites the copied Finder info the moment
+    // the copier releases it.
+    std::filesystem::path stream_path = entry->sz_path;
+    stream_path.concat(":");
+    stream_path.concat(afp_info_stream_name);
+
+    const auto h_probe = CreateFile(
+        stream_path.c_str(),
+        GENERIC_READ,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        nullptr,
+        OPEN_EXISTING,
+        FILE_ATTRIBUTE_NORMAL,
+        nullptr
+    );
+
+    if (h_probe != INVALID_HANDLE_VALUE)
     {
+        // The stream exists; its (possibly unreadable right now) content
+        // is authoritative - leave it alone.
+        CloseHandle(h_probe);
         return;
     }
 
-    // If an item didn't have a finder info stream before, set the
-    // defaults and add one now.
+    const DWORD probe_error = GetLastError();
+    if (probe_error != ERROR_FILE_NOT_FOUND && probe_error != ERROR_PATH_NOT_FOUND)
+    {
+        DBGWRITE(dbg_level_info,
+                 L"Finder-info stream not readable (%d), leaving it alone: %s\n",
+                 probe_error, stream_path.c_str());
+        return;
+    }
+
+    // No finder-info stream exists: set the defaults and add one now.
+    // get_finder_info() fails the same way but also fills type/creator
+    // from the extension map, which is what the new default should carry.
+    get_finder_info(entry, &finder_info);
 
     const auto attributes = GetFileAttributes(entry->sz_path.c_str());
 
@@ -180,19 +215,35 @@ AFPERROR set_finder_info(
     for (;;)
     {
         // Now open the AFP_Info stream to write to it.
+        // For the create path, CREATE_NEW (not OPEN_ALWAYS): the caller
+        // only asks to create when it verified the stream is absent, so
+        // if it appeared while we were waiting out a sharing violation
+        // (e.g. a Windows-side copy just finished writing the real
+        // finder info), failing the create must NOT fall through to
+        // writing over that content.
         h_file = CreateFile(
             path.c_str(),
             FILE_WRITE_DATA,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             nullptr,
-            create_always ? OPEN_ALWAYS : OPEN_EXISTING,
+            create_always ? CREATE_NEW : OPEN_EXISTING,
             FILE_ATTRIBUTE_NORMAL,
             nullptr
-        );
+            );
 
         if (h_file == INVALID_HANDLE_VALUE)
         {
             dw_error = GetLastError();
+
+            if (create_always && dw_error == ERROR_FILE_EXISTS)
+            {
+                // The end state we wanted (a stream exists) is already
+                // true; whoever created it owns its content now.
+                DBGWRITE(dbg_level_trace,
+                         L"Finder-info stream already exists, not overwriting: %s\n",
+                         path.c_str());
+                return AFP_OK;
+            }
 
             // Sometimes we have to wait for a copy operation to complete before we can
             // open and muck with the file. This occurs mainly during copy operations performed

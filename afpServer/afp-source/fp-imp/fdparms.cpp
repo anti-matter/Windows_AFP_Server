@@ -20,10 +20,16 @@ void afp_check_for_and_create_rsrc_stream(
     res_path.concat(":");
     res_path.concat(AFP_RESOURCE_FORK_NAME);
 
+    // Share the stream while probing/creating: an exclusive (share mode 0)
+    // handle here can make a concurrent Windows-side copy of this very
+    // stream fail with a sharing violation, silently losing the resource
+    // fork of the copy.
+    constexpr DWORD share_mode = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+
     auto h_file = CreateFile(
         res_path.c_str(),
         GENERIC_READ | GENERIC_WRITE,
-        0,
+        share_mode,
         nullptr,
         OPEN_EXISTING,
         FILE_ATTRIBUTE_NORMAL,
@@ -37,7 +43,7 @@ void afp_check_for_and_create_rsrc_stream(
             h_file = CreateFile(
                 res_path.c_str(),
                 GENERIC_READ | GENERIC_WRITE,
-                0,
+                share_mode,
                 nullptr,
                 CREATE_NEW,
                 FILE_ATTRIBUTE_NORMAL,
