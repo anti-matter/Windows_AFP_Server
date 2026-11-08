@@ -1,10 +1,7 @@
 #pragma once
 
-LRESULT CALLBACK send_message_dlg_proc(
-		IN HWND 	h_dlg,
-		IN DWORD 	message,
-		IN WPARAM 	w_param,
-		IN LPARAM 	l_param
-);
+#include <windows.h>
 
-void send_message_from_ui(HWND h_parent);
+// Shows the "Send Message" dialog. Returns the number of clients that
+// received the message, or -1 if the dialog was cancelled.
+int send_message_from_ui(HWND h_parent);

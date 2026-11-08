@@ -1,6 +1,25 @@
 ===============================================================================
 Personal AFP Server Change Log
 
+Version 2.4.0:
+- The management interface was redesigned as a modern Windows 11-style utility
+  window: a card-based layout (Shared Volumes, Security & Access, Login
+  Message, collapsible Advanced Settings), status pill with live client count,
+  toggle switches, Fluent-styled buttons, toasts, and a custom title bar
+  accent. Full light/dark theme support (follows the system setting live),
+  accent-color awareness, Segoe UI Variable typography, per-monitor v2 DPI
+  scaling, and a resizable window (size and expansion state are remembered).
+  The Send Message and About dialogs were restyled to match, and the share
+  folder picker uses the modern common item dialog.
+- Closing the window now always saves and hides to the tray; stopping the
+  server is a separate, explicit, confirmed action (as before, but with a
+  modern confirmation dialog). Common Controls v6 and long-path awareness are
+  now enabled via the application manifest.
+- Fixed: clearing the read-only flag on a share had no effect (the flag was
+  OR'd instead of cleared).
+- Fixed: legacy row-height message sent to the volume list view could crash
+  the server at startup; row height is now set via WM_MEASUREITEM.
+
 Version 2.3.0:
 - The server is now a 64-bit (x64) application. 32-bit (x86/Win32) builds are
   no longer supported: the solution and project only define x64 platforms, and

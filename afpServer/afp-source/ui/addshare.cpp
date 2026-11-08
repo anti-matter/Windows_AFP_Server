@@ -1,77 +1,89 @@
 #include "stdafx.h"
 #include "addshare.h"
 
-#include <shlobj.h>
+#include <shobjidl.h>
+#include <strsafe.h>
 
 #include "volumes.h"
 
-
-void add_share(const HWND front_window)
+namespace
 {
-    WCHAR share_name[MAX_PATH];
-
-    if (WCHAR path[MAX_PATH]; choose_folder(front_window, path, share_name))
+    // Extracts the leaf folder name from a full path.
+    std::wstring leaf_name(const std::wstring& path)
     {
-        if (path[0] != '\\' && lstrlen(path) > 3)
-        {
-            WCHAR temp[512];
+        size_t end = path.size();
+        while (end > 0 && (path[end - 1] == L'\\' || path[end - 1] == L'/'))
+            --end;
 
-            if (SUCCEEDED(AFPAddNewVolumeFromUI(share_name, path, NULL)))
-            {
-                std::ignore = StringCbPrintf(
-                    temp,
-                    sizeof(temp),
-                    TEXT("The following directory has been successfully shared to Macintosh clients (via AFP):\n\n %s"),
-                    path
-                );
-            }
-            else
-            {
-                std::ignore = StringCbPrintf(
-                    temp, sizeof(temp),
-                    TEXT(
-                        "The directory was not shared, please make sure you are only sharing folders on the local disk.")
-                );
-            }
+        const size_t slash = path.find_last_of(L"\\/", end == 0 ? 0 : end - 1);
+        if (slash == std::wstring::npos)
+            return path.substr(0, end);
+        return path.substr(slash + 1, end - slash - 1);
+    }
 
-            MessageBox(
-                front_window,
-                temp,
-                TEXT("Sharing Notification"),
-                MB_OK
-            );
-        }
-        else
+    bool pick_folder(const HWND owner, std::wstring& path_out)
+    {
+        IFileOpenDialog* dialog = nullptr;
+        HRESULT hr = CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER,
+                                      IID_PPV_ARGS(&dialog));
+        if (FAILED(hr))
+            return false;
+
+        bool picked = false;
+
+        DWORD options = FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST;
+        dialog->SetOptions(options);
+        dialog->SetTitle(L"Choose a folder to share with Macintosh clients");
+
+        if (SUCCEEDED(dialog->Show(owner)))
         {
-            MessageBox(
-                front_window,
-                TEXT("Only local directories (folders) may be shared."),
-                TEXT("Sharing Error"),
-                MB_OK
-            );
+            IShellItem* item = nullptr;
+            if (SUCCEEDED(dialog->GetResult(&item)))
+            {
+                PWSTR raw_path = nullptr;
+                if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &raw_path)))
+                {
+                    path_out = raw_path;
+                    CoTaskMemFree(raw_path);
+                    picked = !path_out.empty();
+                }
+                item->Release();
+            }
         }
+
+        dialog->Release();
+        return picked;
     }
 }
 
-
-int choose_folder(const HWND front_window, const PTCHAR folder_path, const PTCHAR share_name)
+add_share_outcome prompt_for_new_share(const HWND owner)
 {
-    int result = FALSE;
-    BROWSEINFO bi;
+    add_share_outcome outcome;
 
-    bi.hwndOwner = front_window;
-    bi.pidlRoot = nullptr;
-    bi.pszDisplayName = share_name;
-    bi.lpszTitle = TEXT("Choose the folder to share to Macintosh clients:");
-    bi.ulFlags = (BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE);
-    bi.lpfn = nullptr;
-    bi.lParam = 0;
-    bi.iImage = 0;
-
-    if (const LPITEMIDLIST item_id_list = SHBrowseForFolder(&bi); item_id_list != nullptr)
+    std::wstring path;
+    if (!pick_folder(owner, path))
     {
-        result = SHGetPathFromIDList(item_id_list, folder_path);
+        outcome.result = add_share_result::cancelled;
+        return outcome;
     }
 
-    return result;
+    outcome.path = path;
+    outcome.name = leaf_name(path);
+
+    // Only folders on local disks can be shared (UNC paths and drive roots
+    // are rejected), matching the original server-side restriction.
+    const bool looks_local = path.size() > 3 && path[0] != L'\\';
+    if (!looks_local || outcome.name.empty())
+    {
+        outcome.result = add_share_result::invalid_folder;
+        return outcome;
+    }
+
+    // Copy out writable buffers for the (legacy) volume API.
+    std::wstring name_buf = outcome.name;
+    std::wstring path_buf = outcome.path;
+
+    const DWORD error = AFPAddNewVolumeFromUI(name_buf.data(), path_buf.data(), nullptr);
+    outcome.result = SUCCEEDED(error) ? add_share_result::shared : add_share_result::share_failed;
+    return outcome;
 }

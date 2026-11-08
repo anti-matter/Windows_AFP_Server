@@ -46,6 +46,12 @@
 #define IDC_VERSION_TEXT                1030
 #define IDC_EDIT1                       1031
 #define IDC_CONVERT_EXTENSIONS          1031
+#define IDC_ADV_HEADER                  1033
+#define IDC_CLIENT_COUNT                1044
+#define ID_ACTION_SAVE                  1040
+#define IDM_TRAY_OPEN                   1041
+#define IDM_TRAY_SEND                   1042
+#define IDM_TRAY_SHUTDOWN               1043
 
 // Next default values for new objects
 // 

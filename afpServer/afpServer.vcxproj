@@ -85,7 +85,7 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
       </DataExecutionPrevention>
       <TargetMachine>MachineX64</TargetMachine>
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
-      <AdditionalDependencies>legacy_stdio_definitions.lib;libcrypto64MT.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>legacy_stdio_definitions.lib;libcrypto64MT.lib;shlwapi.lib;gdiplus.lib;dwmapi.lib;uxtheme.lib;ole32.lib;uuid.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <TypeLibraryFile>
       </TypeLibraryFile>
       <TypeLibraryResourceID>1</TypeLibraryResourceID>
@@ -141,7 +141,7 @@ ctrpp -o $(ProjectDir)\resources\afpCounters.h -rc $(ProjectDir)resources\afpCou
       </DataExecutionPrevention>
       <TargetMachine>MachineX64</TargetMachine>
       <UACExecutionLevel>RequireAdministrator</UACExecutionLevel>
-      <AdditionalDependencies>legacy_stdio_definitions.lib;libcrypto64MT.lib;shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>legacy_stdio_definitions.lib;libcrypto64MT.lib;shlwapi.lib;gdiplus.lib;dwmapi.lib;uxtheme.lib;ole32.lib;uuid.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <Manifest>
       <AdditionalManifestFiles>afpServer.exe.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles>
@@ -205,7 +205,10 @@ $(SolutionDir)deploy.cmd $(SolutionDir)
     <ClCompile Include="afp-source\helpers\afphelp.cpp" />
     <ClCompile Include="afp-source\ui\aboutdlg.cpp" />
     <ClCompile Include="afp-source\ui\addshare.cpp" />
+    <ClCompile Include="afp-source\ui\main_window.cpp" />
     <ClCompile Include="afp-source\ui\sendmsgdlg.cpp" />
+    <ClCompile Include="afp-source\ui\ui_controls.cpp" />
+    <ClCompile Include="afp-source\ui\ui_theme.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="afp-source\afpServer.h" />
@@ -251,7 +254,10 @@ $(SolutionDir)deploy.cmd $(SolutionDir)
     <ClInclude Include="afp-source\server-core\windows_security.h" />
     <ClInclude Include="afp-source\ui\aboutdlg.h" />
     <ClInclude Include="afp-source\ui\addshare.h" />
+    <ClInclude Include="afp-source\ui\main_window.h" />
     <ClInclude Include="afp-source\ui\sendmsgdlg.h" />
+    <ClInclude Include="afp-source\ui\ui_controls.h" />
+    <ClInclude Include="afp-source\ui\ui_theme.h" />
     <ClInclude Include="line_conversion.h" />
     <ClInclude Include="resources\resource.h" />
     <ClInclude Include="stdafx.h" />

@@ -36,7 +36,10 @@ consult it before changing protocol behavior.
   - `helpers/` — debug logging (`afpdebug`), misc helpers, `byte_swap.h`.
   - `line-conversion/` — Mac (CR) ↔ Unix (LF) text conversion for configured
     file extensions.
-  - `ui/` — dialogs: about, add-share, send-message.
+  - `ui/` — the Fluent-style main window (`main_window.*`), theme/palette and
+    fonts (`ui_theme.*`), custom controls (toggle switch, owner-draw buttons,
+    GDI+ drawing helpers in `ui_controls.*`), plus the about, add-share
+    (folder picker) and send-message dialogs.
 - `afpServer/afpServer.cpp` — entry point, tray icon, main window.
 - `afpServer/resources/` — icons, `afpserver.rc`, `resource.h`, and
   **generated** event-log/counter files (see Build).
