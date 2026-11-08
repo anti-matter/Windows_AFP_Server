@@ -4,11 +4,12 @@
 
 #include "afp.h"
 
-constexpr auto days_from_1980_2000 = 7305L; // (20*365 + 5);
-constexpr auto seconds_per_day = 86400L; // 24*60*60;
-constexpr auto seconds_from_1980_2000 = seconds_per_day * days_from_1980_2000;
 constexpr auto num_100_ns_per_second = 10000000L;
-constexpr LARGE_INTEGER seconds_to_start_of_1980 = {{0xc8df3700 , 0x00000002}};
+
+// Seconds in FILETIME units' worth of plain seconds between the Windows
+// epoch (1601-01-01 UTC) and the Mac epoch (1904-01-01 UTC), which is
+// what AFP uses for every date it sends and receives (110,667 days).
+constexpr ULONGLONG seconds_to_start_of_1904 = 9561628800ULL;
 
 bool should_ignore_object(const std::wstring& object_name);
 

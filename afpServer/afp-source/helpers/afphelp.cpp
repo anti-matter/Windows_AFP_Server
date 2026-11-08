@@ -22,9 +22,11 @@ static std::wstring objects_to_ignore[] = { // NOLINT(misc-use-anonymous-namespa
 
 bool should_ignore_object(const std::wstring& object_name)
 {
+    //Windows object names are case-insensitive; compare that way so
+    //"AFP_DESKTOP.DB" etc. is ignored too.
     for (const auto& ignore : objects_to_ignore)  // NOLINT(readability-use-anyofallof)
     {
-        if (object_name == ignore)
+        if (_wcsicmp(object_name.c_str(), ignore.c_str()) == 0)
         {
             return true;
         }
@@ -111,31 +113,34 @@ ULONG afp_windows_to_mac_time(
     IN const PFILETIME file_time
 )
 {
-    ULARGE_INTEGER seconds;
     ULARGE_INTEGER time;
-
     time.LowPart = file_time->dwLowDateTime;
     time.HighPart = file_time->dwHighDateTime;
 
-    seconds.QuadPart = time.QuadPart / num_100_ns_per_second;
-    seconds.QuadPart = seconds.QuadPart - seconds_to_start_of_1980.QuadPart;
+    const ULONGLONG seconds_since_1601 = time.QuadPart / num_100_ns_per_second;
 
-    return seconds.LowPart - seconds_from_1980_2000;
+    //
+    //AFP dates are seconds since the Mac epoch (1904-01-01 UTC) - the
+    //same epoch HFS uses. Times before the epoch are reported as 0,
+    //the AFP convention for "no date".
+    //
+    if (seconds_since_1601 < seconds_to_start_of_1904)
+    {
+        return 0;
+    }
+
+    return static_cast<ULONG>(seconds_since_1601 - seconds_to_start_of_1904);
 }
 
 ULONG afp_windows_to_mac_local_time(
     IN const PFILETIME file_time
 )
 {
-    LARGE_INTEGER local_time;
-    LARGE_INTEGER seconds;
+    FILETIME local_time{};
 
-    FileTimeToLocalFileTime(file_time, reinterpret_cast<PFILETIME>(&local_time));
+    FileTimeToLocalFileTime(file_time, &local_time);
 
-    seconds.QuadPart = local_time.QuadPart / num_100_ns_per_second;
-    seconds.QuadPart = seconds.QuadPart - seconds_to_start_of_1980.QuadPart;
-
-    return seconds.LowPart - seconds_from_1980_2000;
+    return afp_windows_to_mac_time(&local_time);
 }
 
 void afp_mac_to_windows_time(
@@ -143,15 +148,17 @@ void afp_mac_to_windows_time(
     IN const PFILETIME file_time
 )
 {
-    LARGE_INTEGER local_time;
+    LARGE_INTEGER utc_time;
 
-    mac_time += seconds_from_1980_2000;
+    //
+    //mac_time is seconds since 1904-01-01 UTC; shift into the Windows
+    //epoch and scale to 100ns units.
+    //
+    utc_time.QuadPart = (static_cast<LONGLONG>(mac_time) +
+        static_cast<LONGLONG>(seconds_to_start_of_1904)) * num_100_ns_per_second;
 
-    local_time.QuadPart = mac_time + seconds_to_start_of_1980.QuadPart;
-    local_time.QuadPart = local_time.QuadPart * num_100_ns_per_second;
-
-    file_time->dwLowDateTime = local_time.LowPart;
-    file_time->dwHighDateTime = local_time.HighPart;
+    file_time->dwLowDateTime = utc_time.LowPart;
+    file_time->dwHighDateTime = utc_time.HighPart;
 }
 
 void afp_mac_to_windows_local_time(
@@ -213,6 +220,13 @@ void afp_get_object_dot3_extension(
     IN const size_t cb_name_buff
 )
 {
+    //Start empty: when no extension is found the caller must get a
+    //cleared buffer, not whatever was left in it.
+    if (cb_name_buff >= sizeof(WCHAR))
+    {
+        p_name_buff[0] = L'\0';
+    }
+
     const auto path_len = lstrlen(p_path);
 
     if (path_len == 0)
