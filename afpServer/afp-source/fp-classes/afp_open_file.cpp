@@ -129,7 +129,12 @@ AFPERROR afp_open_file::afp_open_file_fork(const PWCHAR stream_name, const DWORD
 		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
 		nullptr,
 		creation_disposition,
-		dw_flags_and_attr,
+		// SECURITY_SQOS_PRESENT | SECURITY_IMPERSONATION: pin the
+		// security quality-of-service explicitly. Without it the system
+		// applies its default QoS to the thread's impersonation token
+		// (anonymous semantics); being explicit keeps access checks on
+		// the client's token, which is the whole point here.
+		dw_flags_and_attr | SECURITY_SQOS_PRESENT | SECURITY_IMPERSONATION,
 		nullptr
 	);
 

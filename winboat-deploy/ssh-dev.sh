@@ -80,8 +80,13 @@ TAR_EXCLUDES=(--exclude='./.git' --exclude='./.vs' --exclude='./out'
               --exclude='*.zip' --exclude='*.log')
 echo "==> syncing $REPO_DIR -> ${GUEST}:C:/dev/repo"
 "${SSH[@]}" 'cmd /c if not exist C:\dev\repo mkdir C:\dev\repo'
+# -m on the guest extract: extracted files get a CURRENT guest mtime.
+# tar carries Linux mtimes that can land older than the guest's existing
+# .obj files (timestamp handling across the wire), which makes MSBuild's
+# incremental check silently skip changed sources. Fresh mtimes keep the
+# incremental build honest (worst case it rebuilds a bit more).
 tar cf - "${TAR_EXCLUDES[@]}" -C "$REPO_DIR" . \
-    | "${SSH[@]}" 'tar xf - -C C:/dev/repo' \
+    | "${SSH[@]}" 'tar xmf - -C C:/dev/repo' \
     || { echo "source sync failed" >&2; exit 1; }
 
 # manifest of what the tree SHOULD contain (same exclusions as tar) -

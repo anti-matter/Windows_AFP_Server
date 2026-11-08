@@ -104,13 +104,22 @@ DWORD set_directory_owner_and_group(
 );
 
 // Applies the coarse AFP rights (O*/G*/W*/U* bit triples in afp_rights)
-// to the object's *explicit* DACL: existing explicit ACEs for the
-// object's owner, its primary group and Everyone are replaced with a
-// single ALLOW ACE per class carrying the requested generic rights (the
-// owner additionally keeps READ_CONTROL | WRITE_DAC). Inherited ACEs and
-// ACEs of other principals are preserved; inherited grants remain a
-// floor the AFP layer cannot undercut. Returns ERROR_SUCCESS or the
-// Win32 error (never rely on GetLastError afterwards - logging resets it).
+// as one ALLOW ACE per class (owner / primary group / Everyone), the
+// owner additionally keeping READ_CONTROL | WRITE_DAC. ACEs of other
+// principals are preserved. Normally only the object's explicit ACEs are
+// touched, so inherited grants stay a floor the AFP layer cannot
+// undercut. When the requested classes revoke access one of the three
+// managed principals effectively holds (e.g. the classic Finder
+// "Write Only (Everyone)" drop folder over an Everyone:RX share), the
+// object's DACL is made self-contained instead: the merged grants of all
+// other principals are kept as explicit ACEs and inheritance is stopped
+// (SE_DACL_PROTECTED), making the AFP classes the final say. Where the
+// world class withholds read but guests could still read through the
+// group class (the machine "None" group contains every local account,
+// built-in Guest included) a deny ACE keeps Builtin\\Guests on the world
+// class - the AFP "nobody" semantics of a drop folder. Returns
+// ERROR_SUCCESS or the Win32 error (never rely on GetLastError
+// afterwards - logging resets it).
 DWORD set_directory_afp_access(
     IN const std::wstring& obj_path,
     IN DWORD afp_rights,
@@ -145,4 +154,5 @@ BOOL impersonate_user(
 BOOL revert_to_self(
     IN HANDLE h_user_token
 );
+
 

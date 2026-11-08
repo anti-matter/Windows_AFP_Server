@@ -329,6 +329,43 @@ AFPERROR FPEnumerate(
         return afpObjectNotFound;
     }
 
+    // The requester must actually be able to list the target directory.
+    // The file index is built with server-wide rights, so without this
+    // gate an AFP user could enumerate directories Windows denies them
+    // read access to - most notably a Finder "Write Only (Everyone)"
+    // drop folder, whose whole point is that guests cannot see its
+    // contents. Checked against the requester's impersonated token.
+    if (!impersonate_user(connection->get_user_token()))
+    {
+        return afpAccessDenied;
+    }
+
+    const auto list_handle = CreateFile(
+        afp_target_entry->sz_path.c_str(),
+        FILE_LIST_DIRECTORY,
+        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+        nullptr,
+        OPEN_EXISTING,
+        FILE_FLAG_BACKUP_SEMANTICS | SECURITY_SQOS_PRESENT | SECURITY_IMPERSONATION,
+        nullptr);
+
+    // Capture once: RevertToSelf below makes API calls that clobber the
+    // extended error code.
+    const DWORD list_error = list_handle == INVALID_HANDLE_VALUE ? GetLastError() : ERROR_SUCCESS;
+
+    revert_to_self(connection->get_user_token());
+
+    if (list_handle == INVALID_HANDLE_VALUE)
+    {
+        DBGWRITE(dbg_level_info, L"Directory listing denied for %s (%d)\n",
+                 afp_target_entry->sz_path.c_str(), list_error);
+
+        return list_error == ERROR_FILE_NOT_FOUND || list_error == ERROR_PATH_NOT_FOUND
+            ? afpObjectNotFound
+            : afpAccessDenied;
+    }
+    CloseHandle(list_handle);
+
     // Create a temporary index array to hold all the offspring for the
     // target directory.
     std::vector<afp_index*> offspring;

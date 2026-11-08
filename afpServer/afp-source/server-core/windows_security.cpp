@@ -310,6 +310,46 @@ bool get_effective_rights_for_user(
     return result;
 }
 
+// Effective rights of the *actual session token*. Preferred over the
+// SID-based lookup for the requesting user: the token's group list is
+// what file access checks really run with, while re-expanding groups
+// from SAM via the account SID can differ (the built-in Guest's
+// Builtin\\Guests membership is a logon-time fact) - and deny ACEs
+// keyed on token groups (the drop-folder guests read-deny) must be
+// seen here or the reported UA bits would lie.
+bool get_effective_rights_for_token(
+    AUTHZ_RESOURCE_MANAGER_HANDLE manager,
+    IN HANDLE token,
+    PSECURITY_DESCRIPTOR psd,
+    ACCESS_MASK* access_mask)
+{
+    if (token == nullptr || manager == nullptr)
+    {
+        return false;
+    }
+
+    constexpr LUID unused_id = {0, 0};
+    AUTHZ_CLIENT_CONTEXT_HANDLE authz_client_context = nullptr;
+
+    if (!AuthzInitializeContextFromToken(
+            0,
+            token,
+            manager,
+            nullptr,
+            unused_id,
+            nullptr,
+            &authz_client_context))
+    {
+        DBGWRITE(dbg_level_info, L"AuthzInitializeContextFromToken failed with %d\n",
+                 GetLastError());
+        return false;
+    }
+
+    get_access(authz_client_context, psd, access_mask);
+    AuthzFreeContext(authz_client_context);
+    return true;
+}
+
 void use_authz_solution(
     const PSECURITY_DESCRIPTOR psd,
     const std::wstring& user_name,
@@ -431,8 +471,12 @@ std::wstring get_builtin_users_group_name()
 // 0x20000) - so testing composites misclassifies every readable object
 // as writable. AuthzAccessCheck with MAXIMUM_ALLOWED returns the mapped
 // (concrete) mask, which classifies cleanly.
+// Note: FILE_READ_ATTRIBUTES is deliberately NOT a read bit. It is part
+// of the GENERIC_EXECUTE mapping (and of every useful traverse ACE), so
+// counting it would report "read" for a write+search-only class - e.g.
+// the Everyone class of a Finder drop folder.
 constexpr ACCESS_MASK k_read_bits = GENERIC_READ | FILE_READ_DATA |
-    FILE_LIST_DIRECTORY | FILE_READ_EA | FILE_READ_ATTRIBUTES;
+    FILE_LIST_DIRECTORY | FILE_READ_EA;
 constexpr ACCESS_MASK k_write_bits = GENERIC_WRITE | FILE_WRITE_DATA |
     FILE_ADD_FILE | FILE_APPEND_DATA | FILE_ADD_SUBDIRECTORY |
     FILE_WRITE_EA | FILE_WRITE_ATTRIBUTES | DELETE | FILE_DELETE_CHILD;
@@ -524,7 +568,14 @@ bool get_directory_rights(
     {
         if (have_manager)
         {
-            get_effective_rights_for_sid(authz_manager, security_descriptor, user_sid, &access_rights);
+            // Prefer the real session token (see get_effective_rights_for_token);
+            // fall back to the account-SID expansion when no token is available.
+            if (!get_effective_rights_for_token(authz_manager, user_token,
+                                                security_descriptor, &access_rights))
+            {
+                get_effective_rights_for_sid(authz_manager, security_descriptor,
+                                             user_sid, &access_rights);
+            }
         }
 
         if (EqualSid(user_sid, p_sid_owner))
@@ -873,14 +924,20 @@ DWORD set_directory_afp_access(
     PSID obj_owner_sid = nullptr;
     PSID obj_group_sid = nullptr;
     PSECURITY_DESCRIPTOR merged_psd = nullptr;
+    PACL merged_dacl = nullptr;
 
+    // The *merged* (effective) view: owner, group and the full effective
+    // DACL including inherited ACEs. Used to decide whether the requested
+    // AFP classes revoke anything that inheritance currently grants, and
+    // as the source for a self-contained (protected) rewrite when so.
     auto error = GetNamedSecurityInfo(
         const_cast<WCHAR*>(obj_path.c_str()),
         SE_FILE_OBJECT,
-        OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION,
+        OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION |
+            DACL_SECURITY_INFORMATION,
         &obj_owner_sid,
         &obj_group_sid,
-        nullptr,
+        &merged_dacl,
         nullptr,
         &merged_psd
     );
@@ -929,6 +986,23 @@ DWORD set_directory_afp_access(
         return world_error != ERROR_SUCCESS ? world_error : ERROR_ACCESS_DENIED;
     }
 
+    // Builtin\\Guests: the Windows identity family of AFP's "nobody". The
+    // built-in Guest account (what "No User Authent" sessions run as) is
+    // a member of the machine's "None" group - the primary group of
+    // every local account, and therefore of every folder's AFP group
+    // class. An AFP group-class read would thus reach guests even when
+    // the world class denies read. Where the AFP classes are made the
+    // final say (protected DACL) and the world class has no read, a
+    // read-deny ACE for Guests restores the classic semantics: guests
+    // follow the *world* class, never the group class. Like the three
+    // class principals, Guests ACEs are AFP-managed: any existing ones
+    // are dropped and rebuilt on every set.
+    BYTE guests_sid_buffer[SECURITY_MAX_SID_SIZE];
+    DWORD guests_sid_length = sizeof(guests_sid_buffer);
+    const auto guests_sid = reinterpret_cast<PSID>(guests_sid_buffer);
+    const bool have_guests_sid =
+        CreateWellKnownSid(WinBuiltinGuestsSid, nullptr, guests_sid, &guests_sid_length) != FALSE;
+
     // The three ACEs the AFP dirAccess triplets translate to. The "user
     // actual" (UA*) bits report the requester's real access and are not a
     // permission class, so they never produce an ACE here.
@@ -936,15 +1010,123 @@ DWORD set_directory_afp_access(
         ? static_cast<BYTE>(OBJECT_INHERIT_ACE | CONTAINER_INHERIT_ACE)
         : static_cast<BYTE>(0);
 
-    // Worst-case size: every existing explicit ACE kept plus three new ones.
-    const ULONG existing_size = explicit_dacl != nullptr ? explicit_dacl->AclSize : 0;
-    constexpr ULONG new_ace_room = 3 * (sizeof(ACCESS_ALLOWED_ACE) + SECURITY_MAX_SID_SIZE);
+    // Would the requested class masks revoke access that one of the
+    // managed principals is currently granted by an ACE (typically an
+    // Everyone:RX inherited from the share root)? An ALLOW ACE can only
+    // add; the only way to take inherited access away is to make this
+    // object's DACL self-contained (SE_DACL_PROTECTED) and materialize
+    // the other inherited grants (Users, Administrators, SYSTEM, ...) as
+    // explicit ACEs so they keep working.
+    //
+    // The check is a direct ACE walk keyed on the three principal SIDs -
+    // deliberately not a token evaluation: access a principal holds via
+    // an unrelated group ACE (e.g. Users:RX for an owner who is a Users
+    // member) is not an AFP class and cannot be revoked here anyway, so
+    // triggering protection for it would only freeze inheritance for
+    // nothing.
+    bool need_protect = false;
+
+    if (merged_dacl != nullptr)
+    {
+        ACCESS_MASK owner_granted = 0, group_granted = 0, world_granted = 0;
+
+        for (ULONG i = 0; i < merged_dacl->AceCount; i++)
+        {
+            ACE_HEADER* ace = nullptr;
+            if (!GetAce(merged_dacl, i, reinterpret_cast<LPVOID*>(&ace)) ||
+                ace->AceType != ACCESS_ALLOWED_ACE_TYPE)
+            {
+                continue;
+            }
+
+            const ACCESS_MASK mask = reinterpret_cast<PACCESS_ALLOWED_ACE>(ace)->Mask;
+            const PSID sid = reinterpret_cast<PSID>(
+                &reinterpret_cast<PACCESS_ALLOWED_ACE>(ace)->SidStart);
+
+            if (obj_owner_sid != nullptr && EqualSid(sid, obj_owner_sid))
+            {
+                owner_granted |= mask;
+            }
+            if (obj_group_sid != nullptr && EqualSid(sid, obj_group_sid))
+            {
+                group_granted |= mask;
+            }
+            if (EqualSid(sid, world_sid))
+            {
+                world_granted |= mask;
+            }
+        }
+
+        const DWORD owner_revoked = mask_to_rw_bits(owner_granted, kAccess_OS, kAccess_OR, kAccess_OW) &
+            ~(afp_rights & kAccess_OALL);
+        const DWORD group_revoked = mask_to_rw_bits(group_granted, kAccess_GS, kAccess_GR, kAccess_GW) &
+            ~(afp_rights & kAccess_GALL);
+        const DWORD world_revoked = mask_to_rw_bits(world_granted, kAccess_WS, kAccess_WR, kAccess_WW) &
+            ~(afp_rights & kAccess_WALL);
+
+        need_protect = (owner_revoked | group_revoked | world_revoked) != 0;
+
+        // Stickiness: an object the AFP layer already made self-contained
+        // stays self-contained while its world class still withholds read
+        // (re-applying the same drop-folder mask must not silently
+        // re-enable inheritance and hand the inherited grants back).
+        if (!need_protect && (afp_rights & kAccess_WR) == 0)
+        {
+            SECURITY_DESCRIPTOR_CONTROL control = 0;
+            DWORD control_length = 0;
+            if (GetSecurityDescriptorControl(merged_psd, &control, &control_length) &&
+                (control & SE_DACL_PROTECTED) != 0)
+            {
+                need_protect = true;
+            }
+        }
+
+        DBGWRITE(dbg_level_trace,
+                 L"set_directory_afp_access: req %#x revoke O=%#x G=%#x W=%#x protect=%d\n",
+                 afp_rights, owner_revoked, group_revoked, world_revoked, need_protect);
+    }
+
+    // With protection the new DACL is rebuilt from the merged view minus
+    // the managed principals; without it, only the object's explicit ACEs
+    // are touched and inheritance continues.
+    const PACL source_dacl = need_protect ? merged_dacl : explicit_dacl;
+    const DWORD set_dacl_flags = DACL_SECURITY_INFORMATION |
+        (need_protect ? PROTECTED_DACL_SECURITY_INFORMATION
+                      : UNPROTECTED_DACL_SECURITY_INFORMATION);
+
+    // Worst-case size: every source ACE kept plus four new ones
+    // (three AFP classes plus the guests read-deny).
+    const ULONG existing_size = source_dacl != nullptr ? source_dacl->AclSize : 0;
+    constexpr ULONG new_ace_room = 4 * (sizeof(ACCESS_ALLOWED_ACE) + SECURITY_MAX_SID_SIZE);
     const ULONG new_dacl_size = existing_size + new_ace_room;
 
     auto dacl_buffer = std::make_unique<BYTE[]>(new_dacl_size);
     auto* new_dacl = reinterpret_cast<PACL>(dacl_buffer.get());
 
     bool built = InitializeAcl(new_dacl, static_cast<DWORD>(new_dacl_size), ACL_REVISION) != FALSE;
+
+    // Guests read-deny (classic drop folder): see the guests_sid comment.
+    // Needed whenever the world class withholds read but guests could
+    // still reach read through the group class ACE (the machine's "None"
+    // group) or through grants materialized by the protected rewrite.
+    // Only the concrete read bits are denied - FILE_READ_ATTRIBUTES and
+    // READ_CONTROL stay available so attribute/parms queries keep working.
+    //
+    // This ACE goes in FIRST: the access check walks the DACL in order,
+    // and an ALLOW ACE placed before a DENY re-grants exactly the bits
+    // the DENY would take away (the "denies first" ordering that icacls
+    // and the shell maintain is a convention, not kernel behavior).
+    const bool add_guest_deny = have_guests_sid && (afp_rights & kAccess_WR) == 0 &&
+        ((afp_rights & kAccess_GR) != 0 || need_protect);
+
+    if (built && add_guest_deny)
+    {
+        constexpr ACCESS_MASK k_guest_deny_read =
+            FILE_READ_DATA | FILE_LIST_DIRECTORY | FILE_READ_EA;
+
+        built = AddAccessDeniedAceEx(new_dacl, ACL_REVISION, inherit_flags,
+                                     k_guest_deny_read, guests_sid) != FALSE;
+    }
 
     // The principal of an access ACE: SidStart follows the fixed-size
     // header and mask (ACCESS_ALLOWED_ACE / ACCESS_DENIED_ACE layout).
@@ -963,17 +1145,18 @@ DWORD set_directory_afp_access(
         const PSID sid = ace_sid_of(ace);
         return (obj_owner_sid != nullptr && EqualSid(sid, obj_owner_sid)) ||
             (obj_group_sid != nullptr && EqualSid(sid, obj_group_sid)) ||
-            EqualSid(sid, world_sid);
+            EqualSid(sid, world_sid) ||
+            (have_guests_sid && EqualSid(sid, guests_sid));
     };
 
-    // Keep every explicit ACE that is not for one of the AFP-managed
+    // Keep every source ACE that is not for one of the AFP-managed
     // principals (owner / group / everyone); those are rebuilt below.
-    if (built && explicit_dacl != nullptr)
+    if (built && source_dacl != nullptr)
     {
-        for (ULONG i = 0; i < explicit_dacl->AceCount && built; i++)
+        for (ULONG i = 0; i < source_dacl->AceCount && built; i++)
         {
             ACE_HEADER* ace = nullptr;
-            if (!GetAce(explicit_dacl, i, reinterpret_cast<LPVOID*>(&ace)))
+            if (!GetAce(source_dacl, i, reinterpret_cast<LPVOID*>(&ace)))
             {
                 continue;
             }
@@ -1009,6 +1192,20 @@ DWORD set_directory_afp_access(
             mask |= GENERIC_EXECUTE;
         }
 
+        // A writable class must also get FILE_READ_ATTRIBUTES: Windows
+        // requires READ_ATTRIBUTES on an object for ANY successful
+        // CreateFile (open, not create - creation itself needs none). A
+        // Finder "Write Only" class carries no search bit, so without
+        // this, dropped files are created fine but can then never be
+        // opened for writing - the copy dies as access denied and
+        // leaves a 0-byte file behind. READ_ATTRIBUTES exposes only
+        // metadata (dates/attributes), never contents, and is not
+        // reported as an AFP read right (see k_read_bits).
+        if (mask & GENERIC_WRITE)
+        {
+            mask |= FILE_READ_ATTRIBUTES;
+        }
+
         if (mask == 0)
         {
             return true;
@@ -1034,14 +1231,18 @@ DWORD set_directory_afp_access(
         return ERROR_GEN_FAILURE;
     }
 
-    // Replaces the object's explicit DACL. Inherited ACEs stay in effect:
-    // a share whose root grants, say, Users:Modify keeps granting it -
-    // the AFP permission model layers on top of, and cannot undercut,
-    // inherited Windows ACLs.
+    // Replaces the object's DACL. Without protection inherited ACEs stay
+    // in effect: a share whose root grants, say, Users:Modify keeps
+    // granting it - the AFP permission model layers on top of inherited
+    // Windows ACLs. When the requested classes revoke access a managed
+    // principal effectively had (the drop-folder case), the object is
+    // protected instead: the merged grants of all other principals are
+    // kept as explicit ACEs and further inheritance stops, so the AFP
+    // classes become the final say for owner/group/everyone.
     error = SetNamedSecurityInfo(
         const_cast<WCHAR*>(obj_path.c_str()),
         SE_FILE_OBJECT,
-        DACL_SECURITY_INFORMATION,
+        set_dacl_flags,
         nullptr,
         nullptr,
         new_dacl,
@@ -1239,15 +1440,34 @@ BOOL impersonate_user(
     IN const HANDLE h_user_token
 )
 {
-    const auto success = ImpersonateLoggedOnUser(h_user_token);
-    if (!success)
+    // Canonical per-operation impersonation: turn the session's PRIMARY
+    // token into an impersonation token at SecurityImpersonation and set
+    // it on the thread. (ImpersonateLoggedOnUser with a primary token
+    // left the thread holding a primary token: access checks silently
+    // ran as the server process, and TokenImpersonationLevel read back
+    // as Anonymous.)
+    RevertToSelf();
+
+    HANDLE imp = nullptr;
+    if (!DuplicateTokenEx(h_user_token, MAXIMUM_ALLOWED, nullptr,
+                          SecurityImpersonation, TokenImpersonation, &imp))
     {
-        DBGWRITE(dbg_level_error, L"Impersonation failed\n");
-        return success;
+        DBGWRITE(dbg_level_error, L"impersonate_user: DuplicateTokenEx(imp) failed (%d)\n", GetLastError());
+        return FALSE;
     }
+
+    if (!SetThreadToken(nullptr, imp))
+    {
+        const auto err = GetLastError();
+        DBGWRITE(dbg_level_error, L"impersonate_user: SetThreadToken failed (%d)\n", err);
+        CloseHandle(imp);
+        return FALSE;
+    }
+    CloseHandle(imp); // the thread holds its own reference
 
     return TRUE;
 }
+
 
 BOOL revert_to_self(
     IN const HANDLE h_user_token
