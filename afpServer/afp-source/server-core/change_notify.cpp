@@ -40,7 +40,14 @@ void change_notify::afp_notify_thread()
         std::this_thread::sleep_for(std::chrono::seconds(1));
         volume = afp_volumes::current()->find(volume_id_);
 
-    } while (volume == nullptr);
+    } while (volume == nullptr && server_running);
+
+    if (volume == nullptr)
+    {
+        // Server stopped before the volume ever appeared; nothing to watch.
+        DBGWRITE(dbg_level_info, L"Notify thread gone (volume never appeared)\n");
+        return;
+    }
 
     DBGWRITE(dbg_level_info, L"Change notify activating for %s\n", volume->get_share_path().c_str());
 
@@ -71,13 +78,18 @@ void change_notify::afp_notify_thread()
         return;
     }
 
+    // Publish for suspend(); AFP threads may already be calling it.
+    dir_handle_ = h_directory;
+
     while (server_running && volume->get_internal_flags() & flag_volume_shared)
     {
         afp_read_dir_changes(volume, h_directory, result_buffer_.get());
         ZeroMemory(result_buffer_.get(), change_notify_result_buffer_size);
     }
 
+    dir_handle_ = INVALID_HANDLE_VALUE;
     CloseHandle(notify_overlapped_.hEvent);
+    notify_overlapped_.hEvent = nullptr;
     CloseHandle(h_directory);
 
     DBGWRITE(dbg_level_info, L"Notify thread gone for %s\n", volume->get_share_name().c_str());
@@ -93,6 +105,21 @@ void change_notify::afp_read_dir_changes(
     constexpr DWORD notify_filter = FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_CREATION;
     DWORD bytes_returned = 0;
 
+    // While suspended (the server itself is mutating the volume), don't
+    // queue another change read; idle until resumed. suspend() has already
+    // cancelled the outstanding read below.
+    if (notify_suspended_)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        return;
+    }
+
+    // Reset the OVERLAPPED (keeping our event) before (re-)issuing; the
+    // structure must be clean for every new synchronous-style use.
+    const auto h_event = notify_overlapped_.hEvent;
+    ZeroMemory(&notify_overlapped_, sizeof(notify_overlapped_));
+    notify_overlapped_.hEvent = h_event;
+
     // This call will put the thread into a wait state until a change
     // happens to our directory.
     if (!ReadDirectoryChangesW(
@@ -106,7 +133,6 @@ void change_notify::afp_read_dir_changes(
         nullptr))
     {
         DBGWRITE(dbg_level_error, L"ReadDirectoryChangesW() failed! (%d)\n", GetLastError());
-        ASSERT(0);
         return;
     }
 
@@ -117,7 +143,13 @@ void change_notify::afp_read_dir_changes(
 
     if (notify_suspended_)
     {
-        DBGWRITE(dbg_level_info, L"Change notify has been suspended.\n");
+        // suspend() cancelled (or is about to cancel) this read. Drain it
+        // so the OVERLAPPED is free before the next iteration issues a
+        // new ReadDirectoryChangesW on it.
+        CancelIoEx(h_directory, &notify_overlapped_);
+        DWORD drained = 0;
+        GetOverlappedResult(h_directory, &notify_overlapped_, &drained, TRUE);
+        DBGWRITE(dbg_level_trace, L"Change notify suspended, read cancelled.\n");
         return;
     }
 
@@ -147,6 +179,7 @@ void change_notify::afp_read_dir_changes(
     std::unique_lock<std::recursive_mutex> index_lock(volume->get_index()->get_mutex());
 
     auto p_info = reinterpret_cast<FILE_NOTIFY_INFORMATION*>(result_buffer);
+    const auto buffer_end = result_buffer + bytes_returned;
     std::shared_ptr<afp_index> index_entry;
     
     // We have a successful change notify. Flip through the array of
@@ -156,6 +189,20 @@ void change_notify::afp_read_dir_changes(
     do
     {
         WCHAR file_name[MAX_PATH];
+
+        // Never trust the linked list to stay inside the data the OS
+        // actually reported.
+        if (reinterpret_cast<PBYTE>(p_info) + sizeof(FILE_NOTIFY_INFORMATION) > buffer_end)
+        {
+            DBGWRITE(dbg_level_warning, L"Change notify entry header beyond buffer end, stopping walk.\n");
+            break;
+        }
+
+        if (reinterpret_cast<PBYTE>(p_info->FileName) + p_info->FileNameLength > buffer_end)
+        {
+            DBGWRITE(dbg_level_warning, L"Change notify entry name beyond buffer end, stopping walk.\n");
+            break;
+        }
 
         switch (p_info->Action)
         {
@@ -173,6 +220,8 @@ void change_notify::afp_read_dir_changes(
         // An object is being renamed. Here is where we are given a chance
         // to get a grip on the object before the rename actually happens.
         case FILE_ACTION_RENAMED_OLD_NAME:
+            // Drop any pairing from an incomplete rename pair seen earlier.
+            index_entry = nullptr;
             if (copy_file_name(p_info, file_name, sizeof(file_name)))
             {
                 DBGWRITE(dbg_level_trace, L"File renamed, old name = %s\n", file_name);
@@ -183,9 +232,14 @@ void change_notify::afp_read_dir_changes(
         // The object is now renamed. Update the afp index with the
         // newly changed name.
         case FILE_ACTION_RENAMED_NEW_NAME:
-            if (copy_file_name(p_info, file_name, sizeof(file_name)))
+            if (index_entry != nullptr)
             {
-                if (index_entry != nullptr)
+                // Consume the pairing whether or not we can act on it, so
+                // a later pair can never reuse a stale entry.
+                const auto renamed_entry = index_entry;
+                index_entry = nullptr;
+
+                if (copy_file_name(p_info, file_name, sizeof(file_name)))
                 {
                     WCHAR new_name[64];
 
@@ -195,14 +249,15 @@ void change_notify::afp_read_dir_changes(
                     DBGWRITE(dbg_level_trace, L"File renamed, new name = %s\n", new_name);
 
                     char_map_data char_map;
-                    volume->get_index()->update_entry(index_entry, index_entry->par_entry, new_name, &char_map);
+                    volume->get_index()->update_entry(renamed_entry, renamed_entry->par_entry, new_name, &char_map);
                     volume->set_is_dirty();
                 }
             }
             break;
 
         default:
-            ASSERT(0);
+            // Unknown/ignored action (the OS may add new ones); not fatal.
+            DBGWRITE(dbg_level_trace, L"Change notify: ignoring action %d\n", p_info->Action);
             break;
         }
 
@@ -213,7 +268,17 @@ void change_notify::afp_read_dir_changes(
             break;
         }
 
-        p_info = reinterpret_cast<FILE_NOTIFY_INFORMATION*>(reinterpret_cast<PBYTE>(p_info) + p_info->NextEntryOffset);
+        // The next entry must start at least a full header inside the
+        // reported data (offsets are 4-byte aligned multiples).
+        const auto next = reinterpret_cast<PBYTE>(p_info) + p_info->NextEntryOffset;
+        if (next <= reinterpret_cast<PBYTE>(p_info) + sizeof(FILE_NOTIFY_INFORMATION) - 1
+            || next >= buffer_end)
+        {
+            DBGWRITE(dbg_level_warning, L"Change notify NextEntryOffset out of range, stopping walk.\n");
+            break;
+        }
+
+        p_info = reinterpret_cast<FILE_NOTIFY_INFORMATION*>(next);
     } while (TRUE);
 }
 
@@ -371,19 +436,27 @@ bool change_notify::copy_file_name(
     OUT WCHAR* file_name,
     IN const size_t file_name_size_in_bytes)
 {
-    if (file_notify_info == nullptr || file_name == nullptr)
+    if (file_notify_info == nullptr || file_name == nullptr || file_name_size_in_bytes < 2 * sizeof(WCHAR))
     {
         return false;
     }
 
-    // Get size of destination buffer in characters
-    size_t file_name_size_in_chars = (file_name_size_in_bytes / sizeof(WCHAR)) - sizeof(WCHAR);
+    // The notification name is NOT null-terminated; FileNameLength is in bytes.
+    const size_t src_chars = file_notify_info->FileNameLength / sizeof(WCHAR);
+    const size_t dest_chars = file_name_size_in_bytes / sizeof(WCHAR);
 
-    // Ensure the length to copy does not exceed the buffer size
-    size_t length_to_copy = min( file_notify_info->FileNameLength / sizeof(WCHAR), file_name_size_in_chars);
+    // A name that does not fit must not be silently truncated: an index
+    // entry created from half a path is worse than skipping the event.
+    // (The old code passed a count >= the wcsncpy_s size argument for such
+    // names, which invokes the invalid-parameter handler and aborts.)
+    if (src_chars == 0 || src_chars >= dest_chars)
+    {
+        DBGWRITE(dbg_level_info, L"Change notify: file name too long (%zu chars), skipping.\n", src_chars);
+        return false;
+    }
 
-    wcsncpy_s(file_name, file_name_size_in_chars, file_notify_info->FileName, length_to_copy);
-    file_name[length_to_copy] = L'\0';
+    wmemcpy(file_name, file_notify_info->FileName, src_chars);
+    file_name[src_chars] = L'\0';
 
     return true;
 }

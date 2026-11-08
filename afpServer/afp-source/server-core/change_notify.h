@@ -1,5 +1,7 @@
 #pragma once
 
+#include <atomic>
+
 #include "afp_volume.h"
 
 constexpr UINT32 change_notify_result_buffer_size = 64 * 1024;
@@ -49,6 +51,16 @@ public:
         }
 
         notify_suspended_ = true;
+
+        // Cancel any ReadDirectoryChangesW the notify thread has pending
+        // and wake it. Without the cancel, the thread would return from
+        // its wait with an I/O still pending on notify_overlapped_ and
+        // issue the next one on the same OVERLAPPED - undefined.
+        if (const auto dir = dir_handle_.load(); dir != INVALID_HANDLE_VALUE)
+        {
+            CancelIoEx(dir, &notify_overlapped_);
+        }
+
         SetEvent(notify_overlapped_.hEvent);
     }
 
@@ -68,6 +80,11 @@ private:
     std::atomic_bool notify_suspended_;
     std::mutex suspend_mutex_;
     OVERLAPPED notify_overlapped_;
+
+    // The watched directory handle, published by the notify thread so
+    // suspend() (called on AFP threads) can cancel the pending change
+    // read. INVALID_HANDLE_VALUE until the handle is open.
+    std::atomic<HANDLE> dir_handle_{ INVALID_HANDLE_VALUE };
 
     std::unique_ptr<BYTE[]> result_buffer_;
 };

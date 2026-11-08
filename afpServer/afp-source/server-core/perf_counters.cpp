@@ -30,6 +30,15 @@ perf_counters::perf_counters()
 
 perf_counters::~perf_counters()
 {
+    // counter_thread is detached; give it a moment to notice that the
+    // server stopped so it can delete its instance and exit before the
+    // provider is torn down (counter_thread_done_ is set on its exit).
+    // Bounded so a stuck thread can never hang process shutdown.
+    for (int waits = 0; waits < 25 && !counter_thread_done_.load(); ++waits)
+    {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
     CounterCleanup();
 }
 
@@ -55,12 +64,12 @@ ULONG perf_counters::create_counter_instance(PPERF_COUNTERSET_INSTANCE* connecti
 
 void perf_counters::counter_thread()
 {
-    PPERF_COUNTERSET_INSTANCE connection_instance;
+    PPERF_COUNTERSET_INSTANCE connection_instance = nullptr;
 
     auto status = create_counter_instance(&connection_instance);
     if (status != ERROR_SUCCESS)
     {
-        CounterCleanup();
+        counter_thread_done_ = true;
         return;
     }
 
@@ -81,11 +90,14 @@ void perf_counters::counter_thread()
             break;
         }
 
+        // exchange(0) samples and clears in one atomic step: connection
+        // threads keep adding while we publish, nothing gets lost or
+        // double-counted by the read-then-zero sequence.
         status = PerfSetULongCounterValue(
             AFP_SERVER_PROVIDER,
             connection_instance,
             AFP_SERVER_BYTES_RECEIVED_PER_SECOND,
-            bytes_received_
+            bytes_received_.exchange(0, std::memory_order_relaxed)
         );
 
         if (status != ERROR_SUCCESS)
@@ -95,13 +107,11 @@ void perf_counters::counter_thread()
             break;
         }
 
-        bytes_received_ = 0;
-
         status = PerfSetULongCounterValue(
             AFP_SERVER_PROVIDER,
             connection_instance,
             AFP_SERVER_BYTES_SENT_PER_SECOND,
-            bytes_sent_
+            bytes_sent_.exchange(0, std::memory_order_relaxed)
         );
 
         if (status != ERROR_SUCCESS)
@@ -111,13 +121,11 @@ void perf_counters::counter_thread()
             break;
         }
 
-        bytes_sent_ = 0;
-
         status = PerfSetULongCounterValue(
             AFP_SERVER_PROVIDER,
             connection_instance,
             AFP_SERVER_REQUESTS_PER_SECOND,
-            afp_requests_processed_
+            afp_requests_processed_.exchange(0, std::memory_order_relaxed)
         );
 
         if (status != ERROR_SUCCESS)
@@ -127,10 +135,10 @@ void perf_counters::counter_thread()
             break;
         }
 
-        afp_requests_processed_ = 0;
-
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
     PerfDeleteInstance(AFP_SERVER_PROVIDER, connection_instance);
+
+    counter_thread_done_ = true;
 }

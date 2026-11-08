@@ -37,21 +37,35 @@ PSID get_sid_for_user(IN const std::wstring& user_name)
         &sid_name_use
     );
 
+    if (cb_sid == 0)
+    {
+        DBGWRITE(dbg_level_info, L"LookupAccountName() sizing failed getting user SID for [%s] (%d)\n",
+                 user_name.c_str(),
+                 GetLastError());
+        return nullptr;
+    }
+
     const auto p_sid = LocalAlloc(LMEM_ZEROINIT, cb_sid);
 
     if (p_sid != nullptr)
     {
-        WCHAR ref_domain_name[128];
+        // The sizing call tells us how big the referenced-domain string is;
+        // it is not bounded by 128 characters (long enterprise forest names
+        // easily exceed that), so size the buffer from the report instead
+        // of a fixed array the second call would overrun.
+        std::wstring ref_domain_name;
+        ref_domain_name.resize(cb_referenced_domain_name + 1);
+        cb_referenced_domain_name = static_cast<DWORD>(ref_domain_name.size());
 
         const auto success = LookupAccountName(
             nullptr,
             user_name.c_str(),
             p_sid,
             &cb_sid,
-            ref_domain_name,
+            ref_domain_name.data(),
             &cb_referenced_domain_name,
             &sid_name_use
-        );
+            );
 
         if (!success)
         {
@@ -123,12 +137,11 @@ PSID get_guest_account_sid()
 
     PSID sid = nullptr;
     DWORD sid_size = 0;
-    WCHAR ref_domain[128];
-    DWORD domain_size = _countof(ref_domain);
+    DWORD domain_size = 0;
     SID_NAME_USE sid_use = SidTypeUnknown;
 
-    // First call sizes the SID buffer.
-    LookupAccountNameW(nullptr, qualified_name.c_str(), nullptr, &sid_size, ref_domain, &domain_size, &sid_use);
+    // First call sizes the SID buffer (and the referenced-domain string).
+    LookupAccountNameW(nullptr, qualified_name.c_str(), nullptr, &sid_size, nullptr, &domain_size, &sid_use);
     if (sid_size == 0)
     {
         DBGWRITE(dbg_level_info, L"LookupAccountName() sizing for [%s] failed (%d)\n",
@@ -142,9 +155,14 @@ PSID get_guest_account_sid()
         return nullptr;
     }
 
-    domain_size = _countof(ref_domain);
+    // Size the domain string from the sizing call - it is not limited to a
+    // small fixed buffer for domain-joined machines.
+    std::wstring ref_domain;
+    ref_domain.resize(domain_size + 1);
+    domain_size = static_cast<DWORD>(ref_domain.size());
+
     const BOOL resolved = LookupAccountNameW(nullptr, qualified_name.c_str(), sid, &sid_size,
-                                             ref_domain, &domain_size, &sid_use);
+                                             ref_domain.data(), &domain_size, &sid_use);
 
     if (!resolved || !IsValidSid(sid) || get_sid_last_rid(sid) != kBuiltInGuestRid)
     {
@@ -348,7 +366,27 @@ bool get_directory_rights(
     if (!(SUCCEEDED(error)) || p_sid_owner == nullptr)
     {
         DBGWRITE(dbg_level_info, L"GetNamedSecurityInfo() failed getting dir rights (%d)!\n", error);
+
+        // Even on failure the API may have allocated a partial descriptor;
+        // LocalFree-ing a null pointer is safe.
+        LocalFree(security_descriptor);
         return false;
+    }
+
+    // One resource manager for this call, shared by the user and guest
+    // access checks (each AuthzInitializeResourceManager is expensive).
+    AUTHZ_RESOURCE_MANAGER_HANDLE authz_manager = nullptr;
+    const BOOL have_manager = AuthzInitializeResourceManager(
+        AUTHZ_RM_FLAG_NO_AUDIT,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        &authz_manager);
+
+    if (!have_manager)
+    {
+        DBGWRITE(dbg_level_error, L"AuthzInitializeResourceManager failed with %d\n", GetLastError());
     }
 
     // Check to see if the current user is the owner of the directory. If not, we
@@ -356,7 +394,10 @@ bool get_directory_rights(
 
     if (const auto user_sid = get_sid_for_user(logged_on_user_name); user_sid != nullptr)
     {
-        use_authz_solution(security_descriptor, logged_on_user_name, &access_rights);
+        if (have_manager)
+        {
+            get_effective_rights_for_sid(authz_manager, security_descriptor, user_sid, &access_rights);
+        }
 
         if (EqualSid(user_sid, p_sid_owner))
         {
@@ -425,21 +466,17 @@ bool get_directory_rights(
     // the Guest account may do.
     if (const auto guest_sid = get_guest_account_sid(); guest_sid != nullptr)
     {
-        AUTHZ_RESOURCE_MANAGER_HANDLE manager;
-
-        if (AuthzInitializeResourceManager(
-            AUTHZ_RM_FLAG_NO_AUDIT,
-            nullptr,
-            nullptr,
-            nullptr,
-            nullptr,
-            &manager))
+        if (have_manager)
         {
-            get_effective_rights_for_sid(manager, security_descriptor, guest_sid, &guest_access_rights);
-            AuthzFreeResourceManager(manager);
+            get_effective_rights_for_sid(authz_manager, security_descriptor, guest_sid, &guest_access_rights);
         }
 
         LocalFree(guest_sid);
+    }
+
+    if (have_manager)
+    {
+        AuthzFreeResourceManager(authz_manager);
     }
 
     if ((guest_access_rights & GENERIC_READ) == GENERIC_READ || (guest_access_rights & FILE_GENERIC_READ) == FILE_GENERIC_READ)
@@ -469,12 +506,21 @@ bool get_directory_rights(
 
 AFPERROR get_user_name_by_id(
     IN const DWORD id,
-    IN const PWCHAR name
+    IN OUT PWCHAR name,
+    IN const size_t cch_name
 )
 {
+    if (name == nullptr || cch_name == 0)
+    {
+        return afpParmErr;
+    }
+
     if (const auto user_and_group = g_user_and_group_cache.find_by_id(id); user_and_group != nullptr)
     {
-        lstrcpyn(name, user_and_group->name.c_str(), static_cast<int>(user_and_group->name.size() + 1));
+        // lstrcpyn always null-terminates and copies at most cch_name - 1
+        // characters: a cached name longer than the caller's buffer is
+        // truncated, not run over it.
+        lstrcpyn(name, user_and_group->name.c_str(), static_cast<int>(cch_name));
         return AFP_OK;
     }
 
@@ -696,10 +742,23 @@ BOOL adjust_privilege(
 
         DBGWRITE(dbg_level_error, L"AdjustTokenPrivileges() failed! (%d)\n", error);
 
-        // If we have an invalid handle, we don't want to make a call on
-        // it at this stage, or we'll die. Only close if we created the token
-        // handle locally.
-        if (error != ERROR_INVALID_HANDLE && h_token == INVALID_HANDLE_VALUE)
+        // Whatever the error, if we created the token handle locally we
+        // must close it - leaving it out on one error path was a leak.
+        if (h_token == INVALID_HANDLE_VALUE)
+        {
+            CloseHandle(token);
+        }
+
+        return FALSE;
+    }
+
+    // AdjustTokenPrivileges returns TRUE even when the privilege is not
+    // held by the token; the real outcome is in GetLastError.
+    if (GetLastError() == ERROR_NOT_ALL_ASSIGNED)
+    {
+        DBGWRITE(dbg_level_warning, L"AdjustTokenPrivileges(): privilege %s is not assigned to the token\n", privilege);
+
+        if (h_token == INVALID_HANDLE_VALUE)
         {
             CloseHandle(token);
         }
@@ -739,8 +798,5 @@ BOOL revert_to_self(
 {
     UNREFERENCED_PARAMETER(h_user_token);
 
-    const BOOL success = RevertToSelf();
-    const std::wstring impersonate_name = SE_IMPERSONATE_NAME;
-
-    return success;
+    return RevertToSelf();
 }

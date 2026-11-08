@@ -836,7 +836,7 @@ AFPERROR FPMapID(
 	UNREFERENCED_PARAMETER(connection);
 
 	AFPERROR afp_error;
-	WCHAR sz_name[64];
+	WCHAR sz_name[64]{};
 
 	afp_request.advance_pos_ptr(sizeof(INT8));
 
@@ -848,55 +848,37 @@ AFPERROR FPMapID(
 
 	DBGWRITE(dbg_level_info, L"Looking for ID %d\n", id);
 
-	switch (afp_sub_func)
+	// 1 = user name, 2 = group name, 3 = Unicode user name, 4 = Unicode
+	// group name. Validate before the lookup: an unknown subfunction is a
+	// parameter error regardless of the id.
+	if (afp_sub_func < 1 || afp_sub_func > 4)
 	{
-	//Looking for username
-	case 1:
-		afp_error = get_user_name_by_id(id, sz_name);
-		if (AFP_SUCCESS(afp_error))
-		{
-			DBGWRITE(dbg_level_info, L"Mapped id to user name %s\n", sz_name);
-			afp_reply.push_string(sz_name);
-		}
-		break;
-
-	//Looking for group name
-	case 2:
-		afp_error = get_user_name_by_id(id, sz_name);
-		if (AFP_SUCCESS(afp_error))
-		{
-			DBGWRITE(dbg_level_info, L"Mapped id to group name %s\n", sz_name);
-			afp_reply.push_string(sz_name);
-		}
-		break;
-
-	//Unicode user name
-	case 3:
-		afp_error = get_user_name_by_id(id, sz_name);
-		if (AFP_SUCCESS(afp_error))
-		{
-			DBGWRITE(dbg_level_info, L"Mapped id to user name %s\n", sz_name);
-			afp_reply.push_string(sz_name, kUnicodeNames);
-		}
-		break;
-
-	//Unicode group name
-	case 4:
-		afp_error = get_user_name_by_id(id, sz_name);
-		if (AFP_SUCCESS(afp_error))
-		{
-			DBGWRITE(dbg_level_info, L"Mapped id to group name %s\n", sz_name);
-			afp_reply.push_string(sz_name, kUnicodeNames);
-		}
-		break;
-
-	default:
 		DBGWRITE(dbg_level_warning, L"Bad FPMapID subfunction (%d)\n", afp_sub_func);
-		afp_error = afpParmErr;
-		break;
+		return afpParmErr;
 	}
 
-	return afp_error;
+	afp_error = get_user_name_by_id(id, sz_name, ARRAYSIZE(sz_name));
+	if (AFP_FAILED(afp_error))
+	{
+		return afp_error;
+	}
+
+	const bool is_group = afp_sub_func == 2 || afp_sub_func == 4;
+	const bool is_unicode = afp_sub_func >= 3;
+
+	DBGWRITE(dbg_level_info, L"Mapped id to %s name %s\n",
+	         is_group ? L"group" : L"user", sz_name);
+
+	if (is_unicode)
+	{
+		afp_reply.push_string(sz_name, kUnicodeNames);
+	}
+	else
+	{
+		afp_reply.push_string(sz_name);
+	}
+
+	return AFP_OK;
 }
 
 

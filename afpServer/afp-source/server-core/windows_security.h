@@ -57,9 +57,13 @@ bool get_directory_rights(
     DWORD* afp_rights
 );
 
+// Copies the cached name for an AFP id into a caller-supplied buffer of
+// cch_name WCHARs (always null-terminated; a longer cached name is
+// truncated rather than overrun).
 AFPERROR get_user_name_by_id(
     IN DWORD id,
-    IN PWCHAR name
+    IN OUT PWCHAR name,
+    IN size_t cch_name
 );
 
 DWORD get_directory_owner_and_group_id(
