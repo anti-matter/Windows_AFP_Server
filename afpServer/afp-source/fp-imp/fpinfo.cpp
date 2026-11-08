@@ -8,7 +8,9 @@ void create_finder_info_stream(
     IN const bool make_invisible
 )
 {
-    afp_finder_info finder_info;
+    //Zero it: when no finder-info stream exists yet, the fields other
+    //than type/creator must default to zero, not stack garbage.
+    afp_finder_info finder_info{};
 
     if (AFP_SUCCESS(get_finder_info(entry, &finder_info)))
     {
@@ -102,6 +104,11 @@ AFPERROR get_finder_info(
 
     ASSERT(!entry->sz_path.empty());
 
+    //Zero the output: on open/read failure only type/creator get filled
+    //by the extension fallback, and a short read leaves the tail
+    //untouched - neither should expose stack garbage to callers.
+    memset(finder_info, 0, sizeof(*finder_info));
+
     std::filesystem::path path = entry->sz_path;
     path.concat(":");
     path.concat(afp_info_stream_name);
@@ -165,6 +172,11 @@ AFPERROR set_finder_info(
     path.concat(":");
     path.concat(afp_info_stream_name);
 
+    //Bound the sharing-violation wait so a permanently locked stream
+    //cannot wedge the worker thread forever.
+    constexpr int max_sharing_retries = 10;
+    int sharing_retries = 0;
+
     for (;;)
     {
         // Now open the AFP_Info stream to write to it.
@@ -185,7 +197,7 @@ AFPERROR set_finder_info(
             // Sometimes we have to wait for a copy operation to complete before we can
             // open and muck with the file. This occurs mainly during copy operations performed
             // on the windows machine.
-            if (dw_error == ERROR_SHARING_VIOLATION)
+            if (dw_error == ERROR_SHARING_VIOLATION && sharing_retries++ < max_sharing_retries)
             {
                 DBGWRITE(dbg_level_warning, L"Sleeping for 500ms for notify wait!\n");
 
@@ -199,8 +211,6 @@ AFPERROR set_finder_info(
                      L"CreateFile() failed! (%d) (%s)\n",
                      dw_error,
                      path.c_str());
-
-            dw_error = afp_map_win_error_to_afp(dw_error, afpMiscErr);
         }
 
         break;

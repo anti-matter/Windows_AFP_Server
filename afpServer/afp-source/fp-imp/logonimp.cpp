@@ -76,14 +76,28 @@ AFPERROR afp_imp_user_logon(
         return afp_error;
     }
 
-    // Clear out the password buffer for security purposes.
+    // Scramble and release the password buffer for security purposes
+    // (clear() alone would leave the characters behind in freed heap).
+    if (!afp_password_w.empty())
+    {
+        SecureZeroMemory(&afp_password_w[0], afp_password_w.size() * sizeof(WCHAR));
+    }
     afp_password_w.clear();
 
     HANDLE dupe_handle = nullptr;
     if (!DuplicateTokenEx(token, MAXIMUM_ALLOWED, nullptr,
                           SecurityImpersonation, TokenPrimary, &dupe_handle))
     {
-        DBGWRITE(dbg_level_info, L"DuplicateToken() failed! (%d)\n", GetLastError());
+        const DWORD dupe_error = GetLastError();
+        DBGWRITE(dbg_level_error, L"DuplicateTokenEx() failed! (%d)\n", dupe_error);
+
+        CloseHandle(token);
+
+        //Without a usable impersonation token the session has no
+        //identity to enforce access with; failing the login is the
+        //only safe option (continuing would mark the session
+        //authenticated with a null token).
+        return afp_map_win_error_to_afp(dupe_error, afpMiscErr);
     }
 
     connection->set_user_token(dupe_handle);

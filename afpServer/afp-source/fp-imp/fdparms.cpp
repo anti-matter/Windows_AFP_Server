@@ -162,10 +162,15 @@ AFPERROR afp_get_object_parms(
     {
         if (bitmap & kFPDirOffCount)
         {
-            const auto offspring = static_cast<UINT16>(afp_volumes::current()
-                ->find(volume_id)
-                ->get_index()
-                ->get_offspring(entry->object_id));
+            //Guard against the volume disappearing (removed while this
+            //session's request was in flight).
+            UINT16 offspring = 0;
+
+            if (const auto volume = afp_volumes::current()->find(volume_id); volume != nullptr)
+            {
+                offspring = static_cast<UINT16>(volume->get_index()->get_offspring(entry->object_id));
+            }
+
             reply.push_num<UINT16>(offspring);
         }
 
@@ -266,7 +271,7 @@ AFPERROR afp_get_object_parms(
                 }
                 else
                 {
-                    DBGWRITE(dbg_level_trace, L"Resource fork size =  (%d)\n", rsrc_size64.LowPart);
+                    DBGWRITE(dbg_level_trace, L"Resource fork size =  (%u)\n", rsrc_size64.LowPart);
                 }
             }
         }
@@ -487,7 +492,10 @@ AFPERROR afp_set_file_time(
     if (modification != 0)
     {
         afp_mac_to_windows_time(modification, &ft_mod);
-        if (!SetFileTime(h_file, nullptr, &ft_mod, nullptr))
+        //SetFileTime's parameters are (creation, last-access, last-write):
+        //the modification date must go in the fourth parameter. Passing it
+        //as the third silently set the last-access time instead.
+        if (!SetFileTime(h_file, nullptr, nullptr, &ft_mod))
         {
             DBGWRITE(dbg_level_error, L"SetFileTime() failed setting modification date. (%d)\n", GetLastError());
         }

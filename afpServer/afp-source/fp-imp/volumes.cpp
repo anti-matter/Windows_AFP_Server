@@ -99,12 +99,12 @@ AFPERROR AFPGetVolumeParameters(
         if (GetVolumeInformation(
             afp_volume->get_share_path().root_name().c_str(),
             volume_name,
-            sizeof(volume_name),
+            ARRAYSIZE(volume_name), //the API wants a count of WCHARs, not bytes
             nullptr,
             &max_file_name_len,
             &system_flags,
             file_system_name,
-            sizeof(file_system_name)
+            ARRAYSIZE(file_system_name)
         ))
         {
             if (system_flags & FILE_READ_ONLY_VOLUME || afp_volume->get_internal_flags() & flag_volume_readonly)
@@ -197,13 +197,18 @@ AFPERROR AFPGetVolumeParameters(
 
     // The following 3 bits will only be set if the caller
     // is using AFP 2.2 or later.
+    //
+    // These are the 64-bit fields requested by AFP 3.x clients, so
+    // report the true values; the 2GB/4GB clamping above applies only
+    // to the legacy 32-bit fields. "Free" is what the caller may
+    // actually use (quota-adjusted), matching the non-ext field.
     if (afp_bitmap & kFPVolExtBytesFree)
     {
-        afp_reply.push_num<INT64>(min(num_free_bytes.QuadPart, UINT32_MAX));
+        afp_reply.push_num<INT64>(free_bytes_available.QuadPart);
     }
     if (afp_bitmap & kFPVolExtBytesTotal)
     {
-        afp_reply.push_num<INT64>(min(num_bytes_in_disk.QuadPart, UINT32_MAX));
+        afp_reply.push_num<INT64>(num_bytes_in_disk.QuadPart);
     }
 
     if (afp_bitmap & kFPVolBlockSize)
