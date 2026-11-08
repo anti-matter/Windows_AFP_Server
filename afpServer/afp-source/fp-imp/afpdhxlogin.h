@@ -23,10 +23,6 @@
 //hash a number to a 16-bit integer
 #define dhxhash(a) ((((unsigned long) (a) >> 8) ^ (unsigned long) (a)) & 0xffff)
 
-// The function getrandom returns a random number between 
-// min and max, which must be in integer range.
-#define getrandom( min, max ) (SHORT)((rand() % (int)(((max) + 1) - (min))) + (min))
-
 //
 //The following is the blob we store between FPLogin() and 
 //FPLoginCont() function calls.

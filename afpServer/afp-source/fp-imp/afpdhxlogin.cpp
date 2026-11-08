@@ -54,8 +54,16 @@ AFPERROR DHXLogin(
 		return afpParmErr;
 	}
 
-	// Obtain the client's public key from the request.
-	BIGNUM* client_pub_key = BN_bin2bn((unsigned char*)afpRequest.get_current_pos_ptr(), DHX_KEYSIZE, NULL);
+	//
+	//Obtain the client's public key from the request. Pull it through
+	//the bounds-checked buffer API: a truncated request must never
+	//cause an out-of-bounds read. On underflow the local stays zero,
+	//which the degenerate-key check below rejects.
+	//
+	unsigned char client_key_bytes[DHX_KEYSIZE]{};
+	afpRequest.pull_raw_data(client_key_bytes, sizeof(client_key_bytes));
+
+	BIGNUM* client_pub_key = BN_bin2bn(client_key_bytes, DHX_KEYSIZE, NULL);
 	if (client_pub_key == NULL)
 	{
 		DBGWRITE(dbg_level_info, L"BN_bin2bn() failed obtaining the client's key\n");
@@ -75,6 +83,35 @@ AFPERROR DHXLogin(
 	{
 		DBGWRITE(dbg_level_info, L"BN_bin2bn() failed obtaining our primes2\n");
 		goto exit;
+	}
+
+	//
+	//Reject degenerate client public keys. Values outside 2..p-2
+	//(0, 1, p-1, or out of range) pin the shared secret to a value
+	//the peer already knows, letting an attacker decrypt the session
+	//or impersonate the server.
+	//
+	{
+		int key_in_range = 0;
+		BIGNUM* p_minus_one = BN_dup(pbn);
+
+		if (p_minus_one != NULL && BN_sub_word(p_minus_one, 1))
+		{
+			key_in_range = !BN_is_zero(client_pub_key) &&
+				!BN_is_one(client_pub_key) &&
+				BN_cmp(client_pub_key, p_minus_one) < 0;
+		}
+
+		if (p_minus_one != NULL)
+		{
+			BN_clear_free(p_minus_one);
+		}
+
+		if (!key_in_range)
+		{
+			DBGWRITE(dbg_level_warning, L"DHXLogin: client sent a degenerate public key, rejecting\n");
+			goto exit;
+		}
 	}
 
     dh = DH_new();
@@ -229,7 +266,17 @@ AFPERROR DHXLoginContinue(
 	if (sessionID != dhxInfo->sessionID)
 	{
 		DBGWRITE(dbg_level_info, L"[afpuser:DHXLoginContinue]Session ID's don't match! (%d vs. %d)\n", sessionID,
-		         dhxhash((ULONG_PTR)dsiSession));
+		         dhxInfo->sessionID);
+		return afpParmErr;
+	}
+
+	//
+	//The encrypted random number + password blob must be fully present;
+	//never read past the end of the client's request.
+	//
+	if (afpRequest.not_enough_space(DHX_CRYPT2BUFLEN))
+	{
+		DBGWRITE(dbg_level_warning, L"[afpuser:DHXLoginContinue]Request too short for encrypted blob\n");
 		return afpParmErr;
 	}
 
@@ -318,6 +365,9 @@ AFPERROR DHXChangePassword(
 	INT16 sessionID = 0;
 	AFPERROR afpError = afpParmErr;
 	char* tempBuff = afpReply.get_current_pos_ptr(); //user as temporary buffer space
+	//Keep the base of the decrypted blob so the exit path can wipe all
+	//of it (tempBuff itself gets advanced while parsing).
+	char* const decrypt_start = tempBuff;
 
 	if (dhxInfo == NULL)
 	{
@@ -357,7 +407,17 @@ AFPERROR DHXChangePassword(
 	if (sessionID != dhxInfo->sessionID)
 	{
 		DBGWRITE(dbg_level_info, L"[afpuser:DHXChangePassword]Session ID's don't match! (%d vs. %d)\n", sessionID,
-		         dhxhash((ULONG_PTR)dsiSession));
+		         dhxInfo->sessionID);
+		return (afpParmErr);
+	}
+
+	//
+	//The encrypted random number + old/new password blob must be fully
+	//present; never read past the end of the client's request.
+	//
+	if (afpRequest.not_enough_space(DHX_CHNGPSWDBUFLEN))
+	{
+		DBGWRITE(dbg_level_warning, L"[afpuser:DHXChangePassword]Request too short for encrypted blob\n");
 		return (afpParmErr);
 	}
 
@@ -408,9 +468,6 @@ AFPERROR DHXChangePassword(
 	tempBuff[DHX_PASSWDLEN] = '\0';
 	StringCbCopyA(newPassword, cbNewPassword, tempBuff);
 
-	DBGWRITE(dbg_level_info, L"[afpuser:DHXChangePassword]Old password: %s\n", oldPassword);
-	DBGWRITE(dbg_level_info, L"[afpuser:DHXChangePassword]New password: %s\n", newPassword);
-
 	//
 	//If we get to this point, everything should be peachy
 	//
@@ -418,9 +475,10 @@ AFPERROR DHXChangePassword(
 
 exit:
 	//
-	//Clear the password out of the temporary buffer.
+	//Clear the decrypted blob (random number and both passwords) out
+	//of the temporary buffer.
 	//
-	memset(tempBuff, 0, DHX_PASSWDLEN * 2);
+	SecureZeroMemory(decrypt_start, DHX_CHNGPSWDBUFLEN);
 
 	DBGWRITE(dbg_level_info, L"[afpuser:DHXChangePassword]Returning: %d\n", afpError);
 
@@ -535,10 +593,17 @@ void afpGetRandomNumber(
 
 	UINT32 result;
 
-	for (int i = 0; i < cbBuf; i += sizeof(result))
+	for (int i = 0; i < cbBuf; )
 	{
 		result = rand();  // NOLINT(concurrency-mt-unsafe)
 
-		memcpy(buf + i, &result, sizeof(result));
+		//Don't write past the end of the caller's buffer when cbBuf
+		//is not a multiple of the chunk size.
+		const int chunk = cbBuf - i < static_cast<int>(sizeof(result))
+			                  ? cbBuf - i
+			                  : static_cast<int>(sizeof(result));
+
+		memcpy(buf + i, &result, chunk);
+		i += chunk;
 	}
 }
