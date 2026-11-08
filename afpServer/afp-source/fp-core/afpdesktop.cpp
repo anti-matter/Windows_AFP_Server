@@ -333,7 +333,7 @@ AFPERROR FPAddComment(
 		return afpObjectNotFound;
 	}
 
-	DBGWRITE(dbg_level_info, L"Adding comment, pathname=%s, comment=%s\n", desk_item.path_name, string_to_wide_string(desk_item.data, kUnicodeNames).c_str());
+	DBGWRITE(dbg_level_info, L"Adding comment, pathname=%s, comment=%s\n", desk_item.path_name, string_to_wide_string(desk_item.data, CP_MACCP).c_str());
 
 	// add() replaces an existing comment for this file if there is one.
 	return desktop->add(&desk_item);

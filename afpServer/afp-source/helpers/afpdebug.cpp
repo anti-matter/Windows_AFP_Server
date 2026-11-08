@@ -1,9 +1,6 @@
 #include "StdAfx.h"
 #include "afpdebug.h"
 
-#include <codecvt>
-#include <future>
-
 #include "afphelp.h"
 
 
@@ -172,7 +169,8 @@ void afp_debug_write(_In_ const dbg_level debug_level, _In_ const std::string& f
 
 	if (debug_level != dbg_level_dump_in && debug_level != dbg_level_dump_out)
 	{
-		combined = level + L"[" + string_to_wide_string(function, kUnicodeNames) + L"]" + format;
+		//__func__ is plain ASCII.
+		combined = level + L"[" + string_to_wide_string(function, CP_UTF8) + L"]" + format;
 	}
 	else
 	{
@@ -182,7 +180,15 @@ void afp_debug_write(_In_ const dbg_level debug_level, _In_ const std::string& f
 
 	// Len + terminating character
 	const auto len = _vscwprintf(combined.c_str(), args) + 1;
-	const auto buffer = std::unique_ptr<WCHAR>(new WCHAR[len]);
+	if (len <= 0)
+	{
+		//_vscwprintf failed (encoding error in one of the string args).
+		va_end(args);
+		return;
+	}
+
+	//Array form is required: scalar delete of new[] is undefined.
+	const auto buffer = std::unique_ptr<WCHAR[]>(new WCHAR[len]);
 
 	const auto chars_written = vswprintf_s(buffer.get(), len, combined.c_str(), args);
 	if (chars_written > 0)
@@ -277,7 +283,7 @@ void hex_dump(const char* buffer, const size_t length, const dbg_level level)
 
 			for (DWORD k = 0; k < j; k++)
 			{
-				line.push_back(std::isprint(readable[k]) ? readable[k] : '.');
+				line.push_back(std::isprint(static_cast<unsigned char>(readable[k])) ? readable[k] : '.');
 			}
 
 			DBGWRITE(level, L"%s\n", string_to_wide_string(line, CP_ACP).c_str());
@@ -288,13 +294,11 @@ void hex_dump(const char* buffer, const size_t length, const dbg_level level)
 			j = 0;
 	    }
 
-		char ch = buffer[i];
-		if (ch < 0)
-		{
-			ch = 0;
-		}
+		//Treat the byte as unsigned: masking here (rather than zeroing
+		//negative values) keeps high-bit bytes visible in the dump.
+		const unsigned char ch = static_cast<unsigned char>(buffer[i]);
 
-        if (std::string part = char_to_hex(ch); part.length() == 1)
+        if (std::string part = char_to_hex(static_cast<char>(ch)); part.length() == 1)
 		{
 			line.push_back('0');
 			line.append(part);
@@ -321,7 +325,7 @@ void hex_dump(const char* buffer, const size_t length, const dbg_level level)
 
 		for (DWORD k = 0; k < j; k++)
 		{
-			line.push_back(std::isprint(readable[k]) ? readable[k] : '.');
+			line.push_back(std::isprint(static_cast<unsigned char>(readable[k])) ? readable[k] : '.');
 		}
 
 		DBGWRITE(level, L"%s\n", string_to_wide_string(line, CP_ACP).c_str());

@@ -23,7 +23,7 @@ LRESULT CALLBACK about_dlg_proc(
     {
     case WM_INITDIALOG:
         {
-            const std::wstring version = string_to_wide_string(VER_FILE_SHORT_VERSION_STR, kUnicodeNames);
+            const std::wstring version = string_to_wide_string(VER_FILE_SHORT_VERSION_STR, CP_UTF8);
             SendDlgItemMessage(h_dlg, IDC_VERSION_TEXT, WM_SETTEXT, 0, reinterpret_cast<LPARAM>(version.c_str()));
         }
         break;

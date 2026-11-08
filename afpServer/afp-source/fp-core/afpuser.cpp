@@ -473,9 +473,10 @@ AFPERROR FPLogin(
 			}
 
 			// The password is sent to us as an 8 byte array. This array is not length
-			// byte preceded or null terminated.
+			// byte preceded or null terminated. Classic clients encode it in
+			// Mac Roman (kLongNames on the wire), not a Windows code page.
 			afp_request.pull_raw_data(afp_password, UAM_CLRTXTPWDLEN);
-			password = string_to_wide_string(afp_password, kLongNames);
+			password = string_to_wide_string(afp_password, CP_MACCP);
 			break;
 		}
 
@@ -583,7 +584,9 @@ AFPERROR FPContLogin(
 			// convert the password to a unicode string and authenticate this user
 			// using the Windows Logon API.
 
-			auto password = string_to_wide_string(sz_password, kUnicodeNames);
+			//The DHX blob carries the password in the client's text encoding;
+			//kUnicodeNames means UTF-8 on the wire in this codebase.
+			auto password = string_to_wide_string(sz_password, CP_UTF8);
 			afp_error = afp_imp_user_logon(connection, afp_reply, password);
 
 		    password.clear();
@@ -743,7 +746,8 @@ AFPERROR FPChangePassword(
 
 			if (AFP_SUCCESS(afp_error))
 			{
-				const std::wstring new_password = string_to_wide_string(sz_new_password, kUnicodeNames);
+				//Same encoding as the DHX login password (see FPContLogin).
+				const std::wstring new_password = string_to_wide_string(sz_new_password, CP_UTF8);
 
                 //**** TO BE IMPLEMENTED ****
                 //afpError = afpImpChangePswd(
