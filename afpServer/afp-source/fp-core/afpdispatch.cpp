@@ -37,7 +37,7 @@ afp_function_table afp_table[] = {
 	{FPContLogin},
 	{FPLogout},
 	{FPMapID},
-	{fp_unimplemented}, //afpMapName
+	{FPMapName},
 	{FPMoveAndRename},
 	{FPOpenVol},
 	{fp_unimplemented}, //afpOpenDir

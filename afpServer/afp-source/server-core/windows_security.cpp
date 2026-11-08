@@ -334,10 +334,136 @@ void use_authz_solution(
     }
 }
 
+// True if the token's user is a member of the built-in Administrators
+// alias. CheckTokenMembership honours the token's group attributes, so a
+// full (unfiltered) administrator token reports TRUE while a UAC-filtered
+// one reports FALSE.
+bool is_admin_token(
+    IN HANDLE token
+)
+{
+    if (token == nullptr)
+    {
+        return false;
+    }
+
+    SID_IDENTIFIER_AUTHORITY nt_authority = SECURITY_NT_AUTHORITY;
+    PSID admin_sid = nullptr;
+
+    if (!AllocateAndInitializeSid(
+        &nt_authority,
+        2,
+        SECURITY_BUILTIN_DOMAIN_RID,
+        DOMAIN_ALIAS_RID_ADMINS,
+        0, 0, 0, 0, 0, 0,
+        &admin_sid))
+    {
+        DBGWRITE(dbg_level_info, L"AllocateAndInitializeSid(admins) failed (%d)\n", GetLastError());
+        return false;
+    }
+
+    BOOL is_member = FALSE;
+
+    // The connection's token is an impersonation-capable duplicate that is
+    // not the process token: CheckTokenMembership on such a handle fails
+    // with ERROR_IMPERSONATION_LEVEL_INSUFFICIENT unless the calling
+    // thread is impersonating that very user. Temporarily impersonate for
+    // the membership test (the token always belongs to the session's own
+    // user).
+    if (ImpersonateLoggedOnUser(token))
+    {
+        if (!CheckTokenMembership(nullptr, admin_sid, &is_member))
+        {
+            DBGWRITE(dbg_level_info, L"CheckTokenMembership(current) failed (%d)\n", GetLastError());
+            is_member = FALSE;
+        }
+        RevertToSelf();
+    }
+    else
+    {
+        DBGWRITE(dbg_level_info, L"CheckTokenMembership: impersonation failed (%d)\n", GetLastError());
+    }
+
+    FreeSid(admin_sid);
+    return is_member != FALSE;
+}
+
+namespace {
+
+// Localized display name of the built-in Users group (S-1-5-32-545),
+// e.g. "Users" / "Benutzer". Empty on failure.
+std::wstring get_builtin_users_group_name()
+{
+    SID_IDENTIFIER_AUTHORITY nt_authority = SECURITY_NT_AUTHORITY;
+    PSID users_sid = nullptr;
+
+    if (!AllocateAndInitializeSid(
+        &nt_authority,
+        2,
+        SECURITY_BUILTIN_DOMAIN_RID,
+        DOMAIN_ALIAS_RID_USERS,
+        0, 0, 0, 0, 0, 0,
+        &users_sid))
+    {
+        return {};
+    }
+
+    WCHAR name[256];
+    WCHAR domain[256];
+    DWORD cch_name = _countof(name);
+    DWORD cch_domain = _countof(domain);
+    SID_NAME_USE use = SidTypeUnknown;
+
+    std::wstring result;
+    if (LookupAccountSidW(nullptr, users_sid, name, &cch_name, domain, &cch_domain, &use))
+    {
+        result = name;
+    }
+
+    FreeSid(users_sid);
+    return result;
+}
+
+// Coarse AFP read/write/execute classification of a Windows access mask.
+// Only *concrete* bits are listed: the composite macros (GENERIC_*,
+// FILE_GENERIC_*, STANDARD_RIGHTS_*) overlap - FILE_GENERIC_READ and
+// FILE_GENERIC_WRITE both embed STANDARD_RIGHTS_WRITE (READ_CONTROL,
+// 0x20000) - so testing composites misclassifies every readable object
+// as writable. AuthzAccessCheck with MAXIMUM_ALLOWED returns the mapped
+// (concrete) mask, which classifies cleanly.
+constexpr ACCESS_MASK k_read_bits = GENERIC_READ | FILE_READ_DATA |
+    FILE_LIST_DIRECTORY | FILE_READ_EA | FILE_READ_ATTRIBUTES;
+constexpr ACCESS_MASK k_write_bits = GENERIC_WRITE | FILE_WRITE_DATA |
+    FILE_ADD_FILE | FILE_APPEND_DATA | FILE_ADD_SUBDIRECTORY |
+    FILE_WRITE_EA | FILE_WRITE_ATTRIBUTES | DELETE | FILE_DELETE_CHILD;
+constexpr ACCESS_MASK k_exec_bits = GENERIC_EXECUTE | FILE_EXECUTE |
+    FILE_TRAVERSE;
+
+DWORD mask_to_rw_bits(const ACCESS_MASK mask, const DWORD s_bit, const DWORD r_bit, const DWORD w_bit)
+{
+    DWORD rw = 0;
+    if (mask & k_read_bits) rw |= r_bit;
+    if (mask & k_write_bits) rw |= w_bit;
+    if (mask & k_exec_bits) rw |= s_bit;
+    return rw;
+}
+
+ACCESS_MASK rw_bits_to_mask(const DWORD rw, const DWORD s_bit, const DWORD r_bit, const DWORD w_bit)
+{
+    ACCESS_MASK mask = 0;
+    if (rw & r_bit) mask |= GENERIC_READ;
+    if (rw & w_bit) mask |= GENERIC_WRITE;
+    if (rw & s_bit) mask |= GENERIC_EXECUTE;
+    return mask;
+}
+
+} // unnamed namespace
+
 bool get_directory_rights(
     const std::wstring& dir_path,
     const std::wstring& logged_on_user_name,
-    DWORD* afp_rights
+    DWORD* afp_rights,
+    IN HANDLE user_token
 )
 {
     PACL p_dacl = nullptr;
@@ -345,7 +471,8 @@ bool get_directory_rights(
     PSID p_sid_group = nullptr;
     PSID p_sid_owner = nullptr;
     ACCESS_MASK access_rights = 0;
-    ACCESS_MASK guest_access_rights = 0;
+    ACCESS_MASK group_access_rights = 0;
+    ACCESS_MASK world_access_rights = 0;
 
     DBGWRITE(dbg_level_trace, L"Getting rights for %s...\n", dir_path.c_str());
     DBGWRITE(dbg_level_trace, L"user name = %s\n", logged_on_user_name.c_str());
@@ -391,6 +518,7 @@ bool get_directory_rights(
 
     // Check to see if the current user is the owner of the directory. If not, we
     // get the access rights for this user as allowed by it's SID.
+    bool owner_equivalent = false;
 
     if (const auto user_sid = get_sid_for_user(logged_on_user_name); user_sid != nullptr)
     {
@@ -432,6 +560,7 @@ bool get_directory_rights(
             }
 
             *afp_rights |= kAccess_Owner;
+            owner_equivalent = true;
         }
         else
         {
@@ -458,42 +587,49 @@ bool get_directory_rights(
         LocalFree(user_sid);
     }
 
-    // Now check for guest access. The guest is identified by the built-in
-    // Guest account's SID (resolved via canonical name + verified RID),
-    // which is locale-independent (the account is not named "Guest" on
-    // international Windows installs). The result is kept separate from
-    // the user's rights: the kAccess_W* bits below always describe what
-    // the Guest account may do.
-    if (const auto guest_sid = get_guest_account_sid(); guest_sid != nullptr)
+    // Windows lets members of the built-in Administrators group edit any
+    // object's DACL and owner. Report them as owner-equivalent (AFP has no
+    // separate "administrator" right); without this, Finder grays out the
+    // whole Sharing panel for administrators on objects owned by
+    // BUILTIN\Administrators - the default owner of objects that an admin
+    // creates with a full (non-filtered) administrator token.
+    if (!owner_equivalent && is_admin_token(user_token))
     {
-        if (have_manager)
-        {
-            get_effective_rights_for_sid(authz_manager, security_descriptor, guest_sid, &guest_access_rights);
-        }
-
-        LocalFree(guest_sid);
+        DBGWRITE(dbg_level_trace, L"Logged on user is a Windows administrator; reporting owner-equivalent rights\n");
+        *afp_rights |= kAccess_Owner | kAccess_OALL | kAccess_UALL;
     }
+
+    // The group rights describe what the object's primary group may do
+    // (the Finder group row).
+    if (have_manager && p_sid_group != nullptr)
+    {
+        get_effective_rights_for_sid(authz_manager, security_descriptor, p_sid_group, &group_access_rights);
+    }
+
+    *afp_rights |= mask_to_rw_bits(group_access_rights, kAccess_GS, kAccess_GR, kAccess_GW);
+
+    // The "world" (everyone) rights. The Finder "everyone" row means the
+    // anonymous/world principal, so it is evaluated against the Everyone
+    // well-known SID - not the built-in Guest account, which on modern
+    // Windows holds no rights on ordinary shares at all.
+    BYTE world_sid_buffer[SECURITY_MAX_SID_SIZE];
+    DWORD world_sid_length = sizeof(world_sid_buffer);
+    const auto world_sid = reinterpret_cast<PSID>(world_sid_buffer);
+
+    if (CreateWellKnownSid(WinWorldSid, nullptr, world_sid, &world_sid_length) && have_manager)
+    {
+        get_effective_rights_for_sid(authz_manager, security_descriptor, world_sid, &world_access_rights);
+    }
+    else
+    {
+        DBGWRITE(dbg_level_info, L"CreateWellKnownSid(WinWorldSid) failed (%d)\n", GetLastError());
+    }
+
+    *afp_rights |= mask_to_rw_bits(world_access_rights, kAccess_WS, kAccess_WR, kAccess_WW);
 
     if (have_manager)
     {
         AuthzFreeResourceManager(authz_manager);
-    }
-
-    if ((guest_access_rights & GENERIC_READ) == GENERIC_READ || (guest_access_rights & FILE_GENERIC_READ) == FILE_GENERIC_READ)
-    {
-        DBGWRITE(dbg_level_trace, L"Guest has read access!\n");
-        *afp_rights |= kAccess_WR;
-    }
-    if ((guest_access_rights & GENERIC_WRITE) == GENERIC_WRITE || (guest_access_rights & FILE_GENERIC_WRITE) == FILE_GENERIC_WRITE ||
-        (guest_access_rights & FILE_WRITE_DATA) == FILE_WRITE_DATA)
-    {
-        DBGWRITE(dbg_level_trace, L"Guest has write access!\n");
-        *afp_rights |= kAccess_WW;
-    }
-    if ((guest_access_rights & GENERIC_EXECUTE) == GENERIC_EXECUTE || (guest_access_rights & FILE_GENERIC_EXECUTE) == FILE_GENERIC_EXECUTE)
-    {
-        DBGWRITE(dbg_level_trace, L"Guest has execute access!\n");
-        *afp_rights |= kAccess_WS;
     }
 
     if (security_descriptor != nullptr)
@@ -642,6 +778,22 @@ DWORD get_directory_owner_and_group_id(
     // need to convert it to an AFP group ID.
     DBGWRITE(dbg_level_trace, L"Group name from SID = %s for dir %s\n", account_name, dir_win_path.c_str());
 
+    // A Windows *local* account's primary group is the machine-local group
+    // whose SAM name is literally "None" (every local user has it as
+    // primary; whoami /groups shows it unnamed). Reporting that verbatim
+    // makes Finder show "User/Group: None" for every object on the share.
+    // Report the built-in Users group instead - every local account (and
+    // every administrator) is a member of it, so it is a truthful primary
+    // group for display and for the group-rights row.
+    if (_wcsicmp(account_name, L"None") == 0)
+    {
+        if (const auto users_name = get_builtin_users_group_name(); !users_name.empty())
+        {
+            lstrcpyn(account_name, users_name.c_str(), max_name);
+            sid_type = SidTypeGroup;
+        }
+    }
+
     // We only care about group SID's
     if (sid_type == SidTypeGroup)
     {
@@ -665,6 +817,311 @@ DWORD get_directory_owner_and_group_id(
     g_user_and_group_cache.add(afp_user_name_type, logged_on_user_name);
 
     return error;
+}
+
+DWORD afp_id_for_account_name(
+    IN const users_and_group_name_type type,
+    IN const std::wstring& name
+)
+{
+    return g_user_and_group_cache.add(type, name);
+}
+
+DWORD set_directory_owner_and_group(
+    IN const std::wstring& obj_path,
+    IN PSID owner_sid,
+    IN PSID group_sid
+)
+{
+    if (owner_sid == nullptr && group_sid == nullptr)
+    {
+        return ERROR_SUCCESS;
+    }
+
+    SECURITY_INFORMATION sec_info = 0;
+    if (owner_sid != nullptr) sec_info |= OWNER_SECURITY_INFORMATION;
+    if (group_sid != nullptr) sec_info |= GROUP_SECURITY_INFORMATION;
+
+    // Called while impersonating the AFP user; Windows enforces that the
+    // caller may assign the requested owner/group (WRITE_OWNER, or being
+    // the current owner assigning it back to itself).
+    const auto error = SetNamedSecurityInfo(
+        const_cast<WCHAR*>(obj_path.c_str()),
+        SE_FILE_OBJECT,
+        sec_info,
+        owner_sid,
+        group_sid,
+        nullptr,
+        nullptr
+    );
+
+    if (error != ERROR_SUCCESS)
+    {
+        DBGWRITE(dbg_level_info, L"SetNamedSecurityInfo(owner/group) failed on %s (%d)\n",
+                 obj_path.c_str(), error);
+    }
+
+    return error;
+}
+
+DWORD set_directory_afp_access(
+    IN const std::wstring& obj_path,
+    IN const DWORD afp_rights,
+    IN const bool is_directory
+)
+{
+    PSID obj_owner_sid = nullptr;
+    PSID obj_group_sid = nullptr;
+    PSECURITY_DESCRIPTOR merged_psd = nullptr;
+
+    auto error = GetNamedSecurityInfo(
+        const_cast<WCHAR*>(obj_path.c_str()),
+        SE_FILE_OBJECT,
+        OWNER_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION,
+        &obj_owner_sid,
+        &obj_group_sid,
+        nullptr,
+        nullptr,
+        &merged_psd
+    );
+
+    if (error != ERROR_SUCCESS)
+    {
+        DBGWRITE(dbg_level_info, L"GetNamedSecurityInfo failed in set_directory_afp_access (%d)\n", error);
+        LocalFree(merged_psd);
+        return error != ERROR_SUCCESS ? error : ERROR_ACCESS_DENIED;
+    }
+
+    // The *explicit* DACL of this object (UNPROTECTED view): the ACEs we
+    // are allowed to rewrite. Inherited ACEs stay owned by the parent.
+    PACL explicit_dacl = nullptr;
+    PSECURITY_DESCRIPTOR explicit_psd = nullptr;
+
+    error = GetNamedSecurityInfo(
+        const_cast<WCHAR*>(obj_path.c_str()),
+        SE_FILE_OBJECT,
+        DACL_SECURITY_INFORMATION | UNPROTECTED_DACL_SECURITY_INFORMATION,
+        nullptr,
+        nullptr,
+        &explicit_dacl,
+        nullptr,
+        &explicit_psd
+    );
+
+    if (error != ERROR_SUCCESS)
+    {
+        DBGWRITE(dbg_level_info, L"GetNamedSecurityInfo(unprotected) failed (%d)\n", error);
+        LocalFree(explicit_psd);
+        LocalFree(merged_psd);
+        return error != ERROR_SUCCESS ? error : ERROR_ACCESS_DENIED;
+    }
+
+    BYTE world_sid_buffer[SECURITY_MAX_SID_SIZE];
+    DWORD world_sid_length = sizeof(world_sid_buffer);
+    const auto world_sid = reinterpret_cast<PSID>(world_sid_buffer);
+
+    if (!CreateWellKnownSid(WinWorldSid, nullptr, world_sid, &world_sid_length))
+    {
+        const DWORD world_error = GetLastError();
+        DBGWRITE(dbg_level_info, L"CreateWellKnownSid(WinWorldSid) failed (%d)\n", world_error);
+        LocalFree(explicit_psd);
+        LocalFree(merged_psd);
+        return world_error != ERROR_SUCCESS ? world_error : ERROR_ACCESS_DENIED;
+    }
+
+    // The three ACEs the AFP dirAccess triplets translate to. The "user
+    // actual" (UA*) bits report the requester's real access and are not a
+    // permission class, so they never produce an ACE here.
+    const BYTE inherit_flags = is_directory
+        ? static_cast<BYTE>(OBJECT_INHERIT_ACE | CONTAINER_INHERIT_ACE)
+        : static_cast<BYTE>(0);
+
+    // Worst-case size: every existing explicit ACE kept plus three new ones.
+    const ULONG existing_size = explicit_dacl != nullptr ? explicit_dacl->AclSize : 0;
+    constexpr ULONG new_ace_room = 3 * (sizeof(ACCESS_ALLOWED_ACE) + SECURITY_MAX_SID_SIZE);
+    const ULONG new_dacl_size = existing_size + new_ace_room;
+
+    auto dacl_buffer = std::make_unique<BYTE[]>(new_dacl_size);
+    auto* new_dacl = reinterpret_cast<PACL>(dacl_buffer.get());
+
+    bool built = InitializeAcl(new_dacl, static_cast<DWORD>(new_dacl_size), ACL_REVISION) != FALSE;
+
+    // The principal of an access ACE: SidStart follows the fixed-size
+    // header and mask (ACCESS_ALLOWED_ACE / ACCESS_DENIED_ACE layout).
+    const auto ace_sid_of = [](const ACE_HEADER* ace) -> PSID
+    {
+        return reinterpret_cast<PSID>(
+            &reinterpret_cast<PACCESS_ALLOWED_ACE>(const_cast<ACE_HEADER*>(ace))->SidStart);
+    };
+
+    const auto ace_is_managed = [&](const ACE_HEADER* ace)
+    {
+        if (ace->AceType != ACCESS_ALLOWED_ACE_TYPE && ace->AceType != ACCESS_DENIED_ACE_TYPE)
+        {
+            return false; // object ACEs etc.: keep verbatim
+        }
+        const PSID sid = ace_sid_of(ace);
+        return (obj_owner_sid != nullptr && EqualSid(sid, obj_owner_sid)) ||
+            (obj_group_sid != nullptr && EqualSid(sid, obj_group_sid)) ||
+            EqualSid(sid, world_sid);
+    };
+
+    // Keep every explicit ACE that is not for one of the AFP-managed
+    // principals (owner / group / everyone); those are rebuilt below.
+    if (built && explicit_dacl != nullptr)
+    {
+        for (ULONG i = 0; i < explicit_dacl->AceCount && built; i++)
+        {
+            ACE_HEADER* ace = nullptr;
+            if (!GetAce(explicit_dacl, i, reinterpret_cast<LPVOID*>(&ace)))
+            {
+                continue;
+            }
+
+            if (ace_is_managed(ace))
+            {
+                continue;
+            }
+
+            if (!AddAce(new_dacl, ACL_REVISION, MAXDWORD, ace, ace->AceSize))
+            {
+                DBGWRITE(dbg_level_info, L"AddAce failed (%d)\n", GetLastError());
+                built = false;
+            }
+        }
+    }
+
+    // Add one AFP class ACE; a class with no rights simply gets no ACE.
+    const auto add_class_ace = [&](PSID sid, DWORD s_bit, DWORD r_bit, DWORD w_bit,
+                                   ACCESS_MASK extra) -> bool
+    {
+        if (sid == nullptr)
+        {
+            return true;
+        }
+
+        ACCESS_MASK mask = rw_bits_to_mask(afp_rights, s_bit, r_bit, w_bit) | extra;
+
+        // A readable directory stays traversable (Finder's "read only"
+        // means read+execute for folders).
+        if (is_directory && (mask & GENERIC_READ) != 0)
+        {
+            mask |= GENERIC_EXECUTE;
+        }
+
+        if (mask == 0)
+        {
+            return true;
+        }
+
+        return AddAccessAllowedAceEx(new_dacl, ACL_REVISION, inherit_flags, mask, sid) != FALSE;
+    };
+
+    // The owner always keeps READ_CONTROL | WRITE_DAC so it can reopen the
+    // Sharing panel and restore rights even after a chmod 000.
+    built = built &&
+        add_class_ace(obj_owner_sid, kAccess_OS, kAccess_OR, kAccess_OW,
+            READ_CONTROL | WRITE_DAC) &&
+        add_class_ace(obj_group_sid, kAccess_GS, kAccess_GR, kAccess_GW, 0) &&
+        add_class_ace(world_sid, kAccess_WS, kAccess_WR, kAccess_WW, 0);
+
+    if (!built)
+    {
+        DBGWRITE(dbg_level_info, L"Building the AFP DACL for %s failed (%d)\n",
+                 obj_path.c_str(), GetLastError());
+        LocalFree(explicit_psd);
+        LocalFree(merged_psd);
+        return ERROR_GEN_FAILURE;
+    }
+
+    // Replaces the object's explicit DACL. Inherited ACEs stay in effect:
+    // a share whose root grants, say, Users:Modify keeps granting it -
+    // the AFP permission model layers on top of, and cannot undercut,
+    // inherited Windows ACLs.
+    error = SetNamedSecurityInfo(
+        const_cast<WCHAR*>(obj_path.c_str()),
+        SE_FILE_OBJECT,
+        DACL_SECURITY_INFORMATION,
+        nullptr,
+        nullptr,
+        new_dacl,
+        nullptr
+    );
+
+    LocalFree(explicit_psd);
+    LocalFree(merged_psd);
+
+    if (error != ERROR_SUCCESS)
+    {
+        DBGWRITE(dbg_level_info, L"SetNamedSecurityInfo(DACL) failed on %s (%d)\n",
+                 obj_path.c_str(), error);
+    }
+
+    return error;
+}
+
+void ensure_token_user_owns(
+    IN const std::wstring& obj_path,
+    IN HANDLE token
+)
+{
+    if (token == nullptr)
+    {
+        return;
+    }
+
+    BYTE token_user_buffer[64 * 1024]; /* generous TOKEN_USER buffer (SecurityMaxTokenSize) */
+    DWORD returned_length = 0;
+    const auto token_user = reinterpret_cast<PTOKEN_USER>(token_user_buffer);
+
+    if (!GetTokenInformation(token, TokenUser, token_user, sizeof(token_user_buffer), &returned_length))
+    {
+        DBGWRITE(dbg_level_info, L"GetTokenInformation(TokenUser) failed (%d)\n", GetLastError());
+        return;
+    }
+
+    PSID current_owner = nullptr;
+    PSECURITY_DESCRIPTOR psd = nullptr;
+
+    const auto error = GetNamedSecurityInfo(
+        const_cast<WCHAR*>(obj_path.c_str()),
+        SE_FILE_OBJECT,
+        OWNER_SECURITY_INFORMATION,
+        &current_owner,
+        nullptr,
+        nullptr,
+        nullptr,
+        &psd
+    );
+
+    if (error == ERROR_SUCCESS && current_owner != nullptr &&
+        !EqualSid(current_owner, token_user->User.Sid))
+    {
+        // Objects created with a full administrator token default to
+        // BUILTIN\Administrators as their owner. Hand ownership to the
+        // AFP user so Finder reports the creator - requires
+        // SeTakeOwnershipPrivilege, which administrator tokens hold.
+        adjust_privilege(const_cast<wchar_t*>(L"SeTakeOwnershipPrivilege"), TRUE);
+
+        const auto set_error = SetNamedSecurityInfo(
+            const_cast<WCHAR*>(obj_path.c_str()),
+            SE_FILE_OBJECT,
+            OWNER_SECURITY_INFORMATION,
+            token_user->User.Sid,
+            nullptr,
+            nullptr,
+            nullptr
+        );
+
+        if (set_error != ERROR_SUCCESS)
+        {
+            DBGWRITE(dbg_level_info,
+                     L"Could not hand ownership of %s to the creating AFP user (%d)\n",
+                     obj_path.c_str(), set_error);
+        }
+    }
+
+    LocalFree(psd);
 }
 
 BOOL open_current_token(

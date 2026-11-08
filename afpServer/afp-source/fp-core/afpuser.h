@@ -46,6 +46,12 @@ AFPERROR FPMapID(
 	IN dsi::dsi_connection* connection
 );
 
+AFPERROR FPMapName(
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	IN dsi::dsi_connection* connection
+);
+
 AFPERROR FPGetSrvrMsg(
 	IN afp_net_buffer& afp_request,
 	IN afp_net_buffer& afp_reply,

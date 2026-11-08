@@ -489,6 +489,13 @@ AFPERROR FPCreateFile(
         nullptr
     );
 
+    if (h_file != INVALID_HANDLE_VALUE)
+    {
+        // Objects created with a full administrator token are owned by
+        // BUILTIN\Administrators by default; hand ownership to the AFP
+        // user who created the file (see FPCreateDir).
+        ensure_token_user_owns(win_path.c_str(), connection->get_user_token());
+    }
 
     revert_to_self(connection->get_user_token());
 

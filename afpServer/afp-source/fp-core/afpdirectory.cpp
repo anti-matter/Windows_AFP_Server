@@ -66,6 +66,11 @@ AFPERROR FPResolveID(
         if (afp_bitmap & kFPShortName) afp_bitmap &= ~kFPShortName;
     }
 
+    // UNIX privileges are not supported on this server; the bits must not
+    // be echoed back in the reply bitmap (the client would expect 16 bytes
+    // of FPUnixPrivs data that never arrive).
+    afp_bitmap &= ~kFPUnixPrivs;
+
     // Add in the bitmap and new refnum id.
     afp_reply.push_num(afp_bitmap);
 
@@ -176,6 +181,11 @@ AFPERROR FPGetFileDirParms(
 
     if (afp_dir_bitmap & kFPDirShortName) afp_dir_bitmap &= ~kFPDirShortName;
     if (afp_file_bitmap & kFPShortName) afp_file_bitmap &= ~kFPShortName;
+
+    // UNIX privileges are unsupported; echoing the bit back without the
+    // 16-byte FPUnixPrivs payload would desync the client's parsing.
+    afp_dir_bitmap &= ~kFPDirUnixPrivs;
+    afp_file_bitmap &= ~kFPUnixPrivs;
 
     // We always return copies of the bitmaps and the attributes.
     afp_reply.push_num(afp_file_bitmap);
@@ -297,6 +307,10 @@ AFPERROR FPEnumerate(
 
     if (afp_dir_bitmap & kFPDirShortName) afp_dir_bitmap &= ~kFPDirShortName;
     if (afp_file_bitmap & kFPShortName) afp_file_bitmap &= ~kFPShortName;
+
+    // UNIX privileges are unsupported; never echo the bit back.
+    afp_dir_bitmap &= ~kFPDirUnixPrivs;
+    afp_file_bitmap &= ~kFPUnixPrivs;
 
     // The first thing we do is add the bitmaps to the reply buffer.
     afp_reply.push_num(afp_file_bitmap);
@@ -539,7 +553,8 @@ AFPERROR FPSetFileDirParms(
         if (afp_bitmap & (kFPParentID | kFPLongName | kFPShortName |
             kFPFileNum | kFPDFLen | kFPRFLen |
             kFPDirGroupID | kFPDirAccess | kFPDirUnicodeName |
-            kFPExtDataForkLen | kFPExtRsrcForkLen))
+            kFPExtDataForkLen | kFPExtRsrcForkLen |
+            kFPUnixPrivs | kFPDirUnixPrivs))
         {
             DBGWRITE(dbg_level_trace, L"Bad bitmap!\n");
             return afpBitmapErr;
@@ -548,7 +563,8 @@ AFPERROR FPSetFileDirParms(
 
     case afpSetDirParms:
         if (afp_bitmap & (kFPParentID | kFPLongName | kFPShortName |
-            kFPDirOffCount | kFPDirID | kFPDirUnicodeName))
+            kFPDirOffCount | kFPDirID | kFPDirUnicodeName |
+            kFPDirUnixPrivs))
         {
             DBGWRITE(dbg_level_trace, L"[afp:FPSetDirParms]Bad bitmap!\n");
             return afpBitmapErr;
@@ -558,7 +574,8 @@ AFPERROR FPSetFileDirParms(
     case afpSetFileParms:
         if (afp_bitmap & (kFPParentID | kFPLongName | kFPShortName |
             kFPFileNum | kFPDFLen | kFPRFLen |
-            kFPExtDataForkLen | kFPUnicodeName | kFPExtRsrcForkLen))
+            kFPExtDataForkLen | kFPUnicodeName | kFPExtRsrcForkLen |
+            kFPUnixPrivs))
         {
             DBGWRITE(dbg_level_info, L"Bad bitmap!\n");
             return afpBitmapErr;
@@ -590,7 +607,8 @@ AFPERROR FPSetFileDirParms(
         afp_bitmap,
         win_attributes.dwFileAttributes,
         afp_entry.get(),
-        afp_request);
+        afp_request,
+        connection);
 
     return afp_error;
 }
@@ -669,6 +687,14 @@ AFPERROR FPCreateDir(
     const auto afp_error = CreateDirectory(win_path.c_str(), nullptr)
                                ? AFP_OK
                                : afp_map_win_error_to_afp(GetLastError(), afpMiscErr);
+
+    if (AFP_SUCCESS(afp_error))
+    {
+        // A full administrator token defaults the owner of new objects to
+        // BUILTIN\Administrators; hand ownership to the AFP user who
+        // actually created the folder so Finder reports the creator.
+        ensure_token_user_owns(win_path.c_str(), connection->get_user_token());
+    }
 
     revert_to_self(connection->get_user_token());
 

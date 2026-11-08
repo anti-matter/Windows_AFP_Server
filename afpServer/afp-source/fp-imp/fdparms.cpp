@@ -219,7 +219,8 @@ AFPERROR afp_get_object_parms(
             const auto succeeded = get_directory_rights(
                entry->sz_path.c_str(),
                 dsi_session->get_user_name(),
-                &rights
+                &rights,
+                dsi_session->get_user_token()
             );
 
             if (succeeded)
@@ -332,11 +333,111 @@ AFPERROR afp_get_object_parms(
     return AFP_OK;
 }
 
+/*
+ * afp_set_dir_security()
+ *
+ * Applies the directory owner / group / access parameters that the
+ * client sent with FSetDirParms (or FSetFileDirParms). The caller is
+ * impersonated for the Windows security calls, so Windows itself
+ * enforces who may change ownership (WRITE_OWNER) and the DACL
+ * (WRITE_DAC); members of Administrators pass, everyone else gets
+ * afpAccessDenied from the OS.
+ */
+
+static AFPERROR afp_set_dir_security(
+    IN const std::wstring& dir_path,
+    IN const UINT32 new_owner_id,
+    IN const UINT32 new_group_id,
+    IN const UINT32 new_access,
+    IN dsi::dsi_connection* connection
+)
+{
+    PSID owner_sid = nullptr;
+    PSID group_sid = nullptr;
+    AFPERROR afp_error = AFP_OK;
+
+    WCHAR account_name[256]{};
+
+    if (new_owner_id != 0)
+    {
+        if (AFP_FAILED(get_user_name_by_id(new_owner_id, account_name, ARRAYSIZE(account_name))))
+        {
+            DBGWRITE(dbg_level_info, L"No account cached for owner id %u\n", new_owner_id);
+            return afpParmErr;
+        }
+
+        owner_sid = get_sid_for_user(account_name);
+        if (owner_sid == nullptr)
+        {
+            DBGWRITE(dbg_level_info, L"Account [%s] no longer resolvable\n", account_name);
+            return afpParmErr;
+        }
+    }
+
+    if (new_group_id != 0)
+    {
+        account_name[0] = 0;
+        if (AFP_FAILED(get_user_name_by_id(new_group_id, account_name, ARRAYSIZE(account_name))))
+        {
+            if (owner_sid != nullptr)
+            {
+                LocalFree(owner_sid);
+            }
+            return afpParmErr;
+        }
+
+        group_sid = get_sid_for_user(account_name);
+        if (group_sid == nullptr)
+        {
+            if (owner_sid != nullptr)
+            {
+                LocalFree(owner_sid);
+            }
+            return afpParmErr;
+        }
+    }
+
+    if (!impersonate_user(connection->get_user_token()))
+    {
+        if (owner_sid != nullptr) LocalFree(owner_sid);
+        if (group_sid != nullptr) LocalFree(group_sid);
+        return afpAccessDenied;
+    }
+
+    if (owner_sid != nullptr || group_sid != nullptr)
+    {
+        const auto win_error = set_directory_owner_and_group(dir_path, owner_sid, group_sid);
+        if (win_error != ERROR_SUCCESS)
+        {
+            afp_error = win_error == ERROR_ACCESS_DENIED ? afpAccessDenied
+                : afp_map_win_error_to_afp(win_error, afpMiscErr);
+        }
+    }
+
+    if (AFP_SUCCESS(afp_error) && new_access != 0)
+    {
+        const auto win_error = set_directory_afp_access(dir_path, new_access, true);
+        if (win_error != ERROR_SUCCESS)
+        {
+            afp_error = win_error == ERROR_ACCESS_DENIED ? afpAccessDenied
+                : afp_map_win_error_to_afp(win_error, afpMiscErr);
+        }
+    }
+
+    revert_to_self(connection->get_user_token());
+
+    if (owner_sid != nullptr) LocalFree(owner_sid);
+    if (group_sid != nullptr) LocalFree(group_sid);
+
+    return afp_error;
+}
+
 AFPERROR afp_set_file_dir_parms(
     IN const WORD bitmap,
     IN const DWORD file_attributes,
     IN const afp_index* index_entry,
-    IN afp_net_buffer& request
+    IN afp_net_buffer& request,
+    IN dsi::dsi_connection* connection
 )
 {
     // Change the file's attributes, we only allow some to be
@@ -414,16 +515,44 @@ AFPERROR afp_set_file_dir_parms(
 
     if (file_attributes & FILE_ATTRIBUTE_DIRECTORY)
     {
+        // Parse the directory security parameters in spec order; all three
+        // are 32-bit fields.
+        UINT32 new_owner_id = 0;
+        UINT32 new_group_id = 0;
+        UINT32 new_access = 0;
+
         if (bitmap & kFPDirOwnerID)
         {
+            new_owner_id = request.pull_num<UINT32>();
         }
 
         if (bitmap & kFPDirGroupID)
         {
+            new_group_id = request.pull_num<UINT32>();
         }
 
         if (bitmap & kFPDirAccess)
         {
+            new_access = request.pull_num<UINT32>();
+        }
+
+        DBGWRITE(dbg_level_info,
+                 L"FSetDirParms security: owner=%u group=%u access=%08x\n",
+                 new_owner_id, new_group_id, new_access);
+
+        if (new_owner_id != 0 || new_group_id != 0 || new_access != 0)
+        {
+            const auto afp_error = afp_set_dir_security(
+                index_entry->sz_path.c_str(),
+                new_owner_id,
+                new_group_id,
+                new_access,
+                connection);
+
+            if (AFP_FAILED(afp_error))
+            {
+                return afp_error;
+            }
         }
     }
 

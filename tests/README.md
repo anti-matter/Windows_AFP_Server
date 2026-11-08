@@ -23,6 +23,10 @@ docstring for what it guards.
 | `AFP_SSH_TARGET` | `michaelc@127.0.0.1` | SSH target for server-side fixture setup (`user@host`) |
 | `AFP_SSH_PORT` | `2222` | SSH port (WinBoat guest forwards 2222) |
 | `AFP_SHARE_DIR` | `D:\Shares\Dev` | Windows path of `AFP_VOLUME`, matching the volume's share config |
+| `AFP_TEST_USER` | `mac` | Standard (non-admin) Windows account for the permission test |
+| `AFP_TEST_PW` | `AfpTest1` | Its password (≤ 8 chars: the cleartext UAM truncates at 8) |
+| `AFP_TEST_ADMIN_USER` | `afptestadmin` | Account that is a member of the built-in Administrators group |
+| `AFP_TEST_ADMIN_PW` | `AfpTest1` | Its password (≤ 8 chars, same UAM limit) |
 
 Fixtures the tests create are deleted afterwards; the tests grant
 `Everyone:(R,W)` on their fixture files only.
@@ -36,6 +40,7 @@ Fixtures the tests create are deleted afterwards; the tests grant
 | `afp_dhx_probe.py` | DHCAST128 login hardening: zero/short/degenerate DH keys and a short `FPLoginCont` blob must produce AFP errors, never a crash (server liveness checked at the end) | no |
 | `afp_xattr_test.py` | `FPListExtAttrs` enumerates named NTFS streams (`FILE_STREAM_INFORMATION` parsing) | yes |
 | `afp_voldate.py` | AFP dates use the Mac 1904 epoch (`FPGetVolParms`) — pre-fix they decoded ~96 years in the past | no |
+| `afp_permissions_test.py` | Permission model per account type (standard user / administrator / guest): creator ownership (not `BUILTIN\Administrators`), primary group reported as `Users` not `None`, `kAccess_Owner` visibility, `FSetDirParms` owner/access write-back roundtrip against the Windows DACL, unix-privs bit never echoed, `FPMapName`/`FPMapID` roundtrip, and Windows-side enforcement (only owners may change security). Needs the two test accounts above on the server: `net localgroup Users mac /add` and `net localgroup Administrators afptestadmin /add` (guest share must give `Everyone:RX`, Users `Modify` on the share root) | yes |
 
 ## Running
 
@@ -46,6 +51,7 @@ python3 afp_voldate.py
 python3 afp_dhx_probe.py
 python3 afp_lineconv_test.py
 python3 afp_xattr_test.py
+python3 afp_permissions_test.py
 
 # against another server/share
 AFP_HOST=192.168.1.50 AFP_VOLUME=Public AFP_SHARE_DIR='E:\Public' python3 afp_voldate.py

@@ -838,7 +838,12 @@ AFPERROR FPMapID(
 	AFPERROR afp_error;
 	WCHAR sz_name[64]{};
 
-	afp_request.advance_pos_ptr(sizeof(INT8));
+	// Request layout (per the AFP reference): CommandCode, Subfunction, ID.
+	// No pad byte after the command - same as FPOpenFork/FPMapName, and
+	// matching how netatalk parses it. Advancing more here makes real
+	// clients' Subfunction read as the ID's high byte and every lookup
+	// fails with afpParmErr (Finder then shows blank owner/group names).
+	afp_request.advance_pos_ptr(sizeof(INT8)); // command code
 
 	// What are we doing, user or group?
 	const auto afp_sub_func = afp_request.pull_num<INT8>();
@@ -877,6 +882,110 @@ AFPERROR FPMapID(
 	{
 		afp_reply.push_string(sz_name);
 	}
+
+	return AFP_OK;
+}
+
+
+/*
+ * FPMapName()
+ *
+ * Description:
+ *		Map a username to a user or group ID (the inverse of FPMapID).
+ *		Required by clients resolving names typed into the Finder
+ *		Sharing panel (owner/group changes) to the ids this server's
+ *		directory parameter calls report.
+ *
+ * Returns: AFPERROR
+ */
+
+// ReSharper disable once CppInconsistentNaming
+AFPERROR FPMapName(
+	IN afp_net_buffer& afp_request,
+	IN afp_net_buffer& afp_reply,
+	// ReSharper disable once CppParameterMayBeConstPtrOrRef
+	IN dsi::dsi_connection* connection
+)
+{
+	UNREFERENCED_PARAMETER(connection);
+
+	WCHAR name[256]{};
+
+	// Request layout (per the AFP reference): CommandCode, Subfunction,
+	// Name. No pad byte after the command.
+	afp_request.advance_pos_ptr(sizeof(INT8)); // command code
+	const auto afp_sub_sub = afp_request.pull_num<INT8>();
+
+	if (afp_sub_sub < 1 || afp_sub_sub > 4)
+	{
+		DBGWRITE(dbg_level_warning, L"Bad FPMapName subfunction (%d)\n", afp_sub_sub);
+		return afpParmErr;
+	}
+
+	const bool is_group = afp_sub_sub == 2 || afp_sub_sub == 4;
+	const bool is_unicode = afp_sub_sub >= 3;
+
+	const auto raw_name = afp_request.pull_string(is_unicode ? kUnicodeNames : kLongNames);
+	if (raw_name.empty())
+	{
+		return afpParmErr;
+	}
+
+	// The name must refer to a real account of the requested kind; this
+	// also rejects stray cached names never issued as ids.
+	const auto sid = get_sid_for_user(raw_name);
+	if (sid == nullptr)
+	{
+		DBGWRITE(dbg_level_info, L"FPMapName: account [%s] not found\n", raw_name.c_str());
+		return afpItemNotFound;
+	}
+
+	DWORD cch_name = ARRAYSIZE(name);
+	DWORD cch_domain = 0;
+	SID_NAME_USE use = SidTypeUnknown;
+
+	// Size the domain string from the failing first call.
+	LookupAccountSidW(nullptr, sid, name, &cch_name, nullptr, &cch_domain, &use);
+	if (cch_domain == 0)
+	{
+		cch_domain = 2;
+	}
+
+	std::wstring domain;
+	domain.resize(cch_domain + 1);
+	cch_name = ARRAYSIZE(name);
+	cch_domain = static_cast<DWORD>(domain.size());
+
+	const auto resolved = LookupAccountSidW(nullptr, sid, name, &cch_name,
+	                                        domain.data(), &cch_domain, &use);
+	LocalFree(sid);
+
+	if (!resolved)
+	{
+		return afpItemNotFound;
+	}
+
+	const bool sid_is_user = use == SidTypeUser;
+	const bool sid_is_group = use == SidTypeGroup || use == SidTypeAlias ||
+	                          use == SidTypeWellKnownGroup || use == SidTypeLabel;
+
+	if (is_group ? !sid_is_group : !sid_is_user)
+	{
+		DBGWRITE(dbg_level_info, L"FPMapName: [%s] is not a %s account (%d)\n",
+		         raw_name.c_str(), is_group ? L"group" : L"user", use);
+		return afpItemNotFound;
+	}
+
+	// Cache under the account's canonical (resolved) name so the id is the
+	// same one get_directory_owner_and_group_id reports for this account,
+	// regardless of how the client spelled it (domain-qualified, etc.).
+	const std::wstring account_name = name;
+	const auto id = afp_id_for_account_name(is_group ? afp_group_name_type : afp_user_name_type, account_name);
+
+	DBGWRITE(dbg_level_info, L"FPMapName: [%s] -> id %u (%s)\n",
+	         account_name.c_str(), id, is_group ? L"group" : L"user");
+
+	afp_reply.push_num<UINT32>(id);
 
 	return AFP_OK;
 }

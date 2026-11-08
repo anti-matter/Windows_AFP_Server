@@ -201,7 +201,8 @@ AFPERROR afp_session::open_volume(const INT16 volume_id)
     const auto win_error = get_directory_rights(
         volume->get_share_path().c_str(),
         m_dsi_session_->get_user_name(),
-        &rights
+        &rights,
+        m_dsi_session_->get_user_token()
     );
 
     if (!win_error)

@@ -25,7 +25,8 @@ AFPERROR afp_set_file_dir_parms(
     IN WORD bitmap,
     IN DWORD file_attributes,
     IN const afp_index* index_entry,
-    IN afp_net_buffer& request
+    IN afp_net_buffer& request,
+    IN dsi::dsi_connection* connection
 );
 
 AFPERROR afp_set_file_time(
