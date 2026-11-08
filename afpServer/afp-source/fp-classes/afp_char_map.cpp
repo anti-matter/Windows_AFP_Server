@@ -47,6 +47,25 @@ std::wstring afp_char_map::generate_map_from_mac_path(const std::string& mac_pat
 		return win_path;
 	}
 
+	// ':' cannot legally appear in a Macintosh name - it is the classic
+	// HFS/AFP path separator - and it is dangerous on NTFS, where a name
+	// containing ':' that gets joined onto a folder addresses an
+	// ALTERNATE DATA STREAM: FPCreateFile "parent:child" would silently
+	// create a 0-byte stream on the parent folder instead of a file.
+	// Do what Finder does when the user types ':' in a name: substitute
+	// a dash. The substitution is length-preserving and runs before the
+	// illegal-character mapping below, so recorded char-map positions
+	// stay valid. No char-map entry is recorded for it: ':' was never a
+	// legal Mac name character, so there is nothing to restore on the
+	// way back to the client - the dash is the name.
+	for (auto& ch : win_path)
+	{
+		if (ch == L':')
+		{
+			ch = L'-';
+		}
+	}
+
 	UINT8 map_index = 0;
 
 	// The map only holds char_map_size entries; stop recording once it is

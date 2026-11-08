@@ -244,3 +244,7 @@ ModelManifest.xml
 /PersonalAfpServer.zip
 enc_temp_folder/
 /.idea/.idea.afpServer/.idea
+
+# Python test harness bytecode
+__pycache__/
+*.pyc
