@@ -14,8 +14,18 @@ Version 2.4.2:
   This works for MSI and zip installs and for every user who starts the
   server. (An earlier build of this change had the MSI pre-create that
   registry entry; a pre-created entry lacks Explorer's icon snapshot and
-  hid the icon entirely - the server now only ever marks the entry Explorer
-  itself created.)
+  hid the icon entirely - the server now only ever completes a record
+  Explorer itself created.)
+- When started from the Start Menu (through the UAC consent prompt), the
+  shell sometimes created an incomplete settings record for the elevated
+  server's icon - just an icon snapshot, with no application path - which
+  left the icon stuck in the hidden overflow and missing from the
+  "Other system tray icons" list. The server now detects such an
+  incomplete record created for its own registration, fills in the
+  missing information, and promotes the icon, so it appears in the visible
+  notification area regardless of how it was started.
+- The tray icon now survives a Windows Explorer restart or crash: the
+  server re-registers its icon when the shell comes back.
 - Fixed a crash at shutdown: the UI theme's GDI+ font objects were freed
   while process teardown, after GdiplusShutdown had already run, which
   faulted inside the font cleanup. The fonts are now released before GDI+

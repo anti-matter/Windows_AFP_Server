@@ -10,6 +10,8 @@
 #include <thread>
 #include <chrono>
 #include <string>
+#include <vector>
+#include <algorithm>
 
 #include "afp.h"
 #include "afpdebug.h"
@@ -146,6 +148,153 @@ namespace
         return promoted;
     }
 
+    // "Zombie" icon records: subkeys of NotifyIconSettings that hold an
+    // IconSnapshot but no ExecutablePath. When our (requireAdministrator)
+    // icon is registered from a Start-Menu UAC-consent launch, Explorer
+    // creates exactly such an incomplete record for it: the icon lands in
+    // the overflow, the app is absent from the Settings "Other system tray
+    // icons" list, and the record cannot be matched by path. Launches that
+    // do not go through the consent flow (e.g. direct process creation)
+    // get a complete record instead.
+    void collect_zombie_icon_keys(IN OUT std::vector<std::wstring>& ids)
+    {
+        HKEY h_root = nullptr;
+        if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Control Panel\\NotifyIconSettings",
+                          0, KEY_READ, &h_root) != ERROR_SUCCESS)
+        {
+            return;
+        }
+
+        wchar_t subkey_name[128];
+
+        for (DWORD index = 0;; ++index)
+        {
+            DWORD name_chars = ARRAYSIZE(subkey_name);
+            if (RegEnumKeyExW(h_root, index, subkey_name, &name_chars,
+                              nullptr, nullptr, nullptr, nullptr) != ERROR_SUCCESS)
+            {
+                break;
+            }
+
+            HKEY h_subkey = nullptr;
+            if (RegOpenKeyExW(h_root, subkey_name, 0, KEY_READ, &h_subkey) != ERROR_SUCCESS)
+            {
+                continue;
+            }
+
+            wchar_t exe_path[MAX_PATH]{};
+            DWORD exe_size = sizeof(exe_path);
+            const LONG path_status =
+                RegQueryValueExW(h_subkey, L"ExecutablePath", nullptr, nullptr,
+                                 reinterpret_cast<LPBYTE>(exe_path), &exe_size);
+            // ERROR_MORE_DATA still means a (long) path is present.
+            const bool has_path =
+                (path_status == ERROR_SUCCESS || path_status == ERROR_MORE_DATA) &&
+                exe_path[0] != L'\0';
+
+            const bool has_snapshot =
+                RegQueryValueExW(h_subkey, L"IconSnapshot", nullptr, nullptr,
+                                 nullptr, nullptr) == ERROR_SUCCESS;
+
+            if (!has_path && has_snapshot)
+            {
+                ids.emplace_back(subkey_name);
+            }
+
+            RegCloseKey(h_subkey);
+        }
+
+        RegCloseKey(h_root);
+    }
+
+    // Zombie records that already existed before our most recent NIM_ADD.
+    // Only records that appear *after* the registration can be ours, so
+    // unrelated older zombies are never touched.
+    std::vector<std::wstring> g_zombie_icon_keys_before_add;
+
+    std::vector<std::wstring> fresh_zombie_icon_keys(
+        const std::vector<std::wstring>& preexisting)
+    {
+        std::vector<std::wstring> zombies;
+        collect_zombie_icon_keys(zombies);
+
+        std::vector<std::wstring> fresh;
+        for (const auto& id : zombies)
+        {
+            if (std::find(preexisting.begin(), preexisting.end(), id) == preexisting.end())
+            {
+                fresh.push_back(id);
+            }
+        }
+        return fresh;
+    }
+
+    // Fills in the metadata Explorer omits on an incomplete icon record and
+    // promotes the icon. Verified on Windows 11 (26300): a completed record
+    // renders the icon directly in the notification area and survives
+    // Explorer restarts and icon re-registration.
+    bool complete_icon_key_record(
+        const std::wstring& id,
+        const std::wstring& our_path)
+    {
+        HKEY h_subkey = nullptr;
+        const std::wstring subkey_path = L"Control Panel\\NotifyIconSettings\\" + id;
+        if (RegOpenKeyExW(HKEY_CURRENT_USER, subkey_path.c_str(),
+                          0, KEY_SET_VALUE, &h_subkey) != ERROR_SUCCESS)
+        {
+            return false;
+        }
+
+        const DWORD uid = AFP_ICON_UID;
+        const DWORD is_promoted = 1;
+
+        bool ok = RegSetValueExW(h_subkey, L"UID", 0, REG_DWORD,
+                                 reinterpret_cast<const BYTE*>(&uid), sizeof(uid)) == ERROR_SUCCESS;
+        ok = RegSetValueExW(h_subkey, L"ExecutablePath", 0, REG_SZ,
+                            reinterpret_cast<const BYTE*>(our_path.c_str()),
+                            static_cast<DWORD>((our_path.size() + 1) * sizeof(wchar_t))) == ERROR_SUCCESS && ok;
+        const size_t tip_bytes = (wcslen(AFP_TOOL_TIP) + 1) * sizeof(wchar_t);
+        ok = RegSetValueExW(h_subkey, L"InitialTooltip", 0, REG_SZ,
+                            reinterpret_cast<const BYTE*>(AFP_TOOL_TIP),
+                            static_cast<DWORD>(tip_bytes)) == ERROR_SUCCESS && ok;
+        ok = RegSetValueExW(h_subkey, L"IsPromoted", 0, REG_DWORD,
+                            reinterpret_cast<const BYTE*>(&is_promoted),
+                            sizeof(is_promoted)) == ERROR_SUCCESS && ok;
+
+        RegCloseKey(h_subkey);
+
+        if (ok)
+        {
+            DBGWRITE(dbg_level_info,
+                     L"tray promotion: completed Explorer's incomplete icon record %s\n",
+                     id.c_str());
+        }
+        return ok;
+    }
+
+    // Adopts the single incomplete record that appeared for our registration.
+    // Only ever claims a record created *after* our NIM_ADD, and never when
+    // several appear at once (ambiguous).
+    bool adopt_zombie_icon_key(
+        const std::vector<std::wstring>& preexisting,
+        const std::wstring& our_path)
+    {
+        const std::vector<std::wstring> fresh = fresh_zombie_icon_keys(preexisting);
+
+        if (fresh.empty())
+            return false;
+
+        if (fresh.size() > 1)
+        {
+            DBGWRITE(dbg_level_warning,
+                     L"tray promotion: %d new incomplete icon records, none claimed\n",
+                     static_cast<int>(fresh.size()));
+            return false;
+        }
+
+        return complete_icon_key_record(fresh.front(), our_path);
+    }
+
     // Windows 11 parks new tray icons in the hidden overflow. Explorer owns
     // HKCU\Control Panel\NotifyIconSettings and creates our icon's key there
     // (with its IconSnapshot) asynchronously after NIM_ADD; once the key
@@ -160,16 +309,39 @@ namespace
             return;
 
         const std::wstring our_path = canonicalize_exe_path(module_path);
+        const std::vector<std::wstring> preexisting = g_zombie_icon_keys_before_add;
 
         // The main window hides on close, so a detached helper thread is the
         // only thing that still runs while waiting for Explorer's key.
-        std::thread([our_path]
+        std::thread([our_path, preexisting]
         {
-            for (int attempt = 0; attempt < 20; ++attempt)
+            bool matched_and_promoted = false;
+
+            for (int attempt = 0; attempt < 40; ++attempt)
             {
-                if (promote_matching_icon_key(our_path))
+                matched_and_promoted = promote_matching_icon_key(our_path) || matched_and_promoted;
+                adopt_zombie_icon_key(preexisting, our_path);
+
+                // Done once nothing new is left to claim and our own key has
+                // been found and promoted.
+                if (matched_and_promoted && fresh_zombie_icon_keys(preexisting).empty())
                     return;
+
                 std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            }
+
+            // Last resort: our key was never matched, but exactly one zombie
+            // exists anywhere (e.g. an earlier run died before adopting it).
+            // It is almost certainly ours - a zombie is an artifact of this
+            // app's UAC-elevated registration.
+            std::vector<std::wstring> zombies;
+            collect_zombie_icon_keys(zombies);
+            if (!matched_and_promoted && zombies.size() == 1)
+            {
+                DBGWRITE(dbg_level_info,
+                         L"tray promotion: adopting lone pre-existing icon record %s\n",
+                         zombies.front().c_str());
+                complete_icon_key_record(zombies.front(), our_path);
             }
         }).detach();
     }
@@ -259,6 +431,13 @@ void initialize_tray_icon(
     nid.hIcon = h_icon;
 
     [[maybe_unused]] const auto ignore = StringCbCopyW(nid.szTip, sizeof(nid.szTip), AFP_TOOL_TIP);
+
+    // Remember which incomplete icon records already exist so the promotion
+    // thread can tell the record Explorer creates for *this* registration
+    // (a UAC-consent launch yields one without ExecutablePath) from older
+    // unrelated ones.
+    g_zombie_icon_keys_before_add.clear();
+    collect_zombie_icon_keys(g_zombie_icon_keys_before_add);
 
     if (Shell_NotifyIconW(NIM_ADD, &nid))
     {
