@@ -175,47 +175,144 @@ namespace
     }
 }
 
+namespace
+{
+    // Tray icon resource ownership.
+    //
+    // LoadImageW (without LR_SHARED) returns a fresh HICON copy that *we*
+    // own, and the shell keeps using that handle to paint the icon - so it
+    // must stay alive for as long as the icon is registered. We cache it and
+    // destroy it only when the icon is removed, which both keeps the handle
+    // valid and avoids reloading the bitmap on every show/hide cycle.
+    HICON g_tray_icon = nullptr;
+
+    // Set once NIM_ADD succeeds so re-initialization cannot register a second
+    // copy of the same (hWnd, uID) identity, and so removal is a no-op when
+    // there is nothing registered.
+    bool g_tray_icon_registered = false;
+
+    HICON load_tray_icon()
+    {
+        if (g_tray_icon == nullptr)
+        {
+            g_tray_icon = static_cast<HICON>(LoadImageW(
+                gh_instance,
+                MAKEINTRESOURCEW(IDI_TRAYICON),
+                IMAGE_ICON,
+                GetSystemMetrics(SM_CXSMICON),
+                GetSystemMetrics(SM_CYSMICON),
+                LR_DEFAULTCOLOR));
+        }
+        return g_tray_icon;
+    }
+
+    void release_tray_icon()
+    {
+        if (g_tray_icon != nullptr)
+        {
+            DestroyIcon(g_tray_icon);
+            g_tray_icon = nullptr;
+        }
+    }
+}
+
+// Registers the notification-area icon. Returns without effect (and a
+// diagnostic) if the window is not usable, the icon resource cannot be
+// loaded, or the shell refuses the registration.
 void initialize_tray_icon(
     IN const HWND h_window
 )
 {
-    NOTIFYICONDATA nid;
+    if (!IsWindow(h_window))
+    {
+        DBGWRITE(dbg_level_error, L"initialize_tray_icon: invalid owner window (%p)\n", h_window);
+        return;
+    }
 
-    const auto h_icon = static_cast<HICON>(LoadImage(
-        gh_instance,
-        MAKEINTRESOURCE(IDI_TRAYICON),
-        IMAGE_ICON,
-        32,
-        32,
-        0));
+    // Never register twice against the same identity.
+    if (g_tray_icon_registered)
+    {
+        DBGWRITE(dbg_level_trace, L"initialize_tray_icon: already registered, skipping\n");
+        return;
+    }
 
-    nid.cbSize = sizeof(NOTIFYICONDATA);
+    const HICON h_icon = load_tray_icon();
+    if (h_icon == nullptr)
+    {
+        DBGWRITE(dbg_level_error, L"initialize_tray_icon: LoadImageW(IDI_TRAYICON) failed (%d)\n",
+                 GetLastError());
+        return;
+    }
+
+    // Zero-initialize: NOTIFYICONDATAW has fields we do not set (uVersion,
+    // guidItem, dwState/dwStateMask, szInfo...). Leaving them as stack
+    // garbage makes Shell_NotifyIconW silently reject the registration.
+    NOTIFYICONDATAW nid{};
+    nid.cbSize = sizeof(nid);
     nid.hWnd = h_window;
     nid.uID = AFP_ICON_UID;
     nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+    // Version-0 callback semantics: the shell sends uCallbackMessage with the
+    // mouse event in lParam. The window proc relies on this, so we deliberately
+    // do not call NIM_SETVERSION to bump to v4.
     nid.uCallbackMessage = AFPWM_NOTIFYICON;
     nid.hIcon = h_icon;
 
-    [[maybe_unused]] const auto ignore = StringCbCopy(nid.szTip, sizeof(nid.szTip), AFP_TOOL_TIP);
+    [[maybe_unused]] const auto ignore = StringCbCopyW(nid.szTip, sizeof(nid.szTip), AFP_TOOL_TIP);
 
-    Shell_NotifyIcon(NIM_ADD, &nid);
-
-    if (h_icon)
-        DestroyIcon(h_icon);
+    if (Shell_NotifyIconW(NIM_ADD, &nid))
+    {
+        g_tray_icon_registered = true;
+        DBGWRITE(dbg_level_info, L"initialize_tray_icon: registered for window %p\n", h_window);
+    }
+    else
+    {
+        DBGWRITE(dbg_level_error, L"initialize_tray_icon: Shell_NotifyIconW(NIM_ADD) failed (%d)\n",
+                 GetLastError());
+        release_tray_icon();
+    }
 }
 
+// Removes the notification-area icon, matching the (hWnd, uID) identity used
+// at registration, and releases our cached icon handle.
 void remove_tray_icon(
     IN HWND h_window
 )
 {
-    NOTIFYICONDATA nid;
+    if (g_tray_icon_registered)
+    {
+        NOTIFYICONDATAW nid{};
+        nid.cbSize = sizeof(nid);
+        nid.hWnd = h_window;
+        nid.uID = AFP_ICON_UID;
+        nid.uFlags = 0;
 
-    nid.cbSize = sizeof(NOTIFYICONDATA);
-    nid.hWnd = h_window;
-    nid.uID = AFP_ICON_UID;
-    nid.uFlags = 0;
+        if (!Shell_NotifyIconW(NIM_DELETE, &nid))
+        {
+            DBGWRITE(dbg_level_warning, L"remove_tray_icon: Shell_NotifyIconW(NIM_DELETE) failed (%d)\n",
+                     GetLastError());
+        }
 
-    Shell_NotifyIcon(NIM_DELETE, &nid);
+        g_tray_icon_registered = false;
+    }
+
+    release_tray_icon();
+}
+
+// Explorer broadcasts "TaskbarCreated" whenever it starts. NotifyIcon
+// registrations do not survive the shell exiting, so tray apps re-add their
+// icon when they see the broadcast; without this the icon disappears until
+// the app is restarted (e.g. after an Explorer crash or restart).
+void tray_icon_on_taskbar_created(
+    IN HWND h_window
+)
+{
+    // The previous registration died with the old Explorer process - there is
+    // nothing to NIM_DELETE, just forget it and register afresh. Our cached
+    // HICON belongs to this process, so it stays valid and is reused as-is.
+    g_tray_icon_registered = false;
+    initialize_tray_icon(h_window);
+    promote_tray_icon_setting();
 }
 
 // Finalizes the shutdown sequence. The confirmation dialog is shown by the

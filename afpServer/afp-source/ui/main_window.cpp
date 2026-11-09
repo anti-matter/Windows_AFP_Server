@@ -38,6 +38,7 @@ extern dsi::dsi_connections active_connections;
 extern std::unique_ptr<afp_volumes> g_volumes;
 extern void server_shutdown(HWND hwnd);
 extern void remove_tray_icon(HWND hwnd);
+extern void tray_icon_on_taskbar_created(HWND hwnd);
 
 // Maintained here; the secondary dialogs check it (they are only
 // reachable from the visible main window).
@@ -1995,6 +1996,17 @@ namespace
         IN const WPARAM w_param,
         IN const LPARAM l_param)
     {
+        // Dynamic id: the shell broadcasts this registered message when it
+        // (re)starts. Re-register our tray icon so it survives Explorer
+        // restarts. Checked before the switch because the id is not a
+        // compile-time constant.
+        static const UINT taskbar_created_msg = RegisterWindowMessageW(L"TaskbarCreated");
+        if (message == taskbar_created_msg)
+        {
+            tray_icon_on_taskbar_created(hwnd);
+            return 0;
+        }
+
         switch (message)
         {
         case WM_CREATE:

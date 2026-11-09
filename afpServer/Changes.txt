@@ -20,6 +20,14 @@ Version 2.4.2:
   while process teardown, after GdiplusShutdown had already run, which
   faulted inside the font cleanup. The fonts are now released before GDI+
   shuts down.
+- Fixed the tray icon not appearing at all since 2.4.0. The notification
+  icon structure was not fully initialized before Shell_NotifyIcon was
+  called; stack garbage in the fields the server never set (uVersion,
+  guidItem, state) made the shell silently refuse the registration. The
+  structure is now zero-initialized, the owner window and icon resource
+  are validated first, the registration result is checked and logged on
+  failure, and the icon handle is kept alive while registered (and
+  destroyed on removal) with duplicate registrations prevented.
 
 Version 2.4.1:
 - Login now replies with the correct AFP error (afpBadVersNum) when a client
