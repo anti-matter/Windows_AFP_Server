@@ -1,6 +1,26 @@
 ===============================================================================
 Personal AFP Server Change Log
 
+Version 2.4.2:
+- The MSI now opens inbound TCP 548 (AFP/DSI) in Windows Defender Firewall
+  for afpServer.exe on all network profiles, so Mac clients can connect on
+  a freshly installed machine without manual firewall rules; uninstall
+  removes the rule. (Also applies to the zip distribution's install.cmd.)
+- The server now promotes its own tray icon on Windows 11: after
+  registering the icon it sets the "show this icon always" state (HKCU
+  NotifyIconSettings IsPromoted) on Explorer's settings entry, so the icon
+  appears directly in the notification area instead of being tucked away
+  under Settings > Personalization > Taskbar > "Other system tray icons".
+  This works for MSI and zip installs and for every user who starts the
+  server. (An earlier build of this change had the MSI pre-create that
+  registry entry; a pre-created entry lacks Explorer's icon snapshot and
+  hid the icon entirely - the server now only ever marks the entry Explorer
+  itself created.)
+- Fixed a crash at shutdown: the UI theme's GDI+ font objects were freed
+  while process teardown, after GdiplusShutdown had already run, which
+  faulted inside the font cleanup. The fonts are now released before GDI+
+  shuts down.
+
 Version 2.4.1:
 - Login now replies with the correct AFP error (afpBadVersNum) when a client
   requests an unsupported AFP version, instead of afpBadUAM.

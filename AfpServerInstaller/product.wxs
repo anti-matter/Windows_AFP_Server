@@ -113,6 +113,13 @@
            REMOVE is guaranteed set. -->
       <Custom Action="AfpRegisterProviders" Before="InstallFinalize" Condition="(NOT REMOVE)" />
       <Custom Action="AfpUnregisterProviders" Before="RemoveFiles" Condition='REMOVE~="ALL"' />
+      <!-- No tray-icon custom actions on purpose: Windows 11's per-icon
+           visibility lives in HKCU\Control Panel\NotifyIconSettings, and a
+           settings key that lacks Explorer's own IconSnapshot blocks the
+           icon's registration entirely. An installer must not pre-create
+           one. The server promotes its own icon after Shell_NotifyIcon
+           (see promote_tray_icon_setting in afpServer.cpp), which also
+           covers zip deployments and every user who starts the app. -->
     </InstallExecuteSequence>
 
     <Feature Id="Complete" Title="Personal AFP Server" Level="1"

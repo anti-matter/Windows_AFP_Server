@@ -180,6 +180,12 @@ ui_theme::ui_theme() = default;
 
 ui_theme::~ui_theme()
 {
+    // Normally a no-op: WinMain calls shutdown() before GdiplusShutdown.
+    destroy_fonts();
+}
+
+void ui_theme::shutdown()
+{
     destroy_fonts();
 }
 

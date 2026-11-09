@@ -83,6 +83,12 @@ public:
     // caller can invalidate its windows.
     bool refresh_if_changed();
 
+    // Releases the GDI+ font objects. Must be called while GDI+ is still
+    // started (WinMain does this just before GdiplusShutdown); the destructor
+    // runs during static teardown, after GDI+ is gone, and then only skips
+    // the work because shutdown() already did it.
+    void shutdown();
+
     // Sets the DPI used to build the font set. Returns true when the fonts
     // had to be recreated.
     bool set_dpi(const UINT dpi);

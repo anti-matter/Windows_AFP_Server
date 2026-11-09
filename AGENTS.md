@@ -55,7 +55,9 @@ consult it before changing protocol behavior.
   `afpServer.man`, `install.cmd`, and `libcrypto-1_1-x64.dll` into
   `PersonalAfpServer/` and zips it to `PersonalAfpServer.zip` (repo root).
 - `install.cmd` — run on the target machine after unzipping; registers /
-  unregisters (`wevtutil`, `lodctr`) the event-log and PerfMon providers.
+  unregisters (`wevtutil`, `lodctr`) the event-log and PerfMon providers and
+  opens / removes the Windows Firewall rule for inbound TCP 548. The MSI
+  invokes it the same way (deferred, as SYSTEM).
 - `afpServer/version.h` — version numbers; `afpServer/Changes.txt` — change log.
 - `tests/` — stdlib-only Python 3 end-to-end AFP/DSI clients (DHCAST128
   hardening probe, xattr/line-conversion/permissions/name-handling tests,

@@ -2,7 +2,9 @@
 :: This script performs the following:
 ::   1. Sets up the configuration needed to enable event logging (viewed from the EventViewer app)
 ::      and counters in the Performance Monitor (PerfMon).
-::   2. Puts a shortcut to the AFP Server on the user's desktop.
+::   2. Opens inbound TCP 548 (AFP/DSI) in Windows Defender Firewall for
+::      afpServer.exe, so Mac clients can connect.
+::   3. Puts a shortcut to the AFP Server on the user's desktop.
 ::
 :: To uninstall, use the -u switch, e.g. install.cmd -u
 
@@ -65,6 +67,14 @@ echo Setting up PerfMon counters and Event Viewer output...
 wevtutil im afpServer.man
 lodctr.exe /M:afpServer.man
 
+:: Open inbound TCP 548 (AFP/DSI) in Windows Defender Firewall, scoped to
+:: this afpServer.exe, on all profiles. The rule is machine-wide, which is
+:: why this script requires elevation (the MSI runs it as SYSTEM).
+:: Delete-then-add keeps upgrades and repairs idempotent.
+echo Opening Windows Firewall for AFP (inbound TCP 548)...
+netsh advfirewall firewall delete rule name="Personal AFP Server (TCP 548)" >nul 2>&1
+netsh advfirewall firewall add rule name="Personal AFP Server (TCP 548)" dir=in action=allow protocol=TCP localport=548 program="%~dp0afpServer.exe" profile=any
+
 echo Installation complete!
 
 goto end
@@ -75,6 +85,11 @@ echo Uninstalling Personal AFP Server for Windows tools...
 
 wevtutil.exe um afpServer.man
 unlodctr.exe /M:afpServer.man
+
+:: Remove the firewall rule added at install time (name-based, so it works
+:: even if the install folder was customized or already removed).
+echo Removing Windows Firewall rule for AFP (TCP 548)...
+netsh advfirewall firewall delete rule name="Personal AFP Server (TCP 548)" >nul 2>&1
 
 echo .
 echo Uninstall complete.
