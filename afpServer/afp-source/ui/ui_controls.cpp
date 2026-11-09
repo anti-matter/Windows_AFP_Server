@@ -52,7 +52,7 @@ namespace
 
         Gdiplus::Graphics graphics(dc);
         graphics.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
-        graphics.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAliasGridFit);
+        graphics.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
 
         // Paint behind the control with the parent surface color so the
         // semi-transparent parts of the control blend with its card.
@@ -450,9 +450,10 @@ void draw_fluent_button(const DRAWITEMSTRUCT* dis)
     if (surface == 0)
         surface = p.card_bg;
 
+    SetBkMode(dis->hDC, TRANSPARENT);
     Gdiplus::Graphics graphics(dis->hDC);
     graphics.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
-    graphics.SetTextRenderingHint(Gdiplus::TextRenderingHintClearTypeGridFit);
+    graphics.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
 
     // Clear the item area with the parent surface first.
     {

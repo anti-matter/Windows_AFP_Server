@@ -133,7 +133,8 @@ struct ui_theme::font_set
         }
 
         LOGFONTW lf{};
-        lf.lfHeight = -MulDiv(design_px, static_cast<int>(dpi), 96);
+        // design_px is the pre-scale design size; UI fonts render 15% larger.
+        lf.lfHeight = -MulDiv(design_px * 115, static_cast<int>(dpi), 9600);
         lf.lfWeight = weight;
         lf.lfCharSet = DEFAULT_CHARSET;
         lf.lfOutPrecision = OUT_TT_PRECIS;
@@ -389,7 +390,7 @@ void ui_theme::rebuild_fonts()
     fonts_->build(dpi_);
 
     LOGFONTW lf{};
-    lf.lfHeight = -MulDiv(13, dpi_, 96);
+    lf.lfHeight = -MulDiv(13 * 115, dpi_, 9600);
     lf.lfCharSet = DEFAULT_CHARSET;
     lf.lfOutPrecision = OUT_DEFAULT_PRECIS;
     lf.lfClipPrecision = CLIP_DEFAULT_PRECIS;

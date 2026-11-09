@@ -25,51 +25,52 @@ namespace
         GetClientRect(h_dlg, &client);
         const auto& p = ui_theme::instance().colors();
 
+        SetBkMode(dc, TRANSPARENT);
         Gdiplus::Graphics gfx(dc);
         gfx.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
-        gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintClearTypeGridFit);
+        gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
 
         {
             Gdiplus::SolidBrush bg(gdi_color(p.window_bg));
             gfx.FillRectangle(&bg, 0, 0, client.right, client.bottom);
         }
 
-        const int icon_size = ui_scale(44);
+        const int icon_size = ui_scale(50);
         if (const HICON h_icon = LoadIconW(gh_instance, MAKEINTRESOURCE(IDI_TRAYICON)))
-            DrawIconEx(dc, ui_scale(22), ui_scale(20), h_icon, icon_size, icon_size, 0, nullptr, DI_NORMAL);
+            DrawIconEx(dc, ui_scale(25), ui_scale(22), h_icon, icon_size, icon_size, 0, nullptr, DI_NORMAL);
 
-        const int text_x = ui_scale(22) + icon_size + ui_scale(14);
+        const int text_x = ui_scale(25) + icon_size + ui_scale(16);
 
         {
-            Gdiplus::RectF rc(static_cast<REAL>(text_x), static_cast<REAL>(ui_scale(19)),
-                              static_cast<REAL>(client.right - text_x - ui_scale(16)), static_cast<REAL>(ui_scale(24)));
+            Gdiplus::RectF rc(static_cast<REAL>(text_x), static_cast<REAL>(ui_scale(22)),
+                              static_cast<REAL>(client.right - text_x - ui_scale(16)), static_cast<REAL>(ui_scale(28)));
             ui_draw::text(gfx, ui_theme::instance().font_title(),
                           L"Personal AFP Server", rc, DT_LEFT, DT_TOP, p.text_primary);
         }
         {
             const std::wstring version = string_to_wide_string(VER_FILE_SHORT_VERSION_STR, CP_UTF8);
-            Gdiplus::RectF rc(static_cast<REAL>(text_x), static_cast<REAL>(ui_scale(44)),
-                              static_cast<REAL>(client.right - text_x - ui_scale(16)), static_cast<REAL>(ui_scale(16)));
+            Gdiplus::RectF rc(static_cast<REAL>(text_x), static_cast<REAL>(ui_scale(52)),
+                              static_cast<REAL>(client.right - text_x - ui_scale(16)), static_cast<REAL>(ui_scale(18)));
             ui_draw::text(gfx, ui_theme::instance().font_caption(),
                           L"Version " + version, rc, DT_LEFT, DT_TOP, p.text_secondary);
         }
         {
-            Gdiplus::RectF rc(static_cast<REAL>(ui_scale(22)), static_cast<REAL>(ui_scale(78)),
-                              static_cast<REAL>(client.right - ui_scale(44)), static_cast<REAL>(ui_scale(18)));
+            Gdiplus::RectF rc(static_cast<REAL>(ui_scale(25)), static_cast<REAL>(ui_scale(92)),
+                              static_cast<REAL>(client.right - ui_scale(50)), static_cast<REAL>(ui_scale(20)));
             ui_draw::text(gfx, ui_theme::instance().font_body(),
                           L"A personal Apple Filing Protocol (AFP 3.2) server for Windows.",
                           rc, DT_LEFT, DT_TOP, p.text_primary);
         }
         {
-            Gdiplus::RectF rc(static_cast<REAL>(ui_scale(22)), static_cast<REAL>(ui_scale(100)),
-                              static_cast<REAL>(client.right - ui_scale(44)), static_cast<REAL>(ui_scale(16)));
+            Gdiplus::RectF rc(static_cast<REAL>(ui_scale(25)), static_cast<REAL>(ui_scale(118)),
+                              static_cast<REAL>(client.right - ui_scale(50)), static_cast<REAL>(ui_scale(18)));
             ui_draw::text(gfx, ui_theme::instance().font_caption(),
                           L"Copyright \u00a9 2026, Michael J. Conrad. MIT licensed.",
                           rc, DT_LEFT, DT_TOP, p.text_secondary);
         }
         {
-            Gdiplus::RectF rc(static_cast<REAL>(ui_scale(22)), static_cast<REAL>(ui_scale(118)),
-                              static_cast<REAL>(client.right - ui_scale(44)), static_cast<REAL>(ui_scale(16)));
+            Gdiplus::RectF rc(static_cast<REAL>(ui_scale(25)), static_cast<REAL>(ui_scale(138)),
+                              static_cast<REAL>(client.right - ui_scale(50)), static_cast<REAL>(ui_scale(18)));
             ui_draw::text(gfx, ui_theme::instance().font_caption(),
                           L"github.com/anti-matter/Windows_AFP_Server",
                           rc, DT_LEFT, DT_TOP, p.text_tertiary);

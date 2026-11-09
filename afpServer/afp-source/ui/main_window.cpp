@@ -49,20 +49,20 @@ namespace
 
     // ---- layout metrics (96-DPI design units) ----------------------------
     constexpr int margin = 20;      // window side margins
-    constexpr int header_h = 72;    // app header band
+    constexpr int header_h = 80;    // app header band
     constexpr int gap = 12;         // vertical gap between cards
     constexpr int card_pad = 16;    // inner card padding
     constexpr int card_radius = 8;
-    constexpr int footer_h = 52;    // command bar
+    constexpr int footer_h = 56;    // command bar
     constexpr int footer_gap = 16;  // space above the command bar
-    constexpr int row_h = 36;       // volume list row
+    constexpr int row_h = 40;       // volume list row
 
-    constexpr int shares_head_h = 48;   // "Shared Volumes" + Add button
-    constexpr int shares_cols_h = 22;   // column header strip
-    constexpr int shares_bottom_h = 60; // divider + RO row + bottom padding
-    constexpr int two_card_h = 258;     // Security / Login row height
-    constexpr int adv_collapsed_h = 52;
-    constexpr int adv_expanded_h = 170;
+    constexpr int shares_head_h = 52;   // "Shared Volumes" + Add button
+    constexpr int shares_cols_h = 24;   // column header strip
+    constexpr int shares_bottom_h = 66; // divider + RO row + bottom padding
+    constexpr int two_card_h = 292;     // Security / Login row height
+    constexpr int adv_collapsed_h = 56;
+    constexpr int adv_expanded_h = 190;
 
     // commctrl.h defines LVM_FIRST but not the (documented) item-height
     // message for report-view list controls.
@@ -710,6 +710,9 @@ namespace
             return;
         }
         SelectObject(g.mem_dc, g.mem_bm);
+        // GDI+ needs a transparent background mode on the target DC or smooth
+        // (anti-aliased) text falls back to jagged output.
+        SetBkMode(g.mem_dc, TRANSPARENT);
         g.buf_size = { w, h };
     }
 
@@ -718,7 +721,7 @@ namespace
         const auto& p = ui_theme::instance().colors();
 
         // App icon.
-        const int icon_size = ui_scale(30);
+        const int icon_size = ui_scale(34);
         const int icon_x = margin;
         const int icon_y = (ui_scale(header_h) - icon_size) / 2;
         if (const HICON h_icon = LoadIconW(gh_instance, MAKEINTRESOURCE(IDI_TRAYICON)))
@@ -729,16 +732,16 @@ namespace
         const int text_x = icon_x + icon_size + ui_scale(13);
 
         {
-            Gdiplus::RectF rc(static_cast<REAL>(text_x), static_cast<REAL>(ui_scale(12)),
-                              static_cast<REAL>(client.right - text_x - ui_scale(220)),
-                              static_cast<REAL>(ui_scale(26)));
+            Gdiplus::RectF rc(static_cast<REAL>(text_x), static_cast<REAL>(ui_scale(14)),
+                              static_cast<REAL>(client.right - text_x - ui_scale(230)),
+                              static_cast<REAL>(ui_scale(28)));
             ui_draw::text(gfx, ui_theme::instance().font_title(),
                           L"Personal AFP Server", rc, DT_LEFT, DT_TOP, p.text_primary);
         }
         {
-            Gdiplus::RectF rc(static_cast<REAL>(text_x), static_cast<REAL>(ui_scale(40)),
-                              static_cast<REAL>(client.right - text_x - ui_scale(220)),
-                              static_cast<REAL>(ui_scale(18)));
+            Gdiplus::RectF rc(static_cast<REAL>(text_x), static_cast<REAL>(ui_scale(44)),
+                              static_cast<REAL>(client.right - text_x - ui_scale(230)),
+                              static_cast<REAL>(ui_scale(20)));
             ui_draw::text(gfx, ui_theme::instance().font_caption(),
                           L"Apple Filing Protocol \u00b7 Windows", rc, DT_LEFT, DT_TOP, p.text_secondary);
         }
@@ -750,7 +753,7 @@ namespace
             const REAL pad_x = static_cast<REAL>(ui_scale(11));
             const REAL dot_d = static_cast<REAL>(ui_scale(7));
             const REAL pill_w = text_box.Width + pad_x * 2 + dot_d + ui_scale(6);
-            const REAL pill_h = static_cast<REAL>(ui_scale(26));
+            const REAL pill_h = static_cast<REAL>(ui_scale(28));
             const REAL pill_x = static_cast<REAL>(client.right - margin) - pill_w;
             const REAL pill_y = (static_cast<REAL>(ui_scale(header_h)) - pill_h) * 0.5f;
 
@@ -930,23 +933,23 @@ namespace
         }
 
         paint_toggle_row(gfx, card, g.guest_toggle, L"Allow guest access",
-                         L"Let Macintosh clients connect without a username and password.", 46);
+                         L"Let Macintosh clients connect without a username and password.", 52);
         paint_toggle_row(gfx, card, g.enc_toggle, L"Require encrypted login",
                          L"Refuse cleartext passwords from older clients. AFP file transfers themselves are not encrypted.",
-                         112);
+                         128);
 
         ui_draw::h_line(gfx, card.left + card_pad, card.right - card.left - card_pad * 2,
-                        card.top + ui_scale(182), p.divider);
+                        card.top + ui_scale(200), p.divider);
 
         {
-            Gdiplus::RectF rc(static_cast<REAL>(card.left + card_pad), static_cast<REAL>(card.top + ui_scale(194)),
-                              static_cast<REAL>(ui_scale(240)), static_cast<REAL>(ui_scale(20)));
+            Gdiplus::RectF rc(static_cast<REAL>(card.left + card_pad), static_cast<REAL>(card.top + ui_scale(214)),
+                              static_cast<REAL>(ui_scale(260)), static_cast<REAL>(ui_scale(22)));
             ui_draw::text(gfx, ui_theme::instance().font_body(),
                           L"Maximum connections", rc, DT_LEFT, DT_VCENTER, p.text_primary);
 
-            Gdiplus::RectF hint(static_cast<REAL>(card.right - card_pad - ui_scale(140)),
-                                static_cast<REAL>(card.top + ui_scale(195)),
-                                static_cast<REAL>(ui_scale(140)), static_cast<REAL>(ui_scale(18)));
+            Gdiplus::RectF hint(static_cast<REAL>(card.right - card_pad - ui_scale(150)),
+                                static_cast<REAL>(card.top + ui_scale(215)),
+                                static_cast<REAL>(ui_scale(150)), static_cast<REAL>(ui_scale(20)));
             ui_draw::text(gfx, ui_theme::instance().font_caption(),
                           L"0 = unlimited", hint, DT_RIGHT, DT_VCENTER, p.text_tertiary);
         }
@@ -969,8 +972,8 @@ namespace
                           L"Login Message", rc, DT_LEFT, DT_VCENTER, p.text_primary);
         }
         {
-            Gdiplus::RectF rc(static_cast<REAL>(card.left + card_pad), static_cast<REAL>(card.top + ui_scale(50)),
-                              static_cast<REAL>(card.right - card.left - card_pad * 2), static_cast<REAL>(ui_scale(16)));
+            Gdiplus::RectF rc(static_cast<REAL>(card.left + card_pad), static_cast<REAL>(card.top + ui_scale(56)),
+                              static_cast<REAL>(card.right - card.left - card_pad * 2), static_cast<REAL>(ui_scale(18)));
             ui_draw::text(gfx, ui_theme::instance().font_caption(),
                           L"Shown to Macintosh clients when they connect", rc, DT_LEFT, DT_VCENTER, p.text_secondary);
         }
@@ -1039,9 +1042,10 @@ namespace
         const auto& p = ui_theme::instance().colors();
         const bool hot = fluent_button_is_hot(dis->hwndItem);
 
+        SetBkMode(dis->hDC, TRANSPARENT);
         Gdiplus::Graphics gfx(dis->hDC);
         gfx.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
-        gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintClearTypeGridFit);
+        gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
 
         const Gdiplus::RectF rc(static_cast<REAL>(dis->rcItem.left), static_cast<REAL>(dis->rcItem.top),
                                 static_cast<REAL>(dis->rcItem.right - dis->rcItem.left),
@@ -1132,7 +1136,7 @@ namespace
         {
             Gdiplus::Graphics gfx(paint_dc);
             gfx.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
-            gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintClearTypeGridFit);
+            gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
 
             const auto& p = ui_theme::instance().colors();
             {
@@ -1176,9 +1180,10 @@ namespace
         const auto& v = g.volumes[index];
         const auto& p = ui_theme::instance().colors();
 
+        SetBkMode(dis->hDC, TRANSPARENT);
         Gdiplus::Graphics gfx(dis->hDC);
         gfx.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
-        gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintClearTypeGridFit);
+        gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
 
         RECT row = dis->rcItem;
         {
@@ -1322,7 +1327,7 @@ namespace
 
         g.rc_adv = { margin, y, w - margin, y + adv_h };
 
-        const int btn_h = ui_scale(32);
+        const int btn_h = ui_scale(34);
 
         // Add Share (top-right of the shares card).
         place_button(g.add_btn, 0, 0, btn_h);
@@ -1353,8 +1358,8 @@ namespace
 
         // Read-only toggle + Remove button in the shares card footer.
         {
-            const int toggle_w = ui_scale(40);
-            const int toggle_h = ui_scale(20);
+            const int toggle_w = ui_scale(44);
+            const int toggle_h = ui_scale(22);
             const int bottom_row_top = g.rc_shares.bottom - ui_scale(shares_bottom_h) + ui_scale(13);
             const int row_h2 = ui_scale(34);
 
@@ -1371,17 +1376,17 @@ namespace
 
         // Security card children.
         {
-            const int toggle_w = ui_scale(40);
-            const int toggle_h = ui_scale(20);
+            const int toggle_w = ui_scale(44);
+            const int toggle_h = ui_scale(22);
             const int right = g.rc_security.right - card_pad - toggle_w;
 
-            MoveWindow(g.guest_toggle, right, g.rc_security.top + ui_scale(48), toggle_w, toggle_h, TRUE);
-            MoveWindow(g.enc_toggle, right, g.rc_security.top + ui_scale(114), toggle_w, toggle_h, TRUE);
+            MoveWindow(g.guest_toggle, right, g.rc_security.top + ui_scale(54), toggle_w, toggle_h, TRUE);
+            MoveWindow(g.enc_toggle, right, g.rc_security.top + ui_scale(130), toggle_w, toggle_h, TRUE);
 
             g.rc_max_edit_frame = { g.rc_security.left + card_pad,
-                                    g.rc_security.top + ui_scale(216),
+                                    g.rc_security.top + ui_scale(240),
                                     g.rc_security.right - card_pad,
-                                    g.rc_security.top + ui_scale(248) };
+                                    g.rc_security.top + ui_scale(272) };
             MoveWindow(g.max_edit,
                        g.rc_max_edit_frame.left + ui_scale(7),
                        g.rc_max_edit_frame.top + ui_scale(4),
@@ -1393,9 +1398,9 @@ namespace
         // Login card children.
         {
             g.rc_msg_edit_frame = { g.rc_login.left + card_pad,
-                                    g.rc_login.top + ui_scale(74),
+                                    g.rc_login.top + ui_scale(82),
                                     g.rc_login.right - card_pad,
-                                    g.rc_login.bottom - card_pad - ui_scale(20) };
+                                    g.rc_login.bottom - card_pad - ui_scale(22) };
             MoveWindow(g.msg_edit,
                        g.rc_msg_edit_frame.left + ui_scale(8),
                        g.rc_msg_edit_frame.top + ui_scale(6),
@@ -1418,9 +1423,9 @@ namespace
             if (g.advanced_open)
             {
                 g.rc_ext_edit_frame = { g.rc_adv.left + card_pad,
-                                        g.rc_adv.top + ui_scale(108),
+                                        g.rc_adv.top + ui_scale(116),
                                         g.rc_adv.right - card_pad,
-                                        g.rc_adv.top + ui_scale(140) };
+                                        g.rc_adv.top + ui_scale(148) };
                 MoveWindow(g.ext_edit,
                            g.rc_ext_edit_frame.left + ui_scale(8),
                            g.rc_ext_edit_frame.top + ui_scale(4),
@@ -1981,8 +1986,8 @@ namespace
         case WM_GETMINMAXINFO:
             {
                 auto* mmi = reinterpret_cast<MINMAXINFO*>(l_param);
-                mmi->ptMinTrackSize.x = ui_scale(700);
-                mmi->ptMinTrackSize.y = ui_scale(700);
+                mmi->ptMinTrackSize.x = ui_scale(760);
+                mmi->ptMinTrackSize.y = ui_scale(756);
                 return 0;
             }
 
@@ -2142,8 +2147,8 @@ HWND main_window_create(HINSTANCE instance)
     if (!load_window_state(initial))
     {
         const UINT dpi = g.dpi;
-        const int cw = MulDiv(940, dpi, 96);
-        const int ch = MulDiv(806, dpi, 96);
+        const int cw = MulDiv(1010, dpi, 96);
+        const int ch = MulDiv(876, dpi, 96);
 
         RECT wr = { 0, 0, cw, ch };
         AdjustWindowRectExForDpi(&wr, style, FALSE, WS_EX_APPWINDOW, dpi);
@@ -2204,16 +2209,16 @@ HWND main_window_create(HINSTANCE instance)
     }
     SetWindowSubclass(g.list, list_subclass, 1, 0);
 
-    g.ro_toggle = create_toggle_switch(hwnd, instance, IDC_VOLREADONLY, 0, 0, ui_scale(40), ui_scale(20));
+    g.ro_toggle = create_toggle_switch(hwnd, instance, IDC_VOLREADONLY, 0, 0, ui_scale(44), ui_scale(22));
     SetWindowTextW(g.ro_toggle, L"Read only for Mac clients");
 
     g.remove_btn = make_button((std::wstring(fluent_glyph::delete_) + L" Remove Share").c_str(),
                                IDC_REMOVEVOL, fluent_button_style::destructive, p.card_bg);
 
-    g.guest_toggle = create_toggle_switch(hwnd, instance, IDC_ALLOW_GUESTS, 0, 0, ui_scale(40), ui_scale(20));
+    g.guest_toggle = create_toggle_switch(hwnd, instance, IDC_ALLOW_GUESTS, 0, 0, ui_scale(44), ui_scale(22));
     SetWindowTextW(g.guest_toggle, L"Allow guest access");
 
-    g.enc_toggle = create_toggle_switch(hwnd, instance, IDC_REQ_ENCRYPTION, 0, 0, ui_scale(40), ui_scale(20));
+    g.enc_toggle = create_toggle_switch(hwnd, instance, IDC_REQ_ENCRYPTION, 0, 0, ui_scale(44), ui_scale(22));
     SetWindowTextW(g.enc_toggle, L"Require encrypted login");
 
     g.max_edit = make_edit(IDC_MAX_CONNECTIONS, ES_NUMBER);
