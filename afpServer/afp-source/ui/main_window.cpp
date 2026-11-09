@@ -251,6 +251,8 @@ namespace
 
     // --------------------------------------------------------- volume model
 
+    void relayout(); // defined below with the layout helpers
+
     int selected_index()
     {
         return ListView_GetNextItem(g.list, -1, LVNI_SELECTED);
@@ -335,6 +337,12 @@ namespace
             if (preserve_name == v.name)
                 select_idx = static_cast<int>(i);
         }
+
+        // The list control is height-fitted to its row count in relayout();
+        // without re-running it here, rows added after the initial layout
+        // would be inserted into a too-short (possibly zero-height) control
+        // and stay invisible until the window is resized.
+        relayout();
 
         if (select_idx >= 0)
         {
@@ -2189,8 +2197,11 @@ namespace
             return 0;
 
         case AFPWM_INDEXING_COMPLETE:
-            if (g_main_window_visible)
-                rebuild_volume_list();
+            // Rebuild regardless of visibility: the Access column is
+            // owner-drawn from the cached model, and skipping updates
+            // while hidden risks a stale "Indexing..." if any later
+            // notification is lost. The rebuild is cheap.
+            rebuild_volume_list();
             return 0;
 
         case AFPWM_NOTIFYICON:

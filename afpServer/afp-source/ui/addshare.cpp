@@ -84,6 +84,9 @@ add_share_outcome prompt_for_new_share(const HWND owner)
     std::wstring path_buf = outcome.path;
 
     const DWORD error = AFPAddNewVolumeFromUI(name_buf.data(), path_buf.data(), nullptr);
-    outcome.result = SUCCEEDED(error) ? add_share_result::shared : add_share_result::share_failed;
+    // The volume API returns positive afperr_registry_* codes on failure;
+    // SUCCEEDED() treats every positive value as success, so compare
+    // against ERROR_SUCCESS explicitly.
+    outcome.result = error == ERROR_SUCCESS ? add_share_result::shared : add_share_result::share_failed;
     return outcome;
 }

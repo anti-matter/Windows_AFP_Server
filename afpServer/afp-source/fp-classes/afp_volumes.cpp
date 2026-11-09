@@ -267,7 +267,6 @@ void afp_volumes::index_queue_thread()
 {
     while (index_queue_running_)
     {
-        ResetEvent(index_event_);
         WaitForSingleObject(index_event_, INFINITE);
 
         if (!index_queue_running_)
@@ -286,6 +285,18 @@ void afp_volumes::index_queue_thread()
 
                 if (index_queue_.empty())
                 {
+                    // Reset the event under the same lock that guards the
+                    // queue, only after observing the queue empty. A
+                    // producer that pushed before we took the lock has
+                    // already set the event, so the next Wait returns
+                    // immediately and re-checks (spurious wake-up). A
+                    // producer that pushes after we unlock sets the event
+                    // while we are waiting. Resetting before the wait
+                    // instead could swallow a SetEvent that landed
+                    // between the empty check and the reset, parking the
+                    // thread with work still queued (stuck "Indexing"
+                    // volumes).
+                    ResetEvent(index_event_);
                     break;
                 }
 
@@ -303,12 +314,16 @@ void afp_volumes::index_queue_thread()
 
             case task_index_complete:
                 {
-                    auto flags = element->volume->get_internal_flags();
-                    flags |= flag_volume_indexing_complete;
-                    element->volume->set_internal_flags(flags);
+                    // Single atomic OR; a get/modify/set here could drop
+                    // flag_volume_shared set concurrently by the UI thread
+                    // (or the completion flag itself), permanently.
+                    element->volume->set_internal_flags(flag_volume_indexing_complete);
 
                     EventWriteAFPServerEvt_VolIndexingComplete(element->volume->get_share_name().c_str());
-                    SendMessage(HWND_BROADCAST, AFPWM_INDEXING_COMPLETE, NULL, NULL);
+                    // Post, do not send: a broadcast SendMessage blocks this
+                    // thread until every top-level window on the desktop
+                    // (possibly hung third-party ones) has processed it.
+                    PostMessage(HWND_BROADCAST, AFPWM_INDEXING_COMPLETE, NULL, NULL);
                     DBGWRITE(dbg_level_info, L"Indexing complete for volume: %s\n", element->volume->get_share_name().c_str());
                     break;
                 }
@@ -345,9 +360,10 @@ void afp_volumes::index_queue_task(
     {
         std::lock_guard lock(index_queue_mutex_);
         index_queue_.push(std::move(element));
+        // Set the event under the lock so it cannot race with the
+        // consumer's reset-when-empty (see index_queue_thread).
+        SetEvent(index_event_);
     }
-
-    SetEvent(index_event_);
 }
 
 void afp_volumes::index_queue_task(
@@ -365,9 +381,10 @@ void afp_volumes::index_queue_task(
     {
         std::lock_guard lock(index_queue_mutex_);
         index_queue_.push(std::move(element));
+        // Set the event under the lock so it cannot race with the
+        // consumer's reset-when-empty (see index_queue_thread).
+        SetEvent(index_event_);
     }
-
-    SetEvent(index_event_);
 }
 
 

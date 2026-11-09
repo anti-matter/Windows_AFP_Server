@@ -17,7 +17,8 @@ DWORD AFPAddNewVolumeFromUI(
     afp_registry the_registry;
 
     const DWORD dw_error = the_registry.add_volume(share_name, share_path, share_password);
-    if (SUCCEEDED(dw_error))
+    // Positive afperr_registry_* codes are failures; do not use SUCCEEDED().
+    if (dw_error == ERROR_SUCCESS)
     {
         std::filesystem::path path = share_path;
         afp_volumes::current()->add_volume(share_name, path, 0);

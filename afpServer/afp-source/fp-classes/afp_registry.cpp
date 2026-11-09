@@ -158,8 +158,8 @@ afp_registry::next_volume(
 )
 {
 	FILETIME file_time;
-	TCHAR sz_key_name[64];
-	TCHAR sz_vol_key[64];
+	TCHAR sz_key_name[256];
+	TCHAR sz_vol_key[512];
 	DWORD dw_data_size, dw_type;
 	HKEY h_vol_key;
 
@@ -167,118 +167,127 @@ afp_registry::next_volume(
 	// the caller has no other way to tell.
 	*flags = 0;
 
-	dw_data_size = sizeof(sz_key_name);
-	DWORD dw_error = RegEnumKeyEx(m_volume_enum_key_, m_enum_index_++, sz_key_name,
-	                              &dw_data_size, nullptr, nullptr, nullptr, &file_time);
-
-	if (dw_error != ERROR_SUCCESS)
+	for (;;)
 	{
-		if (dw_error != ERROR_NO_MORE_ITEMS)
-		{
-			DBGWRITE(dbg_level_info, L"RegEnuKeyEx() failed with error = %d\n", dw_error);
-		}
-
-		//
-		//There were no more entries in the registry to return. Pass false back.
-		//
-		return (false);
-	}
-
-	// ReSharper disable once CppFunctionResultShouldBeUsed
-	StringCbPrintf(sz_vol_key, sizeof(sz_vol_key), TEXT("%s\\%s"), SUBKEY_VOLUMES, sz_key_name);
-
-	dw_error = RegOpenKeyEx(
-		HKEY_CURRENT_USER,
-		sz_vol_key,
-		0,
-		KEY_ALL_ACCESS,
-		&h_vol_key);
-
-	if (dw_error == ERROR_SUCCESS)
-	{
-		TCHAR sz_path[MAX_PATH];
-		dw_data_size = sizeof(sz_path);
-
-		dw_error = RegQueryValueEx(h_vol_key, TEXT("path"), nullptr,
-		                           &dw_type, reinterpret_cast<LPBYTE>(sz_path), &dw_data_size);
-
-		if (dw_error == ERROR_SUCCESS)
-		{
-			TCHAR sz_pass[24]{};
-			DBGWRITE(dbg_level_info, L"Found volume path in registry = %s\n", sz_path);
-
-			// ReSharper disable CppFunctionResultShouldBeUsed
-			StringCbCopy(sz_share_name, cb_share_name, sz_key_name);
-			StringCbCopy(sz_share_path, cb_share_path, sz_path);
-			// ReSharper restore CppFunctionResultShouldBeUsed
-
-			RtlZeroMemory(sz_password, cb_password);
-
-			dw_data_size = sizeof(sz_pass);
-			dw_error = RegQueryValueEx(h_vol_key, TEXT("password"), nullptr,
-			                           &dw_type, reinterpret_cast<LPBYTE>(sz_pass), &dw_data_size);
-
-			if (dw_error == ERROR_SUCCESS)
-			{
-				CHAR sz_ansi_password[10];
-				BOOL f_used_default;
-
-				RtlZeroMemory(sz_ansi_password, sizeof(sz_ansi_password));
-
-				//
-				//We have a password associated with this volume, save it. Note that
-				//the password is saved in the registry as unicode.
-				//
-				// WideCharToMultiByte counts the source in WCHARs; dw_data_size
-				// is the byte count returned by RegQueryValueEx, so dividing is
-				// required or the conversion reads past the sz_pass buffer.
-				//
-				WideCharToMultiByte(
-					CP_MACCP,
-					0,
-					sz_pass,
-					static_cast<int>(dw_data_size / sizeof(WCHAR)),
-					sz_ansi_password,
-					sizeof(sz_ansi_password) - 1, // leave room for the null; sz_ansi_password is zeroed
-					"!",
-					&f_used_default);
-
-				// Copy into the caller's buffer using the size the caller
-				// actually provided, not the size of the AFP password struct.
-				// StringCchCopy truncates (and returns S_FALSE) rather than
-				// failing hard if the password does not fit.
-				const auto copy_result = StringCchCopyA(sz_password, cb_password, sz_ansi_password);
-				if (copy_result != S_OK && copy_result != S_FALSE)
-				{
-					DBGWRITE(dbg_level_warning, L"Failed to copy volume password for %s.\n", sz_key_name);
-					RegCloseKey(h_vol_key);
-					return (false);
-				}
-			}
-		}
-		else
-		{
-			RegCloseKey(h_vol_key);
-			return (false);
-		}
-
-		dw_data_size = sizeof(DWORD);
-		dw_error = RegQueryValueEx(h_vol_key, AFPREG_VOLUME_FLAGS, nullptr,
-		                           &dw_type, reinterpret_cast<LPBYTE>(flags), &dw_data_size);
+		dw_data_size = sizeof(sz_key_name);
+		dw_type = 0;
+		DWORD dw_error = RegEnumKeyEx(m_volume_enum_key_, m_enum_index_++, sz_key_name,
+		                              &dw_data_size, nullptr, nullptr, nullptr, &file_time);
 
 		if (dw_error != ERROR_SUCCESS)
 		{
-			DBGWRITE(dbg_level_info, L"Failed to get volume flags key\n");
+			if (dw_error != ERROR_NO_MORE_ITEMS)
+			{
+				DBGWRITE(dbg_level_info, L"RegEnuKeyEx() failed with error = %d\n", dw_error);
+			}
+
+			//
+			//There were no more entries in the registry to return. Pass false back.
+			//
+			return (false);
 		}
 
-		RegCloseKey(h_vol_key);
-	}
-	else
-	{
-		return (false);
-	}
+		if (FAILED(StringCbPrintf(sz_vol_key, sizeof(sz_vol_key), TEXT("%s\\%s"), SUBKEY_VOLUMES, sz_key_name)))
+		{
+			continue;
+		}
 
-	return (true);
+		dw_error = RegOpenKeyEx(
+			HKEY_CURRENT_USER,
+			sz_vol_key,
+			0,
+			KEY_ALL_ACCESS,
+			&h_vol_key);
+
+		if (dw_error == ERROR_SUCCESS)
+		{
+			TCHAR sz_path[MAX_PATH];
+			dw_data_size = sizeof(sz_path);
+
+			dw_error = RegQueryValueEx(h_vol_key, TEXT("path"), nullptr,
+			                           &dw_type, reinterpret_cast<LPBYTE>(sz_path), &dw_data_size);
+
+			if (dw_error == ERROR_SUCCESS)
+			{
+				TCHAR sz_pass[24]{};
+				DBGWRITE(dbg_level_info, L"Found volume path in registry = %s\n", sz_path);
+
+				// ReSharper disable once CppFunctionResultShouldBeUsed
+				StringCbCopy(sz_share_name, cb_share_name, sz_key_name);
+				// ReSharper restore once CppFunctionResultShouldBeUsed
+				if (FAILED(StringCbCopy(sz_share_path, cb_share_path, sz_path)))
+				{
+					RegCloseKey(h_vol_key);
+					continue;
+				}
+
+				RtlZeroMemory(sz_password, cb_password);
+
+				dw_data_size = sizeof(sz_pass);
+				dw_error = RegQueryValueEx(h_vol_key, TEXT("password"), nullptr,
+				                           &dw_type, reinterpret_cast<LPBYTE>(sz_pass), &dw_data_size);
+
+				if (dw_error == ERROR_SUCCESS)
+				{
+					CHAR sz_ansi_password[10];
+					BOOL f_used_default;
+
+					RtlZeroMemory(sz_ansi_password, sizeof(sz_ansi_password));
+
+					//
+					//We have a password associated with this volume, save it. Note that
+					//the password is saved in the registry as unicode.
+					//
+					// WideCharToMultiByte counts the source in WCHARs; dw_data_size
+					// is the byte count returned by RegQueryValueEx, so dividing is
+					// required or the conversion reads past the sz_pass buffer.
+					//
+					WideCharToMultiByte(
+						CP_MACCP,
+						0,
+						sz_pass,
+						static_cast<int>(dw_data_size / sizeof(WCHAR)),
+						sz_ansi_password,
+						sizeof(sz_ansi_password) - 1, // leave room for the null; sz_ansi_password is zeroed
+						"!",
+						&f_used_default);
+
+					// Copy into the caller's buffer using the size the caller
+					// actually provided, not the size of the AFP password struct.
+					// StringCchCopy truncates (and returns S_FALSE) rather than
+					// failing hard if the password does not fit.
+					const auto copy_result = StringCchCopyA(sz_password, cb_password, sz_ansi_password);
+					if (copy_result != S_OK && copy_result != S_FALSE)
+					{
+						DBGWRITE(dbg_level_warning, L"Failed to copy volume password for %s.\n", sz_key_name);
+						RegCloseKey(h_vol_key);
+						continue;
+					}
+				}
+
+				dw_data_size = sizeof(DWORD);
+				dw_error = RegQueryValueEx(h_vol_key, AFPREG_VOLUME_FLAGS, nullptr,
+				                           &dw_type, reinterpret_cast<LPBYTE>(flags), &dw_data_size);
+
+				if (dw_error != ERROR_SUCCESS)
+				{
+					DBGWRITE(dbg_level_info, L"Failed to get volume flags key\n");
+				}
+
+				RegCloseKey(h_vol_key);
+				return (true);
+			}
+
+			// No readable path value: skip this key instead of truncating
+			// the enumeration for every volume that follows it.
+			DBGWRITE(dbg_level_warning, L"Volume key %s has no readable path; skipping.\n", sz_key_name);
+			RegCloseKey(h_vol_key);
+			continue;
+		}
+
+		// The key could not be opened; skip it rather than ending the walk.
+		DBGWRITE(dbg_level_warning, L"Failed to open volume key %s (%d); skipping.\n", sz_vol_key, dw_error);
+	}
 }
 
 
@@ -290,11 +299,16 @@ afp_registry::add_volume(
 	IN DWORD flags
 )
 {
-	TCHAR sz_reg_path[64];
+	// SUBKEY_VOLUMES is 34 chars; 64 left only ~28 for the share name and
+	// a failed StringCbPrintf left the buffer uninitialized for longer
+	// names. Size it for a full share-name and check the result.
+	TCHAR sz_reg_path[512];
 	DWORD dw_disposition;
 
-	// ReSharper disable once CppFunctionResultShouldBeUsed
-	StringCbPrintf(sz_reg_path, sizeof(sz_reg_path), TEXT("%s\\%s"), SUBKEY_VOLUMES, sz_share_name);
+	if (FAILED(StringCbPrintf(sz_reg_path, sizeof(sz_reg_path), TEXT("%s\\%s"), SUBKEY_VOLUMES, sz_share_name)))
+	{
+		return afperr_registry_add_failed;
+	}
 
 	DWORD dw_error = RegCreateKeyEx(
 		HKEY_CURRENT_USER,
@@ -394,10 +408,12 @@ afp_registry::remove_volume(
 	IN TCHAR* sz_share_name
 )
 {
-	TCHAR sz_reg_path[64];
+	TCHAR sz_reg_path[512];
 
-	// ReSharper disable once CppFunctionResultShouldBeUsed
-	StringCbPrintf(sz_reg_path, sizeof(sz_reg_path), TEXT("%s\\%s"), SUBKEY_VOLUMES, sz_share_name);
+	if (FAILED(StringCbPrintf(sz_reg_path, sizeof(sz_reg_path), TEXT("%s\\%s"), SUBKEY_VOLUMES, sz_share_name)))
+	{
+		return afperr_registry_add_failed;
+	}
 
 	return RegDeleteKey(HKEY_CURRENT_USER, sz_reg_path);
 }

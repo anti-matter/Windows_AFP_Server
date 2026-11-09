@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <mutex>
 #include <filesystem>
 #include "afp_file_index.h"
@@ -47,8 +48,12 @@ public:
     // OR the flags in. Use clear_internal_flags() to turn bits off;
     // assigning through this method after a read-modify-write would
     // never clear anything (it ORs with the existing value).
-    void set_internal_flags(const UINT32 flags) { internal_flags_ |= flags; }
-    void clear_internal_flags(const UINT32 flags) { internal_flags_ &= ~flags; }
+    // The flags are written by the UI thread (shared/readonly) and the
+    // index-queue thread (indexing_complete) concurrently, so every
+    // update is an atomic interlocked operation; never read the value,
+    // modify it, and write it back.
+    void set_internal_flags(const UINT32 flags) { internal_flags_.fetch_or(flags, std::memory_order_relaxed); }
+    void clear_internal_flags(const UINT32 flags) { internal_flags_.fetch_and(~flags, std::memory_order_relaxed); }
 
     void set_is_dirty(const bool is_dirty = true) { is_dirty_ = is_dirty; }
     [[nodiscard]] bool is_dirty() const { return is_dirty_; }
@@ -61,7 +66,7 @@ public:
 
     std::filesystem::path& get_share_path() { return share_path_; }
     std::wstring& get_share_name() { return share_name_; }
-    [[nodiscard]] UINT32 get_internal_flags() const { return internal_flags_; }
+    [[nodiscard]] UINT32 get_internal_flags() const { return internal_flags_.load(std::memory_order_relaxed); }
     [[nodiscard]] BYTE get_afp_flags() const { return afp_flags_; }
 
     [[nodiscard]] afp_desktop* get_desktop() const { return desktop_.get(); }
@@ -75,7 +80,7 @@ private:
     std::filesystem::path share_path_;
 
     BYTE afp_flags_;
-    UINT32 internal_flags_;
+    std::atomic<UINT32> internal_flags_;
 
     FILETIME creation_date_;
     FILETIME modification_date_;
