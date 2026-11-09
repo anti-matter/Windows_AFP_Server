@@ -9,6 +9,7 @@
 #include <gdiplus.h>
 #include <thread>
 #include <chrono>
+#include <cstdint>
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -494,6 +495,223 @@ void tray_icon_on_taskbar_created(
     promote_tray_icon_setting();
 }
 
+// --------------------------------------------------------------------------
+// Single-instance enforcement
+//
+// One primary instance runs per Windows session. The handle to the named
+// mutex is kept open for the lifetime of the primary process; the OS
+// releases it on normal exit *and* on crash, so a later launch always
+// becomes the new primary. The mutex lives in the Local\ (per-session)
+// namespace: a second interactive session gets its own server, which is
+// the intended per-session model.
+//
+// Security: the mutex and readiness event are created with the default
+// security descriptor, which grants full control only to the calling
+// process's token (and SYSTEM/administrators). An unrelated process -
+// lower or equal integrity - cannot open them with SYNCHRONIZE /
+// EVENT_MODIFY_STATE unless it runs as the same user; and because the
+// manifest is requireAdministrator, a same-user unelevated launch cannot
+// even receive the AFPWM_SHOW_WINDOW message (UIPI blocks medium->high
+// messages), so a lower-trust process can never take over or poke an
+// elevated server. The duplicate check is therefore: hold the mutex, or
+// be refused it.
+// --------------------------------------------------------------------------
+namespace
+{
+    constexpr const wchar_t* single_instance_mutex_name =
+        L"Local\\{4C1F0A6E-9B7D-4E2C-8A53-1F6D2C9B4E77}-PersonalAFPServer-SingleInstance";
+    constexpr const wchar_t* startup_ready_event_name =
+        L"Local\\{4C1F0A6E-9B7D-4E2C-8A53-1F6D2C9B4E77}-PersonalAFPServer-Ready";
+
+    // Kept open for the lifetime of the primary process.
+    HANDLE g_single_instance_mutex = nullptr;
+    HANDLE g_startup_ready_event = nullptr;
+
+    // Full path of our own executable, canonicalized (known-folder GUID and
+    // 8.3 short-name forms resolved) so two references to the same file
+    // compare equal. Empty on failure.
+    std::wstring our_canonical_exe_path()
+    {
+        wchar_t module_path[MAX_PATH]{};
+        const DWORD len = GetModuleFileNameW(nullptr, module_path, ARRAYSIZE(module_path));
+        if (len == 0 || len >= ARRAYSIZE(module_path))
+            return {};
+        return canonicalize_exe_path(module_path);
+    }
+
+    // Claims the single-instance mutex. Returns true if this process is the
+    // primary; false if another instance in this session already holds it.
+    // On any CreateMutexW failure that is not ERROR_ALREADY_EXISTS the
+    // function reports the error and returns true (fail open) so a transient
+    // kernel failure cannot leave the server unable to start at all.
+    bool acquire_single_instance_mutex()
+    {
+        HANDLE handle = CreateMutexW(nullptr, FALSE, single_instance_mutex_name);
+        if (handle == nullptr)
+        {
+            const DWORD err = GetLastError();
+            DBGWRITE(dbg_level_error,
+                     L"single-instance: CreateMutexW failed (%d); starting without enforcement\n", err);
+            return true;
+        }
+
+        if (GetLastError() == ERROR_ALREADY_EXISTS)
+        {
+            CloseHandle(handle);
+            return false;
+        }
+
+        g_single_instance_mutex = handle;
+
+        // Manual-reset event, initially nonsignaled: set once the primary has
+        // created its main window, so a racing duplicate waits for readiness
+        // instead of concluding the primary is broken.
+        g_startup_ready_event = CreateEventW(nullptr, TRUE, FALSE, startup_ready_event_name);
+        if (g_startup_ready_event == nullptr)
+        {
+            DBGWRITE(dbg_level_warning,
+                     L"single-instance: CreateEventW(ready) failed (%d)\n", GetLastError());
+        }
+
+        return true;
+    }
+
+    // Signals that the primary's main window exists (and startup has advanced
+    // far enough that activation can succeed).
+    void signal_startup_ready()
+    {
+        if (g_startup_ready_event != nullptr)
+            SetEvent(g_startup_ready_event);
+    }
+
+    // Finds the primary instance's main window: same registered window class,
+    // same executable, same terminal-services session. Returns nullptr if no
+    // such window exists.
+    HWND find_primary_main_window()
+    {
+        HWND hwnd = FindWindowW(main_window_class_name(), nullptr);
+        if (hwnd == nullptr)
+            return nullptr;
+
+        DWORD window_pid = 0;
+        GetWindowThreadProcessId(hwnd, &window_pid);
+        if (window_pid == 0)
+            return nullptr;
+
+        // Same executable: guards against an unrelated app registering the
+        // same class name.
+        wchar_t window_path[MAX_PATH]{};
+        HANDLE h_process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, window_pid);
+        if (h_process != nullptr)
+        {
+            DWORD path_chars = ARRAYSIZE(window_path);
+            const bool path_ok = QueryFullProcessImageNameW(h_process, 0, window_path, &path_chars);
+            CloseHandle(h_process);
+
+            if (const std::wstring ours = our_canonical_exe_path();
+                !path_ok || ours.empty() || !exe_paths_match(ours, canonicalize_exe_path(window_path)))
+            {
+                return nullptr;
+            }
+        }
+
+        // Same session: window messages do not cross terminal-services
+        // sessions, and a same-exe instance in another session is not ours.
+        DWORD window_session = 0;
+        if (!ProcessIdToSessionId(window_pid, &window_session))
+            return nullptr;
+
+        DWORD our_session = 0;
+        ProcessIdToSessionId(GetCurrentProcessId(), &our_session);
+        if (window_session != our_session)
+            return nullptr;
+
+        return hwnd;
+    }
+
+    // A second (duplicate) launch: asks the primary instance to show its
+    // configuration window, then the caller exits. Never touches AFP or tray
+    // subsystems. If the window is not up yet, waits (bounded) on the
+    // primary's readiness event and retries - a startup race must never
+    // result in a duplicate server. If activation ultimately fails (e.g. the
+    // primary is hung), reports it instead of starting a second server.
+    void activate_primary_instance()
+    {
+        HWND hwnd = nullptr;
+
+        // The primary may still be starting up: wait for its readiness event,
+        // then poll briefly for the window.
+        if (const HANDLE ready = OpenEventW(SYNCHRONIZE, FALSE, startup_ready_event_name);
+            ready != nullptr)
+        {
+            WaitForSingleObject(ready, 10000);
+            CloseHandle(ready);
+        }
+
+        for (int attempt = 0; attempt < 40 && hwnd == nullptr; ++attempt)
+        {
+            hwnd = find_primary_main_window();
+            if (hwnd == nullptr)
+                std::this_thread::sleep_for(std::chrono::milliseconds(250));
+        }
+
+        if (hwnd == nullptr)
+        {
+            DBGWRITE(dbg_level_error,
+                     L"single-instance: primary holds the mutex but its window was not found\n");
+            MessageBoxW(nullptr,
+                        L"Personal AFP Server is already running, but its configuration window "
+                        L"could not be found. No second server was started.",
+                        L"Personal AFP Server",
+                        MB_OK | MB_ICONWARNING);
+            return;
+        }
+
+        // Improve foreground activation: grant the primary's process the
+        // right to set the foreground window for this activation (documented,
+        // non-invasive; the primary's SetForegroundWindow inside the message
+        // handler then usually succeeds even though the duplicate, not the
+        // primary, was the foreground process).
+        DWORD primary_pid = 0;
+        GetWindowThreadProcessId(hwnd, &primary_pid);
+        if (primary_pid != 0)
+            AllowSetForegroundWindow(primary_pid);
+
+        // Bounded send: a hung primary must not wedge the duplicate.
+        DWORD_PTR result = 0;
+        const LRESULT sent = SendMessageTimeoutW(
+            hwnd, AFPWM_SHOW_WINDOW, 0, 0,
+            SMTO_ABORTIFHUNG | SMTO_NORMAL, 3000, &result);
+
+        if (sent == 0)
+        {
+            DBGWRITE(dbg_level_error,
+                     L"single-instance: AFPWM_SHOW_WINDOW send failed (%d)\n", GetLastError());
+            MessageBoxW(nullptr,
+                        L"Personal AFP Server is already running, but it did not respond to the "
+                        L"request to show its configuration window (it may be busy or "
+                        L"unresponsive). No second server was started.",
+                        L"Personal AFP Server",
+                        MB_OK | MB_ICONWARNING);
+            return;
+        }
+
+        DBGWRITE(dbg_level_info, L"single-instance: activated the existing server window\n");
+    }
+
+    // True when running in an interactive terminal-services session. A
+    // noninteractive launch (session 0, e.g. an automated service context)
+    // must not block on or depend on a visible GUI; the server then runs
+    // headless and the window can only be surfaced through the tray.
+    bool in_interactive_session()
+    {
+        DWORD session_id = 0;
+        if (!ProcessIdToSessionId(GetCurrentProcessId(), &session_id))
+            return false;
+        return session_id != 0;
+    }
+}
+
 // Finalizes the shutdown sequence. The confirmation dialog is shown by the
 // main window before calling this.
 void server_shutdown(
@@ -523,6 +741,15 @@ int APIENTRY WinMain(const HINSTANCE hInstance,
 
     gh_instance = hInstance;
 
+    // Single-instance gate: first thing, before any COM / GDI+ / event-log /
+    // networking / tray initialization. A duplicate launch activates the
+    // primary and exits without touching any server subsystem.
+    if (!acquire_single_instance_mutex())
+    {
+        activate_primary_instance();
+        return 0;
+    }
+
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
 
     INITCOMMONCONTROLSEX icc{};
@@ -548,10 +775,22 @@ int APIENTRY WinMain(const HINSTANCE hInstance,
     initialize_tray_icon(h_main_window);
     promote_tray_icon_setting();
 
-    // "/show" brings the management window up at startup (also handy for
-    // scripted UI testing).
-    if (const auto* cmd_line = GetCommandLineW();
-        wcsstr(cmd_line, L"/show") != nullptr || wcsstr(cmd_line, L"--show") != nullptr)
+    // The main window now exists: release any duplicate launch that is
+    // waiting on the readiness event (see activate_primary_instance).
+    signal_startup_ready();
+
+    // Launch behavior: the configuration window is shown automatically on
+    // every interactive primary launch. "/background" (or "--background")
+    // opts out - the server starts straight to the tray; handy for scripted
+    // or headless starts. "/show" is accepted for backward compatibility and
+    // is now the default. In a noninteractive session (session 0) the GUI is
+    // never shown automatically: the server runs headless, and activation is
+    // only meaningful from an interactive session.
+    const bool background_start =
+        wcsstr(GetCommandLineW(), L"/background") != nullptr ||
+        wcsstr(GetCommandLineW(), L"--background") != nullptr;
+
+    if (!background_start && in_interactive_session())
     {
         main_window_show();
     }

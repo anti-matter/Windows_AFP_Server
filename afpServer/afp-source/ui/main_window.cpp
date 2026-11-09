@@ -2209,6 +2209,14 @@ namespace
             rebuild_volume_list();
             return 0;
 
+        case AFPWM_SHOW_WINDOW:
+            // Cross-process activation request from a duplicate launch
+            // (SendMessageTimeoutW from that process; both parameters are
+            // zero - never dereference them). Restore the window and bring
+            // it forward.
+            main_window_show();
+            return TRUE;
+
         case AFPWM_NOTIFYICON:
             switch (l_param)
             {
@@ -2421,6 +2429,13 @@ HWND main_window_create(HINSTANCE instance)
 HWND main_window_handle()
 {
     return g.hwnd;
+}
+
+// Exposed for the single-instance duplicate finder in afpServer.cpp:
+// find_primary_main_window() locates the running instance by this class name.
+const wchar_t* main_window_class_name()
+{
+    return window_class_name;
 }
 
 HACCEL main_window_accelerator()

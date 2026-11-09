@@ -27,6 +27,17 @@ Version 2.4.3:
   unreadable; long share names no longer overflow the registry path buffer.
 - CI now also builds the WiX MSI installer (AfpServerInstaller-<ver>.msi)
   and uploads it as an artifact.
+- New: single-instance enforcement. Only one server runs per Windows
+  session: a duplicate launch now activates the already-running server's
+  configuration window (restoring it from hidden or minimized state) and
+  exits without starting a second server, binding TCP 548 again, or
+  interrupting connected Mac clients. Detection is a per-session named
+  mutex; activation is a bounded, validated cross-process window message
+  (same executable, same session) with a readiness event for startup races.
+- New: the configuration window now opens automatically on every interactive
+  launch (previously it started hidden unless "/show" was passed; "/show"
+  still works). Pass "/background" to start straight to the tray. Closing
+  the window still saves settings and hides to the tray as before.
 
 Version 2.4.2:
 - The MSI now opens inbound TCP 548 (AFP/DSI) in Windows Defender Firewall
