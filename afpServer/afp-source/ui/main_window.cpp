@@ -55,7 +55,7 @@ namespace
     constexpr int card_radius = 8;
     constexpr int footer_h = 56;    // command bar
     constexpr int footer_gap = 16;  // space above the command bar
-    constexpr int row_h = 40;       // volume list row
+    constexpr int row_h = 36;       // volume list row
 
     constexpr int shares_head_h = 52;   // "Shared Volumes" + Add button
     constexpr int shares_cols_h = 24;   // column header strip
@@ -569,39 +569,41 @@ namespace
         const bool make_read_only = toggle_get_checked(g.ro_toggle);
 
         afp_registry registry;
-        DWORD vol_flags = 0;
         const auto afp_volume = g_volumes->find(entry.name);
-
-        if (registry.get_volume_flags(const_cast<LPWSTR>(entry.name.c_str()), &vol_flags) == ERROR_SUCCESS &&
-            afp_volume != nullptr)
+        if (afp_volume == nullptr)
         {
-            if (make_read_only)
-            {
-                vol_flags |= flag_volume_readonly;
-                afp_volume->set_internal_flags(flag_volume_readonly);
-            }
-            else
-            {
-                vol_flags &= ~flag_volume_readonly;
-                afp_volume->clear_internal_flags(flag_volume_readonly);
-            }
-            registry.set_volume_flags(entry.name.c_str(), vol_flags);
+            // The volume isn't mounted; revert the switch so it reflects reality.
+            toggle_set_checked(g.ro_toggle, entry.read_only);
+            return;
+        }
 
-            entry.read_only = make_read_only;
-            ListView_SetItemText(g.list, sel, 2,
-                                 const_cast<LPWSTR>(entry.read_only ? L"Read Only" : L"Read/Write"));
-            ListView_RedrawItems(g.list, sel, sel);
+        // A volume created by an older server may have no Flags value in the
+        // registry; fall back to the live in-memory flags. set_volume_flags()
+        // creates the value, so the next toggle finds it.
+        DWORD vol_flags = afp_volume->get_internal_flags();
+        if (registry.get_volume_flags(const_cast<LPWSTR>(entry.name.c_str()), &vol_flags) != ERROR_SUCCESS)
+            vol_flags = afp_volume->get_internal_flags();
 
-            show_toast(make_read_only
-                           ? L"\u201c" + entry.name + L"\u201d is now read-only for Mac clients"
-                           : L"\u201c" + entry.name + L"\u201d is now read/write for Mac clients");
+        if (make_read_only)
+        {
+            vol_flags |= flag_volume_readonly;
+            afp_volume->set_internal_flags(flag_volume_readonly);
         }
         else
         {
-            // The volume isn't mounted (or the registry read failed); revert
-            // the switch so it reflects reality.
-            toggle_set_checked(g.ro_toggle, entry.read_only);
+            vol_flags &= ~flag_volume_readonly;
+            afp_volume->clear_internal_flags(flag_volume_readonly);
         }
+        registry.set_volume_flags(entry.name.c_str(), vol_flags);
+
+        entry.read_only = make_read_only;
+        ListView_SetItemText(g.list, sel, 2,
+                             const_cast<LPWSTR>(entry.read_only ? L"Read Only" : L"Read/Write"));
+        ListView_RedrawItems(g.list, sel, sel);
+
+        show_toast(make_read_only
+                       ? L"\u201c" + entry.name + L"\u201d is now read-only for Mac clients"
+                       : L"\u201c" + entry.name + L"\u201d is now read/write for Mac clients");
     }
 
     void do_shutdown()
@@ -816,6 +818,18 @@ namespace
                           c3, DT_LEFT, DT_VCENTER, p.text_tertiary);
         }
 
+        // Box around the volume rows.
+        if (!IsRectEmpty(&g.rc_list))
+        {
+            Gdiplus::RectF box = rectf(g.rc_list);
+            box.X += 0.5f;
+            box.Y += 0.5f;
+            box.Width -= 1.0f;
+            box.Height -= 1.0f;
+            ui_draw::round_rect(gfx, box, static_cast<REAL>(ui_scale(6)),
+                                gdi_color(p.card_bg), gdi_color(p.card_stroke));
+        }
+
         // Bottom strip: read-only switch for the selected volume + Remove.
         const int bottom_y = card.bottom - ui_scale(shares_bottom_h);
         ui_draw::h_line(gfx, card.left + card_pad, card.right - card.left - card_pad * 2, bottom_y, p.divider);
@@ -830,8 +844,10 @@ namespace
             Gdiplus::RectF label(static_cast<REAL>(card.left + card_pad), static_cast<REAL>(bottom_y),
                                  static_cast<REAL>(toggle_rc.left - card.left - card_pad - ui_scale(12)),
                                  static_cast<REAL>(card.bottom - bottom_y));
+            // Right-align the label against the toggle so the two read as
+            // one control group (the rect already ends 12px before it).
             ui_draw::text(gfx, ui_theme::instance().font_body(), L"Read only for Mac clients",
-                          label, DT_LEFT, DT_VCENTER, has_sel ? p.text_primary : p.text_disabled);
+                          label, DT_RIGHT, DT_VCENTER, has_sel ? p.text_primary : p.text_disabled);
         }
 
         // Empty state.
@@ -1042,24 +1058,53 @@ namespace
         const auto& p = ui_theme::instance().colors();
         const bool hot = fluent_button_is_hot(dis->hwndItem);
 
-        SetBkMode(dis->hDC, TRANSPARENT);
-        Gdiplus::Graphics gfx(dis->hDC);
+        const int item_w = dis->rcItem.right - dis->rcItem.left;
+        const int item_h = dis->rcItem.bottom - dis->rcItem.top;
+        if (item_w <= 0 || item_h <= 0)
+            return;
+
+        // Render into a 32-bit memory bitmap and blit: GDI+ text drawn
+        // straight onto an owner-draw (DRAWITEMSTRUCT) DC degrades to 1-bit
+        // aliased output; a memory DC renders grayscale AA correctly.
+        HDC mem_dc = CreateCompatibleDC(dis->hDC);
+        if (mem_dc == nullptr)
+            return;
+        HBITMAP mem_bm = CreateCompatibleBitmap(dis->hDC, item_w, item_h);
+        if (mem_bm == nullptr)
+        {
+            DeleteDC(mem_dc);
+            return;
+        }
+        HGDIOBJ old_bm = SelectObject(mem_dc, mem_bm);
+        SetBkMode(mem_dc, TRANSPARENT);
+
+        Gdiplus::Graphics gfx(mem_dc);
         gfx.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
         gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
+        gfx.TranslateTransform(static_cast<Gdiplus::REAL>(-dis->rcItem.left),
+                               static_cast<Gdiplus::REAL>(-dis->rcItem.top));
 
         const Gdiplus::RectF rc(static_cast<REAL>(dis->rcItem.left), static_cast<REAL>(dis->rcItem.top),
-                                static_cast<REAL>(dis->rcItem.right - dis->rcItem.left),
-                                static_cast<REAL>(dis->rcItem.bottom - dis->rcItem.top));
+                                static_cast<REAL>(item_w), static_cast<REAL>(item_h));
 
         // Clear with the card color, then a hover wash.
         {
+            gfx.SetSmoothingMode(Gdiplus::SmoothingModeNone);
             Gdiplus::SolidBrush surface(gdi_color(p.card_bg));
             gfx.FillRectangle(&surface, rc);
+            gfx.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
         }
         if (hot)
         {
+            // Inset by 1px: AA geometry touching the canvas boundary
+            // renders with half coverage (gray fringe).
+            Gdiplus::RectF hover_rc = rc;
+            hover_rc.X += 1.0f;
+            hover_rc.Y += 1.0f;
+            hover_rc.Width -= 2.0f;
+            hover_rc.Height -= 2.0f;
             const COLORREF hover_bg = mix_ref(p.card_bg, p.list_selected, 0.55);
-            ui_draw::round_rect(gfx, rc, static_cast<REAL>(ui_scale(card_radius)), gdi_color(hover_bg), nullptr);
+            ui_draw::round_rect(gfx, hover_rc, static_cast<REAL>(ui_scale(card_radius)), gdi_color(hover_bg), nullptr);
         }
 
         const REAL text_x = static_cast<REAL>(dis->rcItem.left + ui_scale(card_pad));
@@ -1089,6 +1134,12 @@ namespace
             focus_rc.Height -= 2.0f;
             ui_draw::focus_ring(gfx, focus_rc, static_cast<REAL>(ui_scale(4)), p.card_bg);
         }
+
+        gfx.Flush();
+        BitBlt(dis->hDC, dis->rcItem.left, dis->rcItem.top, item_w, item_h, mem_dc, 0, 0, SRCCOPY);
+        SelectObject(mem_dc, old_bm);
+        DeleteObject(mem_bm);
+        DeleteDC(mem_dc);
     }
 
     void paint_toast(Gdiplus::Graphics& gfx, const RECT& client)
@@ -1140,8 +1191,12 @@ namespace
 
             const auto& p = ui_theme::instance().colors();
             {
+                // Smoothing off: the root fill touches the back-buffer
+                // boundary, where AA geometry half-bleeds into a gray fringe.
+                gfx.SetSmoothingMode(Gdiplus::SmoothingModeNone);
                 Gdiplus::SolidBrush bg(gdi_color(p.window_bg));
                 gfx.FillRectangle(&bg, 0, 0, client.right, client.bottom);
+                gfx.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
             }
 
             paint_header(paint_dc, gfx, client);
@@ -1169,6 +1224,7 @@ namespace
             // Empty filler rows: paint the card background ourselves so the
             // themed list view cannot draw gridline artifacts in dark mode.
             Gdiplus::Graphics empty_gfx(dis->hDC);
+            empty_gfx.SetSmoothingMode(Gdiplus::SmoothingModeNone);
             Gdiplus::SolidBrush card_brush(gdi_color(ui_theme::instance().colors().card_bg));
             empty_gfx.FillRectangle(&card_brush,
                                     static_cast<int>(dis->rcItem.left), static_cast<int>(dis->rcItem.top),
@@ -1219,8 +1275,12 @@ namespace
         const bool hot = index == g.hot_row;
 
         {
+            // Smoothing off for the full-bleed background fill: AA fills at
+            // the bitmap boundary half-bleed into a gray fringe.
+            gfx.SetSmoothingMode(Gdiplus::SmoothingModeNone);
             Gdiplus::SolidBrush bg(gdi_color(p.card_bg));
             gfx.FillRectangle(&bg, row.left, row.top, row_w, row_h);
+            gfx.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
         }
 
         const Gdiplus::RectF inset(4.0f, static_cast<REAL>(row.top + 2),
@@ -1371,14 +1431,16 @@ namespace
             // the available space: a themed (dark mode) list view draws
             // gridline artifacts in its empty area below the last row.
             const int avail_h = list_bottom - list_top;
-            const int items_h = ListView_GetItemCount(g.list) * MulDiv(row_h, g.dpi, 96);
+            const int items_h = ListView_GetItemCount(g.list) * MulDiv(row_h, g.dpi, 96) + 2; // + frame inset
             const int fitted_bottom = list_top + ((items_h > 0 && items_h < avail_h) ? items_h : avail_h);
 
             g.rc_list = { list_x, list_top, g.rc_shares.right - card_pad, fitted_bottom };
-            MoveWindow(g.list, g.rc_list.left, g.rc_list.top,
-                       g.rc_list.right - g.rc_list.left, g.rc_list.bottom - g.rc_list.top, TRUE);
+            // Sit the list 1px inside the card-drawn box frame so its row
+            // painting never covers the frame stroke.
+            MoveWindow(g.list, g.rc_list.left + 1, g.rc_list.top + 1,
+                       g.rc_list.right - g.rc_list.left - 2, g.rc_list.bottom - g.rc_list.top - 2, TRUE);
 
-            const int list_w = g.rc_list.right - g.rc_list.left;
+            const int list_w = g.rc_list.right - g.rc_list.left - 2;
             ListView_SetColumnWidth(g.list, 0, ui_scale(col_volume_w));
             ListView_SetColumnWidth(g.list, 1, list_w - ui_scale(col_volume_w) - ui_scale(col_access_w));
             ListView_SetColumnWidth(g.list, 2, ui_scale(col_access_w));
@@ -1577,8 +1639,12 @@ namespace
             {
                 const LRESULT result = DefSubclassProc(hwnd, message, w_param, l_param);
 
-                // The themed list view draws column-separator artifacts in
-                // the empty rows below the last item; paint them away.
+                // The themed list view draws 1-pixel separator lines across
+                // the top/bottom edge of every item - including over our
+                // owner-drawn rows - and column-separator artifacts in the
+                // empty area below the last item. Paint them all away with
+                // the card background; the row paint keeps each row's outer
+                // scanline card-colored, so selection pills are untouched.
                 const int count = ListView_GetItemCount(hwnd);
                 int rows_bottom = 0;
                 if (count > 0)
@@ -1590,15 +1656,27 @@ namespace
 
                 RECT client{};
                 GetClientRect(hwnd, &client);
+
+                const HDC dc = GetDC(hwnd);
+                const HBRUSH brush = CreateSolidBrush(ui_theme::instance().colors().card_bg);
+                for (int i = 0; i < count; ++i)
+                {
+                    RECT r{};
+                    if (ListView_GetItemRect(hwnd, i, &r, LVIR_BOUNDS))
+                    {
+                        RECT top{ r.left, r.top, r.right, r.top + 1 };
+                        RECT bottom{ r.left, r.bottom - 1, r.right, r.bottom };
+                        FillRect(dc, &top, brush);
+                        FillRect(dc, &bottom, brush);
+                    }
+                }
                 if (rows_bottom > 0 && rows_bottom < client.bottom)
                 {
-                    const HDC dc = GetDC(hwnd);
                     RECT fill{ 0, rows_bottom, client.right, client.bottom };
-                    const HBRUSH brush = CreateSolidBrush(ui_theme::instance().colors().card_bg);
                     FillRect(dc, &fill, brush);
-                    DeleteObject(brush);
-                    ReleaseDC(hwnd, dc);
                 }
+                DeleteObject(brush);
+                ReleaseDC(hwnd, dc);
                 return result;
             }
 

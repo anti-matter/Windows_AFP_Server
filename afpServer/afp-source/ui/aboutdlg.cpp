@@ -19,10 +19,30 @@ namespace
         return Gdiplus::Color(255, GetRValue(c), GetGValue(c), GetBValue(c));
     }
 
-    void paint_about(const HWND h_dlg, HDC dc)
+    void paint_about(const HWND h_dlg, HDC const dest_dc)
     {
         RECT client{};
         GetClientRect(h_dlg, &client);
+        const int client_w = client.right;
+        const int client_h = client.bottom;
+        if (client_w <= 0 || client_h <= 0)
+            return;
+
+        // Render into a 32-bit memory bitmap and blit: GDI+ grayscale AA
+        // text degrades to 1-bit output when drawn straight onto a display
+        // DC (same failure mode as owner-draw item DCs).
+        HDC mem_dc = CreateCompatibleDC(dest_dc);
+        if (mem_dc == nullptr)
+            return;
+        HBITMAP mem_bm = CreateCompatibleBitmap(dest_dc, client_w, client_h);
+        if (mem_bm == nullptr)
+        {
+            DeleteDC(mem_dc);
+            return;
+        }
+        HGDIOBJ old_bm = SelectObject(mem_dc, mem_bm);
+        HDC dc = mem_dc;
+
         const auto& p = ui_theme::instance().colors();
 
         SetBkMode(dc, TRANSPARENT);
@@ -75,6 +95,12 @@ namespace
                           L"github.com/anti-matter/Windows_AFP_Server",
                           rc, DT_LEFT, DT_TOP, p.text_tertiary);
         }
+
+        gfx.Flush();
+        BitBlt(dest_dc, 0, 0, client_w, client_h, mem_dc, 0, 0, SRCCOPY);
+        SelectObject(mem_dc, old_bm);
+        DeleteObject(mem_bm);
+        DeleteDC(mem_dc);
     }
 }
 

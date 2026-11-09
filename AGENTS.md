@@ -124,6 +124,13 @@ with the key already installed (no password prompts).
 Prefer this loop over "build not possible" conclusions; GitHub Actions remains
 the authoritative check for merges to `master`.
 
+## Git workflow
+
+- **Never commit or push without explicit user approval.** Build, deploy to
+  the dev guest, and iterate freely, but leave changes staged-or-unstaged in
+  the working tree and ask before any `git commit` or `git push` — including
+  "follow-up" or "fixup" commits on top of previously approved work.
+
 ## Code conventions
 
 - Include `"stdafx.h"` as the first line of every `.cpp` (PCH requirement).

@@ -56,11 +56,15 @@ namespace
 
         // Paint behind the control with the parent surface color so the
         // semi-transparent parts of the control blend with its card.
+        // Smoothing off: AA fills touching the canvas edge half-bleed,
+        // which used to leave a gray line along the control's top/left.
         COLORREF surface = p.card_bg;
         SendMessageW(GetParent(hwnd), WM_UI_GET_SURFACE, 0, reinterpret_cast<LPARAM>(&surface));
         {
+            graphics.SetSmoothingMode(Gdiplus::SmoothingModeNone);
             Gdiplus::SolidBrush bg(gdi_color(surface));
             graphics.FillRectangle(&bg, 0.0f, 0.0f, w, h);
+            graphics.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
         }
 
         const Gdiplus::RectF pill(1.0f, h * 0.10f, w - 2.0f, h * 0.80f);
@@ -450,18 +454,42 @@ void draw_fluent_button(const DRAWITEMSTRUCT* dis)
     if (surface == 0)
         surface = p.card_bg;
 
-    SetBkMode(dis->hDC, TRANSPARENT);
-    Gdiplus::Graphics graphics(dis->hDC);
+    const int item_w = dis->rcItem.right - dis->rcItem.left;
+    const int item_h = dis->rcItem.bottom - dis->rcItem.top;
+    if (item_w <= 0 || item_h <= 0)
+        return;
+
+    // Render into a 32-bit memory bitmap and blit: GDI+ text drawn straight
+    // onto an owner-draw (DRAWITEMSTRUCT) DC degrades to 1-bit aliased
+    // output; a memory DC renders grayscale anti-aliasing correctly.
+    HDC mem_dc = CreateCompatibleDC(dis->hDC);
+    if (mem_dc == nullptr)
+        return;
+    HBITMAP mem_bm = CreateCompatibleBitmap(dis->hDC, item_w, item_h);
+    if (mem_bm == nullptr)
+    {
+        DeleteDC(mem_dc);
+        return;
+    }
+    HGDIOBJ old_bm = SelectObject(mem_dc, mem_bm);
+    SetBkMode(mem_dc, TRANSPARENT);
+
+    Gdiplus::Graphics graphics(mem_dc);
     graphics.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
     graphics.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
+    graphics.TranslateTransform(static_cast<Gdiplus::REAL>(-dis->rcItem.left),
+                                static_cast<Gdiplus::REAL>(-dis->rcItem.top));
 
-    // Clear the item area with the parent surface first.
+    // Clear the item area with the parent surface first. (Smoothing must be
+    // off for fills that touch the bitmap edge: GDI+ renders AA geometry at
+    // the canvas boundary with half coverage, leaving a 50%-black fringe.)
     {
+        graphics.SetSmoothingMode(Gdiplus::SmoothingModeNone);
         Gdiplus::SolidBrush surface_brush(gdi_color(surface));
         graphics.FillRectangle(&surface_brush,
-                               0, 0,
-                               dis->rcItem.right - dis->rcItem.left,
-                               dis->rcItem.bottom - dis->rcItem.top);
+                               static_cast<REAL>(dis->rcItem.left), static_cast<REAL>(dis->rcItem.top),
+                               static_cast<REAL>(item_w), static_cast<REAL>(item_h));
+        graphics.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
     }
 
     const Gdiplus::RectF rect(
@@ -527,6 +555,12 @@ void draw_fluent_button(const DRAWITEMSTRUCT* dis)
 
     if (focused)
         ui_draw::focus_ring(graphics, rect, radius, surface);
+
+    graphics.Flush();
+    BitBlt(dis->hDC, dis->rcItem.left, dis->rcItem.top, item_w, item_h, mem_dc, 0, 0, SRCCOPY);
+    SelectObject(mem_dc, old_bm);
+    DeleteObject(mem_bm);
+    DeleteDC(mem_dc);
 }
 
 // ---- ui_draw helpers -----------------------------------------------------
