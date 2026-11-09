@@ -40,6 +40,38 @@ jobs:
           call "%VS_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x64
           msbuild afpServer.sln /t:afpServer /p:Configuration=Release /p:Platform=x64 /m /v:m
 
+      # The WiX MSI is built from AfpServerInstaller/product.wxs with the
+      # "wix" .NET global tool (same recipe as the winboat-deploy dev loop).
+      # Global tools land in %USERPROFILE%\.dotnet\tools; add it to PATH
+      # explicitly so later steps can invoke wix.exe.
+      - name: Install WiX v7
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix
+          "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding ascii
+          wix extension add -g WixToolset.UI.wixext -acceptEula wix7
+          wix extension add -g WixToolset.Util.wixext -acceptEula wix7
+
+      # product.wxs resolves its ..\ relative File/Icon paths against the CWD,
+      # so the build must run inside AfpServerInstaller\. The version comes
+      # from afpServer/version.h so the MSI always matches the packaged exe.
+      - name: Build MSI installer (WiX v7)
+        shell: pwsh
+        run: |
+          $hdr = Get-Content afpServer/version.h -Raw
+          $maj = [regex]::Match($hdr, '(?m)^#define\s+VERSION_MAJOR\s+(\d+)').Groups[1].Value
+          $min = [regex]::Match($hdr, '(?m)^#define\s+VERSION_MINOR\s+(\d+)').Groups[1].Value
+          $rev = [regex]::Match($hdr, '(?m)^#define\s+VERSION_REVISION\s+(\d+)').Groups[1].Value
+          if (-not $maj -or -not $min -or -not $rev) { throw 'Could not extract VERSION_* from afpServer/version.h' }
+          $ver = "$maj.$min.$rev"
+          "MSI product version: $ver"
+          Push-Location AfpServerInstaller
+          try {
+            wix build -acceptEula wix7 -arch x64 -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext `
+              -d ProductVersion=$ver -out "..\AfpServerInstaller-$ver.msi" product.wxs
+            if ($LASTEXITCODE -ne 0) { throw "wix build failed with exit code $LASTEXITCODE" }
+          } finally { Pop-Location }
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -47,3 +79,9 @@ jobs:
           path: |
             PersonalAfpServer.zip
             afpServer/Release/afpServer.pdb
+
+      - name: Upload MSI installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: AfpServerInstaller-msi
+          path: AfpServerInstaller-*.msi

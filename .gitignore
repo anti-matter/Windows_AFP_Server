@@ -248,3 +248,4 @@ enc_temp_folder/
 # Python test harness bytecode
 __pycache__/
 *.pyc
+*.msi

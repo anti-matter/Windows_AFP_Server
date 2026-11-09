@@ -87,11 +87,14 @@ Notes:
   tools `mc.exe` and `ctrpp`. Edit `afpServer.man`, never the generated files.
 - The Release **post-build event** copies the OpenSSL DLL and runs
   `deploy.cmd` (produces `PersonalAfpServer.zip`; both are gitignored).
-- The MSI is **not** part of CI. Build it with WiX v7 (open source, no VS IDE
-  needed): `dotnet tool install --global wix`, then
-  `wix extension add -g WixToolset.UI.wixext` (v7 does not auto-fetch
+- The MSI is built by CI (the Build workflow uploads
+  `AfpServerInstaller-<ver>.msi` as the `AfpServerInstaller-msi` artifact,
+  versioned from `version.h`). Build it locally with WiX v7 (open source, no
+  VS IDE needed): `dotnet tool install --global wix`, then
+  `wix extension add -g WixToolset.UI.wixext` **and**
+  `wix extension add -g WixToolset.Util.wixext` (v7 does not auto-fetch
   extensions) and from `AfpServerInstaller/`:
-  `wix build -acceptEula wix7 -arch x64 -ext WixToolset.UI.wixext -d ProductVersion=<version.h> -out AfpServerInstaller-<ver>.msi product.wxs`.
+  `wix build -acceptEula wix7 -arch x64 -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext -d ProductVersion=<version.h> -out AfpServerInstaller-<ver>.msi product.wxs`.
   Run it from the `AfpServerInstaller/` directory (`product.wxs` uses `..\`
   paths resolved against the CWD). `product.wxs` notes explain the deferred
   custom actions (event-log/PerfMon registration via `install.cmd`) and the
@@ -100,7 +103,8 @@ Notes:
   the Windows guest; see `winboat-deploy/README.md`).
 - **CI** (`.github/workflows/build.yml`) builds `Release | x64` on
   `windows-2025-vs2026` for every push to `master` and uploads
-  `PersonalAfpServer.zip` + PDB as artifacts. Since the project cannot be
+  `PersonalAfpServer.zip` + PDB, plus the WiX `AfpServerInstaller-<ver>.msi`,
+  as artifacts. Since the project cannot be
   built *natively* on Linux/macOS, CI is the authoritative build check for
   merges — but do not treat "can't compile here" as a reason to skip
   verification: use the SSH dev loop below.
