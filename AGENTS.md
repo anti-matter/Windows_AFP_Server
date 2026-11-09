@@ -57,6 +57,10 @@ consult it before changing protocol behavior.
 - `install.cmd` — run on the target machine after unzipping; registers /
   unregisters (`wevtutil`, `lodctr`) the event-log and PerfMon providers.
 - `afpServer/version.h` — version numbers; `afpServer/Changes.txt` — change log.
+- `tests/` — stdlib-only Python 3 end-to-end AFP/DSI clients (DHCAST128
+  hardening probe, xattr/line-conversion/permissions/name-handling tests,
+  mount stress); see `tests/README.md`.
+- `winboat-deploy/` — Linux→Windows SSH dev-loop scripts (see its README).
 
 ## Build
 
@@ -154,12 +158,6 @@ the authoritative check for merges to `master`.
 
 - Batch scripts (`*.cmd`, `*.bat`) **must stay CRLF** — enforced via
   `.gitattributes`; `cmd.exe` misbehaves with LF-only files (goto/labels).
-- A few files on disk are legacy leftovers **not referenced by the project**:
-  `fp-classes/DesktopDatabase.cpp`, `fp-classes/LAFPLock.*`,
-  `fp-classes/LAFPObject.h`, `fp-classes/LArray.cpp`, `fp-imp/attention.*`,
-  `helpers/bswap.c`. Editing them has no effect on the build.
-- `resources/RCa31236`, `resources/RDa31236`, and `resources/afpEventsTEMP.BIN`
-  are stray leftovers from past resource-tool runs; unused.
 - The project is x64-only (since 2.3.0; 32-bit x86 is no longer supported) and
   links the vendored 64-bit `libcrypto64MT.lib` — the Shining Light
   Productions Win64 OpenSSL 1.1.1w import library for `libcrypto-1_1-x64.dll`.
@@ -176,6 +174,10 @@ the authoritative check for merges to `master`.
    build answers DSI GetStatus.
 2. Ensure the CI build passes (push to a branch and check Actions, or rely on
    the `master` workflow after merge).
-3. Runtime behavior beyond the GetStatus probe must be tested manually on
-   Windows against Mac clients (SheepShaver / BasiliskII / Mac OS X "Connect
-   to Server"); there are no automated tests.
+3. Run the Python end-to-end tests in `tests/` against the running dev guest
+   (point `AFP_HOST` at the forwarded server; see `tests/README.md`). They
+   cover DHCAST128 hardening, xattrs, line conversion, permissions, name
+   handling, and Finder-like mount stress.
+4. Runtime behavior beyond the scripts must be tested manually on Windows
+   against Mac clients (SheepShaver / BasiliskII / Mac OS X "Connect to
+   Server").

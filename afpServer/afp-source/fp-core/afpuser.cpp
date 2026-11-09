@@ -353,7 +353,7 @@ AFPERROR FPLogin(
 	if (afp_version_int == 0)
 	{
 		DBGWRITE(dbg_level_error, L"Bad AFP version, terminating login\n");
-		return afpBadUAM;
+		return afpBadVersNum;
 	}
 
 	// Get the UAM version passed by the client into a more usable type

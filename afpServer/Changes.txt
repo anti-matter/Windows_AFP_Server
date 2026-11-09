@@ -1,6 +1,19 @@
 ===============================================================================
 Personal AFP Server Change Log
 
+Version 2.4.1:
+- Login now replies with the correct AFP error (afpBadVersNum) when a client
+  requests an unsupported AFP version, instead of afpBadUAM.
+- Volumes no longer advertise the "has volume password" attribute. Legacy
+  configurations could carry the flag, but the server has no volume-password
+  UI and never verified one — clients were prompted for a password that
+  could not be honoured.
+- Removed dead legacy sources not built by the project (superseded desktop
+  database, LAFP* lock/array/object classes, the old attention module, and
+  bswap.c) along with stray resource-tool outputs and the stale ReadMe.txt.
+- README rewritten: AFP version/UAM support matrices, Mac-on-NTFS fork
+  semantics, architecture, and testing documentation.
+
 Version 2.4.0:
 - The management interface was redesigned as a modern Windows 11-style utility
   window: a card-based layout (Shared Volumes, Security & Access, Login

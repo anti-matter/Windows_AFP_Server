@@ -12,7 +12,7 @@
 
 #define VERSION_MAJOR               2
 #define VERSION_MINOR               4
-#define VERSION_REVISION            0
+#define VERSION_REVISION            1
 #define VERSION_BUILD               0
 
 #define VER_FILE_DESCRIPTION_STR    "Apple Filing Protocol Server for Windows."

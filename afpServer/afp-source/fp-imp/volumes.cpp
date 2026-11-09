@@ -119,10 +119,11 @@ AFPERROR AFPGetVolumeParameters(
 
         attributes |= kFPVolSupportsFileIDs | kNoExchangeFiles | kFPVolSupportsBlankAccessPrivileges | kDefaultPrivsFromParent;
 
-        if (afp_volume->get_internal_flags() & flag_volume_has_password)
-        {
-            attributes |= kFPVolHasVolumePassword;
-        }
+        // kFPVolHasVolumePassword is deliberately never advertised: the
+        // server has no volume-password UI and FPOpenVol/FPLogin never
+        // verify one, so advertising it would only make clients prompt
+        // for a password that cannot be honoured. (The legacy registry
+        // flag and accessor are kept for compatibility with old configs.)
 
         if (afp_version >= afpVersion30)
         {
