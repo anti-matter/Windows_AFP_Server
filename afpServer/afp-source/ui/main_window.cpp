@@ -1180,11 +1180,6 @@ namespace
         const auto& v = g.volumes[index];
         const auto& p = ui_theme::instance().colors();
 
-        SetBkMode(dis->hDC, TRANSPARENT);
-        Gdiplus::Graphics gfx(dis->hDC);
-        gfx.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
-        gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
-
         RECT row = dis->rcItem;
         {
             RECT list_client{};
@@ -1193,12 +1188,39 @@ namespace
                 row.right = list_client.right;
         }
 
+        const int row_w = row.right - row.left;
+        const int row_h = row.bottom - row.top;
+        if (row_w <= 0 || row_h <= 0)
+            return;
+
+        // Render the row into a 32-bit memory bitmap and blit it. GDI+ text
+        // drawn straight onto the list view's draw-item DC degrades to
+        // 1-bit aliased output; a memory DC renders grayscale
+        // anti-aliasing correctly (same as the window back-buffer).
+        HDC row_dc = CreateCompatibleDC(dis->hDC);
+        if (row_dc == nullptr)
+            return;
+        HBITMAP row_bm = CreateCompatibleBitmap(dis->hDC, row_w, row_h);
+        if (row_bm == nullptr)
+        {
+            DeleteDC(row_dc);
+            return;
+        }
+        HGDIOBJ old_bm = SelectObject(row_dc, row_bm);
+        SetBkMode(row_dc, TRANSPARENT);
+
+        Gdiplus::Graphics gfx(row_dc);
+        gfx.SetSmoothingMode(Gdiplus::SmoothingModeAntiAlias);
+        gfx.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAlias);
+        gfx.TranslateTransform(static_cast<Gdiplus::REAL>(-row.left),
+                               static_cast<Gdiplus::REAL>(-row.top));
+
         const bool selected = (dis->itemState & ODS_SELECTED) != 0;
         const bool hot = index == g.hot_row;
 
         {
             Gdiplus::SolidBrush bg(gdi_color(p.card_bg));
-            gfx.FillRectangle(&bg, 0, row.top, row.right - row.left, row.bottom - row.top);
+            gfx.FillRectangle(&bg, row.left, row.top, row_w, row_h);
         }
 
         const Gdiplus::RectF inset(4.0f, static_cast<REAL>(row.top + 2),
@@ -1251,6 +1273,12 @@ namespace
             ui_draw::text_ellipsis(gfx, ui_theme::instance().font_body(),
                                    v.read_only ? L"Read Only" : L"Read/Write",
                                    access, DT_LEFT, DT_VCENTER, p.text_secondary);
+
+        gfx.Flush();
+        BitBlt(dis->hDC, row.left, row.top, row_w, row_h, row_dc, 0, 0, SRCCOPY);
+        SelectObject(row_dc, old_bm);
+        DeleteObject(row_bm);
+        DeleteDC(row_dc);
     }
 
     // --------------------------------------------------------------- layout
