@@ -96,7 +96,16 @@ if ($code -ne 0) { Fail "msbuild exit $code`r`n$(Tail-File $Log 40)" }
 # 3) stage runnable set
 $stage = Join-Path $Local 'staging'
 New-Item -ItemType Directory -Force -Path $stage | Out-Null
-Copy-Item (Join-Path $Repo "afpServer\$Configuration\AfpServer.exe") $stage -Force
+# -ErrorAction Stop + one retry: with the script-wide ErrorActionPreference of
+# Continue a transient lock (AV scan or deploy.cmd zip right after linking)
+# used to skip the copy silently and stage yesterday's exe (2026-11-09).
+$builtExe = Join-Path $Repo "afpServer\$Configuration\AfpServer.exe"
+try {
+    Copy-Item $builtExe $stage -Force -ErrorAction Stop
+} catch {
+    Start-Sleep -Seconds 2
+    Copy-Item $builtExe $stage -Force -ErrorAction Stop
+}
 $dll = Get-ChildItem (Join-Path $Repo 'afpServer\deps\openssl-1.1') -Recurse -Filter 'libcrypto*.dll' -EA SilentlyContinue | Select-Object -First 1
 if ($dll) { Copy-Item $dll.FullName $stage -Force }
 
@@ -104,6 +113,17 @@ if ($dll) { Copy-Item $dll.FullName $stage -Force }
 Get-Process -Name afpServer -EA SilentlyContinue | Stop-Process -Force
 Start-Sleep -Seconds 1
 robocopy $stage $ServerDir /MIR /NJH /NJS /NDL /NFL | Out-Null
+if ($LASTEXITCODE -ge 8) { Fail "staging copy to $ServerDir failed (robocopy exit $LASTEXITCODE)" }
+# Fail loudly unless the exe now in $ServerDir is stamped with the version we
+# just built: a silently-swallowed copy failure once left the previous build
+# in place while the run still reported PASS (2026-11-09, 2.4.3 staging).
+$stamped = $null
+$stagedExe = Get-Item (Join-Path $ServerDir 'AfpServer.exe') -EA SilentlyContinue
+if ($stagedExe) { $stamped = $stagedExe.VersionInfo.FileVersion }
+if ($stamped -notlike "$Version.*") {
+    if (-not $stamped) { $stamped = 'missing' }
+    Fail "staged exe in $ServerDir is version $stamped, expected $Version - stale staging"
+}
 schtasks /End /TN PersonalAfpServer 2>$null | Out-Null
 Start-Sleep -Seconds 1
 schtasks /Run /TN PersonalAfpServer 2>$null | Out-Null
