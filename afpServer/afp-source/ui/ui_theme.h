@@ -43,6 +43,7 @@ struct ui_palette
     COLORREF control_stroke;
     COLORREF control_disabled_bg;
     COLORREF control_disabled_text;
+    COLORREF subtle_hover;      // hover fill of subtle buttons (over any surface)
 
     COLORREF destructive_text;   // subtle destructive action
     COLORREF destructive_hover_bg;

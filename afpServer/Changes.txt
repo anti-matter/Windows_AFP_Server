@@ -1,6 +1,13 @@
 ===============================================================================
 Personal AFP Server Change Log
 
+Version 2.4.4:
+- UI: the Send Message button now uses the same subtle style as the About
+  button (no fill or border at rest). Hovering either button now fills it
+  with a subtle light gray, which is clearly visible against the window
+  background in the light theme (the previous hover tint was nearly
+  invisible).
+
 Version 2.4.3:
 - Fixed: newly added shares did not appear in the volume list until the
   window was resized or the app restarted (most visible on a clean install

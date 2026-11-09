@@ -2384,7 +2384,7 @@ HWND main_window_create(HINSTANCE instance)
     g.about_btn = make_button((std::wstring(fluent_glyph::info) + L" About").c_str(),
                               IDC_ABOUT, fluent_button_style::subtle, p.window_bg);
     g.send_btn = make_button((std::wstring(fluent_glyph::send) + L" Send Message").c_str(),
-                             IDC_SENDMSG, fluent_button_style::standard, p.window_bg);
+                             IDC_SENDMSG, fluent_button_style::subtle, p.window_bg);
     g.shutdown_btn = make_button((std::wstring(fluent_glyph::power) + L" Shut Down").c_str(),
                                  IDC_QUITBUTTON, fluent_button_style::destructive, p.window_bg);
     g.savehide_btn = make_button((std::wstring(fluent_glyph::save) + L" Save & Hide").c_str(),

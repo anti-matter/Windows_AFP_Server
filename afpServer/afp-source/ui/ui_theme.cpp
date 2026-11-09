@@ -296,6 +296,7 @@ void ui_theme::build_palette()
         p.control_stroke = RGB(0x4A, 0x4A, 0x4A);
         p.control_disabled_bg = RGB(0x2D, 0x2D, 0x2D);
         p.control_disabled_text = RGB(0x70, 0x70, 0x70);
+        p.subtle_hover = RGB(0x40, 0x40, 0x40);
 
         p.destructive_text = RGB(0xFF, 0x99, 0xA4);
         p.destructive_hover_bg = RGB(0x4A, 0x2A, 0x28);
@@ -347,6 +348,7 @@ void ui_theme::build_palette()
         p.control_stroke = RGB(0xD1, 0xD1, 0xD1);
         p.control_disabled_bg = RGB(0xF0, 0xF0, 0xF0);
         p.control_disabled_text = RGB(0xA0, 0xA0, 0xA0);
+        p.subtle_hover = RGB(0xE9, 0xE9, 0xE9);
 
         p.destructive_text = RGB(0xC4, 0x2B, 0x1C);
         p.destructive_hover_bg = RGB(0xFD, 0xEB, 0xEB);

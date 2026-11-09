@@ -519,7 +519,7 @@ void draw_fluent_button(const DRAWITEMSTRUCT* dis)
         break;
 
     case fluent_button_style::subtle:
-        fill = pressed ? p.control_pressed : (hot ? p.control_hover : surface);
+        fill = pressed ? p.control_pressed : (hot ? p.subtle_hover : surface);
         text_color = disabled ? p.control_disabled_text : p.text_primary;
         break;
 
