@@ -320,10 +320,21 @@ void afp_volumes::index_queue_thread()
                     element->volume->set_internal_flags(flag_volume_indexing_complete);
 
                     EventWriteAFPServerEvt_VolIndexingComplete(element->volume->get_share_name().c_str());
-                    // Post, do not send: a broadcast SendMessage blocks this
-                    // thread until every top-level window on the desktop
-                    // (possibly hung third-party ones) has processed it.
-                    PostMessage(HWND_BROADCAST, AFPWM_INDEXING_COMPLETE, NULL, NULL);
+                    // Notify the UI directly. Broadcasting is not an option:
+                    // HWND_BROADCAST is documented as usable with PostMessage/
+                    // SendMessageTimeout only for WM_CANCELMODE, so a custom
+                    // message broadcast silently fails (the stuck-"Indexing"
+                    // bug), while plain SendMessage(HWND_BROADCAST) blocks this
+                    // thread behind every top-level window on the desktop.
+                    // PostMessage to the registered main window is non-blocking
+                    // and thread-safe; IsWindow() bounds handle-reuse races,
+                    // and a posted message to a window destroyed immediately
+                    // after the check is harmless (unknown WM_APP => defaulted).
+                    const HWND notify_hwnd = index_notify_hwnd_.load(std::memory_order_acquire);
+                    if (notify_hwnd != nullptr && IsWindow(notify_hwnd))
+                    {
+                        PostMessageW(notify_hwnd, AFPWM_INDEXING_COMPLETE, 0, 0);
+                    }
                     DBGWRITE(dbg_level_info, L"Indexing complete for volume: %s\n", element->volume->get_share_name().c_str());
                     break;
                 }

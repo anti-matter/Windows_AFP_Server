@@ -82,6 +82,13 @@ public:
     // Return a vector containing all "dirty" volumes.
     void dirty_volumes(std::vector<std::shared_ptr<afp_volume>>* dirty_volumes);
 
+    // The UI's main window registers itself here to receive
+    // AFPWM_INDEXING_COMPLETE posted directly from the index worker.
+    // HWND_BROADCAST cannot deliver application-defined messages: the
+    // handle is documented as valid for PostMessage/SendMessageTimeout
+    // only with WM_CANCELMODE, so broadcast attempts silently fail.
+    void set_index_notify_window(HWND hwnd) { index_notify_hwnd_.store(hwnd, std::memory_order_release); }
+
 private:
     INT16 next_volume_id_;
 
@@ -93,4 +100,8 @@ private:
     std::atomic_bool index_queue_running_;
     std::mutex index_queue_mutex_;
     HANDLE index_event_;
+
+    // Written by the UI thread (window create/destroy), read by the
+    // index worker when a volume finishes indexing.
+    std::atomic<HWND> index_notify_hwnd_{nullptr};
 };

@@ -2019,6 +2019,9 @@ namespace
         {
         case WM_CREATE:
             g.hwnd = hwnd;
+            // Route indexing-complete notifications straight to this window
+            // (see afp_volumes::set_index_notify_window).
+            g_volumes->set_index_notify_window(hwnd);
             return 0;
 
         case WM_MEASUREITEM:
@@ -2184,6 +2187,8 @@ namespace
             return 0;
 
         case WM_DESTROY:
+            // Stop posting indexing notices to this (now dead) window first.
+            g_volumes->set_index_notify_window(nullptr);
             KillTimer(hwnd, timer_status);
             KillTimer(hwnd, timer_toast);
             save_window_state();

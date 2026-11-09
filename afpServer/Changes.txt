@@ -1,6 +1,33 @@
 ===============================================================================
 Personal AFP Server Change Log
 
+Version 2.4.3:
+- Fixed: newly added shares did not appear in the volume list until the
+  window was resized or the app restarted (most visible on a clean install
+  where the list starts empty). The list control is height-fitted to its
+  row count in relayout(), which only ran on WM_SIZE; rebuilding the list
+  now re-runs the layout so new rows are visible immediately.
+- Fixed: the Access column could stick on "Indexing..." forever. The
+  volume's internal flags are now atomic (the UI thread and the index
+  worker could clobber each other's flags with a plain read-modify-write),
+  and the index-queue worker's wake event can no longer be reset out from
+  under a queued task (a lost wakeup parked the worker with the completion
+  task still in the queue).
+- Indexing-complete now notifies the UI by posting directly to the main
+  window instead of broadcasting to every top-level window. The old broadcast
+  (SendMessage) blocked the index worker behind hung third-party windows, and
+  the HWND_BROADCAST handle only supports WM_CANCELMODE for non-blocking send
+  APIs, so a custom message posted to the broadcast address silently vanishes
+  (that variant left the Access column stuck on "Indexing..." permanently).
+  The list also refreshes while the window is hidden.
+- Failed share adds are reported as failures again: the add flow used
+  SUCCEEDED() on positive afperr_registry_* codes, which always evaluated
+  as success (the "Shared" toast appeared with nothing added).
+- Registry volume enumeration no longer truncates the list when one key is
+  unreadable; long share names no longer overflow the registry path buffer.
+- CI now also builds the WiX MSI installer (AfpServerInstaller-<ver>.msi)
+  and uploads it as an artifact.
+
 Version 2.4.2:
 - The MSI now opens inbound TCP 548 (AFP/DSI) in Windows Defender Firewall
   for afpServer.exe on all network profiles, so Mac clients can connect on
