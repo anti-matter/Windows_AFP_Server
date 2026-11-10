@@ -1,11 +1,11 @@
-# MacFile — Personal AFP Server for Windows
+# MacFile — an Apple Filing Protocol server for Windows
 
 [![Build](https://github.com/anti-matter/Windows_AFP_Server/actions/workflows/build.yml/badge.svg)](https://github.com/anti-matter/Windows_AFP_Server/actions/workflows/build.yml)
 
 An Apple Filing Protocol (AFP) file server for Windows, designed to serve
 vintage Macintosh clients (System 7 with AppleShare Client 3.7.x through
 Mac OS 9, Mac OS X, SheepShaver, and BasiliskII) over TCP/IP port 548.
-The current version is **2.4** and the project is MIT-licensed by
+The current version is **2.4.5** and the project is MIT-licensed by
 Michael J. Conrad.
 
 A companion AFP server for **Haiku OS** — sharing the same protocol
@@ -150,7 +150,7 @@ SDK. C++20/C++17, `/W4` clean.
    ```
 
 2. The Release post-build step runs `deploy.cmd`, producing
-   `PersonalAfpServer.zip` in the repo root containing the server, the
+   `MacFile.zip` in the repo root containing the server, the
    `libcrypto-1_1-x64.dll` it needs, its event-log/counter manifest, and
    `install.cmd`.
 
@@ -163,7 +163,7 @@ gotchas, the Linux→Windows SSH dev loop) are in
 
 ## Installing
 
-- **MSI**: `AfpServerInstaller-<version>.msi` installs the service binaries,
+- **MSI**: `MacFile-<version>.msi` installs the service binaries,
   registers the event-log and Performance Monitor providers, and creates the
   shortcuts. Major-upgrades older installs.
 - **Zip**: unzip a build, run `install.cmd` as Administrator once (registers

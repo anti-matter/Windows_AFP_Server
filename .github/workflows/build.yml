@@ -33,7 +33,7 @@ jobs:
       # AfpServerInstaller (.vdproj) setup package, which must be built from
       # Visual Studio with the Installer Projects extension.
       # The Release post-build event runs deploy.cmd, which produces
-      # PersonalAfpServer.zip at the repository root.
+      # MacFile.zip at the repository root.
       - name: Build afpServer (Release | x64)
         shell: cmd
         run: |
@@ -68,20 +68,20 @@ jobs:
           Push-Location AfpServerInstaller
           try {
             wix build -acceptEula wix7 -arch x64 -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext `
-              -d ProductVersion=$ver -out "..\AfpServerInstaller-$ver.msi" product.wxs
+              -d ProductVersion=$ver -out "..\MacFile-$ver.msi" product.wxs
             if ($LASTEXITCODE -ne 0) { throw "wix build failed with exit code $LASTEXITCODE" }
           } finally { Pop-Location }
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: PersonalAfpServer-windows-x64
+          name: MacFile-windows-x64
           path: |
-            PersonalAfpServer.zip
+            MacFile.zip
             afpServer/Release/afpServer.pdb
 
       - name: Upload MSI installer
         uses: actions/upload-artifact@v4
         with:
-          name: AfpServerInstaller-msi
-          path: AfpServerInstaller-*.msi
+          name: MacFile-msi
+          path: MacFile-*.msi

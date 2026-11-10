@@ -46,7 +46,7 @@ echo "==> syncing $REPO_DIR -> $DEV/repo"
 rsync -a --delete \
       --exclude '.git/' --exclude '.vs/' --exclude 'out/' \
       --exclude 'Release/' --exclude 'Debug/' --exclude 'x64/' --exclude 'obj/' \
-      --exclude 'PersonalAfpServer/' --exclude '*.zip' --exclude '*.log' \
+      --exclude 'MacFile/' --exclude '*.zip' --exclude '*.log' \
       "$REPO_DIR/" "$DEV/repo/"
 
 # product version for the MSI, straight from version.h

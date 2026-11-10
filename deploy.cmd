@@ -1,6 +1,6 @@
 
 set solutiondir=%~1
-set deployfolder=%solutiondir%\PersonalAfpServer
+set deployfolder=%solutiondir%\MacFile
 
 pushd %solutiondir%
 
@@ -20,7 +20,7 @@ copy /y "%solutiondir%\afpServer\AfpServer.man" %deployfolder%\
 copy /y "install.cmd" %deployfolder%\
 copy /y "afpServer\deps\openssl-1.1\lib\libcrypto-1_1-x64.dll" %deployfolder%\
 
-tar -a -cf %solutiondir%\PersonalAfpServer.zip PersonalAfpServer\*.*
+tar -a -cf %solutiondir%\MacFile.zip MacFile\*.*
 
 popd
 

@@ -4,7 +4,7 @@ Guidance for AI coding agents (and humans) working on this repository.
 
 ## What this project is
 
-**Personal AFP Server for Windows** — an Apple Filing Protocol (AFP 3.2) file
+**MacFile (Personal AFP Server) for Windows** — an Apple Filing Protocol (AFP 3.2) file
 server for Windows, written in C++. It lets vintage Macintosh clients
 (System 7–Mac OS 9, Mac OS X, SheepShaver, BasiliskII) access Windows shared
 folders over TCP/IP (DSI on port 548). The server is a single 64-bit (x64) Win32 GUI
@@ -53,7 +53,7 @@ consult it before changing protocol behavior.
   major-upgrade installs of the old installer.
 - `deploy.cmd` — Release post-build step; collects `AfpServer.exe`,
   `afpServer.man`, `install.cmd`, and `libcrypto-1_1-x64.dll` into
-  `PersonalAfpServer/` and zips it to `PersonalAfpServer.zip` (repo root).
+  `MacFile/` and zips it to `MacFile.zip` (repo root).
 - `install.cmd` — run on the target machine after unzipping; registers /
   unregisters (`wevtutil`, `lodctr`) the event-log and PerfMon providers and
   opens / removes the Windows Firewall rule for inbound TCP 548. The MSI
@@ -86,15 +86,15 @@ Notes:
   `afpCounters.h`, and `afpCounters.rc` from `afpServer.man` using the SDK
   tools `mc.exe` and `ctrpp`. Edit `afpServer.man`, never the generated files.
 - The Release **post-build event** copies the OpenSSL DLL and runs
-  `deploy.cmd` (produces `PersonalAfpServer.zip`; both are gitignored).
+  `deploy.cmd` (produces `MacFile.zip`; both are gitignored).
 - The MSI is built by CI (the Build workflow uploads
-  `AfpServerInstaller-<ver>.msi` as the `AfpServerInstaller-msi` artifact,
+  `MacFile-<ver>.msi` as the `MacFile-msi` artifact,
   versioned from `version.h`). Build it locally with WiX v7 (open source, no
   VS IDE needed): `dotnet tool install --global wix`, then
   `wix extension add -g WixToolset.UI.wixext` **and**
   `wix extension add -g WixToolset.Util.wixext` (v7 does not auto-fetch
   extensions) and from `AfpServerInstaller/`:
-  `wix build -acceptEula wix7 -arch x64 -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext -d ProductVersion=<version.h> -out AfpServerInstaller-<ver>.msi product.wxs`.
+  `wix build -acceptEula wix7 -arch x64 -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext -d ProductVersion=<version.h> -out MacFile-<ver>.msi product.wxs`.
   Run it from the `AfpServerInstaller/` directory (`product.wxs` uses `..\`
   paths resolved against the CWD). `product.wxs` notes explain the deferred
   custom actions (event-log/PerfMon registration via `install.cmd`) and the
@@ -103,7 +103,7 @@ Notes:
   the Windows guest; see `winboat-deploy/README.md`).
 - **CI** (`.github/workflows/build.yml`) builds `Release | x64` on
   `windows-2025-vs2026` for every push to `master` and uploads
-  `PersonalAfpServer.zip` + PDB, plus the WiX `AfpServerInstaller-<ver>.msi`,
+  `MacFile.zip` + PDB, plus the WiX `MacFile-<ver>.msi`,
   as artifacts. Since the project cannot be
   built *natively* on Linux/macOS, CI is the authoritative build check for
   merges — but do not treat "can't compile here" as a reason to skip

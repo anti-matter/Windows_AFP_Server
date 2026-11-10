@@ -76,7 +76,7 @@ echo "==> connecting to $GUEST (port $GUEST_PORT)"
 # ---- 1) sync sources (tar over ssh; guest has bsdtar, no rsync) -----------
 TAR_EXCLUDES=(--exclude='./.git' --exclude='./.vs' --exclude='./out'
               --exclude='*/Release' --exclude='*/Debug' --exclude='*/x64'
-              --exclude='*/obj' --exclude='*/ipch' --exclude='./PersonalAfpServer'
+              --exclude='*/obj' --exclude='*/ipch' --exclude='./MacFile'
               --exclude='*.zip' --exclude='*.log')
 echo "==> syncing $REPO_DIR -> ${GUEST}:C:/dev/repo"
 "${SSH[@]}" 'cmd /c if not exist C:\dev\repo mkdir C:\dev\repo'
@@ -97,7 +97,7 @@ trap 'rm -f "$MANIFEST"' EXIT
 ( cd "$REPO_DIR" && find . -type f \
      ! -path './.git/*' ! -path './.vs/*' ! -path './out/*' \
      ! -path '*/Release/*' ! -path '*/Debug/*' ! -path '*/x64/*' \
-     ! -path '*/obj/*' ! -path '*/ipch/*' ! -path './PersonalAfpServer/*' \
+     ! -path '*/obj/*' ! -path '*/ipch/*' ! -path './MacFile/*' \
      ! -name '*.zip' ! -name '*.log' \
      | sed 's|^\./||' | tr -d '\r' ) > "$MANIFEST"
 scp -P "$GUEST_PORT" -q -o ControlPath="$CM" \

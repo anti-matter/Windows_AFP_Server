@@ -1,6 +1,6 @@
-# setup-guest.ps1 - One-shot setup for Personal AFP Server inside the WinBoat Windows guest.
+# setup-guest.ps1 - One-shot setup for MacFile inside the WinBoat Windows guest.
 # Run FROM AN ELEVATED PowerShell:  powershell -ExecutionPolicy Bypass -File setup-guest.ps1
-# (copy this file and AfpServerInstaller.msi out of the mapped Linux home drive first)
+# (copy this file and the MacFile installer .msi out of the mapped Linux home drive first)
 
 $ErrorActionPreference = 'Stop'
 

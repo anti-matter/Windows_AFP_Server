@@ -1,4 +1,4 @@
-# WinBoat deployment: Personal AFP Server on CachyOS
+# WinBoat deployment: MacFile (Personal AFP Server) on CachyOS
 
 Scripts to run the Windows AFP server inside a WinBoat (QEMU/KVM + Docker,
 dockur/windows) Windows guest on a CachyOS host, with the shared volumes
@@ -167,7 +167,7 @@ matching the vendored 64-bit OpenSSL.
 ## MSI builds via the loop
 
 ```bash
-./ssh-dev.sh --msi            # also builds AfpServerInstaller-<version.h>.msi
+./ssh-dev.sh --msi            # also builds MacFile-<version.h>.msi
 ./ssh-dev.sh --msi-install    # ...and installs it in the guest (major upgrade)
 ```
 

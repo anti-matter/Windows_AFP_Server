@@ -1,4 +1,4 @@
-:: Install/Uninstall components for the Personal AFP Server
+:: Install/Uninstall components for MacFile
 :: This script performs the following:
 ::   1. Sets up the configuration needed to enable event logging (viewed from the EventViewer app)
 ::      and counters in the Performance Monitor (PerfMon).
@@ -43,12 +43,12 @@ if '%errorlevel%' NEQ '0' (
 for /f "usebackq tokens=1,2,*" %%B IN (`reg query "HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders" /v Desktop`) do set DESKTOP=%%D
 
 :: Locations and names of our items
-set productname=Personal AFP Server
+set productname=MacFile
 set manufacturer=AfpServer
 
 if "%~1" == "-u" goto uninstall
 
-echo Installing Personal AFP Server for Windows...
+echo Installing MacFile for Windows...
 echo Installing into %~dp0
 
 :: Register only when an installation is found next to this script (works for
@@ -72,8 +72,9 @@ lodctr.exe /M:afpServer.man
 :: why this script requires elevation (the MSI runs it as SYSTEM).
 :: Delete-then-add keeps upgrades and repairs idempotent.
 echo Opening Windows Firewall for AFP (inbound TCP 548)...
+netsh advfirewall firewall delete rule name="MacFile (TCP 548)" >nul 2>&1
 netsh advfirewall firewall delete rule name="Personal AFP Server (TCP 548)" >nul 2>&1
-netsh advfirewall firewall add rule name="Personal AFP Server (TCP 548)" dir=in action=allow protocol=TCP localport=548 program="%~dp0afpServer.exe" profile=any
+netsh advfirewall firewall add rule name="MacFile (TCP 548)" dir=in action=allow protocol=TCP localport=548 program="%~dp0afpServer.exe" profile=any
 
 echo Installation complete!
 
@@ -81,7 +82,7 @@ goto end
 
 :: Uninstall components
 :uninstall
-echo Uninstalling Personal AFP Server for Windows tools...
+echo Uninstalling MacFile for Windows tools...
 
 wevtutil.exe um afpServer.man
 unlodctr.exe /M:afpServer.man
@@ -89,6 +90,7 @@ unlodctr.exe /M:afpServer.man
 :: Remove the firewall rule added at install time (name-based, so it works
 :: even if the install folder was customized or already removed).
 echo Removing Windows Firewall rule for AFP (TCP 548)...
+netsh advfirewall firewall delete rule name="MacFile (TCP 548)" >nul 2>&1
 netsh advfirewall firewall delete rule name="Personal AFP Server (TCP 548)" >nul 2>&1
 
 echo .

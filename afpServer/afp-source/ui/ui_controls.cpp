@@ -8,7 +8,7 @@
 
 namespace
 {
-    constexpr auto toggle_class_name = L"PersonalAfpToggleSwitch";
+    constexpr auto toggle_class_name = L"MacFileToggleSwitch";
     constexpr auto btn_style_prop = L"AfpFluentBtnStyle";
     constexpr auto btn_hot_prop = L"AfpFluentBtnHot";
     constexpr auto btn_surface_prop = L"AfpFluentBtnSurface";

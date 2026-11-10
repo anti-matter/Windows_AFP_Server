@@ -25,7 +25,7 @@
 #include "dsi/dsi_init.h"
 
 #define AFP_ICON_UID		IDI_TRAYICON
-#define AFP_TOOL_TIP		TEXT("Personal AFP Server")
+#define AFP_TOOL_TIP		TEXT("MacFile")
 
 HINSTANCE gh_instance;
 
@@ -519,9 +519,9 @@ void tray_icon_on_taskbar_created(
 namespace
 {
     constexpr const wchar_t* single_instance_mutex_name =
-        L"Local\\{4C1F0A6E-9B7D-4E2C-8A53-1F6D2C9B4E77}-PersonalAFPServer-SingleInstance";
+        L"Local\\{4C1F0A6E-9B7D-4E2C-8A53-1F6D2C9B4E77}-MacFile-SingleInstance";
     constexpr const wchar_t* startup_ready_event_name =
-        L"Local\\{4C1F0A6E-9B7D-4E2C-8A53-1F6D2C9B4E77}-PersonalAFPServer-Ready";
+        L"Local\\{4C1F0A6E-9B7D-4E2C-8A53-1F6D2C9B4E77}-MacFile-Ready";
 
     // Kept open for the lifetime of the primary process.
     HANDLE g_single_instance_mutex = nullptr;
@@ -660,9 +660,9 @@ namespace
             DBGWRITE(dbg_level_error,
                      L"single-instance: primary holds the mutex but its window was not found\n");
             MessageBoxW(nullptr,
-                        L"Personal AFP Server is already running, but its configuration window "
+                        L"MacFile is already running, but its configuration window "
                         L"could not be found. No second server was started.",
-                        L"Personal AFP Server",
+                        L"MacFile",
                         MB_OK | MB_ICONWARNING);
             return;
         }
@@ -688,10 +688,10 @@ namespace
             DBGWRITE(dbg_level_error,
                      L"single-instance: AFPWM_SHOW_WINDOW send failed (%d)\n", GetLastError());
             MessageBoxW(nullptr,
-                        L"Personal AFP Server is already running, but it did not respond to the "
+                        L"MacFile is already running, but it did not respond to the "
                         L"request to show its configuration window (it may be busy or "
                         L"unresponsive). No second server was started.",
-                        L"Personal AFP Server",
+                        L"MacFile",
                         MB_OK | MB_ICONWARNING);
             return;
         }

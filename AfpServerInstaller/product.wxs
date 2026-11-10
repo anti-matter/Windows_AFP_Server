@@ -3,7 +3,7 @@
      xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
 
   <!--
-    Personal AFP Server - MSI installer (WiX Toolset v4+ schema; built with the
+    MacFile - MSI installer (WiX Toolset v4+ schema; built with the
     "wix" .NET global tool:  wix build -arch x64 -d ProductVersion=X.Y.Z product.wxs)
 
     Replaces the legacy Visual Studio Installer Projects (.vdproj) build, which
@@ -25,8 +25,8 @@
   <?define ProductVersion=2.3.0?>
   <?endif?>
 
-  <Package Name="Personal AFP Server"
-           Manufacturer="AfpServer"
+  <Package Name="MacFile"
+           Manufacturer="MacFile"
            Language="1033"
            Version="$(var.ProductVersion)"
            UpgradeCode="{E80283F5-4FD1-4E9B-B690-095622D590D5}"
@@ -34,7 +34,7 @@
            Compressed="yes"
            InstallerVersion="200">
 
-    <SummaryInformation Description="Personal AFP Server [ProductVersion] for Windows (x64)"
+    <SummaryInformation Description="MacFile [ProductVersion] for Windows (x64)"
                         Keywords="AFP;Apple Filing Protocol;Windows" />
 
     <!-- Seamless update: an existing install (vdproj- or WiX-built) of any
@@ -55,29 +55,27 @@
     <Property Id="ARPURLINFOABOUT" Value="https://github.com/anti-matter/Windows_AFP_Server" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
-      <Directory Id="ManufacturerFolder" Name="AfpServer">
-        <Directory Id="INSTALLFOLDER" Name="Personal AFP Server">
-          <Component Id="AfpServerCore" Guid="{9C681358-E89C-4ADB-BC61-51A94D2713F8}">
-            <File Id="AfpServerExe" Source="..\afpServer\Release\afpServer.exe" KeyPath="yes" />
-            <File Id="LibCryptoDll" Source="..\afpServer\deps\openssl-1.1\lib\libcrypto-1_1-x64.dll" />
-            <File Id="InstallCmd" Source="..\install.cmd" />
-            <File Id="AfpServerMan" Source="..\afpServer\afpServer.man" />
-          </Component>
-        </Directory>
+      <Directory Id="INSTALLFOLDER" Name="MacFile">
+        <Component Id="AfpServerCore" Guid="{9C681358-E89C-4ADB-BC61-51A94D2713F8}">
+          <File Id="AfpServerExe" Source="..\afpServer\Release\afpServer.exe" KeyPath="yes" />
+          <File Id="LibCryptoDll" Source="..\afpServer\deps\openssl-1.1\lib\libcrypto-1_1-x64.dll" />
+          <File Id="InstallCmd" Source="..\install.cmd" />
+          <File Id="AfpServerMan" Source="..\afpServer\afpServer.man" />
+        </Component>
       </Directory>
     </StandardDirectory>
 
     <StandardDirectory Id="ProgramMenuFolder">
-      <Directory Id="AppMenuFolder" Name="Personal AFP Server">
+      <Directory Id="AppMenuFolder" Name="MacFile">
         <Component Id="AfpStartMenuShortcut" Guid="{922F29EA-12C1-40D2-A421-B80C5042CDD3}">
           <Shortcut Id="StartMenuShortcut"
-                    Name="Personal AFP Server"
+                    Name="MacFile"
                     Target="[INSTALLFOLDER]afpServer.exe"
                     WorkingDirectory="INSTALLFOLDER"
                     Icon="afpServer.Ico" />
           <RemoveFolder Id="RemoveAppMenuFolder" On="uninstall" />
           <RegistryValue Root="HKCU"
-                         Key="Software\AfpServer\Personal AFP Server"
+                         Key="Software\MacFile\Install"
                          Name="InstallShortcut"
                          Type="integer"
                          Value="1"
@@ -122,7 +120,7 @@
            covers zip deployments and every user who starts the app. -->
     </InstallExecuteSequence>
 
-    <Feature Id="Complete" Title="Personal AFP Server" Level="1"
+    <Feature Id="Complete" Title="MacFile" Level="1"
              AllowAdvertise="no" ConfigurableDirectory="INSTALLFOLDER">
       <ComponentRef Id="AfpServerCore" />
       <ComponentRef Id="AfpStartMenuShortcut" />

@@ -119,7 +119,7 @@ while ($true) {
                     Write-Result 'FAIL' 'exe built OK, but WiX tool not found - rerun setup-dev.ps1.'
                     continue
                 }
-                $msiName = "AfpServerInstaller-$ver.msi"
+                $msiName = "MacFile-$ver.msi"
                 $msiOut  = Join-Path $Local "out\$msiName"
                 New-Item -ItemType Directory -Force -Path (Split-Path $msiOut) | Out-Null
                 # cd into the installer dir: product.wxs uses ..\ relative

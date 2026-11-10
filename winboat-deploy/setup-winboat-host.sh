@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# setup-winboat-host.sh - Provision a CachyOS host to run the Personal AFP
-# Server inside a WinBoat (QEMU/KVM + Docker) Windows guest.
+# setup-winboat-host.sh - Provision a CachyOS host to run MacFile (the
+# Personal AFP Server) inside a WinBoat (QEMU/KVM + Docker) Windows guest.
 #
 # What it does (all steps idempotent):
 #   1. Verifies prerequisites (CachyOS/Arch, KVM, /dev/fuse, disk space)

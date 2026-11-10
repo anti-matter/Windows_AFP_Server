@@ -46,7 +46,7 @@ BOOL g_main_window_visible = FALSE;
 
 namespace
 {
-    constexpr auto window_class_name = L"PersonalAfpServerMainWindow";
+    constexpr auto window_class_name = L"MacFileMainWindow";
 
     // ---- layout metrics (96-DPI design units) ----------------------------
     constexpr int margin = 20;      // window side margins
@@ -492,7 +492,7 @@ namespace
         config.hwndParent = owner;
         config.hInstance = gh_instance;
         config.dwFlags = TDF_ALLOW_DIALOG_CANCELLATION;
-        config.pszWindowTitle = L"Personal AFP Server";
+        config.pszWindowTitle = L"MacFile";
         config.pszMainInstruction = heading;
         config.pszContent = content;
         config.dwCommonButtons = TDCBF_OK_BUTTON;
@@ -619,8 +619,8 @@ namespace
     {
         if (task_dialog_confirm(
                 g.hwnd,
-                L"Shut Down the AFP Server",
-                L"Stop the AFP server?",
+                L"Shut Down MacFile",
+                L"Stop the MacFile server?",
                 L"Connected Macintosh clients will be notified, then file sharing will stop. "
                 L"Any unfinished file transfers may be lost.",
                 L"Shut Down") != 100)
@@ -668,7 +668,7 @@ namespace
         if (menu == nullptr)
             return;
 
-        AppendMenuW(menu, MF_STRING, IDM_TRAY_OPEN, L"Open Personal AFP Server");
+        AppendMenuW(menu, MF_STRING, IDM_TRAY_OPEN, L"Open MacFile");
         AppendMenuW(menu, MF_STRING, IDM_TRAY_SEND, L"Send Message\u2026");
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
         AppendMenuW(menu, MF_STRING, IDM_TRAY_SHUTDOWN, L"Shut Down Server");
@@ -686,7 +686,7 @@ namespace
         nid.hWnd = g.hwnd;
         nid.uID = IDI_TRAYICON;
         nid.uFlags = NIF_TIP;
-        swprintf_s(nid.szTip, L"Personal AFP Server \u2014 Running \u00b7 %d client%s",
+        swprintf_s(nid.szTip, L"MacFile \u2014 Running \u00b7 %d client%s",
                    clients, clients == 1 ? L"" : L"s");
         Shell_NotifyIconW(NIM_MODIFY, &nid);
     }
@@ -747,7 +747,7 @@ namespace
                               static_cast<REAL>(client.right - text_x - ui_scale(230)),
                               static_cast<REAL>(ui_scale(28)));
             ui_draw::text(gfx, ui_theme::instance().font_title(),
-                          L"Personal AFP Server", rc, DT_LEFT, DT_TOP, p.text_primary);
+                          L"MacFile", rc, DT_LEFT, DT_TOP, p.text_primary);
         }
         {
             Gdiplus::RectF rc(static_cast<REAL>(text_x), static_cast<REAL>(ui_scale(44)),
@@ -2307,7 +2307,7 @@ HWND main_window_create(HINSTANCE instance)
     HWND hwnd = CreateWindowExW(
         WS_EX_APPWINDOW,
         window_class_name,
-        L"Personal AFP Server",
+        L"MacFile",
         style,
         initial.left, initial.top,
         initial.right - initial.left, initial.bottom - initial.top,

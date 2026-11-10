@@ -65,7 +65,7 @@ namespace
             Gdiplus::RectF rc(static_cast<REAL>(text_x), static_cast<REAL>(ui_scale(22)),
                               static_cast<REAL>(client.right - text_x - ui_scale(16)), static_cast<REAL>(ui_scale(28)));
             ui_draw::text(gfx, ui_theme::instance().font_title(),
-                          L"Personal AFP Server", rc, DT_LEFT, DT_TOP, p.text_primary);
+                          L"MacFile", rc, DT_LEFT, DT_TOP, p.text_primary);
         }
         {
             const std::wstring version = string_to_wide_string(VER_FILE_SHORT_VERSION_STR, CP_UTF8);
