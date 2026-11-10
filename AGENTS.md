@@ -12,7 +12,7 @@ executable: a tray-icon app with dialog-based share configuration. It is *not*
 an MFC or .NET project — plain Win32 API.
 
 User-facing documentation lives in the
-[wiki](https://github.com/anti-matter/Windows_AFP_Server/wiki). The AFP
+[wiki](https://github.com/anti-matter/MacFile/wiki). The AFP
 protocol reference is `afpServer/ref/afp3XX.pdf` (Apple's AFP 3.x spec) —
 consult it before changing protocol behavior.
 

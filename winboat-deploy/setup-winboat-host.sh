@@ -27,7 +27,7 @@
 set -Eeuo pipefail
 
 # ---------------------------------------------------------------- constants --
-readonly MSI_URL="https://github.com/anti-matter/Windows_AFP_Server/releases/download/v2.1.0/AfpServerInstaller.msi"
+readonly MSI_URL="https://github.com/anti-matter/MacFile/releases/download/v2.1.0/AfpServerInstaller.msi"
 readonly MSI_SHA256="30048227b842b301bf3cf33fff5f20f516f89f60bfeec46f590fcbc1f6e8fb4f"
 readonly DEPLOY_DIR="${HOME}/afp-deploy"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

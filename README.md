@@ -1,6 +1,6 @@
 # MacFile — an Apple Filing Protocol server for Windows
 
-[![Build](https://github.com/anti-matter/Windows_AFP_Server/actions/workflows/build.yml/badge.svg)](https://github.com/anti-matter/Windows_AFP_Server/actions/workflows/build.yml)
+[![Build](https://github.com/anti-matter/MacFile/actions/workflows/build.yml/badge.svg)](https://github.com/anti-matter/MacFile/actions/workflows/build.yml)
 
 An Apple Filing Protocol (AFP) file server for Windows, designed to serve
 vintage Macintosh clients (System 7 with AppleShare Client 3.7.x through
@@ -12,9 +12,9 @@ A companion AFP server for **Haiku OS** — sharing the same protocol
 heritage, server icon, and Mac-fork conventions — lives at
 [MacFile_For_HaikuOS](https://github.com/anti-matter/MacFile_For_HaikuOS).
 
-See the [Wiki](https://github.com/anti-matter/Windows_AFP_Server/wiki) for
+See the [Wiki](https://github.com/anti-matter/MacFile/wiki) for
 setup guides and screenshots. Report bugs via
-[GitHub Issues](https://github.com/anti-matter/Windows_AFP_Server/issues).
+[GitHub Issues](https://github.com/anti-matter/MacFile/issues).
 
 <img width="1012" height="908" alt="image" src="https://github.com/user-attachments/assets/7bb80ab6-6f30-4136-8d5c-249a4ccdae03" />
 
@@ -155,7 +155,7 @@ SDK. C++20/C++17, `/W4` clean.
    `install.cmd`.
 
 Every push to `master` is built automatically by
-[GitHub Actions](https://github.com/anti-matter/Windows_AFP_Server/actions/workflows/build.yml),
+[GitHub Actions](https://github.com/anti-matter/MacFile/actions/workflows/build.yml),
 which uploads the built zip as an artifact — grab a prebuilt binary from a
 workflow run if you don't want to compile. Contributor notes (conventions,
 gotchas, the Linux→Windows SSH dev loop) are in
@@ -171,7 +171,7 @@ gotchas, the Linux→Windows SSH dev loop) are in
   `AfpServer.exe`.
 
 Configure shares from the tray icon or the main window. Full instructions
-are on the [Wiki](https://github.com/anti-matter/Windows_AFP_Server/wiki).
+are on the [Wiki](https://github.com/anti-matter/MacFile/wiki).
 
 ## Testing
 

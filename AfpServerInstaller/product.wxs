@@ -52,7 +52,7 @@
 
     <Icon Id="afpServer.Ico" SourceFile="..\afpServer\resources\afpServer.Ico" />
     <Property Id="ARPPRODUCTICON" Value="afpServer.Ico" />
-    <Property Id="ARPURLINFOABOUT" Value="https://github.com/anti-matter/Windows_AFP_Server" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/anti-matter/MacFile" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="INSTALLFOLDER" Name="MacFile">

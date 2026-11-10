@@ -92,7 +92,7 @@ namespace
             Gdiplus::RectF rc(static_cast<REAL>(ui_scale(25)), static_cast<REAL>(ui_scale(138)),
                               static_cast<REAL>(client.right - ui_scale(50)), static_cast<REAL>(ui_scale(18)));
             ui_draw::text(gfx, ui_theme::instance().font_caption(),
-                          L"github.com/anti-matter/Windows_AFP_Server",
+                          L"github.com/anti-matter/MacFile",
                           rc, DT_LEFT, DT_TOP, p.text_tertiary);
         }
 
